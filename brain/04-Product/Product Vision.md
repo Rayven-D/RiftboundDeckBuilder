@@ -30,7 +30,8 @@ they can actually build from it, or how few cards they'd need to buy to get ther
 - Accounts & saved collections · near-miss suggestions ("buy these 3 cards to unlock 4 decks")
 - Card-substitution suggestions · price data · collection scanning by camera · alerts when the meta shifts
 
+## Decided
+See [[ADR-0005 MVP Product Defaults]]: browser-only storage, variants count as the same card, banned decks shown with a label, Riot data only.
+
 ## Open questions
-- Do we treat printings and variants (foil, alt-art) as the same card for matching? (likely yes, but confirm)
-- Do we need accounts for MVP, or is local-only (browser storage) enough?
 - Which regions and events do we include? (Decided: the full Top 8, with placing labels.)
