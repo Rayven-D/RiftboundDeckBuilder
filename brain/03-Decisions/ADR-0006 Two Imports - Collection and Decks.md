@@ -37,7 +37,7 @@ wrong. RJ clarified the product model on 2026-11-23.
 
 ### Tournaments
 - Stays its own screen: recent events with their full Top 8 and placing labels (ADR-0003).
-  Its decks are not shown in Your decks unless the user adds one (open question below).
+  Its decks are not shown in Your decks unless the user adds one with "Add to Your decks".
 
 ## Consequences
 - SPEC-003 Collection Import covers owned cards only. New **SPEC-006 Deck Import**.
@@ -48,6 +48,8 @@ wrong. RJ clarified the product model on 2026-11-23.
   applies to the Tournaments screen only (banned decks shown with a label).
 - User decks and tags are stored in the browser, like the collection (ADR-0005).
 
-## Open questions
-- Can a user add a tournament Top 8 deck to Your decks with one click (as if they'd imported it)?
-- Direction of the partial colour fill (bottom-up, left-to-right, ...).
+## Follow-up decisions (RJ, 2026-11-23)
+- **Partial fill runs left to right:** owning 1 of 3 colours the left third of the card, and the
+  rest stays darkened.
+- **One-click "Add to Your decks"** on every Top 8 deck in Tournaments. It copies the list into Your
+  decks as if imported, with the event and placing recorded as its source.
