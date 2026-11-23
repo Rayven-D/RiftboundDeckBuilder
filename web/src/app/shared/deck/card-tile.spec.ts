@@ -35,4 +35,10 @@ describe('CardTile', () => {
     expect(el.querySelector('.art')?.classList).toContain('art--none');
     expect(el.textContent).toContain('0 of 2 owned');
   });
+
+  it('marks the image decorative because the name is shown in the heading', () => {
+    const el = render({ name: 'Rally Banner', owned: 1, required: 3, imageUrl: 'card.png' });
+    expect(el.querySelector('img')?.getAttribute('alt')).toBe('');
+    expect(el.querySelector('h3')?.textContent).toBe('Rally Banner');
+  });
 });
