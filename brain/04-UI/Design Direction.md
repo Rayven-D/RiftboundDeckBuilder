@@ -21,6 +21,10 @@ centrepiece. The Legal Jibber Jabber notice always sits in the footer.
 - **Icons:** inline SVG from Material Symbols (Apache 2.0) through `app-icon` (`web/src/app/shared/icon.ts`); only the icons in use are shipped, instead of a 4 MB icon font and with no Google Fonts request.
 - **Built (branch `loop/ui-direction-a`):** theme and tokens, header, `app-ownership-chip`, `app-card-tile` (full / partial left-to-right / none treatment, 1 px divider at the fill edge), `app-deck-heading`, and a preview page at `/styleguide` (sample data, not in the nav).
 
+## Screen names (RJ, 2026-11-23)
+- Tabs and page titles are **Decks** and **Collection** (were "Your decks" and "My collection"). "Collection" over "Cards": "Cards" reads as a database of every card (a likely later feature), while Collection is what you own and matches the Import card's title.
+- In running text and buttons, keep plain sentence wording: "Add to your decks", "In your decks", "one click into your decks".
+
 ## Home page and headline font (RJ, 2026-11-23)
 - Reference: riftatlas.com (layout ideas only; our own identity). Ideas came from ui-builder; RJ picked:
   - **`/` is the home page for everyone** (was a redirect to `/decks`); the wordmark links home; unknown paths go home.
@@ -101,3 +105,4 @@ fantasy-UI styling.
 - 2026-11-23: Corners too sharp: slight 4-8px radius on cards, buttons, chips, dialogs (tabs top-only). Deck import accepts "MainDeck" / "Main Deck" and "RunePool" / "Rune Pool".
 - 2026-11-23: "Something like riftatlas.com": home page at `/`, headline "Import what you own. See what you can build.", ownership fan, Archivo for headlines.
 - 2026-11-23: "There's already a Rift Decks": renamed to **Rift Builder**.
+- 2026-11-23: Renamed tabs "Your decks" → "Decks" and "My collection" → "Collection".

@@ -20,12 +20,12 @@ describe('routes', () => {
 
   it('renders /decks', async () => {
     const harness = await RouterTestingHarness.create('/decks');
-    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain('Your decks');
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain('Decks');
   });
 
   it.each([
     ['/import', 'Import'],
-    ['/collection', 'My collection'],
+    ['/collection', 'Collection'],
     ['/tournaments', 'Tournaments'],
     ['/decks/abc', 'Deck detail'],
     ['/styleguide', 'Kennen: ASC Evansrhim'],
