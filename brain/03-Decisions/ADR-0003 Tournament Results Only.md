@@ -11,8 +11,9 @@ play rates, win rates, and matchup data (see [[Card Data & Images]]). Our origin
 decks by meta strength would conflict with that.
 
 ## Decision (RJ, 2026-11-23)
-- The app shows **recent tournament results**: for each event, the winning deck(s) and their
-  decklists, with the event, date, region, and placing exactly as published.
+- The app shows **recent tournament results**: for each event, the **full published Top 8**
+  (or whatever top cut Riot publishes) with their decklists, each labelled with its placing
+  (1st–8th) exactly as published, plus the event, date, and region.
 - **No computed statistics**: no play rates, win rates, matchup data, tier lists, archetype
   shares, or "meta score". We don't store any of these either.
 - "Decks I can build" is sorted by **how complete the deck is from your collection**, then by
@@ -24,4 +25,4 @@ decks by meta strength would conflict with that.
 ## Consequences
 - SPEC-004 is renamed [[Tournament Deck Catalog]]. It has no scoring formula.
 - New check V-010: no metagame statistics in app data, the API, or the UI.
-- Open question for RJ: winners only, or all published top placings (e.g. the Top 8) with their placing labels?
+- RJ confirmed (2026-11-23): show the full Top 8 with placing labels.
