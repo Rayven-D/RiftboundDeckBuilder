@@ -8,13 +8,13 @@ import { EmptyState } from '../../shared/empty-state';
   template: `
     <header class="page-header">
       <h1>Your decks</h1>
-      <p class="page-lede">Tournament Top 8 decks, sorted by how much of each you already own.</p>
+      <p class="page-lede">Decks you've imported. Cards you own are shown in full color.</p>
     </header>
     <app-empty-state
       heading="No decks to show yet"
-      message="Import your collection to see which tournament decks you can build."
+      message="Import a deck to see which of its cards you own."
     >
-      <a class="button" routerLink="/import">Import collection</a>
+      <a class="button" routerLink="/import">Import a deck</a>
     </app-empty-state>
   `,
 })

@@ -1,6 +1,6 @@
 ---
 tags: [handoffs, loop]
-next_id: 29
+next_id: 32
 ---
 # Handoff Board
 
@@ -14,7 +14,9 @@ The loop's state. See [[Loop Protocol]]. One row per item. Take the next ID from
 |---|---|---|---|---|---|---|---|---|---|
 | H-020 | P0 | RJ | needs-RJ | — | validator | Fetch one live Riot API response on your PC (the sandboxes are blocked) and save it to `data/raw/riftbound-content-en.json` (the PowerShell command is in the Session Log) | File exists, valid JSON | 0 | [[Card Data Model]] |
 | H-023 | P1 | RJ | needs-RJ | — | ui-builder | UI review gate: run the app (`cd web; npm install; npx ng serve`), pick design direction A/B/C + accent, wordmark and nav OK? (product defaults are answered in ADR-0005) | Choice recorded in [[Design Direction]] | 0 | [[Design Direction]] |
-| H-026 | P1 | spec-writer | todo | — | RJ | Apply [[ADR-0005 MVP Product Defaults]]: SPEC-001 remove the alias and release-date tables; SPEC-002 set legality from the API's released sets plus Riot-published dates only; SPEC-004 CAT-042/043 show banned decks by default with a label; SPEC-003 confirm IMP-048/053 | Specs bumped to 0.2; validator re-check | 0 | [[ADR-0005 MVP Product Defaults]] |
+| H-026 | P1 | spec-writer | todo | — | RJ | Apply [[ADR-0005 MVP Product Defaults]]: SPEC-001 remove the alias and release-date tables; SPEC-002 set legality from the API's released sets plus Riot-published dates only; SPEC-004: remove CAT-042/043 (Your decks no longer shows tournament decks, per ADR-0006); banned decks are labelled on the Tournaments screen; SPEC-003 confirm IMP-048/053 | Specs bumped to 0.2; validator re-check | 0 | [[ADR-0005 MVP Product Defaults]] |
+| H-030 | P1 | spec-writer | todo | — | RJ | SPEC-006 Deck Import: import community decklists (Riot-style sectioned text, plain qty + name, Piltover deck codes, TTS; reuse the SPEC-003 parsers); deck name, source/URL, notes; legality check on import (SPEC-002) shown but never blocking; stored in the browser | as H-003 | 0 | [[ADR-0006 Two Imports - Collection and Decks]] |
+| H-031 | P1 | spec-writer | todo | — | RJ | SPEC-007 My Collection: owned-card list; user tags (free text, many per card); sort/order/filter by name, any card attribute, or tag; default order = set order, then collector number, overnumbered included; stored in the browser. Also narrow SPEC-003 to owned cards only | as H-003 | 0 | [[ADR-0006 Two Imports - Collection and Decks]] |
 | H-015 | P1 | spec-writer | todo | — | validator | Align SPEC-001 ↔ SPEC-002: nullable/unknown `domains`/`isSignature`/`isChampion`/`championTag`; one champion field name; overnumbered → `variant.kind`; `type`/`category` mapping; define `catalogVersion`; CARD-036 set+number lookup → MUST with collector-number normalization; SPEC-003 A1 resolved / A2 bound to CARD-036 | Validator re-check of the cross-spec issues passes | 0 | [[Card Data Model]] |
 | H-016 | P1 | spec-writer | todo | — | validator | SPEC-004: FormatId `standard` (also in the Decklist template), `cardKey` instead of `cardId`, DecklistLegality ↔ LegalityResult mapping (historical = LEGAL-016 fail; handling `incomplete`) | as H-015 | 0 | [[Tournament Deck Catalog]] |
 | H-017 | P1 | spec-writer | todo | — | validator | Fix the ACs that are wrong under CARD-030 (SPEC-001 AC5, SPEC-003 AC10, SPEC-004 AC7) and the IMP-006 printing count (1,451) | as H-015 | 0 | [[Spec Index]] |
@@ -25,7 +27,7 @@ The loop's state. See [[Loop Protocol]]. One row per item. Take the next ID from
 | H-024 | P1 | ui-builder | blocked | H-023 | ui-builder | Apply the chosen design direction to the tokens; original favicon (no Riot marks) | V-008, V-012 | 0 | [[Design Direction]] |
 | H-025 | P2 | validator | todo | — | ui-builder | Activate V-008 for web/ (lint, build, test) and extend V-010 search terms for cross-deck counts and shares (CAT-061/063) | Validation Checks updated | 0 | [[Validation Checks]] |
 | H-011 | P2 | RJ | needs-RJ | H-009 | researcher | Once there's a working local prototype, put a demo or mockup at a reachable URL and apply via Register Product ([[Riot App Application]]). Ask in an App Note: (a) caching vs. hotlinking card images, (b) whether decklists hand-copied from Riot's articles are OK, (c) storing an API snapshot locally for development, (d) a permitted source for TCGplayer IDs | Application submitted with the App Note | 0 | [[Riot Developer Rules]] |
-| H-007 | P2 | spec-writer | todo | H-015, H-016, H-026 | RJ | SPEC-005 Build Matching (sort by completion %, then event recency) | as H-003; V-010 | 0 | [[Spec Index]] |
+| H-007 | P1 | spec-writer | todo | H-015, H-016, H-026, H-030, H-031 | RJ | SPEC-005 Your Decks Ownership View (replaces Build Matching): per-card owned/required by name; full colour / darkened-but-readable / partial colour fill by fraction; ban status and card info on every card; deck-level summary | as H-003; V-010 | 0 | [[ADR-0006 Two Imports - Collection and Decks]] |
 | H-008 | P1 | service-builder | todo | H-015 | RJ | Scaffold the TypeScript API in `services/`, host-neutral per ADR-0001, and the card data pipeline from the Riot API using the dev key in `.env`, snapshotted to `data/`. No Riftcodex ([[Riot Developer Rules]]) | V-003, V-008, V-011, V-012 activated and passing | 0 | [[API Contracts]] |
 | H-012 | P3 | RJ | blocked | MVP complete | RJ | Choose hosting: Firebase vs. AWS, whichever is cheaper | ADR-0004 accepted | 0 | [[ADR-0004 Hosting (Deferred)]] |
 

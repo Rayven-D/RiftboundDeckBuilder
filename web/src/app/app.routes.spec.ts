@@ -15,7 +15,7 @@ describe('routes', () => {
   });
 
   it.each([
-    ['/import', 'Import collection'],
+    ['/import', 'Import'],
     ['/collection', 'My collection'],
     ['/tournaments', 'Tournaments'],
     ['/decks/abc', 'Deck detail'],

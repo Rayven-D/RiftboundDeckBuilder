@@ -77,4 +77,4 @@ Total: 15 cards and 7 battlefields, which matches the Rules Hub count.
 - The regional (KR/TW) ban lists aren't published in detail. This only matters if we support those regions.
 
 ## Impacts
-_Which specs this affects:_ [[Deck Legality]] (versioned ban list with effective dates, per format and region) · [[Tournament Deck Catalog]] (all Top 8 decks from RC Europe are now illegal) · [[Build Matching]]
+_Which specs this affects:_ [[Deck Legality]] (versioned ban list with effective dates, per format and region) · [[Tournament Deck Catalog]] (all Top 8 decks from RC Europe are now illegal) · [[Your Decks Ownership View]]

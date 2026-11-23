@@ -23,10 +23,11 @@ everything done.
 
 ## Responsibilities
 - Code lives in `web/`.
-- Key screens: **Import collection** (paste or upload, with parse errors shown clearly),
-  **My collection** (card grid with images and filters), **Your decks** (sorted by
-  completion %, then event recency; placing shown as a label), **Deck detail** (event + placing, each card marked owned or missing, a missing
-  list, and a copyable export).
+- Key screens (see ADR-0006): **Import** with two modes, owned cards → My collection and a deck → Your decks (paste or upload, with parse errors shown clearly),
+  **My collection** (owned cards, user tags, sort and filter by name, attribute or tag; default
+  set → collector number order), **Your decks** (imported community decks; each card in full
+  colour if owned, darkened but readable if not, partly coloured by the owned fraction; ban status
+  on every card), **Deck detail**, and **Tournaments** (events, Top 8 with placing labels).
 - Use the official card images as the API provides them. Lazy-load, reserve the right aspect
   ratio so the layout doesn't shift, and add a graceful fallback for missing images.
 - **Own visual identity:** never use Riot or Riftbound logos, and don't imitate Riot's official site or game UI ([[Riot Developer Rules]]). Card art is fine. Include the Legal Jibber Jabber notice in the footer.

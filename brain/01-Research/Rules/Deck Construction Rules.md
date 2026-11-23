@@ -51,4 +51,4 @@ Sources: Core Rules and Tournament Rules, both "last updated 2026-10-09" (no ver
 - The PDFs were read via an extraction tool and only partly paraphrased. Re-read 103.x and 601.x directly when writing the spec.
 
 ## Impacts
-_Which specs this affects:_ [[Deck Legality]] · [[Build Matching]] · [[Card Data Model]] (card name as the copy-limit key; domain, champion tag and signature flags)
+_Which specs this affects:_ [[Deck Legality]] · [[Your Decks Ownership View]] · [[Card Data Model]] (card name as the copy-limit key; domain, champion tag and signature flags)

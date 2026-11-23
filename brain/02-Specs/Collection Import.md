@@ -10,7 +10,7 @@ as_of: 2026-11-23
 # SPEC-003: Collection Import
 
 ## Purpose
-Let a user bring the cards they **physically own** into the app, so [[Build Matching]] can compare
+Let a user bring the cards they **physically own** into the app, so [[Your Decks Ownership View]] can compare
 that collection against published tournament decklists. An import produces a **collection** (owned
 count per card), not a deck: section labels, deck structure, and legality are irrelevant here.
 

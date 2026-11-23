@@ -13,17 +13,21 @@ they can actually build from it, or how few cards they'd need to buy to get ther
 - Our own branding: no Riot or Riftbound logos.
 
 ## Core loop
-1. **Import** your physical collection (paste a list, upload a CSV, or import from other tools).
-2. **Match** it against the Top 8 decks from recent tournaments.
-3. **See** which of those decks you can build, sorted by completion % then how recent the event is, with official card images.
-4. **Drill in** to a deck: each card marked owned or missing, with a missing-cards shopping list.
+1. **Import your cards:** bring in the cards you own from another app into **My collection**, then tag, sort and filter them.
+2. **Import decks:** bring in community decks from forums and deck sites into **Your decks**.
+3. **See what you own:** each deck shows every card with its info and ban status. Owned cards are in full colour, missing ones are darkened, and partly owned ones are partly coloured (1 of 3 → ⅓).
+4. **Browse tournaments:** recent events and their Top 8 decks with placings.
+
+See [[ADR-0006 Two Imports - Collection and Decks]].
 
 ## MVP scope
-- [ ] Card database with official images
-- [ ] Collection import (text list + CSV)
-- [ ] Tournament deck catalog: recent events and their winning decklists (no meta stats, see [[ADR-0003 Tournament Results Only]])
-- [ ] Legality check against the current rules and ban list
-- [ ] "Your decks" view + deck detail
+- [ ] Card database with official images (Riot API)
+- [ ] Owned-card import into My collection
+- [ ] Deck import into Your decks
+- [ ] Your decks view: ownership colouring, ban status per card
+- [ ] My collection: tags, sort/filter, default set + collector-number order
+- [ ] Legality and ban checks (official rules)
+- [ ] Tournaments: recent events, Top 8 with placings
 
 ## Later
 - Hosting on Firebase or AWS, whichever is cheaper (deferred: [[ADR-0004 Hosting (Deferred)]])
