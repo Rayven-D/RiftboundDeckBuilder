@@ -25,9 +25,17 @@ write when you learn.**
 | `spec-writer` | Turns research into precise, testable specs | `brain/02-Specs/` |
 | `service-builder` | Backend services & data pipeline, built from specs | `services/`, `brain/05-Services/` |
 | `ui-builder` | Front end, built collaboratively with RJ | `web/`, `brain/04-UI/` |
+| `validator` | Verifies every item; routes failures back | `brain/07-Loop/`, Handoff Board |
 
 Flow: **researcher → spec-writer → service-builder → ui-builder**, with RJ in the loop on UI
 and on every ADR. Any agent can post a request to the Handoff Board.
+
+## The closed loop
+
+- `/loop [rounds]`: works the Handoff Board (pick → build → validate → merge into `dev`) until a gate. See `brain/07-Loop/Loop Protocol.md`.
+- `/research-refresh [focus]`: checks for new bans, sets, events, and meta, and files board items for what changed. Also runs weekly on a schedule.
+- `validator` agent: nothing is `done` until it passes. Failures become new board items.
+- Git: `loop/<ID>-<slug>` branches → `dev`. Only RJ merges `dev` → `main`. Never push.
 
 ## Ground rules
 

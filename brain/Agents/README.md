@@ -7,6 +7,8 @@ To install or refresh them, copy the agent files into `.claude/agents/`:
 ```powershell
 New-Item -ItemType Directory -Force .claude\agents | Out-Null
 Copy-Item brain\Agents\*.md .claude\agents\ -Exclude README.md
+New-Item -ItemType Directory -Force .claude\commands | Out-Null
+Copy-Item brain\Agents\commands\*.md .claude\commands\
 ```
 
 Edit the copies here, then re-run the copy.
@@ -17,3 +19,6 @@ Edit the copies here, then re-run the copy.
 | Spec writer | [[spec-writer]] |
 | Service builder | [[service-builder]] |
 | UI builder | [[ui-builder]] |
+| Validator | [[validator]] |
+
+Commands: [[loop]] (`/loop`), [[research-refresh]] (`/research-refresh`)

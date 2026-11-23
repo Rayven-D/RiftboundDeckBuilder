@@ -15,6 +15,7 @@ tags: [moc]
 - [[API Contracts]]: service ↔ UI contract (service-builder)
 - [[Handoff Board]]: requests between agents
 - [[Session Log]]: what happened, when
+- [[Loop Protocol]] · [[Validation Checks]] · [[Change Feed]]: the closed dev loop
 
 ## Folders
 | Folder | Purpose | Owner |
@@ -26,6 +27,7 @@ tags: [moc]
 | `04-Product` / `04-UI` | Vision, screens, design | RJ + ui-builder |
 | `05-Services` / `05-Handoffs` | API contracts, agent requests | service-builder / all |
 | `06-Sessions` | Session log | all |
+| `07-Loop` | Loop protocol, validation checks & runs | validator |
 | `Templates` | Note templates | — |
 
 ## Pipeline
