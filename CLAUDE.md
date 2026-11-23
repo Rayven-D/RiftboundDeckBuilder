@@ -1,4 +1,4 @@
-# Riftbound Deck Builder
+# Rift Decks
 
 A web app for Riftbound TCG players: import the cards you **physically own**, then see which
 competitive ("meta") decks you can build right now, which are close, and exactly which cards
