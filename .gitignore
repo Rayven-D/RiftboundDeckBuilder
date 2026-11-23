@@ -35,3 +35,10 @@ desktop.ini
 
 # Firebase
 .firebase/
+
+# Agent skills installed from skills-lock.json (re-installable)
+.agents/
+
+# Card snapshot written by ingest:cards / ingest:fixture (regenerable)
+data/cards.json
+data/cards.report.json
