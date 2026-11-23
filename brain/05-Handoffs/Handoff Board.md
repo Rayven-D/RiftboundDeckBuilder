@@ -1,6 +1,6 @@
 ---
 tags: [handoffs, loop]
-next_id: 27
+next_id: 28
 ---
 # Handoff Board
 
@@ -32,6 +32,7 @@ The loop's state. See [[Loop Protocol]]. One row per item. Take the next ID from
 ## Done
 | ID | Owner | Request | Result |
 |---|---|---|---|
+| H-027 | ui-builder | Straight button borders (RJ feedback) | Square corners on nav links and .button; active state is a straight accent bottom border ([[Design Direction]]) |
 | H-003 | spec-writer | SPEC-001 Card Data Model | PASS v0.1 draft, 45 reqs; follow-ups H-015, H-017 ([[Card Data Model]]) |
 | H-004 | spec-writer | SPEC-002 Deck Legality | PASS v0.1 draft, 43 reqs, 4 ban waves as data; follow-up H-015 ([[Deck Legality]]) |
 | H-005 | spec-writer | SPEC-003 Collection Import | PASS v0.1 draft, 57 reqs; follow-ups H-017, H-018 ([[Collection Import]]) |
