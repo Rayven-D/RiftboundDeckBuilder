@@ -38,6 +38,7 @@ Sources: Core Rules and Tournament Rules, both "last updated 2026-10-09" (no ver
 | 12 | **Proxies aren't allowed.** Official cards in **any language** are legal. Alters are allowed within limits. (TR 419–420) | Tournament Rules PDF | 2026-11-23 |
 | 13 | A reprint numbered outside a set's normal range (for example 300/250) **does not automatically become legal** with that set. (TR 601.2.c) | Tournament Rules PDF | 2026-11-23 |
 | 14 | **Limited (Sealed):** 6 boosters, **main deck at least 25**, **no copy limit**, domain identity of any three domains (or a domain plus the Legend's domains), and runes matching it. **Draft:** 3 boosters, **main deck at least 20**. Basic runes and blank battlefields can come from any source. (TR 602) | Tournament Rules PDF | 2026-11-23 |
+| 15 | **Card types by section:** Legends and Battlefields are separate card types and are never Main Deck cards (Core 133.6, 170, 174). Runes aren't Main Deck cards either (161.1). There are six basic runes (164.1), and the 3-copy limit (103.3.b) covers only the Main Deck, so runes have no per-name limit. The Chosen Champion is a normal Champion Unit, and same-name copies count as it (103.3.a.3). Tokens aren't cards (185.1). Detail and cross-deck implications: [[Physical Copies Across Decks]]. | Core Rules 2026-10-09 via riftjudge.com transcription (community-db) | 2026-11-23 |
 
 ## Validation checklist (for [[Deck Legality]])
 1. Exactly 1 Legend. 2. Main = 40 (constructed), including 1 Chosen Champion whose tag matches the Legend's.
