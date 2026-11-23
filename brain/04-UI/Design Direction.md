@@ -24,6 +24,7 @@ centrepiece. The Legal Jibber Jabber notice always sits in the footer.
 ## Corners (RJ, 2026-11-23, later the same day)
 - Square corners felt too sharp. Now a slight radius: **4px** small controls and chips (`--radius-sm`), **6px** buttons and card art (`--radius-md`), **8px** cards, panels and dialogs (`--radius-lg`). Material corner tokens match (buttons 6px, dialogs 8px, inputs 4px).
 - Nav tabs round the **top corners only**, so the active tab's 2px underline stays straight (earlier feedback).
+- Import cards keep their left (accent) side square so the blue edge is a straight bar; only the right corners are rounded.
 
 ## Import screen (RJ, 2026-11-23)
 - Two clickable cards (whole card is a button, with icon, accent edge and chevron): **Collection**, "Import cards to your collection", and **Deck**, "Import deck lists to your decks". Each opens a dialog (**Import collection** / **Import deck**).
