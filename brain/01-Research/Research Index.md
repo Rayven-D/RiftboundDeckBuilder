@@ -21,6 +21,7 @@ Owner: **researcher**. Every note needs sources and an *as-of* date. Status: `to
 ## Policy
 | Topic | Note | Status | Notes |
 |---|---|---|---|
+| Applying for a production key | [[Riot App Application]] | verified | Register Product, then the application; needs a reachable URL to a prototype or mockup |
 | Riot developer rules | [[Riot Developer Rules]] | verified | Development key = prototype only; the app stays free; no Riot logos or lookalike design; Riot API is the only data source |
 
 ## Decklists
