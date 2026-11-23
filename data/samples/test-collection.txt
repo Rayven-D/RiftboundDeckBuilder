@@ -1,0 +1,13 @@
+# Test collection for local development (plain-text: "<count> <card name>").
+# Cards from the 1st-place Kennen list (RC Europe 2026). Some counts are below
+# the deck's needs on purpose, to exercise partial ownership in Your decks.
+1 Kennen, Heart of the Tempest
+1 Kennen, Storm of Shuriken
+1 Lightning Rush
+3 Traveling Merchant
+2 Trifarian Captain
+2 Gust
+1 Edge of Night
+3 Seal of Discord
+6 Chaos Rune
+1 Minefield

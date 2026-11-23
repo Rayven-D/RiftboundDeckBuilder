@@ -1,0 +1,28 @@
+Legend:
+1 Sorrel, Tide Reader
+Champion:
+1 Sorrel, Quiet Current
+MainDeck:
+2 Sorrel, Quiet Current
+3 Tidepool Scholar
+3 Driftglass Sentry
+3 Recall Current
+3 Still Water
+3 Lantern Keeper
+3 Thought Snare
+3 Reef Warden
+3 Mirror Archive
+3 Undertow Mage
+3 Moonlit Ferry
+3 Glimmer Insight
+1 Saltwind Courier
+3 Sorrel's Undercurrent
+Battlefields:
+1 Quiet Harbor
+1 Sunken Library
+1 Lantern Steps
+Runes:
+7 Mind Rune
+5 Calm Rune
+Sideboard:
+1 Saltwind Courier

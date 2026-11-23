@@ -1,0 +1,31 @@
+Legend:
+1 Varrow, Ember Warden
+Champion:
+1 Varrow, Ashen Blade
+MainDeck:
+4 Cinder Recruit
+3 Kiln Brawler
+3 Flashfire
+3 Ironbark Hauler
+3 Stonehide Pup
+3 Furnace Charge
+3 Rampart Ox
+3 Ember Volley
+3 Trailbreaker
+3 Hearth Guardian
+3 Varrow's Last Stand
+2 Ashen Oath
+2 Chaos Gambit
+1 Recall Current
+Battlefields:
+1 Ashfall Crossing
+1 Ashfall Crossing
+1 Gallows Market
+Runes:
+6 Fury Rune
+5 Body Rune
+Sideboard:
+3 Forge Sprinter
+3 Bloodline Gauntlet
+3 Iron Magistrate
+2 Oathbound Squire
