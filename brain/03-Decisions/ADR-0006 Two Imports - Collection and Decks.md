@@ -53,3 +53,15 @@ wrong. RJ clarified the product model on 2026-11-23.
   rest stays darkened.
 - **One-click "Add to Your decks"** on every Top 8 deck in Tournaments. It copies the list into Your
   decks as if imported, with the event and placing recorded as its source.
+
+## Gate H-036 decisions (RJ, 2026-11-23)
+1. **"Add to Your decks" default name:** Legend + pilot + placing, e.g. `Kennen: ASC Evansrhim (1st, Regional Championship: Europe)`.
+2. **Already added:** the button reads **"In Your decks"** and opens the existing copy. A separate **"Add another copy"** link adds a second copy named `… (2)`.
+3. **My Collection treats every printing type separately.** Regular, foil, alt-art, overnumbered, and signature printings are each their own entry. When the user owns several copies of a printing, the entry shows a **count badge**. Default order is still set → collector number (`printingSortKey`).
+4. **Tags attach to printings**, not to card names. A tag on the foil doesn't apply to the regular copy.
+5. **Your decks groups by card name** regardless of printing (ownership by `cardKey`). Each card can **expand to show the exact printings** the user owns that count toward it.
+6. **Tags can be excluded from decks.** The user marks a tag as "exclude from decks" (e.g. a $500 collector card tagged `Collector`). Printings carrying an excluded tag still appear in My Collection, but **don't count toward ownership in Your decks** (the deck view can show them as "owned but excluded").
+7. Defaults chosen by Claude (RJ may change them): dates shown as `Nov 23, 2026`; an `incomplete` legality result is labelled **"Not fully checked"**.
+
+Note: RJ's row-layout answer said "per card name + expand", but his detailed answer applied that to Your decks and per printing to My Collection. Recorded as above. Ownership rule for SPEC-005: owned(cardKey) = Σ copies of that card's printings that carry no excluded tag.
+
