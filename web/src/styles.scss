@@ -111,7 +111,7 @@ h1 {
 .button {
   display: inline-block;
   padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   background: var(--color-accent);
   color: var(--color-accent-contrast);
   font-weight: 600;

@@ -57,3 +57,6 @@ fantasy-UI styling.
 - Choose a direction (A / B / C) and an accent colour.
 - Is the wordmark text OK as-is, or do you want a different product name?
 - Nav order: Decks, Collection, Import, Tournaments. Should Import be more prominent for first-time users?
+
+## RJ feedback
+- 2026-11-23: Simplify buttons. Square corners (`border-radius: 0`) on nav links and `.button`. The active nav state is a straight 2px bottom border in the accent colour (previously a curved inset shadow inside a rounded box).
