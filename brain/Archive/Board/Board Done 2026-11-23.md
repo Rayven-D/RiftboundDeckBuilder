@@ -8,6 +8,10 @@ reason: finished board items
 
 | ID | Owner | Request | Result |
 |---|---|---|---|
+| H-007 | spec-writer | SPEC-005 Your Decks Ownership View | PASS v0.1: 63 reqs, zone allocation main first, fill left to right, exclude-from-decks tags; follow-ups H-040 |
+| H-039 | spec-writer | Spec summaries + clean-ups | PASS: Summary blocks on all specs, changelogs archived, versions 0.3/0.4 |
+| H-030 | spec-writer | SPEC-006 Deck Import | PASS v0.2 (retry 1): one shared tournament source with SPEC-004, H-036 naming and duplicates |
+| H-034 | spec-writer | SPEC-007 v0.2 | PASS: per-printing entries + ×N badge, tags on printings, exclude from decks, deckOwnership() |
 | H-035 | spec-writer | SPEC-004 v0.3 | PASS |
 | H-037 | spec-writer | legal_as_of + display rules | PASS: legal_as_of = event start date; Nov 23, 2026; "Not fully checked" |
 | H-008 | service-builder | services scaffold | PASS (lint, build, 88 tests, fixture ingest); V-003 pending the live payload (H-020) |
