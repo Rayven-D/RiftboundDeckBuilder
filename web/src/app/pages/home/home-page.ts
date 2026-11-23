@@ -56,11 +56,12 @@ export class HomePage {
     },
   ];
 
+  /** Example deck panel, in ascending ownership: 0, 1, 2, then 3 copies owned. */
   protected readonly showcase: readonly FanCard[] = [
-    { name: 'Hextech Ray', owned: 3, required: 3, color: '#3f6fb8' },
+    { name: 'Void Gate', owned: 0, required: 2, color: '#6c4fa3' },
     { name: 'Rally Banner', owned: 1, required: 3, color: '#b8563a' },
     { name: 'Storm Caller', owned: 2, required: 3, color: '#2f8f6b' },
-    { name: 'Void Gate', owned: 0, required: 2, color: '#6c4fa3' },
+    { name: 'Hextech Ray', owned: 3, required: 3, color: '#3f6fb8' },
   ];
 
   protected art(card: FanCard, i: number): string {
