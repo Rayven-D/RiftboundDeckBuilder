@@ -68,11 +68,39 @@
   }
 }
 
+/* Phones: wordmark and Import on one row, the tabs on a scrollable row below. */
+@media (max-width: 40rem) {
+  .site-header {
+    gap: var(--space-2) var(--space-3);
+    padding-bottom: 0;
+  }
+
+  .wordmark {
+    font-size: var(--font-size-md);
+  }
+
+  .import-action {
+    margin-left: auto;
+  }
+
+  .site-nav {
+    order: 3;
+    flex-basis: 100%;
+    margin-right: 0;
+    overflow-x: auto;
+  }
+
+  .site-nav ul {
+    flex-wrap: nowrap;
+  }
+
+  .site-nav a {
+    white-space: nowrap;
+  }
+}
+
 /* Raised primary action: the accent fill plus a lift, so it reads above the flat tabs. */
 .import-action {
-  --mat-button-filled-container-color: var(--color-accent);
-  --mat-button-filled-label-text-color: var(--color-accent-contrast);
-  --mat-button-filled-label-text-weight: 600;
   --mat-button-filled-container-height: 40px;
 
   box-shadow:
@@ -86,10 +114,6 @@
     box-shadow:
       0 2px 4px rgb(0 0 0 / 30%),
       0 6px 14px rgb(0 0 0 / 28%);
-  }
-
-  app-icon {
-    font-size: 20px;
   }
 
   &.active {

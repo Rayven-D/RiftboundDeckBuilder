@@ -55,6 +55,24 @@ html {
       corner-full: 0,
     )
   );
+
+  /* Buttons use our accent and text colours, not Material's generated tones. */
+  @include mat.button-overrides(
+    (
+      filled-container-color: var(--color-accent),
+      filled-label-text-color: var(--color-accent-contrast),
+      filled-label-text-weight: 600,
+      outlined-label-text-color: var(--color-text),
+      outlined-outline-color: var(--color-border),
+      text-label-text-color: var(--color-accent),
+    )
+  );
+}
+
+/* Icons inside Material buttons: same size and spacing as mat-icon would get. */
+.mat-mdc-button-base app-icon {
+  margin-inline-end: var(--space-2);
+  font-size: 18px;
 }
 
 :root {
