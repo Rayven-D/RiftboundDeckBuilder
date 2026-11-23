@@ -156,7 +156,7 @@ These requirements apply only to the Owned Cards Import. SPEC-006 defines its ow
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | IMP-004 | MUST | Owned-card import MUST NOT check deck legality or bans. A banned card (e.g. `Nocturne, Horrifying`, banned as of 2026-11-23) is imported like any other owned card. Legality (format `standard`) is SPEC-002's concern. | [[Deck Construction Rules]], [[Ban List]] |
-| IMP-058 | MUST | The committed collection is the single source of ownership for [[My Collection]] (SPEC-007) and for the ownership view in [[Your Decks Ownership View]] (SPEC-005). Ownership is looked up by `cardKey` only (owned count = `cards[cardKey].quantity`, 0 if absent); `byPrinting` never affects ownership. | [[ADR-0006 Two Imports - Collection and Decks]]; [[ADR-0005 MVP Product Defaults]] #2; [[Card Data Model]] CARD-013 |
+| IMP-058 | MUST | The committed collection is the single source of ownership for [[My Collection]] (SPEC-007) and for the ownership view in [[Your Decks Ownership View]] (SPEC-005). Total owned is looked up by `cardKey` (`cards[cardKey].quantity`, 0 if absent). **Your decks does not read this total directly:** it uses SPEC-007's `deckOwnership(cardKey)` (COLL-081), which leaves out printings carrying an "exclude from decks" tag (ADR-0006, H-036). | [[ADR-0006 Two Imports - Collection and Decks]]; [[ADR-0005 MVP Product Defaults]] #2; [[Card Data Model]] CARD-013 |
 | IMP-060 | MUST | This flow starts from the **Owned Cards Import** option card on `/import` ("List of cards and their quantity you own"). The **Deck Import** option card starts SPEC-006 and never writes to the collection. | [[Design Direction]] RJ feedback 2026-11-23; [[ADR-0006 Two Imports - Collection and Decks]] |
 
 #### Merging, variants, commit
@@ -287,7 +287,7 @@ interface StoredCollection {
   schemaVersion: 1;
   updatedAt: string;          // ISO 8601
   catalogVersion: string;
-  cards: Record<CardKey, { quantity: number; byPrinting: Record<PrintingId, number> }>; // ownership = quantity (IMP-058)
+  cards: Record<CardKey, { quantity: number; byPrinting: Record<PrintingId, number> }>; // total owned = quantity; Your decks uses SPEC-007 deckOwnership() (IMP-058, COLL-081)
 }
 
 interface CollectionStore {   // MVP adapter: browser local storage (IMP-053)
