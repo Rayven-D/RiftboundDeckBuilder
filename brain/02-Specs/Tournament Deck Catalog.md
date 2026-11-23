@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-004
-version: 0.2
+version: 0.3
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-006]
 research: ["[[Tournament Results]]", "[[Ban List]]", "[[Formats]]", "[[Riot Developer Rules]]", "[[Collection Import Formats]]", "[[Deck Construction Rules]]"]
@@ -67,16 +67,16 @@ stored or shown. Legality of each list is **computed** by [[Deck Legality]] (SPE
 | CAT-014 | MUST | `mainDeck` holds the Main Deck section **as published (without the Chosen Champion)**; `champion` is a single card entry with `qty: 1`. Consumers that need the 40-card main deck MUST add the champion. | Decklist notes ("39 non-champion cards as published"); [[Deck Construction Rules]] fact 3–4 |
 | CAT-015 | MUST | `legend` and `champion` are stored as card entries (`cardKey` + published name). | [[Deck Construction Rules]] |
 | CAT-016 | MUST NOT | A decklist MUST NOT store a legality verdict as source data. Legality is **computed** at read time (or on every ban-data or catalog change) by SPEC-002 and exposed as `legality` (see CAT-045 and Data contract). A cached result MAY exist only if it carries the `asOf`, `banListDataVersion` and `catalogVersion` it was computed with and is recomputed when any of them changes. | [[Ban List]]; [[Deck Legality]] |
-| CAT-017 | MUST | Each decklist exposes `legality.asOf` (the `legal_as_of` date: today's date, the date the list was evaluated for), `legality.banListDataVersion`, `legality.catalogVersion`, `legality.verdict` (SPEC-002 `LegalityResult.verdict` as of today) and `legality.bannedCards`: one entry per LEGAL-016 violation as of today (card, Legend or battlefield), each with `cardKey`, published `name`, `kind`, `zone` and `bannedSince` (= the violation's `effectiveDate`). | [[Ban List]]; [[Deck Legality]] LEGAL-016, LEGAL-R04; board items H-006, H-016 |
-| CAT-018 | SHOULD | Each decklist also exposes `legality.legalAtEvent`: the status of **LEGAL-016 only** evaluated with `asOf` = the event's `startDate` (`pass` → `true`, `fail` → `false`, `not_evaluated` → `null`). It answers "no banned cards at the event"; it is not the full verdict at the event. For RC Europe all 8 lists give `true` (the Radiance wave took effect 2026-11-23). | [[Ban List]]; [[Deck Legality]] LEGAL-016 |
+| CAT-017 | MUST | Each decklist exposes `legality.asOf` (the **check date**: the date SPEC-002 evaluated the list for, usually today), `legality.banListDataVersion`, `legality.catalogVersion`, `legality.verdict` (SPEC-002 `LegalityResult.verdict` as of the check date) and `legality.bannedCards`: one entry per LEGAL-016 violation as of the check date (card, Legend or battlefield), each with `cardKey`, published `name`, `kind`, `zone` and `bannedSince` (= the violation's `effectiveDate`). `kind` is not carried by SPEC-002 `Violation`; it is looked up from `data/banlist.json`: call SPEC-002 `banStatus(cardKey, 'standard', 'global', asOf)` (LEGAL-B10), take the wave it names (`waveId`), and use the `kind` of that wave's `add` entry whose `nameKey(name)` equals the `cardKey` (LEGAL-B01, LEGAL-B05 guarantee exactly one such entry of the matching kind). **`legal_as_of` is not `asOf`:** in research notes `legal_as_of` is the date the published list is known to have been legal, which is the event's `startDate` (the list was registered and played then); it is the date `legalAtEvent` is checked at (CAT-018). The app always computes current legality itself (SPEC-002, as of the check date) and never stores a "legal now" value; the importer MUST NOT map a note's `legal_as_of` to any stored legality field (CAT-016). | [[Ban List]]; [[Deck Legality]] LEGAL-016, LEGAL-B01, LEGAL-B05, LEGAL-B10, LEGAL-R04; board items H-006, H-016, H-035, H-037 |
+| CAT-018 | SHOULD | Each decklist also exposes `legality.legalAtEvent`: the status of **LEGAL-016 only** evaluated with `asOf` = the event's `startDate` (= the research notes' `legal_as_of`, CAT-017) (`pass` → `true`, `fail` → `false`, `not_evaluated` → `null`). It answers "no banned cards at the event"; it is not the full verdict at the event. For RC Europe all 8 lists give `true` (the Radiance wave took effect 2026-11-23). | [[Ban List]]; [[Deck Legality]] LEGAL-016 |
 | CAT-019 | MAY | Domains MAY be shown, but only when derived from the Legend's Domain Identity via card data (SPEC-001), never typed by hand. | [[Deck Construction Rules]] fact 2 |
 
 ### Storage: `data/events/*.json`
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | CAT-020 | MUST | One JSON file per event at `data/events/<event-id>.json`, matching the `EventFile` shape below, with `schemaVersion: 1`. The event and all its decklists live in that file. Access goes through a storage interface (no host-specific features). | Spec Index cross-cutting constraints; [[ADR-0004 Hosting (Deferred)]] |
-| CAT-021 | MUST | `event.id` is `<YYYY-MM>-<short-slug>` from the start date (e.g. `2026-11-rc-europe`) and equals the file name. Decklist `id` is `<event-id>-<publishedRank>` (e.g. `2026-11-rc-europe-4`). If two lists share a rank, append `-<n>` in published order. | — (naming convention) |
-| CAT-022 | MUST | A loader validates every file against the schema at startup/build and fails loudly (file, decklist id, field) on: missing required field, unknown card name (no `cardKey`), `format` mismatch between event and decklist, duplicate decklist `id`, or `publishedRank` outside 1..N. | — |
+| CAT-021 | MUST | `event.id` is `<YYYY-MM>-<short-slug>` from the start date (e.g. `2026-11-rc-europe`) and equals the file name. Decklist `id` is `<event-id>-<publishedRank>` (e.g. `2026-11-rc-europe-4`). If two lists share a rank, append `-<n>` in published order. Design rule (naming convention in this spec); start dates from [[Tournament Results]] |
+| CAT-022 | MUST | A loader validates every file against the schema at startup/build and fails loudly (file, decklist id, field) on: missing required field, unknown card name (no `cardKey`), `format` mismatch between event and decklist, duplicate decklist `id`, or `publishedRank` outside 1..N. | Design rule (fail-loud data checks, as SPEC-002 LEGAL-B05 does for the ban list); [[ADR-0005 MVP Product Defaults]] decision 4 (unknown names are errors, never guessed) |
 | CAT-023 | MUST NOT | Event files MUST NOT contain any metagame statistic (see Definitions), including Riot's Legend/registration share tables, Day-2 conversion, or "best-of per Legend" annotations beyond the decklists themselves. | [[ADR-0003 Tournament Results Only]]; V-010 |
 | CAT-024 | MUST NOT | Card images and card text MUST NOT be copied into event files; only `cardKey` + published name. Images come from the Riot API via SPEC-001. | [[Riot Developer Rules]] rule 7 |
 
@@ -99,13 +99,14 @@ stored or shown. Legality of each list is **computed** by [[Deck Legality]] (SPE
 | CAT-034 | MUST | The deck detail view shows Legend, Champion, Main Deck, Rune Pool, Battlefields and Sideboard as separate sections with quantities, using card names and images from SPEC-001. | [[Deck Construction Rules]] |
 | CAT-035 | MUST | Wording honours players: neutral or celebratory labels only. No negative framing of any placing or pilot (e.g. never "only 8th", "lost", "worst"). | [[Riot Developer Rules]] rule 8 |
 | CAT-036 | MUST | Each event shows the source attribution ("Decklists as published by Riot, <article title>, <date>") with a link to the source URL, plus the app's Legal Jibber Jabber notice elsewhere per cross-cutting constraints. The UI MUST NOT use Riot branding or the word "official" to describe our app. | [[Riot Developer Rules]] rules 5, 6 |
+| CAT-037 | MUST | **Shared display rules** (same wording in SPEC-005, SPEC-006, SPEC-007): every date shown to the user is formatted `MMM D, YYYY` with an English short month, e.g. `Nov 23, 2026` (stored data stays ISO `YYYY-MM-DD`); an event's dates show start and end in that format (one date when equal). An `incomplete` legality verdict is labelled **`Not fully checked`**. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 7 |
 
 ### Historical (now-illegal) decklists
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | CAT-040 | MUST | Historical decklists stay in the catalog and are **shown by default** on the Tournaments screen in their event's Top 8 in their published position. They are never deleted, hidden or filtered out by default because of a later ban, and there is no hide toggle. | [[Tournament Results]] ("keep as historical/reference data"); [[ADR-0003 Tournament Results Only]]; [[ADR-0005 MVP Product Defaults]] decision 3 (applies to Tournaments per [[ADR-0006 Two Imports - Collection and Decks]]) |
-| CAT-041 | MUST | A historical decklist shows a clear label on the Tournaments screen (row and detail): `Contains cards banned since <date>` where `<date>` is `legality.bannedSinceEarliest` (the **earliest** `bannedSince` among its banned cards), formatted as a date (e.g. `Contains cards banned since 23 Nov 2026`). Deck detail lists each banned card with its own date and highlights it in the card list. | [[Ban List]]; [[ADR-0005 MVP Product Defaults]] decision 3 |
-| CAT-045 | MUST | Legality display maps `legality` as follows, checked in this order: (1) `historical` → the CAT-041 label; (2) else `verdict = illegal` → `Not legal in Standard today` with the failing rule summaries in detail; (3) else `verdict = incomplete` → `Legality not fully checked` with SPEC-002's `notEvaluatedReason`s in detail; (4) else `verdict = legal` → `Legal in Standard as of <asOf>`. An `incomplete` verdict MUST NOT be shown as legal, with a legal colour/icon, or omitted silently (SPEC-002 LEGAL-R04). A historical list that is also `incomplete` shows the CAT-041 label plus the incomplete note in detail. | [[Deck Legality]] LEGAL-R04 |
+| CAT-041 | MUST | A historical decklist shows a clear label on the Tournaments screen (row and detail): `Contains cards banned since <date>` where `<date>` is `legality.bannedSinceEarliest` (the **earliest** `bannedSince` among its banned cards), formatted per CAT-037 (e.g. `Contains cards banned since Nov 23, 2026`). Deck detail lists each banned card with its own date and highlights it in the card list. | [[Ban List]]; [[ADR-0005 MVP Product Defaults]] decision 3 |
+| CAT-045 | MUST | Legality display maps `legality` as follows, checked in this order: (1) `historical` → the CAT-041 label; (2) else `verdict = illegal` → `Not legal in Standard today` with the failing rule summaries in detail; (3) else `verdict = incomplete` → `Not fully checked` (CAT-037) with SPEC-002's `notEvaluatedReason`s in detail; (4) else `verdict = legal` → `Legal in Standard as of <asOf>` (date per CAT-037, e.g. `Legal in Standard as of Nov 23, 2026`). An `incomplete` verdict MUST NOT be shown as legal, with a legal colour/icon, or omitted silently (SPEC-002 LEGAL-R04). A historical list that is also `incomplete` shows the CAT-041 label plus the incomplete note in detail. | [[Deck Legality]] LEGAL-R04; [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 7 |
 | CAT-046 | MUST | `legalAtEvent` is shown in deck detail only, as `No banned cards at the event` (`true`), `Contained cards banned at the event` (`false`) or not shown (`null`). It MUST NOT be worded as "legal at the event" because it covers LEGAL-016 only (CAT-018). | [[Deck Legality]] LEGAL-016 |
 
 **Removed in 0.2:** CAT-042 (hide-by-default toggle in "Your decks"), CAT-043 (empty state with
@@ -117,19 +118,19 @@ The IDs are retired and not reused.
 ### Duplicate lists
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| CAT-050 | MUST | Two decklists at the same event are **identical** when legend, champion, and the multisets of main deck, runes, battlefields and sideboard (by `cardId` and qty) are all equal. Both are kept, each under its own pilot and rank. | [[Tournament Results]] (conflicts: #4 and #6 identical) |
+| CAT-050 | MUST | Two decklists at the same event are **identical** when legend, champion, and the multisets of main deck, runes, battlefields and sideboard (by `cardKey` and qty) are all equal. Both are kept, each under its own pilot and rank. | [[Tournament Results]] (conflicts: #4 and #6 identical) |
 | CAT-051 | MUST | The converter/loader computes identical lists and records the link on each (`identicalTo: [<other decklist ids>]`), and also keeps a maintainer note field `sourceNote` (e.g. "Riot's article shows this list identical to #6; possible publishing error"). | same |
 | CAT-052 | MUST | The deck detail view shows a neutral notice on each member: "Riot's published list for this player is identical to <placing label> (<pilot>)." It MUST NOT suggest either player copied the other or that the list is wrong. | [[Riot Developer Rules]] rule 8 |
-| CAT-053 | SHOULD | On the Tournaments screen identical lists stay separate entries, each with its own placing, pilot and "Add to Your decks" action; they MAY be grouped visually. Adding one does not count as adding the other (CAT-074). | — |
+| CAT-053 | SHOULD | On the Tournaments screen identical lists stay separate entries, each with its own placing, pilot and "Add to Your decks" action; they MAY be grouped visually. Adding one does not count as adding the other (CAT-074). | [[Tournament Results]] (conflicts: #4 and #6 identical, both kept); design rule for grouping |
 
 ### "Add to Your decks"
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | CAT-070 | MUST | Every catalog decklist (Tournaments row and deck detail), including historical and `incomplete` ones, has a one-click **"Add to Your decks"** action. One click adds the deck; there is no confirmation dialog and no editing step. | [[ADR-0006 Two Imports - Collection and Decks]] (follow-up decisions) |
 | CAT-071 | MUST | The action creates a **new user deck** in Your decks exactly as if the same list had been imported via [[Deck Import]] (SPEC-006): same zones (Legend, Chosen Champion, main without the champion, runes, battlefields, sideboard), same quantities, each card keyed by `cardKey` with its canonical SPEC-001 name. Because every card already has a `cardKey`, SPEC-006's parsing and fuzzy-suggestion steps are skipped and the import cannot fail on names. Format is the decklist's `format` (`standard`). | [[ADR-0006 Two Imports - Collection and Decks]]; [[Deck Import]] |
-| CAT-072 | MUST | The user deck records its origin as a `TournamentDeckSource` (Data contract): `kind: "tournament"`, `eventId`, `eventName`, `eventStartDate`, `eventEndDate`, `region`, `decklistId`, `publishedRank`, `placingLabel`, `pilot`, `sourceUrl` (the Riot article) and `addedAt`. SPEC-006 owns the overall deck-source union; this is its tournament variant. | [[ADR-0006 Two Imports - Collection and Decks]] ("event and placing recorded as its source") |
-| CAT-073 | MUST | The default deck name is `<Legend name>: <pilot> (<placingLabel>, <event name>)`, e.g. `Kennen, Heart of the Tempest: ASC Evansrhim (1st, Regional Championship: Europe)`. Pilot and placing are copied verbatim (CAT-011, CAT-012). The user MAY rename it later (SPEC-006). | [[Riot Developer Rules]] rule 8 |
-| CAT-074 | MUST | **Duplicates.** A decklist is "already added" when Your decks holds a deck whose `source.decklistId` equals its `id`. Then the action shows `In Your decks` (opens that deck) and a secondary `Add another copy`, which creates a further copy named with a ` (2)`, ` (3)`… suffix. One click on the primary action never creates a second copy. Editing a copy does not change this; deleting every copy makes "Add to Your decks" available again. Identical lists from different pilots (CAT-050) have different ids, so each can be added once on its own. | Decision in this spec (see Open questions) |
+| CAT-072 | MUST | The user deck records its origin as a `TournamentDeckSource` (Data contract): `kind: "tournament"`, `eventId`, `eventName`, `eventStartDate`, `eventEndDate`, `region`, `decklistId`, `publishedRank`, `placingLabel`, `pilot`, `sourceUrl` (the Riot article) and `addedAt`. `TournamentDeckSource` is the **tournament variant of SPEC-006's `DeckSource`**: SPEC-006 owns the single definition, and the two MUST be identical field for field (no second, diverging shape). | [[ADR-0006 Two Imports - Collection and Decks]] ("event and placing recorded as its source") |
+| CAT-073 | MUST | The default deck name is `<Legend>: <pilot> (<placingLabel>, <event name>)`, e.g. `Kennen: ASC Evansrhim (1st, Regional Championship: Europe)`. `<Legend>` is the Legend's canonical name up to the first comma (`Kennen, Heart of the Tempest` → `Kennen`; the whole name if it has no comma), as in RJ's example. Pilot and placing are copied verbatim (CAT-011, CAT-012). The user MAY rename it later (SPEC-006). | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 1; [[Riot Developer Rules]] rule 8 |
+| CAT-074 | MUST | **Duplicates.** A decklist is "already added" when Your decks holds a deck whose `source.decklistId` equals its `id`. Then the button reads `In Your decks` and opens that deck, and a separate `Add another copy` link creates a further copy named with a ` (2)`, ` (3)`… suffix. One click on the primary action never creates a second copy. Editing a copy does not change this; deleting every copy makes "Add to Your decks" available again. Identical lists from different pilots (CAT-050) have different ids, so each can be added once on its own. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 2 |
 | CAT-075 | MUST | The copy is independent: later edits to the user deck never change the catalog, and later catalog corrections never change existing copies. No legality is copied; Your decks computes legality and ban status itself via SPEC-002 (SPEC-005). | [[Deck Legality]]; [[ADR-0006 Two Imports - Collection and Decks]] |
 | CAT-076 | MUST | After adding, the user sees a neutral confirmation `Added to Your decks` with a link to open the deck. For a historical list the confirmation also shows the CAT-041 label. | [[ADR-0005 MVP Product Defaults]] decision 3 |
 | CAT-077 | MUST NOT | The action stores the copy in the browser only ([[ADR-0005 MVP Product Defaults]] decision 1) and MUST NOT send, count or display how many times a deck was added (no popularity data). | [[ADR-0003 Tournament Results Only]]; V-010 |
@@ -203,13 +204,13 @@ interface EventFile {
 interface BannedCardRef {
   cardKey: CardKey;
   name: string;                     // as published in the decklist
-  kind: BanKind;                    // SPEC-002: 'card' | 'battlefield' | 'legend'
+  kind: BanKind;                    // SPEC-002 BanEntry.kind: looked up in banlist.json via banStatus() waveId (CAT-017)
   zone: Zone;                       // SPEC-002 Violation.zone
   bannedSince: ISODate;             // Violation.effectiveDate
   banWaveId: string;                // Violation.banWaveId
 }
 interface DecklistLegality {
-  asOf: ISODate;                    // = now.asOf (legal_as_of); was checkedAsOf in 0.1
+  asOf: ISODate;                    // = now.asOf: the check date, usually today (NOT the notes' legal_as_of); was checkedAsOf in 0.1
   banListDataVersion: string;       // = now.banListDataVersion; was banListVersion in 0.1
   catalogVersion: string;           // = now.catalogVersion
   verdict: 'legal' | 'illegal' | 'incomplete'; // = now.verdict; replaces legalNow
@@ -230,7 +231,8 @@ interface CatalogEventView {
 }
 // GET catalog -> CatalogEventView[] ordered per CAT-030. No aggregate fields (CAT-063).
 
-// "Add to Your decks" (CAT-072): tournament variant of SPEC-006's deck source.
+// "Add to Your decks" (CAT-072): the tournament variant of SPEC-006's DeckSource.
+// SPEC-006 owns the single definition; it must be identical to this field for field.
 // Stored in the browser with the user deck (ADR-0005); never sent to a server.
 interface TournamentDeckSource {
   kind: 'tournament';
@@ -251,14 +253,14 @@ interface TournamentDeckSource {
 ### DecklistLegality ↔ LegalityResult mapping
 | `DecklistLegality` field | From SPEC-002 | Notes |
 |---|---|---|
-| `asOf` | `now.asOf` (today) | renamed from 0.1 `checkedAsOf`; stored in research notes as `legal_as_of` |
+| `asOf` | `now.asOf` (the check date, usually today) | renamed from 0.1 `checkedAsOf`; not stored anywhere. Not the research notes' `legal_as_of` (= event `startDate`, see `legalAtEvent`) |
 | `banListDataVersion` | `now.banListDataVersion` | renamed from 0.1 `banListVersion` |
 | `catalogVersion` | `now.catalogVersion` | SPEC-001 snapshot used |
 | `verdict` | `now.verdict` | tri-state; replaces 0.1 `legalNow: boolean`. Card attributes may be null in SPEC-001, so `incomplete` is expected often for now |
 | `historical` | `now.rules[LEGAL-016].status === 'fail'` | only the ban rule; independent of other rules |
-| `bannedCards[]` | `now.rules[LEGAL-016].violations[]` | `cardKey` = `nameKey(cardName)`; `bannedSince` = `effectiveDate` |
+| `bannedCards[]` | `now.rules[LEGAL-016].violations[]` | `cardKey` = `nameKey(cardName)`; `bannedSince` = `effectiveDate`; `kind` = `BanEntry.kind` of the `add` entry in the wave returned by `banStatus(cardKey, …, now.asOf).waveId` (LEGAL-B10) |
 | `bannedSinceEarliest` | min of `bannedCards[].bannedSince` | `null` when not historical |
-| `legalAtEvent` | `atEvent.rules[LEGAL-016].status` | `pass`/`fail`/`not_evaluated` → `true`/`false`/`null` |
+| `legalAtEvent` | `atEvent.rules[LEGAL-016].status` (`atEvent.asOf` = event `startDate`) | `pass`/`fail`/`not_evaluated` → `true`/`false`/`null`; the event `startDate` is what research notes record as `legal_as_of` |
 | `result` | `now` | full per-rule detail for CAT-045 |
 
 ### Example file (abridged): `data/events/2026-11-rc-europe.json`
@@ -331,8 +333,8 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
    commas, `name` keeps the text as published, and no error is raised (CAT-028).
 8. **Historical label.** **Given** today is 2026-11-23 and SPEC-002 lists Nocturne, Horrifying and Rhasa the
    Sunderer as banned in Standard from 2026-11-23, **When** ASC Evansrhim's list is shown, **Then** it carries
-   `Contains cards banned since 23 Nov 2026`, its detail view highlights Nocturne, Horrifying (3) and Rhasa the
-   Sunderer (3), `legality.historical` is true, `legality.verdict` is `illegal`, `legality.asOf` is `2026-11-23`,
+   `Contains cards banned since Nov 23, 2026`, its detail view highlights Nocturne, Horrifying (3) and Rhasa the
+   Sunderer (3), `legality.historical` is true, `legality.verdict` is `illegal`, `legality.asOf` is `2026-11-23` (check date),
    `legality.legalAtEvent` is true (LEGAL-016 passes with `asOf = 2026-11-06`), and it still appears 1st in the event
    (CAT-040, CAT-041, CAT-018, CAT-045).
 9. **Banned battlefields count too.** **Given** Sonecon's list includes battlefields Emperor's Dais and Star Spring,
@@ -342,7 +344,7 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
    `bannedSince: "2026-11-23"` (CAT-017).
 10. **Banned decks shown on Tournaments, not in Your decks.** **Given** all 8 catalog lists are historical as of
     2026-11-23 and the user has added no tournament deck, **When** they open Tournaments, **Then** all 8 lists are shown
-    in published order, each labelled `Contains cards banned since 23 Nov 2026`, with no hide toggle; **When** they open
+    in published order, each labelled `Contains cards banned since Nov 23, 2026`, with no hide toggle; **When** they open
     Your decks, **Then** none of the 8 lists appears there (CAT-040, CAT-041; ADR-0006).
 11. **Identical lists kept and flagged.** **Given** BQO Caravaggio (#4) and lets see lol (#6) have identical
     legend, champion, main, runes, battlefields and sideboard, **When** imported, **Then** both decklists exist,
@@ -359,18 +361,19 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
     its 1st): events are ordered by date only and no rank or event type is used across events (CAT-004, CAT-030, CAT-062).
 15. **Incomplete is never shown as legal.** **Given** a catalog list with no banned cards as of today and SPEC-002
     returning `verdict: "incomplete"` because LEGAL-002 is `not_evaluated` (`domains = null` for one card), **When** the
-    row renders, **Then** it shows `Legality not fully checked`, not `Legal in Standard`, and no legal colour or icon;
+    row renders, **Then** it shows `Not fully checked`, not `Legal in Standard`, and no legal colour or icon;
     `historical` is false (CAT-045).
 16. **Add to Your decks.** **Given** ASC Evansrhim's list (`2026-11-rc-europe-1`) and an empty Your decks, **When** the
     user clicks "Add to Your decks" once, **Then** Your decks holds one new deck named
-    `Kennen, Heart of the Tempest: ASC Evansrhim (1st, Regional Championship: Europe)` with Legend, Champion, 39 main,
+    `Kennen: ASC Evansrhim (1st, Regional Championship: Europe)` with Legend, Champion, 39 main,
     9 Chaos Rune + 3 Order Rune, Minefield, Veiled Temple, Zaun Warrens and 10 sideboard cards identical to the catalog
     list, format `standard`, and `source` = `{ kind: "tournament", eventId: "2026-11-rc-europe", decklistId:
     "2026-11-rc-europe-1", publishedRank: 1, placingLabel: "1st", pilot: "ASC Evansrhim", sourceUrl: <Riot article>, … }`;
-    the confirmation `Added to Your decks` also shows `Contains cards banned since 23 Nov 2026` (CAT-070…CAT-073, CAT-076).
+    the confirmation `Added to Your decks` also shows `Contains cards banned since Nov 23, 2026` (CAT-070…CAT-073, CAT-076).
 17. **Duplicate add.** **Given** `2026-11-rc-europe-1` was already added, **When** the user views it on Tournaments,
-    **Then** the action reads `In Your decks` and clicking it opens the existing deck without creating another;
-    **When** they click `Add another copy`, **Then** a second deck named `… (1st, Regional Championship: Europe) (2)` is
+    **Then** the button reads `In Your decks` and clicking it opens the existing deck without creating another;
+    **When** they click the `Add another copy` link, **Then** a second deck named
+    `Kennen: ASC Evansrhim (1st, Regional Championship: Europe) (2)` is
     created with the same `source.decklistId`; **When** they delete both copies, **Then** "Add to Your decks" returns (CAT-074).
 18. **Identical lists add separately.** **Given** BQO Caravaggio (#4) is already in Your decks, **When** the user views
     lets see lol (#6, identical list), **Then** #6 still shows "Add to Your decks", and adding it creates a deck whose
@@ -378,6 +381,16 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
 19. **Copy is independent.** **Given** the user removed one Nocturne, Horrifying from their copy of
     `2026-11-rc-europe-1`, **When** they open Tournaments, **Then** the catalog list still shows 3 Nocturne, Horrifying,
     and the copy still counts as added (CAT-074, CAT-075).
+20. **`legal_as_of` is the event start date.** **Given** the 8 RC Europe notes with `legal_as_of: 2026-11-06` and the
+    event `startDate: "2026-11-06"`, **When** the maintainer imports them on 2026-11-23, **Then** no stored field holds
+    `legal_as_of` or a "legal now" value, `legality.legalAtEvent` is computed with `asOf = 2026-11-06` (true for all 8),
+    and `legality.asOf` is the check date `2026-11-23` (CAT-016, CAT-017, CAT-018).
+21. **Banned-card kind from the ban list.** **Given** Sonecon's list checked as of 2026-11-23, **When** `bannedCards` is
+    built, **Then** `Emperor's Dais` gets `kind: "battlefield"` and `Riven, Broken Blade` gets `kind: "card"`, each taken
+    from the `add` entry of wave `banStatus(...).waveId` in `banlist.json`, not from `Violation` (CAT-017).
+22. **Dates and labels.** **Given** a legal, fully checked list with `asOf` 2026-11-23 and RC Europe (2026-11-06 to
+    2026-11-08), **When** shown, **Then** the label reads `Legal in Standard as of Nov 23, 2026` and the event dates read
+    `Nov 6, 2026` and `Nov 8, 2026`; no date is shown as `2026-11-23` or `23 Nov 2026` (CAT-037).
 
 ## Out of scope
 - The Your decks screen, ownership display and ban status per card (SPEC-005, [[Your Decks Ownership View]]).
@@ -399,20 +412,28 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
 - **BLOCKED (policy):** whether copying decklists from Riot's articles is allowed (Riot Developer Rules rule 7,
   gray area; App Note via H-011). CAT-025 keeps import manual until answered.
 - **Depends on SPEC-002:** ban-list versioning, `bannedSince` dates, `legalAtEvent`, regional ban lists. Regional
-  (KR/TW) lists are out of MVP; catalog legality uses the global Standard list.
-- **Decklist notes (template fixed in 0.2):** `brain/Templates/Decklist.md` now defines `placing:` as the published
-  overall rank (1–8), which is what CAT-010/CAT-011 use as `publishedRank` (`placingLabel` is its ordinal). No separate
-  `rank:` field is added, to avoid two fields that can disagree. The 8 existing notes still carry bucket values
-  (1, 2, 4, 8) until they are updated to the rank; until then the importer MUST take the rank from Riot's ranking
-  (each note's Notes section and file name), not the bucket.
-- **Depends on SPEC-006:** the user-deck record and deck-source union. CAT-071/072 assume SPEC-006 can accept
-  pre-resolved `cardKey` entries and a `kind: "tournament"` source; re-check once SPEC-006 v0.1 lands.
+  (KR/TW) lists are out of MVP; catalog legality uses the global Standard list. `BannedCardRef.kind` is looked up in
+  `banlist.json` via `banStatus()` (CAT-017); if SPEC-002 later adds the kind to `Violation`, use that instead.
+- **Cross-spec (SPEC-006):** SPEC-006 is being revised to own the single `DeckSource` type; its tournament variant must
+  equal `TournamentDeckSource` field for field (CAT-072). SPEC-006 v0.1 still shows `{ eventId, decklistId, placing, url }`;
+  re-check once its revision lands.
+- **Importer note:** research notes carry `players: 307` (derived); the importer MUST NOT map it to `playerCount` (CAT-002).
+  Notes' `legal_as_of` is the event start date and is not imported as data (CAT-017).
 - **RQ lists** (LA, Singapore, earlier) are not captured yet; the RQ table is mostly creator-tier.
-- Question for RJ: duplicate handling (CAT-074). Proposed: one click never makes a second copy; `Add another copy`
-  is available for people who want to build variants. Alternative: always add a new copy on every click.
-- Question for RJ: legality labels in CAT-045/CAT-046 (`Legality not fully checked`, `No banned cards at the event`).
+- Question for RJ: the `legalAtEvent` detail wording in CAT-046 (`No banned cards at the event`). The date format and
+  `Not fully checked` were chosen by Claude in ADR-0006 Gate H-036 decision 7; RJ may change them.
+- Question for RJ: CAT-073 takes `<Legend>` as the Legend name up to the first comma, following the ADR example (`Kennen`).
+  Confirm, or use the full Legend name.
 
 ## Changelog
+- 0.3 (2026-11-23): H-035: CAT-050 compares by `cardKey`; `BannedCardRef.kind` looked up from `banlist.json` via SPEC-002
+  `banStatus()` (LEGAL-B10) (CAT-017, mapping table, AC21); CAT-072 states `TournamentDeckSource` is the tournament variant of
+  SPEC-006's single `DeckSource`; ADR-0006 Gate H-036: default name `<Legend>: <pilot> (<placingLabel>, <event name>)`
+  (CAT-073, AC16), `In Your decks` button + `Add another copy` link (CAT-074, AC17); sources added for CAT-021, CAT-022,
+  CAT-053; open questions refreshed (removed the notes-bucket item and the answered duplicate question). H-037: one meaning
+  for `legal_as_of` = event start date, `asOf` = check date (CAT-017, CAT-018, data contract, mapping table, AC20); new
+  CAT-037 shared display rules (dates `Nov 23, 2026`, incomplete = `Not fully checked`) applied to CAT-041, CAT-045 and ACs
+  8, 10, 15, 16, 22.
 - 0.2 (2026-11-23): applied [[ADR-0006 Two Imports - Collection and Decks]] and [[ADR-0005 MVP Product Defaults]]
   decision 3: catalog shown on the Tournaments screen only; removed CAT-042, CAT-043, CAT-044 (Your decks toggle,
   empty state, persistence); historical lists shown by default with label (CAT-040, CAT-041). Added "Add to Your decks"

@@ -9,7 +9,7 @@ event_date: 2026-11-08
 region: Europe
 players: 307
 format: standard
-legal_as_of: 2026-11-08
+legal_as_of: 2026-11-06
 placing: 7
 pilot: "HXN Gonkra"
 source_url: https://playriftbound.com/en-us/news/organizedplay/best-ofs-for-the-european-championship
