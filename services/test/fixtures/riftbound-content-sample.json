@@ -1,0 +1,289 @@
+{
+  "game": "riftbound",
+  "version": "synthetic-0.0",
+  "lastUpdated": "2026-11-20T18:04:00Z",
+  "sets": [
+    {
+      "id": "OGN",
+      "name": "Origins",
+      "cards": [
+        {
+          "id": "synthetic-ogn-0001",
+          "collectorNumber": "001",
+          "set": "OGN",
+          "name": "Kai'Sa, Daughter of the Void",
+          "description": "SYNTHETIC placeholder text, not the real card text.",
+          "type": "Legend",
+          "rarity": "Rare",
+          "faction": "Fury",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "https://example.invalid/synthetic/synthetic-ogn-0001-thumb.png",
+            "fullURL": "https://example.invalid/synthetic/synthetic-ogn-0001-full.png",
+            "artist": "Synthetic Artist"
+          },
+          "flavorText": null,
+          "tags": [
+            "Kai'Sa"
+          ]
+        },
+        {
+          "id": "synthetic-ogn-0002",
+          "collectorNumber": "002",
+          "set": "OGN",
+          "name": "Riven, The Exile",
+          "description": "SYNTHETIC placeholder text, not the real card text.",
+          "type": "Legend",
+          "rarity": "Rare",
+          "faction": "Calm",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "https://example.invalid/synthetic/synthetic-ogn-0002-thumb.png",
+            "fullURL": "https://example.invalid/synthetic/synthetic-ogn-0002-full.png",
+            "artist": "Synthetic Artist"
+          },
+          "flavorText": null,
+          "tags": [
+            "Riven"
+          ]
+        },
+        {
+          "id": "synthetic-ogn-0007",
+          "collectorNumber": "007",
+          "set": "OGN",
+          "name": "Calm Rune",
+          "description": "SYNTHETIC placeholder text, not the real card text.",
+          "type": "Rune",
+          "rarity": "Common",
+          "faction": "Calm",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "https://example.invalid/synthetic/synthetic-ogn-0007-thumb.png",
+            "fullURL": "https://example.invalid/synthetic/synthetic-ogn-0007-full.png",
+            "artist": "Synthetic Artist"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "synthetic-ogn-0007a",
+          "collectorNumber": "007a",
+          "set": "OGN",
+          "name": "Calm Rune",
+          "description": "SYNTHETIC placeholder text, not the real card text.",
+          "type": "Rune",
+          "rarity": "Common",
+          "faction": "Calm",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "https://example.invalid/synthetic/synthetic-ogn-0007a-thumb.png",
+            "fullURL": "https://example.invalid/synthetic/synthetic-ogn-0007a-full.png",
+            "artist": "Synthetic Artist"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "synthetic-ogn-0300",
+          "collectorNumber": "300/298",
+          "set": "OGN",
+          "name": "Kai'Sa, Survivor",
+          "description": "SYNTHETIC placeholder text, not the real card text.",
+          "type": "Unit",
+          "rarity": "Epic",
+          "faction": "Fury",
+          "stats": {
+            "energy": 3,
+            "might": null,
+            "cost": 3,
+            "power": null
+          },
+          "keywords": [
+            "Accelerate"
+          ],
+          "art": {
+            "thumbnailURL": "https://example.invalid/synthetic/synthetic-ogn-0300-thumb.png",
+            "fullURL": "https://example.invalid/synthetic/synthetic-ogn-0300-full.png",
+            "artist": "Synthetic Artist"
+          },
+          "flavorText": "SYNTHETIC flavor.",
+          "tags": [
+            "Kai'Sa"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "SFD",
+      "name": "Spiritforged",
+      "cards": [
+        {
+          "id": "synthetic-sfd-0001",
+          "collectorNumber": "001",
+          "set": "SFD",
+          "name": "Emperor's Dais",
+          "description": "SYNTHETIC placeholder text, not the real card text.",
+          "type": "Battlefield",
+          "rarity": "Uncommon",
+          "faction": null,
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "https://example.invalid/synthetic/synthetic-sfd-0001-thumb.png",
+            "fullURL": "https://example.invalid/synthetic/synthetic-sfd-0001-full.png",
+            "artist": "Synthetic Artist"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "synthetic-sfd-0045",
+          "collectorNumber": "045",
+          "set": "SFD",
+          "name": "Zhonya’s Hourglass",
+          "description": "SYNTHETIC placeholder text, not the real card text.",
+          "type": "Gear",
+          "rarity": "Rare",
+          "faction": "Order",
+          "stats": {
+            "energy": 2,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "https://example.invalid/synthetic/synthetic-sfd-0045-thumb.png",
+            "fullURL": "https://example.invalid/synthetic/synthetic-sfd-0045-full.png",
+            "artist": "Synthetic Artist"
+          },
+          "flavorText": null,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "Ven",
+      "name": "Vendetta",
+      "cards": [
+        {
+          "id": "synthetic-ven-0101",
+          "collectorNumber": "101",
+          "set": "Ven",
+          "name": "Star-Crossed",
+          "description": "SYNTHETIC placeholder text, not the real card text.",
+          "type": "Spell",
+          "rarity": "Uncommon",
+          "faction": "Mind",
+          "stats": {
+            "energy": 1,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [
+            "Action"
+          ],
+          "art": {
+            "thumbnailURL": "https://example.invalid/synthetic/synthetic-ven-0101-thumb.png",
+            "fullURL": "https://example.invalid/synthetic/synthetic-ven-0101-full.png",
+            "artist": "Synthetic Artist"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "synthetic-ven-0102",
+          "collectorNumber": "102",
+          "set": "Ven",
+          "name": "Kai'Sa, Survivor",
+          "description": "SYNTHETIC placeholder text, not the real card text.",
+          "type": "Unit",
+          "rarity": "Epic",
+          "faction": "Fury",
+          "stats": {
+            "energy": 3,
+            "might": null,
+            "cost": 3,
+            "power": null
+          },
+          "keywords": [
+            "Accelerate"
+          ],
+          "art": {
+            "thumbnailURL": "https://example.invalid/synthetic/synthetic-ven-0102-thumb.png",
+            "fullURL": "https://example.invalid/synthetic/synthetic-ven-0102-full.png",
+            "artist": "Synthetic Artist"
+          },
+          "flavorText": "SYNTHETIC flavor.",
+          "tags": [
+            "Kai'Sa"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "RAD",
+      "name": "Radiance",
+      "cards": [
+        {
+          "id": "synthetic-rad-sp1-005",
+          "collectorNumber": "SP1/005",
+          "set": "RAD",
+          "name": "Kai'Sa, Survivor",
+          "description": "SYNTHETIC placeholder text, not the real card text.",
+          "type": "Unit",
+          "rarity": "Showcase",
+          "faction": "Fury",
+          "stats": {
+            "energy": 3,
+            "might": null,
+            "cost": 3,
+            "power": null
+          },
+          "keywords": [
+            "Accelerate"
+          ],
+          "art": {
+            "thumbnailURL": "https://example.invalid/synthetic/synthetic-rad-sp1-005-thumb.png",
+            "fullURL": "https://example.invalid/synthetic/synthetic-rad-sp1-005-full.png",
+            "artist": "Synthetic Artist"
+          },
+          "flavorText": "SYNTHETIC flavor.",
+          "tags": [
+            "Kai'Sa"
+          ]
+        }
+      ]
+    }
+  ]
+}

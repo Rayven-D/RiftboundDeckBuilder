@@ -1,0 +1,29 @@
+{
+  "name": "services",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Riftbound Deck Builder API and card data pipeline (host-neutral, local-first).",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "packageManager": "npm@10.9.9",
+  "scripts": {
+    "dev": "node --env-file-if-exists=../.env --disable-warning=ExperimentalWarning --watch src/http/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node --env-file-if-exists=../.env dist/http/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "eslint . && tsc -p tsconfig.json --noEmit",
+    "ingest:cards": "node --env-file-if-exists=../.env --disable-warning=ExperimentalWarning src/cli/ingest-cards.ts",
+    "check:decklists": "node --env-file-if-exists=../.env --disable-warning=ExperimentalWarning src/cli/check-decklists.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.15.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.74.0",
+    "vitest": "^5.1.1"
+  }
+}
