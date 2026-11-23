@@ -23,9 +23,9 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 ## Built
 | Area | State |
 |---|---|
-| `web/` | Direction A applied (H-024, see [[Design Direction]]): Rift Builder name and favicon, blue accent, Archivo headlines, 4/6/8px corners, Angular Material. **Home page** at `/` (ownership fan, step tiles, example panels). **Import** page: Collection / Deck cards open a paste-or-upload dialog (text, CSV, Excel) with the shared parser (quantity required, one-word section labels). Shared card art / tile / chip / deck heading; `/styleguide`. Decks, Collection, Tournaments and Deck detail pages are still placeholders. Lint, build and 54 tests green. |
+| `web/` | Direction A applied (H-024, see [[Design Direction]]): Rift Builder name and favicon, blue accent, Archivo headlines, 4/6/8px corners, Angular Material. **Home page** at `/` (ownership fan, step tiles, example panels). **Import** page: Collection / Deck cards open a paste-or-upload dialog (text, CSV, Excel) with the shared parser (quantity required, one-word section labels). Shared card art / tile / chip / deck heading; `/styleguide`. Decks, Collection, Tournaments and Deck detail pages are still placeholders. Lint, build and 105 tests green. |
 | Git / deploy | PR #2 (`loop/ui-direction-a`, through the Rift Builder rename) merged into `dev`, then PR #3 `dev` → `main` on 2026-11-23; the Firebase Hosting deploy from `main` succeeded. Two later commits (tabs renamed to Decks / Collection; home example deck in ascending order) are on `loop/ui-direction-a` and go to `dev` in a follow-up PR. |
-| In progress | Uncommitted Collection work in RJ's working folder (not from this session): `core/catalog.ts`, `core/collection.ts` (browser CollectionStore), `shared/import/resolve-collection.ts`, a real Collection page, `web/proxy.conf.json`, `web/public/fixture-cards/`. Finish it on its own `loop/` branch. |
+| In progress | The earlier Collection work (`core/catalog.ts`, `core/collection.ts`, `resolve-collection.ts`) is no longer in the working folder; only `web/public/fixture-cards/` remains. The Collection page still needs building. `data/raw/` holds the fixture, not a live payload. |
 | `services/` | TypeScript API (no runtime deps): card ingest pipeline from the Riot API, `/api/health`, `/api/sets`, `/api/cards`. Tested on a synthetic fixture only. |
 | `data/` | No live card snapshot yet (RJ runs `npm run ingest:cards` on his PC). |
 
@@ -34,10 +34,10 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 |---|---|---|
 | SPEC-001 [[Card Data Model]] | 0.3 | nullable attrs, `cardKey`, `printingSortKey`, `catalogVersion`, `defaultPrintingId` |
 | SPEC-002 [[Deck Legality]] | 0.3 | 4 ban waves as data, `banStatus()`, display rules LEGAL-R08 |
-| SPEC-003 [[Collection Import]] | 0.3 | owned cards; Part A = shared parsers |
+| SPEC-003 [[Collection Import]] | 0.5 | owned cards; Part A = shared parsers; quantity required (any side), printing codes, .xlsx |
 | SPEC-004 [[Tournament Deck Catalog]] | 0.4 | Top 8, Add to your decks |
-| SPEC-005 [[Your Decks Ownership View]] | 0.1 | full / darkened / partial fill, zone allocation, ban labels |
-| SPEC-006 [[Deck Import]] | 0.3 | community decks; shared tournament source |
+| SPEC-005 [[Your Decks Ownership View]] | 0.2 | full / darkened / partial fill, Riot section order, ban labels |
+| SPEC-006 [[Deck Import]] | 0.5 | community decks; CSV / Excel too; shared tournament source |
 | SPEC-007 [[My Collection]] | 0.3 | per-printing, tags, `deckOwnership()` |
 
 ## Waiting on RJ
@@ -48,7 +48,7 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 - **H-011:** apply for the production key once there's a demo ([[Riot App Application]]).
 
 ## Next for the loop
-All 7 specs drafted and validated; design direction picked and applied (H-023 done, H-024 merged). Next: spec updates H-040 (SPEC-005 fixes), H-043 (import decisions: quantity required, .xlsx, deck CSV, one-word labels) and H-044 (screen names Decks / Collection); finish the in-progress Collection work; then Tournaments from `data/events/` and the Decks layout on the fixture. Card search, name matching against real cards and My-collection sorting wait on H-020.
+All 7 specs drafted and validated; H-040, H-043, H-044 PASS (SPEC-003/006 v0.4, SPEC-005 v0.2, screens named Decks / Collection). Next spec work: H-045 (collection export Tags column vs positional CSV), H-049 (follow-ups), H-050 (version bump for H-044). Next code: H-046 / H-053 (parser gaps and review fixes), H-054 (skip link, alt text), H-055 (`/api` hosting rewrite). H-048 PASS (parser accepts `x3 Name`, `Name x3` and printing codes like `RAD 001/167`); resolving codes waits on the catalog (H-057). H-051 / H-052 done. RJ: H-056 (analytics id, `riot.txt` path). Then the Collection page, Tournaments from `data/events/` and the Decks layout on the fixture. Card search, name matching against real cards and Collection sorting wait on H-020.
 
 ## Biggest unknowns
 How the live API represents variants (is a foil its own printing?), domains, champion and

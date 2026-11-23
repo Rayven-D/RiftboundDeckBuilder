@@ -72,3 +72,8 @@ Note: RJ's row-layout answer said "per card name + expand", but his detailed ans
 - Cards the user doesn't own are shown **grayscale and dimmed** (~55% brightness). Text drawn by the app stays readable.
 - Default chosen by Claude: a card no longer in the card data counts as 0 owned, with a placeholder tile.
 
+## Screen rename (RJ, 2026-11-23, H-044)
+- The screens are renamed: **"Your decks" → "Decks"** and **"My collection" → "Collection"** (nav, page titles, screen names, back links). The decisions above keep their original wording; read "Your decks" as the Decks screen and "My collection" as the Collection screen. Section headings here are unchanged, because specs cite them (e.g. "Your decks view decisions").
+- **Button and status copy stays sentence-style** with lower-case "your decks": "Add to your decks", "In your decks", "Added to your decks", "Not counted in your decks", "… will no longer count in your decks". "Add another copy" is unchanged. Where text names the screen itself, it says "Decks" or "Collection".
+- Note names stay as they are so links keep working: [[Your Decks Ownership View]] (SPEC-005) and [[My Collection]] (SPEC-007).
+

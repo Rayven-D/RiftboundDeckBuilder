@@ -1,0 +1,18 @@
+{
+  "_fixture": "INVENTED SAMPLE BAN WAVES for local UI work. Not Riot data. Adapt field names to SPEC-002.",
+  "format": "Standard",
+  "waves": [
+    {
+      "announced": "2026-11-13",
+      "effective": "2026-11-23",
+      "cards": ["Iron Magistrate"],
+      "battlefields": ["Gallows Market"]
+    },
+    {
+      "announced": "2026-12-01",
+      "effective": "2026-12-15",
+      "cards": ["Thought Snare"],
+      "battlefields": []
+    }
+  ]
+}

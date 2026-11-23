@@ -12,8 +12,8 @@ describe('HomePage', () => {
 
   it('shows the headline with the accent line and both import actions', async () => {
     const el = await render();
-    expect(el.querySelector('h1')?.textContent).toContain('Import what you own.');
-    expect(el.querySelector('h1 .accent')?.textContent).toContain('See what you can build.');
+    expect(el.querySelector('h1')?.textContent).toContain('Know what you own.');
+    expect(el.querySelector('h1 .accent')?.textContent).toContain('See what you need.');
     const hrefs = Array.from(el.querySelectorAll('.hero-actions a')).map((a) =>
       a.getAttribute('href'),
     );

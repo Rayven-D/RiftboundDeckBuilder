@@ -14,7 +14,7 @@ describe('routes', () => {
     const harness = await RouterTestingHarness.create('/');
     expect(TestBed.inject(Router).url).toBe('/');
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain(
-      'See what you can build.',
+      'See what you need.',
     );
   });
 

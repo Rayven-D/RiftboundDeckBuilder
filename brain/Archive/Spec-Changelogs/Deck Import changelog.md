@@ -9,6 +9,8 @@ superseded_by: "[[Deck Import]]"
 
 Moved out of [[Deck Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.5 (2026-11-23, H-048): RJ decision 2026-11-23 (H-048). DECK-010 reuses SPEC-003 IMP-064…070 and the Line grammar; DECK-014 updated (name = card part without quantity and code; leading or trailing quantity); new DECK-015 (printing codes on deck lines resolve the `cardKey` only; which code issues block Save); DECK-041 clarified (warnings on resolved lines don't block); DECK-096 names text-line codes; AC 23 added; Summary and Open questions updated.
+- 0.4 (2026-11-23, H-043): RJ import decisions. DECK-001 uses the shared paste-or-upload dialog (`.txt`/`.csv`/`.xlsx`, every line needs a quantity); DECK-010/013 reuse CSV/Excel (only IMP-009, IMP-015 excepted); DECK-011 accepts `csv`, `FORMAT_NOT_FOR_DECKS` removed; DECK-014 re-joined CSV names; DECK-020 label spacing and aliases (`MainDeck`, `RunePool`, `RuneDeck`); DECK-076 / `DeckSourceFormat` include `csv`; AC 16 rewritten, AC 16a added; Out of scope updated.
 - 0.3 (2026-11-23): H-039. Open questions "For spec-writer (SPEC-003)" and "(SPEC-004)" replaced by one Resolved line (SPEC-003 v0.3 preamble, SPEC-004 v0.4 CAT-071/073); Definitions and DECK-013 now cite SPEC-003's Part A preamble exceptions; DECK-051 messages rendered per SPEC-002 LEGAL-R08. Summary block added; changelog moved to this archive note.
 - 0.2 (2026-11-23): board H-030 retry 1 (validator FAIL of 0.1), Gate H-036 and H-037 decisions
   ([[ADR-0006 Two Imports - Collection and Decks]]).

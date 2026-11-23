@@ -28,7 +28,7 @@ centrepiece. The Legal Jibber Jabber notice always sits in the footer.
 ## Home page and headline font (RJ, 2026-11-23)
 - Reference: riftatlas.com (layout ideas only; our own identity). Ideas came from ui-builder; RJ picked:
   - **`/` is the home page for everyone** (was a redirect to `/decks`); the wordmark links home; unknown paths go home.
-  - **Headline:** "Import what you own. / See what you can build." (second line in `--color-accent-text`).
+  - **Headline:** "Know what you own. / See what you need." (second line in `--color-accent-text`).
   - **Hero visual: ownership fan** (`pages/home/ownership-fan.ts`): three tilted placeholder cards (missing, 1 of 3, 3 of 3) with their chips, our deck-stack mark faded behind. Real card art drops into the same `app-card-art` later.
   - **Headline font: Archivo**, self-hosted (`@fontsource-variable/archivo`, OFL, no Google Fonts request), heavy (800) and semi-expanded (112%), via `--font-display`. Used for h1, h2, `.display` and the wordmark; body text stays the system font.
 - Page sections: hero (two import buttons, "Free · No account · Stored in your browser", arrow links); three step tiles with dividers (Import your cards, Add a deck, See what's missing); "Ownership" feature with a framed example deck panel; "Tournaments" feature with an example Top 8 panel (placings only, no stats). Example content is labelled "example".
@@ -106,3 +106,4 @@ fantasy-UI styling.
 - 2026-11-23: "Something like riftatlas.com": home page at `/`, headline "Import what you own. See what you can build.", ownership fan, Archivo for headlines.
 - 2026-11-23: "There's already a Rift Decks": renamed to **Rift Builder**.
 - 2026-11-23: Renamed tabs "Your decks" → "Decks" and "My collection" → "Collection".
+- 2026-11-23: Headline changed to "Know what you own. See what you need."
