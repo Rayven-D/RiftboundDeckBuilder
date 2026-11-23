@@ -8,13 +8,15 @@ event: "Regional Championship: Europe (Stuttgart)"
 event_date: 2026-11-08
 region: Europe
 players: 307
+format: standard
+legal_as_of: 2026-11-08
 placing: 8
 pilot: "On Curve Willy"
 source_url: https://playriftbound.com/en-us/news/organizedplay/best-ofs-for-the-european-championship
 as_of: 2026-11-23
 status: verified
 ---
-# Kennen: On Curve Willy (Top 8, RC Europe 2026)
+# Kennen: On Curve Willy (8th, RC Europe 2026)
 
 ## Main deck
 1 An Offer You Can't Refuse
@@ -56,7 +58,7 @@ status: verified
 1 The Harrowing
 
 ## Notes
-- Official overall ranking **#8** of the Top 8 (the article lists no bracket; `placing` buckets: #1 = 1, #2 = 2, #3–4 = 4, #5–8 = 8).
+- Official overall ranking **#8** of the Top 8 (the article lists no bracket; `placing` stores this published rank).
 - The Main deck section lists the 39 non-champion cards as published. The Chosen Champion (**1 Kennen, Storm of Shuriken**, in frontmatter `champion`) brings it to **40**. Legend: 1 Kennen, Heart of the Tempest.
 - Totals checked: main 39+1 = 40, runes 12, battlefields 3, sideboard 10. Copy limit (≤3 per name incl. champion and sideboard): OK.
 - Domains are inferred from the Rune Pool (the rune deck must match the Legend's domain identity).
