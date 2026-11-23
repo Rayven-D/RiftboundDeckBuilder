@@ -2,7 +2,7 @@
 @use './theme-colors' as theme;
 
 /*
- * Design direction A, "Table Tool" (RJ, 2026-11-23): quiet slate surfaces, one teal accent,
+ * Design direction A, "Table Tool" (RJ, 2026-11-23): quiet slate surfaces, one blue accent (#378ADD, RJ 2026-11-23),
  * system fonts, dense lists. Card art supplies the colour. Square corners everywhere.
  * Angular Material (M3) is themed from the same accent; see brain/04-UI/Design Direction.md.
  */
@@ -64,7 +64,7 @@ html {
       filled-label-text-weight: 600,
       outlined-label-text-color: var(--color-text),
       outlined-outline-color: var(--color-border),
-      text-label-text-color: var(--color-accent),
+      text-label-text-color: var(--color-accent-text),
     )
   );
 }
@@ -83,12 +83,14 @@ html {
   --color-border: #343c45;
   --color-text: #e6e8eb;
   --color-text-muted: #9aa3ad;
-  --color-accent: #1d9e75;
-  --color-accent-hover: #26b386;
-  --color-accent-contrast: #0b1a14;
-  --color-owned: #1d9e75;
+  --color-accent: #378add;
+  --color-accent-hover: #4f9be4;
+  --color-accent-contrast: #031a33;
+  /* Accent as text on slate: #378ADD is 4.0:1 on the surface, so text uses a lighter tint (AA). */
+  --color-accent-text: #85b7eb;
+  --color-owned: #378add;
   --color-missing: #9aa3ad;
-  --color-focus: #68dbae;
+  --color-focus: #85b7eb;
 
   /* Spacing (4px scale) */
   --space-1: 0.25rem;
@@ -134,12 +136,13 @@ html {
     --color-border: #d3d9e0;
     --color-text: #1a1f24;
     --color-text-muted: #56606b;
-    --color-accent: #0f6e56;
-    --color-accent-hover: #0c5b47;
+    --color-accent: #185fa5;
+    --color-accent-hover: #0c447c;
+    --color-accent-text: #185fa5;
     --color-accent-contrast: #ffffff;
-    --color-owned: #0f6e56;
+    --color-owned: #185fa5;
     --color-missing: #56606b;
-    --color-focus: #0f6e56;
+    --color-focus: #185fa5;
   }
 }
 
@@ -159,7 +162,7 @@ body {
 }
 
 a {
-  color: var(--color-accent);
+  color: var(--color-accent-text);
 }
 
 :focus-visible {
