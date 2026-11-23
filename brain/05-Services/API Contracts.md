@@ -11,7 +11,22 @@ Implementation: `services/` (Node `http`, TypeScript). Card shapes are the SPEC-
 contract ([[Card Data Model]]); the TypeScript source of truth is `services/src/domain/types.ts`.
 
 ## Conventions
-- Base URL (local dev): `http://localhost:3000/api` (`PORT` in `.env`).
+- **Base URL: `/api` in every environment** (H-055). The web app's `API_BASE_URL` token is `/api`
+  in both `environment.ts` and `environment.development.ts`; callers build `${base}/health` and
+  never hard-code a host.
+  - **Dev:** `ng serve` proxies `/api` to the services server at `http://localhost:3000`
+    (`web/proxy.conf.json`, wired as `proxyConfig` in `web/angular.json` serve options). Run
+    `npm run dev` in `services/` and `npm start` in `web/`, then `http://localhost:4200/api/health`
+    reaches the API. If you change `PORT` in `.env`, change the proxy `target` to match. The API
+    itself is also directly reachable at `http://localhost:3000/api` (CORS below).
+  - **Production: API hosting is pending [[ADR-0004 Hosting (Deferred)]].** Until then
+    `firebase.json` has no API target: its only rewrite is the SPA fallback
+    `"source": "!/api{,/**}"` → `/index.html`, so `/api` and `/api/**` return Hosting's `404`
+    instead of the SPA HTML. When ADR-0004 picks a host, add an `/api/**` rewrite to it **before**
+    the SPA fallback (Hosting applies the first matching rewrite), e.g.
+    `{ "source": "/api/**", "run": { "serviceId": "<service>", "region": "<region>" } }` or
+    `{ "source": "/api/**", "function": { "functionId": "<fn>" } }`, and set the server's
+    production CORS origins if the API is not same-origin.
 - **Read-only.** `GET` and `HEAD` only; other methods → `405`. `OPTIONS` → `204`.
 - JSON (`application/json; charset=utf-8`), `Cache-Control: no-store`.
 - **CORS:** only `http://localhost:4200`, and only when `NODE_ENV=development` (the default).
@@ -138,3 +153,5 @@ Notes for the UI:
 - v1 (2026-11-23, H-008): first endpoints: `GET /api/health`, `GET /api/sets`, `GET /api/cards`
   (paging), `GET /api/cards/:cardKey`; error shape and codes; `CardWithPrintings` and response
   wrappers over the SPEC-001 v0.2 types; CORS for `http://localhost:4200` in development only.
+- v1.1 (2026-11-23, H-055): no endpoint change. Base URL is `/api` in dev and prod (dev via the
+  `ng serve` proxy); production `/api/**` returns `404` until ADR-0004 picks an API host.
