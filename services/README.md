@@ -16,9 +16,11 @@ npm install
 npm run ingest:cards      # calls the Riot API with RIOT_API_KEY from ..\.env
 npm run dev               # API on http://localhost:3000/api (restarts on file changes)
 ```
-Then open `http://localhost:3000/api/health`. The Angular dev server (`http://localhost:4200`)
-may call the API directly: CORS allows only that origin, and only when `NODE_ENV` is
-`development` (the default).
+Then open `http://localhost:3000/api/health`. The web app calls the API at `/api` in dev and
+production; in dev the Angular dev server (`npm start` in `web/`) proxies `/api` to this server
+(`web/proxy.conf.json`), so `http://localhost:4200/api/health` works too. If you change `PORT` in
+`.env`, update the proxy `target`. CORS still allows `http://localhost:4200` when `NODE_ENV` is
+`development` (the default), for direct calls.
 
 ### How the config finds `.env`
 Every script runs `node --env-file-if-exists=../.env ...`. npm always runs scripts from

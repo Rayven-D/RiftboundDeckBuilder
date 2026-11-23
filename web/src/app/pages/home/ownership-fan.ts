@@ -32,6 +32,7 @@ import type { FanCard } from './home-page';
             [state]="own(card).state"
             [fill]="own(card).fill"
             [imageUrl]="art(card, i)"
+            decorative
           />
           <app-ownership-chip
             class="fan-chip"

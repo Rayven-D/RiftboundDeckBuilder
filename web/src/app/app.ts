@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ElementRef, viewChild } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Icon } from './shared/icon';
@@ -21,4 +21,15 @@ export class App {
     { path: '/collection', label: 'Collection' },
     { path: '/tournaments', label: 'Tournaments' },
   ];
+
+  private readonly main = viewChild.required<ElementRef<HTMLElement>>('main');
+
+  /**
+   * With `<base href="/">` a bare `#main` href resolves to `/#main`, which would navigate home from
+   * any other route. Keep the href for semantics, but move focus to `<main>` in place instead.
+   */
+  protected skipToMain(event: Event): void {
+    event.preventDefault();
+    this.main().nativeElement.focus();
+  }
 }
