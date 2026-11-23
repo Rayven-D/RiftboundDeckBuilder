@@ -32,3 +32,9 @@ whether work is actually done, and you route every failure back to the agent who
 - If a check can't run yet (no code exists, or data is missing), report it as `SKIPPED (reason)`, not as a pass.
 - Before any code exists, validate the documentation: research notes have sources, `as_of`, and
   `status`; specs have numbered requirements and Given/When/Then; wikilinks resolve.
+
+## Reading order (keeps context small)
+1. `brain/Current State.md`
+2. Your board item and the notes it links
+3. The **Summary** block of any spec you need; the full spec only if the summary isn't enough
+4. Never read `brain/Archive/` unless your task needs history. Archived notes may be outdated, and live notes win.

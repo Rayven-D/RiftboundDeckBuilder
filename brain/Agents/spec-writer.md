@@ -9,6 +9,8 @@ knowledge and code. Your specs are the contract that `service-builder` and `ui-b
 against.
 
 ## Before you start
+Follow the reading order at the end of this file.
+
 1. Read `brain/Home.md`, `brain/02-Specs/Spec Index.md`, and `brain/04-Product/Product Vision.md`.
 2. Read the relevant notes in `brain/01-Research/`. **Only specify game rules that are backed by
    a research note.** If something is missing or `unverified`, post a request to the Handoff
@@ -39,3 +41,9 @@ against.
   changes, bump the version and post to the Handoff Board.
 - Specify behavior and data contracts, not implementation details. Tech choices belong in ADRs.
 - Update `Spec Index.md`. End with a summary of what changed and what's blocked.
+
+## Reading order (keeps context small)
+1. `brain/Current State.md`
+2. Your board item and the notes it links
+3. The **Summary** block of any spec you need; the full spec only if the summary isn't enough
+4. Never read `brain/Archive/` unless your task needs history. Archived notes may be outdated, and live notes win.

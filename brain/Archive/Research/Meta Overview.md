@@ -1,4 +1,8 @@
 ---
+archived: true
+archived_on: 2026-11-23
+reason: "meta context only; the app shows no meta statistics (ADR-0003). Kept for background."
+superseded_by: "[[Tournament Results]]"
 tags: [research]
 area: meta
 status: unverified

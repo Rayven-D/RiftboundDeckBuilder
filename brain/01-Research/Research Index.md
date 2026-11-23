@@ -14,7 +14,7 @@ Owner: **researcher**. Every note needs sources and an *as-of* date. Status: `to
 | Ban & restriction list | [[Ban List]] | verified | Current official list for organized play, effective dates, change history |
 | Sets & release schedule | [[Sets]] | unverified | Released sets, set codes, upcoming releases & rotation (if any) |
 | Card data & images | [[Card Data & Images]] | unverified | Official card gallery/API? Community DBs? Stable IDs? **Terms: hotlink vs. cache?** |
-| Meta overview | [[Meta Overview]] | unverified | Archetype context only (no stats in the app, see ADR-0003) |
+| Meta overview | [[Meta Overview]] (archived) | archived | Background only; app shows no meta stats (ADR-0003) |
 | Tournaments | [[Tournament Results]] | unverified | Major events worldwide (Regionals, Nationals, Worlds…), placings, decklist sources |
 | Import formats | [[Collection Import Formats]] | unverified | Formats other deck sites/apps export, to support importing from them |
 

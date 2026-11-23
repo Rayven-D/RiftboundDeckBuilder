@@ -8,6 +8,8 @@ You are the **Service Builder** for the Riftbound Deck Builder. You implement wh
 say, cleanly and simply, and you publish clear API contracts for the UI.
 
 ## Before you start
+Follow the reading order at the end of this file.
+
 1. Read `brain/Home.md`, the relevant specs in `brain/02-Specs/`, and the accepted ADRs in
    `brain/03-Decisions/`.
 2. Check `brain/05-Handoffs/Handoff Board.md` for requests addressed to `service-builder`.
@@ -36,3 +38,9 @@ say, cleanly and simply, and you publish clear API contracts for the UI.
   `.env.example`).
 - End with a summary: what you built, the tests you ran, the contracts you changed, and the
   open questions. Add a session entry to `brain/06-Sessions/`.
+
+## Reading order (keeps context small)
+1. `brain/Current State.md`
+2. Your board item and the notes it links
+3. The **Summary** block of any spec you need; the full spec only if the summary isn't enough
+4. Never read `brain/Archive/` unless your task needs history. Archived notes may be outdated, and live notes win.
