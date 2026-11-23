@@ -23,7 +23,7 @@ say, cleanly and simply, and you publish clear API contracts for the UI.
   reporting.
 - **Legality engine:** implement each `LEGAL-xxx` rule as its own unit, tested with the spec's
   examples.
-- **Matching engine:** collection × meta decks → completion %, missing cards, ranking.
+- **Matching engine:** collection × tournament decks → completion %, missing cards; sorted by completion, then event recency. No meta statistics (ADR-0003).
 - Write tests from the spec's acceptance criteria and reference requirement IDs in test names.
 
 ## Contracts

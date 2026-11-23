@@ -50,4 +50,4 @@ reliable meta signal. Community tier lists are refreshed about every 1–2 weeks
 - **Policy risk:** Riot's developer policy forbids apps that publish or keep "metagame-defining data" (play and win rates). See [[Card Data & Images]]. Showing tiers or win rates in our app may not be allowed.
 
 ## Impacts
-_Which specs this affects:_ [[Meta Deck Catalog & Ranking]] · [[Build Matching]]
+_Which specs this affects:_ [[Tournament Deck Catalog]] · [[Build Matching]]

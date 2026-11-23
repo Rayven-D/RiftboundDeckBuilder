@@ -82,4 +82,4 @@ superseded).
 - The ranks #4 and #6 lists (BQO Caravaggio, lets see lol) are **identical, card for card**, in Riot's article. That could be a copy error on Riot's side or a real shared list.
 
 ## Impacts
-_Which specs this affects:_ [[Meta Deck Catalog & Ranking]] · [[Build Matching]] · [[Collection Import Formats]] (Riot's decklist text layout)
+_Which specs this affects:_ [[Tournament Deck Catalog]] · [[Build Matching]] · [[Collection Import Formats]] (Riot's decklist text layout)
