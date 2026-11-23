@@ -23,7 +23,7 @@ they can actually build from it, or how few cards they'd need to buy to get ther
 - [ ] Collection import (text list + CSV)
 - [ ] Tournament deck catalog: recent events and their winning decklists (no meta stats, see [[ADR-0003 Tournament Results Only]])
 - [ ] Legality check against the current rules and ban list
-- [ ] "Decks I can build" view + deck detail
+- [ ] "Your decks" view + deck detail
 
 ## Later
 - Hosting on Firebase or AWS, whichever is cheaper (deferred: [[ADR-0004 Hosting (Deferred)]])

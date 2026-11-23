@@ -11,7 +11,7 @@ describe('routes', () => {
   it('redirects the root path to /decks', async () => {
     const harness = await RouterTestingHarness.create('/');
     expect(TestBed.inject(Router).url).toBe('/decks');
-    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain('Decks I can build');
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain('Your decks');
   });
 
   it.each([

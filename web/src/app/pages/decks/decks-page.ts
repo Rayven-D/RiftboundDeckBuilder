@@ -7,12 +7,8 @@ import { EmptyState } from '../../shared/empty-state';
   imports: [EmptyState, RouterLink],
   template: `
     <header class="page-header">
-      <h1>Decks I can build</h1>
-      <p class="page-lede">
-        Top 8 decklists from recent tournaments, checked against your collection. Decks are sorted by how
-        complete they are for you, then by how recent the event was, and each shows its placing. Open a
-        deck to see exactly which cards you're missing.
-      </p>
+      <h1>Your decks</h1>
+      <p class="page-lede">Tournament Top 8 decks, sorted by how much of each you already own.</p>
     </header>
     <app-empty-state
       heading="No decks to show yet"
