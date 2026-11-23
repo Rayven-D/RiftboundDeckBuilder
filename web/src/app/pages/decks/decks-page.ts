@@ -7,7 +7,7 @@ import { EmptyState } from '../../shared/empty-state';
   imports: [EmptyState, RouterLink],
   template: `
     <header class="page-header">
-      <h1>Your decks</h1>
+      <h1>Decks</h1>
       <p class="page-lede">Decks you've imported. Cards you own are shown in full color.</p>
     </header>
     <app-empty-state

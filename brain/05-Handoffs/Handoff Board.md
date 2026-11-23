@@ -1,6 +1,6 @@
 ---
 tags: [handoffs, loop]
-next_id: 44
+next_id: 45
 ---
 # Handoff Board
 
@@ -12,6 +12,7 @@ The loop's state. See [[Loop Protocol]]. One row per item. Take the next ID from
 ## Open
 | ID | Pri | Owner | Status | Depends | From | Request | Accept | Tries | Link |
 |---|---|---|---|---|---|---|---|---|---|
+| H-044 | P3 | spec-writer | todo | — | RJ | Screen names changed (RJ, 2026-11-23): **"Your decks" → "Decks"**, **"My collection" → "Collection"** (nav, page titles, back links). Update screen names in ADR-0006, SPEC-005/006/007 and SPEC-004 copy. Button copy stays sentence-style: "Add to your decks" / "In your decks" (lower case), not the screen name. App already renamed on `loop/ui-direction-a` | Specs and ADR use the new names | 0 | [[Design Direction]] |
 | H-043 | P2 | spec-writer | todo | — | RJ | Update SPEC-003 / SPEC-006 for RJ's import decisions (2026-11-23): (1) every row needs a quantity: a name-only line is error `MISSING_QUANTITY`, replacing IMP-021's "assume 1"; (2) accept `.xlsx` uploads (first sheet) besides `.txt` / `.csv` (IMP-001), with Excel and CSV rows following the same rule: one cell `3x Name`, or a quantity cell then the name; a first row of column titles is skipped; (3) Deck Import also accepts CSV / Excel (revisit DECK-013's "not applicable"); (4) section labels match with or without spaces: `Main Deck` / `MainDeck`, `Rune Pool` / `RunePool` (and `Rune Deck` / `RuneDeck`) (IMP-016/017); (5) UI: one paste-or-upload dialog per import, uploads are written into the text box so they can be edited. Implemented in `web/src/app/shared/import/` on `loop/ui-direction-a` | Specs match the code; V-009 re-check | 0 | [[Collection Import]] |
 | H-042 | P2 | RJ | needs-RJ | — | RJ | Recreate the weekly research refresh (Mon 6:58 pm Central, requires RJ's PC) as a scheduled task inside the Claude project "Riftbound Deck Generator". The prompt is in the 2026-11-23 chat. The old task was deleted. Until then, run `/research-refresh` manually. | Scheduled task exists in the project | 0 | [[Loop Protocol]] |
 | H-040 | P2 | spec-writer | todo | — | validator | SPEC-005 fixes: section order = Riot decklist order (Legend, Champion, Main, Battlefields, Runes, Sideboard; ADR-0006 "Your decks view decisions"; also update OWN-022 allocation to Main first in that order: Legend → Champion → Main → Battlefields → Runes → Sideboard); verdict labels match CAT-045/DECK-051 via LEGAL-R08 and `FormatDef.name`; pass tag names (TagStore/tag lookup) into the expand; reuse SPEC-007 `CollectionCatalogView` and `DeckOwnershipInput`, and call `deckOwnership(input, cardKey)`; add `isChampionUnit` to OWN-060; bump dependency versions; OWN-061 cites the right CARD rule | V-009 + cross-spec re-check | 0 | [[Your Decks Ownership View]] |

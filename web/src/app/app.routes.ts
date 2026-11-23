@@ -14,12 +14,12 @@ export const routes: Routes = [
   },
   {
     path: 'collection',
-    title: 'My collection · Rift Builder',
+    title: 'Collection · Rift Builder',
     loadComponent: () => import('./pages/collection/collection-page').then((m) => m.CollectionPage),
   },
   {
     path: 'decks',
-    title: 'Your decks · Rift Builder',
+    title: 'Decks · Rift Builder',
     loadComponent: () => import('./pages/decks/decks-page').then((m) => m.DecksPage),
   },
   {
