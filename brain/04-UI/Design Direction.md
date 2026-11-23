@@ -21,6 +21,15 @@ centrepiece. The Legal Jibber Jabber notice always sits in the footer.
 - **Icons:** inline SVG from Material Symbols (Apache 2.0) through `app-icon` (`web/src/app/shared/icon.ts`); only the icons in use are shipped, instead of a 4 MB icon font and with no Google Fonts request.
 - **Built (branch `loop/ui-direction-a`):** theme and tokens, header, `app-ownership-chip`, `app-card-tile` (full / partial left-to-right / none treatment, 1 px divider at the fill edge), `app-deck-heading`, and a preview page at `/styleguide` (sample data, not in the nav).
 
+## Import screen (RJ, 2026-11-23)
+- Two clickable cards (whole card is a button, with icon, accent edge and chevron): **Collection**, "Import cards to your collection", and **Deck**, "Import deck lists to your decks". Each opens a dialog (**Import collection** / **Import deck**).
+- The dialog has a text box to paste into and an **Upload file** button for CSV, Excel (.xlsx) or text. An upload is written into the text box (one line per row) so it can be checked and edited the same way. Every line needs a number then the name: `1 Name` or `1x Name`; CSV / Excel rows follow the same rule. Live summary: cards and lines found, lines that need fixing (with line numbers), and section totals for decks. Bad lines are left out; Continue needs at least one good line.
+- Until card data and storage exist, Continue shows the parsed list on the Import page marked "Not saved yet". Empty states link to `/import?type=collection` or `?type=deck`, which opens that dialog.
+- Excel support (`read-excel-file`, MIT) is loaded only when an .xlsx is picked.
+
+## Footer notice (RJ, 2026-11-23)
+- Riot's Legal Jibber Jabber statement keeps Riot's wording (it is the required notice, [[Card Data & Images]] #6) but is set at the extra-small size with tight padding, so it takes one or two lines.
+
 ## Candidate directions (kept for history)
 
 ### A. Table Tool (calm utility)
@@ -72,3 +81,4 @@ fantasy-UI styling.
 - 2026-11-23: Import screen = two option cards: **Owned Cards Import** ("List of cards and their quantity you own") and **Deck Import** ("Created deck list that you want to make"). Square corners, consistent with the buttons.
 - 2026-11-23: Picked direction A with the teal accent; ownership as a B/C-style chip; placement / event line under the deck name smaller ("more of an added description"); Import more prominent, at the far right as an elevated button; Angular Material is fine to use.
 - 2026-11-23: Accent changed from teal to blue `#378ADD` (tokens, Material theme, favicon).
+- 2026-11-23: Import button icon misaligned (fixed: icon marked `matButtonIcon`). Import cards were flat: now clickable cards opening a paste-or-upload dialog. Rename to Collection / Deck with clearer descriptions. Legal footer smaller (wording kept).

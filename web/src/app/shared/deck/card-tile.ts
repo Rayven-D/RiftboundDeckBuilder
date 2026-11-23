@@ -98,15 +98,10 @@ import { OwnershipChip } from './ownership-chip';
       gap: 2px;
       font-size: var(--font-size-xs);
       font-weight: 600;
-      color: #f09595;
+      color: var(--color-danger);
     }
     .ban app-icon {
       font-size: 14px;
-    }
-    @media (prefers-color-scheme: light) {
-      .ban {
-        color: #a32d2d;
-      }
     }
   `,
 })

@@ -14,7 +14,7 @@ import { EmptyState } from '../../shared/empty-state';
       heading="No decks to show yet"
       message="Import a deck to see which of its cards you own."
     >
-      <a class="button" routerLink="/import">Import a deck</a>
+      <a class="button" routerLink="/import" [queryParams]="{ type: 'deck' }">Import a deck</a>
     </app-empty-state>
   `,
 })

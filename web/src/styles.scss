@@ -39,20 +39,21 @@ html {
     )
   );
 
-  /* Square corners on every Material component, matching the buttons and nav. */
+  /* Square corners on every Material component. Use 0px, not 0: Material puts these in
+     max(16px, …), and a unitless 0 makes that invalid (form fields lose their padding). */
   @include mat.theme-overrides(
     (
-      corner-extra-small: 0,
-      corner-extra-small-top: 0,
-      corner-small: 0,
-      corner-medium: 0,
-      corner-large: 0,
-      corner-large-top: 0,
-      corner-large-end: 0,
-      corner-large-start: 0,
-      corner-extra-large: 0,
-      corner-extra-large-top: 0,
-      corner-full: 0,
+      corner-extra-small: 0px,
+      corner-extra-small-top: 0px,
+      corner-small: 0px,
+      corner-medium: 0px,
+      corner-large: 0px,
+      corner-large-top: 0px,
+      corner-large-end: 0px,
+      corner-large-start: 0px,
+      corner-extra-large: 0px,
+      corner-extra-large-top: 0px,
+      corner-full: 0px,
     )
   );
 
@@ -69,8 +70,8 @@ html {
   );
 }
 
-/* Icons inside Material buttons: same size and spacing as mat-icon would get. */
-.mat-mdc-button-base app-icon {
+/* Icons in Material buttons (marked matButtonIcon so Material puts them in its icon slot). */
+.mat-mdc-button-base > app-icon {
   margin-inline-end: var(--space-2);
   font-size: 18px;
 }
@@ -91,6 +92,8 @@ html {
   --color-owned: #378add;
   --color-missing: #9aa3ad;
   --color-focus: #85b7eb;
+  --color-danger: #f09595;
+  --color-warning: #ef9f27;
 
   /* Spacing (4px scale) */
   --space-1: 0.25rem;
@@ -143,6 +146,8 @@ html {
     --color-owned: #185fa5;
     --color-missing: #56606b;
     --color-focus: #185fa5;
+    --color-danger: #a32d2d;
+    --color-warning: #854f0b;
   }
 }
 

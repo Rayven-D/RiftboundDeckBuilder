@@ -37,7 +37,9 @@ function sampleArt(color: string): string {
         21 of 40 copies owned for decks · 9 of 18 cards fully owned · Not fully checked
       </p>
       <div class="actions">
-        <button matButton="filled"><app-icon name="content_copy" />Copy missing list</button>
+        <button matButton="filled">
+          <app-icon matButtonIcon name="content_copy" />Copy missing list
+        </button>
         <button matButton="outlined">Edit</button>
       </div>
     </header>
