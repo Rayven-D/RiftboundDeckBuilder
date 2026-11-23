@@ -29,13 +29,13 @@ updated: 2026-11-23
 ## Specs ([[Spec Index]])
 | Spec | Ver | Notes |
 |---|---|---|
-| SPEC-001 [[Card Data Model]] | 0.2 | nullable attrs, `cardKey`, `printingSortKey`, `catalogVersion` |
-| SPEC-002 [[Deck Legality]] | 0.2 | 4 ban waves as data, `banStatus()` |
-| SPEC-003 [[Collection Import]] | 0.2 | owned cards; Part A = shared parsers |
-| SPEC-004 [[Tournament Deck Catalog]] | 0.3 | Top 8, Add to Your decks |
-| SPEC-005 Your Decks Ownership View | — | **next (H-007)** |
-| SPEC-006 [[Deck Import]] | 0.2 | community decks; shared tournament source |
-| SPEC-007 [[My Collection]] | 0.2 | per-printing, tags, deckOwnership() |
+| SPEC-001 [[Card Data Model]] | 0.3 | nullable attrs, `cardKey`, `printingSortKey`, `catalogVersion`, `defaultPrintingId` |
+| SPEC-002 [[Deck Legality]] | 0.3 | 4 ban waves as data, `banStatus()`, display rules LEGAL-R08 |
+| SPEC-003 [[Collection Import]] | 0.3 | owned cards; Part A = shared parsers |
+| SPEC-004 [[Tournament Deck Catalog]] | 0.4 | Top 8, Add to Your decks |
+| SPEC-005 [[Your Decks Ownership View]] | 0.1 | full / darkened / partial fill, zone allocation, ban labels |
+| SPEC-006 [[Deck Import]] | 0.3 | community decks; shared tournament source |
+| SPEC-007 [[My Collection]] | 0.3 | per-printing, tags, `deckOwnership()` |
 
 ## Waiting on RJ
 - **H-020:** fetch the live Riot payload (or `cd services; npm install; npm run ingest:cards`). This unblocks most open card questions.
@@ -43,7 +43,7 @@ updated: 2026-11-23
 - **H-011:** apply for the production key once there's a demo ([[Riot App Application]]).
 
 ## Next for the loop
-H-039 (spec summaries + clean-ups) and H-007 (SPEC-005) → UI screens against [[API Contracts]] v1.
+All 7 specs drafted and validated. Next: small SPEC-005 fixes (H-040), then **build the UI screens** against [[API Contracts]] v1 and the specs. That needs RJ's design pick (H-023).
 
 ## Biggest unknowns
 How the live API represents variants (is a foil its own printing?), domains, champion and

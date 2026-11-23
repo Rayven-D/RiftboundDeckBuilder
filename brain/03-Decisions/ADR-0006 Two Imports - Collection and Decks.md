@@ -65,3 +65,10 @@ wrong. RJ clarified the product model on 2026-11-23.
 
 Note: RJ's row-layout answer said "per card name + expand", but his detailed answer applied that to Your decks and per printing to My Collection. Recorded as above. Ownership rule for SPEC-005: owned(cardKey) = Σ copies of that card's printings that carry no excluded tag.
 
+## Your decks view decisions (RJ, 2026-11-23, SPEC-005 review)
+- Card tiles show the **default printing** art, regardless of which printings the user owns.
+- Owned copies are allocated **main deck first**; the sideboard shows what remains.
+- Deck sections follow **Riot's decklist order**: Legend, Chosen Champion, Main Deck, Battlefields, Runes, Sideboard (the same order as pasted exports).
+- Cards the user doesn't own are shown **grayscale and dimmed** (~55% brightness). Text drawn by the app stays readable.
+- Default chosen by Claude: a card no longer in the card data counts as 0 owned, with a placeholder tile.
+

@@ -10,6 +10,8 @@ Riot's developer policy forbids apps from publishing or storing "metagame-defini
 play rates, win rates, and matchup data (see [[Card Data & Images]]). Our original idea of ranking
 decks by meta strength would conflict with that.
 
+> **Superseded in part by [[ADR-0006 Two Imports - Collection and Decks]]:** Your decks shows imported decks, not tournament decks, and has no completeness sort. The no-meta-stats rule still applies everywhere.
+
 ## Decision (RJ, 2026-11-23)
 - The app shows **recent tournament results**: for each event, the **full published Top 8**
   (or whatever top cut Riot publishes) with their decklists, each labelled with its placing

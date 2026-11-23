@@ -3,17 +3,19 @@ tags: [moc, specs]
 ---
 # Spec Index
 
+> Every spec starts with a **Summary** block. Read that first. Changelogs live in `Archive/Spec-Changelogs/`.
+
 Owner: **spec-writer**. Status: `draft` · `review` · `approved` · `blocked` · `superseded`
 
 | ID | Spec | Version | Status | Depends on research |
 |---|---|---|---|---|
-| SPEC-001 | [[Card Data Model]] | 0.2 | draft | [[Card Data & Images]], [[Sets]] |
-| SPEC-002 | [[Deck Legality]] | 0.2 | draft | [[Deck Construction Rules]], [[Ban List]], [[Formats]] |
-| SPEC-003 | [[Collection Import]] | 0.2 | draft | [[Collection Import Formats]] |
-| SPEC-004 | [[Tournament Deck Catalog]] | 0.3 | draft | [[Tournament Results]], [[ADR-0003 Tournament Results Only]] |
-| SPEC-005 | [[Your Decks Ownership View]] | — | todo | SPEC-001, SPEC-002, SPEC-006, SPEC-007 |
-| SPEC-006 | [[Deck Import]] | 0.2 | draft | [[Collection Import Formats]], SPEC-003 |
-| SPEC-007 | [[My Collection]] | 0.2 | draft | SPEC-001, SPEC-003 |
+| SPEC-001 | [[Card Data Model]] | 0.3 | draft | [[Card Data & Images]], [[Sets]] |
+| SPEC-002 | [[Deck Legality]] | 0.3 | draft | [[Deck Construction Rules]], [[Ban List]], [[Formats]] |
+| SPEC-003 | [[Collection Import]] | 0.3 | draft | [[Collection Import Formats]] |
+| SPEC-004 | [[Tournament Deck Catalog]] | 0.4 | draft | [[Tournament Results]], [[ADR-0003 Tournament Results Only]] |
+| SPEC-005 | [[Your Decks Ownership View]] | 0.1 | draft | SPEC-001, SPEC-002, SPEC-006, SPEC-007 |
+| SPEC-006 | [[Deck Import]] | 0.3 | draft | [[Collection Import Formats]], SPEC-003 |
+| SPEC-007 | [[My Collection]] | 0.3 | draft | SPEC-001, SPEC-003 |
 
 ## Cross-cutting constraints (apply to every spec)
 - **Stack:** an Angular front end and a TypeScript (Node) API ([[ADR-0001 Tech Stack]]).
