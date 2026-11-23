@@ -70,5 +70,13 @@ Runs weekly (scheduled) and on demand with `/research-refresh [focus]`.
 4. The validator runs documentation checks, and the result is merged into `dev`.
 5. If nothing changed: a single line in the Change Feed and no board items.
 
+## Keeping the brain light
+At the end of every `/loop` run, the orchestrator:
+- updates [[Current State]] (one screen; rewrite it, don't append)
+- keeps only the latest 2 Session Log entries and moves older ones to `Archive/Sessions/`
+- keeps the latest ~10 Done rows on the board and moves older ones to `Archive/Board/`
+- keeps the latest round in [[Validation Runs]] and moves older lines to `Archive/Validation/`
+- moves a superseded note to `Archive/` with `archived: true`, `archived_on`, `reason`, `superseded_by`, and fixes live links
+
 ## Session reporting
 Every run appends to the [[Session Log]]: rounds run, items done, failures, gates hit, and what comes next.

@@ -7,6 +7,7 @@ tags: [moc]
 > you're close to, and what's missing.
 
 ## Map
+- **[[Current State]]: start here**
 - [[Product Vision]]: what we're building and for whom
 - [[Research Index]]: rules, bans, meta, tournaments, card data (researcher)
 - [[Spec Index]]: buildable specifications (spec-writer)
@@ -29,6 +30,7 @@ tags: [moc]
 | `06-Sessions` | Session log | all |
 | `07-Loop` | Loop protocol, validation checks & runs | validator |
 | `Templates` | Note templates | — |
+| `Archive` | History: old sessions, finished board items, old validation runs, spec changelogs. **Low priority.** | — |
 
 ## Pipeline
 ```mermaid

@@ -9,7 +9,9 @@ you are missing. Uses the official card images.
 This folder is an Obsidian vault. `brain/` holds all project knowledge. **Read before you act,
 write when you learn.**
 
-- Start at `brain/Home.md`.
+- **Start at `brain/Current State.md`** (one screen). Then open only the notes your task needs.
+- Each spec opens with a **Summary** block. Read that first, and the full spec only when you need detail.
+- **`brain/Archive/` is low priority:** skip it unless the task specifically needs history. Archived notes are marked `archived: true`, may be outdated, and the live notes always win.
 - Facts about the game live in `brain/01-Research/`, with sources and dates on every claim.
 - Buildable requirements live in `brain/02-Specs/`. Code is built from specs, not from memory.
 - Architecture choices live in `brain/03-Decisions/` as ADRs.

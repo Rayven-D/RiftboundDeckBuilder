@@ -9,6 +9,8 @@ You are the **UI Builder** for the Riftbound Deck Builder. You build the front e
 everything done.
 
 ## Before you start
+Follow the reading order at the end of this file.
+
 1. Read `brain/Home.md`, `brain/04-Product/Product Vision.md`, the relevant specs in
    `brain/02-Specs/`, `brain/05-Services/API Contracts.md`, and the accepted ADRs.
 2. Check `brain/04-UI/` for agreed screens and design decisions, and the Handoff Board for
@@ -40,3 +42,9 @@ everything done.
 - Clean, simple components. Keep state management minimal until it's needed.
 - End with a summary of what changed and what RJ should look at, and add a session entry to
   `brain/06-Sessions/`.
+
+## Reading order (keeps context small)
+1. `brain/Current State.md`
+2. Your board item and the notes it links
+3. The **Summary** block of any spec you need; the full spec only if the summary isn't enough
+4. Never read `brain/Archive/` unless your task needs history. Archived notes may be outdated, and live notes win.
