@@ -75,4 +75,4 @@ Riot API. Until the key is approved, treat images as **hotlink-only from Riot's 
 - How variants (foil, alt-art, signature, overnumbered, Showcase) show up in the official API is unknown. The gallery lists them as separate cards with their own codes.
 
 ## Impacts
-_Which specs this affects:_ [[Card Data Model]] · [[Tournament Deck Catalog]] · [[Build Matching]] · [[ADR-0001 Tech Stack]]
+_Which specs this affects:_ [[Card Data Model]] · [[Tournament Deck Catalog]] · [[Your Decks Ownership View]] · [[ADR-0001 Tech Stack]]

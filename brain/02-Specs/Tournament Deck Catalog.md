@@ -14,7 +14,7 @@ as_of: 2026-11-23
 Store and show **published tournament results**: each premier event and the **full Top 8 (or
 whatever top cut Riot publishes)** with each decklist, labelled with its placing exactly as
 published, plus the event, date(s) and region. The catalog is the deck source for
-[[Build Matching]] (SPEC-005). Per [[ADR-0003 Tournament Results Only]] it contains **no metagame
+[[Your Decks Ownership View]] (SPEC-005). Per [[ADR-0003 Tournament Results Only]] it contains **no metagame
 statistics of any kind**, stored or shown. Legality of each list is **computed** against the
 current ban list by [[Deck Legality]] (SPEC-002, written in parallel) and is never hand-maintained
 in the app data.
@@ -298,7 +298,7 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
     rank or event type (CAT-062).
 
 ## Out of scope
-- Matching against collections and sorting "Your decks" (SPEC-005, [[Build Matching]]).
+- Matching against collections and sorting "Your decks" (SPEC-005, [[Your Decks Ownership View]]).
 - The legality rules and ban-list data themselves (SPEC-002, [[Deck Legality]]).
 - Card identity, names, images (SPEC-001, [[Card Data Model]]).
 - Limited, 2v2 and World Showcase multi-deck events (later; CAT-003).

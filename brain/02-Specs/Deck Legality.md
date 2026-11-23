@@ -20,7 +20,7 @@ lists per format × region, legal sets per format with dates) is built so that 2
 lists can be added as data plus a few new rules, without changing the result contract.
 
 Consumers: the deck editor (live feedback), [[Tournament Deck Catalog]] (SPEC-004: "legal as of" label
-on each published decklist), [[Build Matching]] (SPEC-005: only offer decks legal today, or mark them).
+on each published decklist), [[Your Decks Ownership View]] (SPEC-005: only offer decks legal today, or mark them).
 
 ## Definitions
 - **Legend:** the deck's single Champion Legend. It sets the **Domain Identity** and the **Champion tag**. ([[Deck Construction Rules]] #1, #2)
