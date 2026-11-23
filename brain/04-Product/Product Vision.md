@@ -8,6 +8,10 @@ status: draft
 Riftbound players own a physical collection but can't easily tell which competitive decks
 they can actually build from it, or how few cards they'd need to buy to get there.
 
+## Constraints
+- Free for everyone, with no paid tiers or exclusive access ([[Riot Developer Rules]]).
+- Our own branding: no Riot or Riftbound logos.
+
 ## Core loop
 1. **Import** your physical collection (paste a list, upload a CSV, or import from other tools).
 2. **Match** it against the Top 8 decks from recent tournaments.
