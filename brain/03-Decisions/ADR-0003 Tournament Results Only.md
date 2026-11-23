@@ -16,7 +16,7 @@ decks by meta strength would conflict with that.
   (1st–8th) exactly as published, plus the event, date, and region.
 - **No computed statistics**: no play rates, win rates, matchup data, tier lists, archetype
   shares, or "meta score". We don't store any of these either.
-- "Decks I can build" is sorted by **how complete the deck is from your collection**, then by
+- "Your decks" is sorted by **how complete the deck is from your collection**, then by
   **how recent the event is**. Placing is shown as a label (e.g. "1st, European Championship"),
   not used as a computed strength score.
 - Research notes may mention meta context so we understand the game, but none of it flows into

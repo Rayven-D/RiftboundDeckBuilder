@@ -14,7 +14,7 @@ interface NavItem {
 })
 export class App {
   protected readonly nav: NavItem[] = [
-    { path: '/decks', label: 'Decks I can build' },
+    { path: '/decks', label: 'Your decks' },
     { path: '/collection', label: 'My collection' },
     { path: '/import', label: 'Import' },
     { path: '/tournaments', label: 'Tournaments' },

@@ -10,7 +10,7 @@ Owner: **ui-builder** with RJ. Record agreed screens and design decisions here.
 |---|---|---|
 | Import collection | scaffolded | paste / CSV upload, parse errors per line |
 | My collection | scaffolded | card image grid, filters (domain, type, set, rarity) |
-| Decks I can build | scaffolded | sorted by completion %, then event recency; placing label (ADR-0003) |
+| Your decks | scaffolded | sorted by completion %, then event recency; placing label (ADR-0003) |
 | Tournaments | scaffolded | recent events, with winning decks and their lists |
 | Deck detail | scaffolded | owned/missing per card, missing list, export |
 

@@ -60,3 +60,4 @@ fantasy-UI styling.
 
 ## RJ feedback
 - 2026-11-23: Simplify buttons. Square corners (`border-radius: 0`) on nav links and `.button`. The active nav state is a straight 2px bottom border in the accent colour (previously a curved inset shadow inside a rounded box).
+- 2026-11-23: Page descriptions limited to one short line. "Decks I can build" renamed to **Your decks** (nav, title, back link).

@@ -7,11 +7,7 @@ import { EmptyState } from '../../shared/empty-state';
   template: `
     <header class="page-header">
       <h1>Import collection</h1>
-      <p class="page-lede">
-        Add the cards you physically own by pasting a card list or uploading a CSV file. Each line is
-        checked as it is read, and any line that can't be understood is listed with its line number and
-        the reason, so you can fix it and import again.
-      </p>
+      <p class="page-lede">Paste a card list or upload a CSV.</p>
     </header>
     <app-empty-state
       heading="Nothing imported yet"

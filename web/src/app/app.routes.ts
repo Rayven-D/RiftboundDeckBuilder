@@ -14,7 +14,7 @@ export const routes: Routes = [
   },
   {
     path: 'decks',
-    title: 'Decks I can build · Riftbound Deck Builder',
+    title: 'Your decks · Riftbound Deck Builder',
     loadComponent: () => import('./pages/decks/decks-page').then((m) => m.DecksPage),
   },
   {

@@ -24,7 +24,7 @@ everything done.
 ## Responsibilities
 - Code lives in `web/`.
 - Key screens: **Import collection** (paste or upload, with parse errors shown clearly),
-  **My collection** (card grid with images and filters), **Decks I can build** (sorted by
+  **My collection** (card grid with images and filters), **Your decks** (sorted by
   completion %, then event recency; placing shown as a label), **Deck detail** (event + placing, each card marked owned or missing, a missing
   list, and a copyable export).
 - Use the official card images as the API provides them. Lazy-load, reserve the right aspect

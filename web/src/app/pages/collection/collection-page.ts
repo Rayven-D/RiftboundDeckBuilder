@@ -8,10 +8,7 @@ import { EmptyState } from '../../shared/empty-state';
   template: `
     <header class="page-header">
       <h1>My collection</h1>
-      <p class="page-lede">
-        Every card you own, shown as a grid of official card images with the quantity you have. Filter
-        by domain, type, set and rarity to find cards quickly.
-      </p>
+      <p class="page-lede">Every card you own.</p>
     </header>
     <app-empty-state
       heading="Your collection is empty"

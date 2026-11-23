@@ -7,10 +7,7 @@ import { EmptyState } from '../../shared/empty-state';
   template: `
     <header class="page-header">
       <h1>Tournaments</h1>
-      <p class="page-lede">
-        Recent events, newest first, each with its Top 8 decks, their placings exactly as published, and
-        the full decklists.
-      </p>
+      <p class="page-lede">Recent events and their Top 8 decks.</p>
     </header>
     <app-empty-state heading="No tournaments loaded yet" message="Tournament results will appear here once the catalog is connected." />
   `,

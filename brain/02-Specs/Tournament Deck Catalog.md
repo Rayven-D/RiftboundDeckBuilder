@@ -98,11 +98,11 @@ in the app data.
 |---|---|---|---|
 | CAT-040 | MUST | Historical decklists stay in the catalog and are shown in their event's Top 8 in their published position. They are never deleted or hidden from the catalog because of a later ban. | [[Tournament Results]] ("keep as historical/reference data"); ADR-0003 |
 | CAT-041 | MUST | A historical decklist shows a clear label: `Contains cards banned since <date>` where `<date>` is the **earliest** `bannedSince` among its banned cards, formatted as a date (e.g. `Contains cards banned since 23 Nov 2026`). Deck detail lists each banned card with its own date and highlights it in the card list. | [[Ban List]] |
-| CAT-042 | MUST | In "Decks I can build" (SPEC-005), historical decklists are **excluded by default**. The view offers a visible toggle **"Include decks with banned cards"** (default off). When on, historical decks appear with the CAT-041 label and are sorted by the same rules as legal decks (SPEC-005). | Decision in this spec (see Rationale) |
-| CAT-043 | MUST | When the default "Decks I can build" view is empty because every catalog deck is historical (true for MVP data as of 2026-11-23), it shows an explanatory empty state, e.g. "All tournament decks currently in the catalog contain cards banned since <date>" (23 Nov 2026 today), with a one-click action that turns the toggle on. It MUST NOT appear as an error or as "no decks exist". | [[Tournament Results]] ("All 8 contain cards banned") |
+| CAT-042 | MUST | In "Your decks" (SPEC-005), historical decklists are **excluded by default**. The view offers a visible toggle **"Include decks with banned cards"** (default off). When on, historical decks appear with the CAT-041 label and are sorted by the same rules as legal decks (SPEC-005). | Decision in this spec (see Rationale) |
+| CAT-043 | MUST | When the default "Your decks" view is empty because every catalog deck is historical (true for MVP data as of 2026-11-23), it shows an explanatory empty state, e.g. "All tournament decks currently in the catalog contain cards banned since <date>" (23 Nov 2026 today), with a one-click action that turns the toggle on. It MUST NOT appear as an error or as "no decks exist". | [[Tournament Results]] ("All 8 contain cards banned") |
 | CAT-044 | SHOULD | The toggle state persists for the session (and locally between visits, if SPEC-005 keeps preferences). | — |
 
-**Rationale for CAT-042.** The question "Decks I can build" means decks you can play now in the
+**Rationale for CAT-042.** The question "Your decks" means decks you can play now in the
 selected format; offering an illegal list by default would mislead a first-time player into buying
 cards for a deck they can't register (TR 601.2.d, [[Deck Construction Rules]] fact 10). Hiding them
 completely would also be wrong: historical lists are still useful as a starting point for a legal
@@ -280,7 +280,7 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
    **When** legality is computed, **Then** `bannedCards` includes them with `kind: "battlefield"` alongside
    the Chosen Champion Riven, Broken Blade, plus Stellacorn Herder and Zhonya's Hourglass: 5 entries, each listed once with `bannedSince: "2026-11-23"` (CAT-017).
 10. **Default exclusion and empty state.** **Given** all 8 catalog lists are historical and a user has imported a
-    collection, **When** they open "Decks I can build" with the toggle off, **Then** no decks are listed and the
+    collection, **When** they open "Your decks" with the toggle off, **Then** no decks are listed and the
     CAT-043 empty state with "Include decks with banned cards" is shown. **When** they turn the toggle on, **Then**
     all 8 lists appear, each labelled per CAT-041.
 11. **Identical lists kept and flagged.** **Given** BQO Caravaggio (#4) and lets see lol (#6) have identical
@@ -298,7 +298,7 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
     rank or event type (CAT-062).
 
 ## Out of scope
-- Matching against collections and sorting "Decks I can build" (SPEC-005, [[Build Matching]]).
+- Matching against collections and sorting "Your decks" (SPEC-005, [[Build Matching]]).
 - The legality rules and ban-list data themselves (SPEC-002, [[Deck Legality]]).
 - Card identity, names, images (SPEC-001, [[Card Data Model]]).
 - Limited, 2v2 and World Showcase multi-deck events (later; CAT-003).
@@ -325,5 +325,5 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
 
 ## Changelog
 - 0.1 (2026-11-23): draft. Event and decklist models, JSON storage, Riot text conversion, display order,
-  historical-list handling (default excluded from "Decks I can build" with toggle), duplicate handling,
+  historical-list handling (default excluded from "Your decks" with toggle), duplicate handling,
   ADR-0003 prohibitions.
