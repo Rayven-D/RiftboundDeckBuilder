@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-001
-version: 0.2
+version: 0.3
 status: draft
 depends_on: []
 research: ["[[Card Data & Images]]", "[[Sets]]", "[[Deck Construction Rules]]", "[[Collection Import Formats]]", "[[Riot Developer Rules]]", "[[Riot App Application]]", "[[Ban List]]"]
@@ -9,6 +9,31 @@ decisions: ["[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Colle
 as_of: 2026-11-23
 ---
 # SPEC-001: Card Data Model
+
+## Summary
+> Read this first. Full detail below only if needed.
+
+**Purpose:** how Riot API cards become printings and playable cards in `data/cards.json`; the source of truth for card shapes in every other spec.
+
+**Key requirements**
+- CARD-001/002: the Riot API is the only card source; the API key stays server-side.
+- CARD-010/012: one `Printing` per Riot id; printings grouped into one `PlayableCard` per canonical name.
+- CARD-013: copy limits and all matching use `cardKey` only, never printing, set or variant.
+- CARD-016 (MUST): every card has a `defaultPrintingId` (first base printing, else first by `printingSortKey`).
+- CARD-024: `type` verbatim; `category` enum from a versioned mapping (`unknown` when unmapped).
+- CARD-029: `null` means unknown, never false or empty; consumers treat it as "not evaluated".
+- CARD-030: `nameKey()` normalization; CARD-036/037: set + collector-number lookup and `collectorKey()`.
+- CARD-068: `catalogVersion` = `schemaVersion+lastUpdated`, echoed by other specs' results.
+- CARD-070/071: `printingSortKey` default order (API set order, overnumbered after the regular range).
+
+**Shared types:** `CardSnapshot` (the file) · `CardSet` (code, `setOrder`, `releaseStatus`) · `PlayableCard` (one card name, gameplay fields) · `Printing` (one physical version) · `CardCategory`, `VariantKind` (enums) · `CardLookup` (lookup result) · `cardKey` / `catalogVersion` (card key, snapshot id).
+**Consumers:** [[Deck Legality]], [[Collection Import]], [[Tournament Deck Catalog]], [[Your Decks Ownership View]], [[Deck Import]], [[My Collection]].
+**BLOCKED (needs research, mostly the live payload):**
+- API schema unverified (field names, `id` format, `faction`).
+- Variant representation: CARD-036 suffix mapping, CARD-040/041 rules.
+- Champion/Signature/champion-tag fields (CARD-026/027); full type and domain lists (CARD-024/025).
+- Preview flags for cards and sets (CARD-006/008); promo sets (CARD-023); set order (CARD-071).
+- External IDs (CARD-050, MAY): needs Riot's answer via H-011.
 
 ## Purpose
 Define how Riftbound cards are represented in the app: the **printing** (one physical card version
@@ -76,7 +101,7 @@ alias, release-date or external-ID tables.
 | CARD-013 | MUST | Copy-limit counting and collection/decklist matching use `cardKey` only, never `printingId`, set or variant. Owning `N` copies across any printings of a name counts as owning `N` of that card. | [[Deck Construction Rules]] #5; [[Collection Import Formats]] (Conflicts) |
 | CARD-014 | MUST | Two names that differ only by subtitle are different cards (e.g. `Riven, The Exile` and `Riven, Broken Blade`). | [[Deck Construction Rules]] #5 |
 | CARD-015 | MUST | Gameplay fields (type, category, domains, champion/signature attributes, stats, keywords, tags, text) live on `PlayableCard`. If printings of one name disagree on a gameplay field, ingestion keeps the values from the printing whose set is latest in set order (CARD-071) and reports a `field-conflict` warning listing the printings. A non-null value never loses to `null`. | [[Card Data & Images]] #4 (timely support for changes); [[Sets]] #3 (templating changes) |
-| CARD-016 | SHOULD | Each `PlayableCard` names a `defaultPrintingId` for display: the first printing with `variant.kind === 'base'` in `printingSortKey` order (CARD-070); if no printing is known to be base, the first printing in `printingSortKey` order. | design choice |
+| CARD-016 | MUST | Each `PlayableCard` names a `defaultPrintingId` for display: the first printing with `variant.kind === 'base'` in `printingSortKey` order (CARD-070); if no printing is known to be base, the first printing in `printingSortKey` order. Every card has at least one printing (CARD-012), so the value always exists. *Rationale:* MUST because SPEC-007 COLL-012 and COLL-014 (both MUST) position and illustrate unassigned and missing-printing entries at this printing. | design choice; [[My Collection]] COLL-012, COLL-014 |
 | CARD-017 | MUST | A printing keeps its own `setCode`. Whether a reprint numbered outside its set's range is legal is **not** decided here; SPEC-002 decides it from `setCode` + `collectorNumber`. | [[Deck Construction Rules]] #13 |
 
 ### Sets
@@ -385,16 +410,4 @@ real cards from research notes.
     (e.g. promo codes); form (d) catches them meanwhile.
 
 ## Changelog
-- 0.1 (2026-11-23): first draft (H-003).
-- 0.2 (2026-11-23): H-015, H-017, H-026 (ADR-0005/0006). Shared contract: `domains`, `isChampionUnit`
-  (renamed from `isChampion`), `isSignature`, `championTag`, `isPreview` are nullable, null = unknown
-  (new CARD-029); overnumbered only as `variant.kind`; `type` verbatim + `category` enum
-  `legend|champion|unit|spell|gear|rune|battlefield|token|unknown` with a mapping table (CARD-024);
-  `cardKey` is the only playable-card key; new `catalogVersion` (CARD-068) and `variantRulesVersion`.
-  CARD-036 set + collector-number lookup is now MUST; new CARD-037 collector-number normalization.
-  New CARD-070 `printingSortKey` and CARD-071 `setOrder` (API order, no curated dates) for SPEC-007's
-  default sort. New CARD-008 `CardSet.releaseStatus` (API only) for SPEC-002 set legality. Removed
-  CARD-022 (curated release dates) and CARD-034 (curated alias table) per ADR-0005; CARD-050 external
-  IDs is MAY + BLOCKED on H-011; CARD-051 no longer a curated file. CARD-015/016 use set order instead
-  of release dates. Fixed AC5 (`Star-Crossed`/`Star Crossed` don't collide); AC6 now shows no alias;
-  AC8/AC10 updated; new AC17–20. Schema version `0.2`.
+Current: 0.3 (2026-11-23). Full history: [[Card Data Model changelog]] (archived). New entries go in the archive note.

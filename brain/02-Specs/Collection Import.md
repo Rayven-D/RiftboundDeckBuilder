@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-003
-version: 0.2
+version: 0.3
 status: draft
 depends_on: [SPEC-001]
 related: ["[[Deck Import]]", "[[My Collection]]", "[[Your Decks Ownership View]]", "[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
@@ -9,6 +9,30 @@ research: ["[[Collection Import Formats]]", "[[Card Data & Images]]", "[[Sets]]"
 as_of: 2026-11-23
 ---
 # SPEC-003: Collection Import
+
+## Summary
+> Read this first. Full detail below only if needed.
+
+**Purpose:** Owned Cards Import: parse → preview → commit a list of cards the user owns into the browser collection. Part A (shared parsing) is reused by [[Deck Import]]; Part B is collection-only.
+
+**Key requirements**
+- IMP-002: parsing has no side effects; only an explicit commit writes.
+- IMP-003/056: one bad line never aborts; every issue has a code, severity and location.
+- IMP-011/013: format auto-detection (csv, piltover-code, tts, riot-text, plain-text); the user can override.
+- IMP-025/027: exact `nameKey` match resolves; fuzzy suggestions are never applied automatically.
+- IMP-029: shared-prefix names (e.g. `Kennen`) are `AMBIGUOUS_NAME`; IMP-059: no alias table.
+- IMP-047/048: merged by `cardKey`; per-printing counts are kept for display only.
+- IMP-049/050: commit as Add (default) or Replace (with confirmation).
+- IMP-053/054: browser storage behind `CollectionStore`, recording `catalogVersion`.
+- IMP-058: the committed collection feeds My Collection; Your decks reads SPEC-007 `deckOwnership()`.
+- Part A preamble: not applicable to decks: `.csv` parts of IMP-001/011, IMP-009, IMP-015, IMP-040…046 (= DECK-013).
+
+**Shared types:** `CardKey`, `PrintingId`, `PrintingCode` (keys) · `ImportResult` / `ParsedLine` / `ImportIssue` (parser output, reused by SPEC-006) · `SourceFormat` · `StoredCollection` (`cardKey` → quantity + `byPrinting`) · `CollectionStore`.
+**Depends on:** [[Card Data Model]]. **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
+**BLOCKED (needs research):**
+- Piltover deck-code set indexes beyond SFD and what `ARC` is (IMP-032); variant letters a/s/b (IMP-033).
+- Real deck codes with known contents for fixtures (AC 16).
+- CSV column sets of TCGplayer/Moxfield/Deckbox/Dreamborn and the Play Network TXT layout (IMP-023, IMP-046).
 
 ## Purpose
 Let a user bring the cards they **own** (scanned, or kept in another app) into the app. This spec is the
@@ -20,7 +44,7 @@ cards of each imported deck the user owns ([[ADR-0006 Two Imports - Collection a
 
 **Scope: owned cards only.** Deck lists the user wants to build (the **Deck Import** option card) are
 [[Deck Import]] (SPEC-006). The requirements are split in two parts:
-- **Part A, shared parsing (reused by SPEC-006):** input handling, format detection, line/token/row
+- **Part A, shared parsing (reused by SPEC-006, except the owned-cards-only requirements listed at the start of Part A):** input handling, format detection, line/token/row
   parsers, name resolution, fuzzy suggestions, and error reporting. SPEC-006 references these IDs
   instead of redefining them.
 - **Part B, collection-specific:** merging into My collection, Add vs Replace, undo, storage.
@@ -63,7 +87,7 @@ formats and sum them into owned counts.
 ## Requirements
 
 ### Part A: Shared parsing (reused by SPEC-006 [[Deck Import]])
-Every requirement in Part A is **shared parsing, reused by SPEC-006**. Its output is an `ImportResult` with per-line sections kept; it never merges into or writes to any store. SPEC-006 cites these IDs and adds only deck-specific rules.
+Part A is **shared parsing, reused by SPEC-006**, except these requirements, which are **not applicable to decks** and apply to the Owned Cards Import only (SPEC-006 DECK-013 lists the same set and what replaces each): the `.csv` file type in **IMP-001** and CSV detection (step 1) in **IMP-011**; **IMP-009** (collection total cap after merging); **IMP-015** (several deck codes in one import); and the CSV requirements **IMP-040 … IMP-046**. Every other Part A requirement is reused unchanged. Its output is an `ImportResult` with per-line sections kept; it never merges into or writes to any store. SPEC-006 cites these IDs and adds only deck-specific rules.
 
 #### General parsing flow *(shared parsing, reused by SPEC-006)*
 | ID | Level | Requirement | Source |
@@ -132,7 +156,7 @@ Every requirement in Part A is **shared parsing, reused by SPEC-006**. Its outpu
 | IMP-038 | SHOULD | Identical tokens are merged before resolution so each distinct printing is reported once with its total. | design decision |
 | IMP-039 | MUST | A token that doesn't match the TTS pattern (when the user forced `tts`) → `UNPARSEABLE_TOKEN`. | design decision |
 
-#### CSV *(shared parsing, reused by SPEC-006)*
+#### CSV *(owned cards only: not applicable to decks, SPEC-006 DECK-013)*
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | IMP-040 | MUST | **Header detection:** the first non-blank row is the header if, after trimming, lower-casing, and collapsing whitespace/underscores, any cell equals a **name alias**: `name`, `card name`, `card`, `cardname`, `product name`. Optional columns by alias: **quantity** `quantity`, `qty`, `count`, `amount`, `owned`; **set** `set`, `set code`, `set id`; **number** `collector number`, `number`, `card number`, `no`; **variant** `variant`, `printing`. First matching column wins per role. | [[Collection Import Formats]] fact 5 (card-name column is the minimum) |
@@ -398,5 +422,4 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 - **Open** — fuzzy thresholds (0.85 / 0.60 / 0.05 margin) are initial values; tune against real typo samples.
 
 ## Changelog
-- 0.2 (2026-11-23): Scope narrowed to owned cards (ADR-0006); deck lists move to SPEC-006 [[Deck Import]]. Requirements split into Part A shared parsing (reused by SPEC-006) and Part B collection-specific; purpose and links now point at [[My Collection]] (SPEC-007) and [[Your Decks Ownership View]] (SPEC-005), "Build Matching" removed. A1 resolved against CARD-030; ownership and merging by `cardKey`; IMP-029 comma-prefix check on canonical names; A2 bound to CARD-036 (MUST) and its normalization (IMP-033/037/044, no own zero-padding). IMP-048 and IMP-053 confirmed (ADR-0005). IMP-006 source now the Riot API catalog with the community count 1,451 as approximate; Riftcodex removed. IMP-002, IMP-018, IMP-031 reworded so the parser keeps sections and merging is collection-specific. IMP-011 decode reference IMP-030 → IMP-031. Data contract: `NameKey`/`PrintingKey` → `CardKey`/`PrintingCode`/`PrintingId`, `catalogVersion` from SPEC-001. AC10 rewritten with a genuinely unknown name; explicit **When** in ACs 10, 12, 14, 15, 17, 18, 21. Added IMP-058 (collection feeds SPEC-005/007, ownership by `cardKey`), IMP-059 (no alias table), IMP-060 (Owned Cards Import entry point); ACs 23–26. 60 requirements.
-- 0.1 (2026-11-23): draft. Five formats, auto-detection, exact + fuzzy resolution, merge by name key, Add/Replace commit, local browser storage for MVP. 57 requirements (IMP-001…IMP-057).
+Current: 0.3 (2026-11-23). Full history: [[Collection Import changelog]] (archived). New entries go in the archive note.

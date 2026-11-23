@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-006
-version: 0.2
+version: 0.3
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-003, SPEC-004]
 consumers: [SPEC-005]
@@ -11,6 +11,30 @@ board: H-030
 as_of: 2026-11-23
 ---
 # SPEC-006: Deck Import
+
+## Summary
+> Read this first. Full detail below only if needed.
+
+**Purpose:** import a complete community deck (paste or `.txt`) into Your decks: parse → review (zones, names, legality) → save. Second path: "Add to Your decks" from Tournaments.
+
+**Key requirements**
+- DECK-002/003: one import = at most one deck; only Save writes; My collection is never changed.
+- DECK-010/013: reuses SPEC-003 Part A except CSV, IMP-009 and IMP-015 (not applicable to decks).
+- DECK-020/021: section labels map to zones; the same card in two zones stays separate.
+- DECK-030/032: zones are never guessed silently: inferred from SPEC-001 `category` or asked as zone questions.
+- DECK-026: token cards are rejected with a warning.
+- DECK-041: a deck can't be saved while any name is unresolved (fix or remove the line).
+- DECK-050/051: SPEC-002 legality is shown and never blocks saving; ban status via `banStatus()`.
+- DECK-055: the verdict is not stored; it is computed as of today.
+- DECK-061/062/064: `TournamentDeckSource` defined here; default name `<Legend>: <pilot> (<placing>, <event>)` ≤ 80; "In Your decks" / "Add another copy".
+- DECK-090/096: browser `DeckStore`; deck entries by `cardKey` only (no printing, ownership or tags).
+
+**Shared types:** `UserDeck` · `DeckCard` (`cardKey`, name, qty) · `DeckSource` = `UserDeckSource | TournamentDeckSource` · `DeckZone` (= SPEC-002 `Zone`) · `DeckImportResult` · `ZoneQuestion` · `DeckStore`.
+**Depends on:** [[Card Data Model]], [[Deck Legality]], [[Collection Import]], [[Tournament Deck Catalog]]. **Consumers:** [[Your Decks Ownership View]]; [[Tournament Deck Catalog]] (Add path).
+**BLOCKED (needs research):**
+- Whether Piltover deck codes encode Legend, champion, runes and battlefields (DECK-039).
+- API type strings and champion/signature fields (via SPEC-001), so inference mostly asks zone questions.
+- Whether token cards can ever be in a deck (DECK-026, via SPEC-001).
 
 ## Purpose
 Let a user bring in a **complete deck someone else built** (a forum post, a deck site, a friend's
@@ -49,8 +73,8 @@ without parsing.
 - **Deck zone** (`DeckZone`): SPEC-002 `Zone`: `legend`, `champion`, `main`, `sideboard`, `runes`,
   `battlefields`. `champion` is the Chosen Champion; `main` excludes it (39 cards in a 40-card deck),
   as in SPEC-002 `DeckInput` and SPEC-004 CAT-014.
-- **Shared parsing**: SPEC-003 Part A. SPEC-003 states that all of Part A is reused by this spec;
-  DECK-010 lists the IDs reused and DECK-013 lists the Part A IDs that are **not applicable to decks**.
+- **Shared parsing**: SPEC-003 Part A. SPEC-003 states that Part A is reused by this spec except the
+  requirements its Part A preamble lists as not applicable to decks; DECK-010 lists the IDs reused and DECK-013 lists the Part A IDs that are **not applicable to decks**.
   This spec cites them by ID and does not restate them.
 - **Unsectioned entry**: an entry that has no section label, because the format has none (plain text,
   TTS, the main part of a deck code) or because it comes before the first label.
@@ -79,7 +103,7 @@ without parsing.
 | DECK-010 | MUST | Deck import reuses SPEC-003 **Part A** (shared parsing), as SPEC-003 states, with only the exceptions in DECK-013. Reused unchanged: flow **IMP-002, IMP-003, IMP-005**, and **IMP-001** except the `.csv` file type; limits and encoding **IMP-006, IMP-007, IMP-008, IMP-010**; detection **IMP-011 (steps 2–5), IMP-012, IMP-013, IMP-014**; text grammar **IMP-016 … IMP-024** (IMP-018 for its parser part: labels are not entries, each line keeps its section, nothing is merged across sections); name resolution **IMP-025 … IMP-030, IMP-059**; Piltover deck codes **IMP-031 … IMP-035**; TTS **IMP-036 … IMP-039**; error reporting **IMP-056, IMP-057**. If SPEC-003 renumbers or relabels these, the reference follows the requirement, not the number. | [[Collection Import]]; [[Collection Import Formats]] |
 | DECK-011 | MUST | Accepted source formats: `riot-text`, `plain-text`, `piltover-code`, `tts`. **CSV is not a deck format**: IMP-011 step 1 is skipped, and a `.csv` upload or a forced `csv` gives input-level error `FORMAT_NOT_FOR_DECKS` pointing the user to Owned Cards Import. | [[Collection Import Formats]] (CSV is a collection export); design rule |
 | DECK-012 | MUST | IMP-015 (several deck codes as one import) does **not** apply. More than one deck code in the input gives input-level error `MULTIPLE_DECKS` ("Paste one deck at a time"). | DECK-002 |
-| DECK-013 | MUST | **Part A requirements not applicable to decks** (exceptions to SPEC-003's "all of Part A is reused"): the `.csv` file type in IMP-001 and IMP-011 step 1 (CSV detection), replaced by DECK-011; **IMP-009** (collection total cap after merging), replaced by DECK-092; **IMP-015** (several deck codes), replaced by DECK-012; **IMP-040 … IMP-046** (CSV), replaced by DECK-011. No other Part A requirement is excepted. SPEC-003 **Part B** (IMP-004, IMP-047 … IMP-055, IMP-058, IMP-060) is collection-specific and is not reused; sections C–J of this spec define the deck behaviour instead. | [[Collection Import]] Part A preamble; [[ADR-0006 Two Imports - Collection and Decks]] |
+| DECK-013 | MUST | **Part A requirements not applicable to decks** (the same exceptions SPEC-003's Part A preamble lists): the `.csv` file type in IMP-001 and IMP-011 step 1 (CSV detection), replaced by DECK-011; **IMP-009** (collection total cap after merging), replaced by DECK-092; **IMP-015** (several deck codes), replaced by DECK-012; **IMP-040 … IMP-046** (CSV), replaced by DECK-011. No other Part A requirement is excepted. SPEC-003 **Part B** (IMP-004, IMP-047 … IMP-055, IMP-058, IMP-060) is collection-specific and is not reused; sections C–J of this spec define the deck behaviour instead. | [[Collection Import]] Part A preamble; [[ADR-0006 Two Imports - Collection and Decks]] |
 | DECK-014 | MUST | Riftbound card names contain commas (`Kennen, Storm of Shuriken`); the whole rest of the line after the quantity is the name (IMP-019). | [[Collection Import Formats]] table |
 
 ### C. Sections to deck zones
@@ -131,7 +155,7 @@ information about a deck the user wants to build, so it never blocks (DECK-050).
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | DECK-050 | MUST | The review step runs SPEC-002 on the reconstructed deck (`format: 'standard'`, region `global`, `asOf` = today) and shows the `LegalityResult`. **No verdict, rule failure or ban blocks saving.** | [[ADR-0006 Two Imports - Collection and Decks]] (decks the user wants to make); board H-030 |
-| DECK-051 | MUST | The display shows: the verdict with the same labels as SPEC-004 CAT-045 (`legal` → "Legal in Standard as of Nov 23, 2026", `illegal` → "Not legal in Standard today", `incomplete` → "Not fully checked", DECK-052), every failed rule with its SPEC-002 message (LEGAL-R07), and every banned card with its zone, ban wave name and **banned since** date taken from SPEC-002 `banStatus(cardKey, 'standard', 'global', today)` (LEGAL-B10), shown in the display date format, e.g. "Nocturne, Horrifying, banned since Nov 23, 2026". | [[Deck Legality]] LEGAL-016, LEGAL-B10, LEGAL-R07; [[ADR-0005 MVP Product Defaults]] #3 (banned label); [[ADR-0006 Two Imports - Collection and Decks]] H-036 #7 |
+| DECK-051 | MUST | The display shows: the verdict with the same labels as SPEC-004 CAT-045 (`legal` → "Legal in Standard as of Nov 23, 2026", `illegal` → "Not legal in Standard today", `incomplete` → "Not fully checked", DECK-052), every failed rule with its SPEC-002 message (LEGAL-R07, rendered per the LEGAL-R08 display rules), and every banned card with its zone, ban wave name and **banned since** date taken from SPEC-002 `banStatus(cardKey, 'standard', 'global', today)` (LEGAL-B10), shown in the display date format, e.g. "Nocturne, Horrifying, banned since Nov 23, 2026". | [[Deck Legality]] LEGAL-016, LEGAL-B10, LEGAL-R07; [[ADR-0005 MVP Product Defaults]] #3 (banned label); [[ADR-0006 Two Imports - Collection and Decks]] H-036 #7 |
 | DECK-052 | MUST | `incomplete` is labelled **"Not fully checked"** with the `notEvaluatedReason`s, never as legal (LEGAL-R04). | [[Deck Legality]] LEGAL-R04; [[ADR-0006 Two Imports - Collection and Decks]] H-036 #7 |
 | DECK-053 | SHOULD | Cards whose `banStatus()` is `upcoming` (LEGAL-B10, LEGAL-B08 semantics) are shown as info ("will be banned from Nov 23, 2026"). | [[Deck Legality]] LEGAL-B08, LEGAL-B10 |
 | DECK-054 | MUST | Legality is re-run on every edit in review and in the deck editor (section H). | [[Deck Legality]] LEGAL-R01 (pure, cheap) |
@@ -467,53 +491,13 @@ shown in the display format (`Nov 23, 2026`).
   deck. DECK-026 rejects them with a warning until then.
 - **Unconfirmed**: the Riftbound Play Network "Export → TXT" layout (SPEC-003 IMP-023). If it uses
   other labels, they are added to IMP-017.
-- **For spec-writer (SPEC-003)**: SPEC-003 says all of Part A is reused by this spec, but Part A holds
-  collection-only requirements that DECK-013 lists as not applicable to decks: IMP-009 (total cap), IMP-015
-  (several deck codes), the CSV rows IMP-040…046, and the `.csv` parts of IMP-001 and IMP-011 step 1.
-  Proposed: move IMP-009, IMP-015 and IMP-040…046 to Part B (or mark them "owned cards only") and note the
-  `.csv` exception in IMP-001/IMP-011, so the two specs say the same thing.
-- **For spec-writer (SPEC-004)**: CAT-072 should state that `TournamentDeckSource` is defined in this
-  spec's Data contract and keep its copy only as a reference (it is field-for-field identical today).
-  CAT-073's inline example still shows the full Legend name (`Kennen, Heart of the Tempest: ASC
-  Evansrhim …`), while its AC 16, ADR-0006 Gate H-036 #1 and DECK-062 use `Kennen: ASC Evansrhim …`;
-  CAT-073 should define `<Legend>` as in DECK-062. CAT-071 should cite DECK-065.
+- **Resolved (H-039)**: SPEC-003 v0.3's Part A preamble lists the same deck exceptions as DECK-013;
+  SPEC-004 v0.4 CAT-071 cites DECK-065 and CAT-073 trims the default name to 80 characters like DECK-062
+  (CAT-072 and the CAT-073 example already matched).
 - **Needs RJ**: confirm DECK-041 (unknown names must be fixed or removed before saving, rather than
   saved as placeholders) and the limits in DECK-092 (200 decks, 300 copies).
 - **Defaults chosen by Claude (RJ may change, ADR-0006 H-036 #7)**: display date format `Nov 23, 2026`
   and the label "Not fully checked".
 
 ## Changelog
-- 0.2 (2026-11-23): board H-030 retry 1 (validator FAIL of 0.1), Gate H-036 and H-037 decisions
-  ([[ADR-0006 Two Imports - Collection and Decks]]).
-  - One tournament source type: `DeckSource = UserDeckSource | TournamentDeckSource`, with
-    `TournamentDeckSource` field-for-field identical to SPEC-004 CAT-072 (`eventName`, `eventStartDate`,
-    `eventEndDate`, `region`, `publishedRank`, `placingLabel`, `pilot`, `sourceUrl`, `addedAt`; dropped
-    `placing`/`url`) and defined once here (DECK-061).
-  - Default tournament name `<Legend>: <pilot> (<placingLabel>, <event name>)` (DECK-062, H-036 #1).
-  - Duplicates now MUST, identical to CAT-074: "In Your decks" opens the deck, "Add another copy" makes
-    `… (2)`, `(3)`… (DECK-064, H-036 #2).
-  - DECK-065 rewritten: the Add path copies `cardKey`s, skips parsing and cannot fail on names (CAT-071);
-    DECK-005 and DECK-060 aligned.
-  - `isChampion` → `isChampionUnit` throughout; Champion Unit defined as in SPEC-002.
-  - Zone inference on the SPEC-001 `category` enum (no `null`, no `'other'`): DECK-032 is a rule per
-    enum value; DECK-034 asks when several candidates; DECK-035 on `'unknown'` with bulk "Put all in Main
-    Deck" (now MUST); new DECK-026 rejects tokens with warning `TOKEN_NOT_DECK_CARD`; DECK-022 and DECK-037
-    updated.
-  - DECK-092 total corrected to 66. DECK-088 legality wording aligned with LEGAL-019/LEGAL-R04.
-  - DECK-010/DECK-013 cite SPEC-003 Part A exactly: all of Part A reused except IMP-009, IMP-015,
-    IMP-040…046 and the `.csv` parts of IMP-001/IMP-011, listed as "not applicable to decks"; Part B not
-    reused.
-  - Shared display rules (H-037): dates `Nov 23, 2026`, `incomplete` = "Not fully checked", verdict labels
-    as CAT-045, ban status via SPEC-002 `banStatus()` (DECK-051…053, DECK-070).
-  - New DECK-096: deck entries by `cardKey` only (no printing, ownership or tags; `DeckCard.printingId`
-    removed); [[Your Decks Ownership View]] groups by name, expands to printings and applies "exclude from
-    decks" tags.
-  - ACs: explicit **When** in AC 7 and AC 16; AC 1, 4, 6, 11 updated; new AC 11a, 20, 21, 22.
-  - Open questions refreshed (removed CARD-034, CAT-042/043 and non-nullable SPEC-001 items; added
-    SPEC-003 Part A and SPEC-004 alignment items, token research).
-  - 69 requirements (63 MUST, 5 SHOULD, 1 MAY; DECK-001…DECK-096; DECK-064 SHOULD → MUST).
-- 0.1 (2026-11-23): draft. Deck import for community decklists (board H-030, ADR-0006). Reuses SPEC-003
-  shared parsing by ID; sections → zones; zone reconstruction from Riot card data with user questions,
-  never silent; SPEC-002 legality shown, never blocking; unknown names must be resolved or removed;
-  Tournaments "Add to Your decks"; edit/rename/delete/duplicate/export; browser `DeckStore`.
-  67 requirements (60 MUST, 6 SHOULD, 1 MAY; DECK-001…DECK-095, numbered in groups).
+Current: 0.3 (2026-11-23). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.

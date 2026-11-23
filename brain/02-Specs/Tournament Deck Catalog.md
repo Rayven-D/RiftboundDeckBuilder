@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-004
-version: 0.3
+version: 0.4
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-006]
 research: ["[[Tournament Results]]", "[[Ban List]]", "[[Formats]]", "[[Riot Developer Rules]]", "[[Collection Import Formats]]", "[[Deck Construction Rules]]"]
@@ -9,6 +9,30 @@ decisions: ["[[ADR-0003 Tournament Results Only]]", "[[ADR-0005 MVP Product Defa
 as_of: 2026-11-23
 ---
 # SPEC-004: Tournament Deck Catalog
+
+## Summary
+> Read this first. Full detail below only if needed.
+
+**Purpose:** store and show published tournament results (events and their full Top 8, placings as published) on the Tournaments screen. Legality is computed by [[Deck Legality]]; no metagame statistics (ADR-0003).
+
+**Key requirements**
+- CAT-001/010: event and decklist models; placing label and pilot copied verbatim (CAT-011/012).
+- CAT-013/014: card entries `{ cardKey, name, qty }`; main deck stored without the Chosen Champion.
+- CAT-016/017: legality is never stored as source data; computed with `asOf` = the check date.
+- CAT-020/021: one `data/events/<event-id>.json` per event; ids `<YYYY-MM>-<slug>` and `<event-id>-<rank>`.
+- CAT-025/028: curated manual import; exact `nameKey` lookup, unknown names block the import.
+- CAT-037: shared display rules (dates `Nov 23, 2026`, `incomplete` = "Not fully checked").
+- CAT-040/041: historical lists shown by default, labelled `Contains cards banned since <date>`.
+- CAT-045: legality label mapping (historical, illegal, incomplete, legal).
+- CAT-070…074: one-click "Add to Your decks" via SPEC-006 (DECK-060…065); default name trimmed to 80; "In Your decks" / "Add another copy".
+- CAT-060…064 (MUST NOT): no play/win rates, tiers, shares, aggregates or player ratings.
+
+**Shared types:** `TournamentEvent` · `CatalogDecklist` · `CardEntry` · `EventFile` (one file) · `DecklistLegality` (computed legality view) · `BannedCardRef` · `TournamentDeckSource` (defined in SPEC-006, mirrored here).
+**Depends on:** [[Card Data Model]], [[Deck Legality]], [[Deck Import]]. **Consumers:** Tournaments screen; copies land in [[Your Decks Ownership View]].
+**BLOCKED:**
+- Needs research: verbatim Riot decklist text layout (CAT-026).
+- Needs research: printed RC Europe player total (CAT-002); official event name; whether a bracket was published (CAT-011).
+- Policy: whether copying decklists from Riot articles is allowed (H-011); CAT-025 stays manual.
 
 ## Purpose
 Store and show **published tournament results**: each premier event and the **full Top 8 (or
@@ -75,7 +99,7 @@ stored or shown. Legality of each list is **computed** by [[Deck Legality]] (SPE
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | CAT-020 | MUST | One JSON file per event at `data/events/<event-id>.json`, matching the `EventFile` shape below, with `schemaVersion: 1`. The event and all its decklists live in that file. Access goes through a storage interface (no host-specific features). | Spec Index cross-cutting constraints; [[ADR-0004 Hosting (Deferred)]] |
-| CAT-021 | MUST | `event.id` is `<YYYY-MM>-<short-slug>` from the start date (e.g. `2026-11-rc-europe`) and equals the file name. Decklist `id` is `<event-id>-<publishedRank>` (e.g. `2026-11-rc-europe-4`). If two lists share a rank, append `-<n>` in published order. Design rule (naming convention in this spec); start dates from [[Tournament Results]] |
+| CAT-021 | MUST | `event.id` is `<YYYY-MM>-<short-slug>` from the start date (e.g. `2026-11-rc-europe`) and equals the file name. Decklist `id` is `<event-id>-<publishedRank>` (e.g. `2026-11-rc-europe-4`). If two lists share a rank, append `-<n>` in published order. | Design rule (naming convention in this spec); start dates from [[Tournament Results]] |
 | CAT-022 | MUST | A loader validates every file against the schema at startup/build and fails loudly (file, decklist id, field) on: missing required field, unknown card name (no `cardKey`), `format` mismatch between event and decklist, duplicate decklist `id`, or `publishedRank` outside 1..N. | Design rule (fail-loud data checks, as SPEC-002 LEGAL-B05 does for the ban list); [[ADR-0005 MVP Product Defaults]] decision 4 (unknown names are errors, never guessed) |
 | CAT-023 | MUST NOT | Event files MUST NOT contain any metagame statistic (see Definitions), including Riot's Legend/registration share tables, Day-2 conversion, or "best-of per Legend" annotations beyond the decklists themselves. | [[ADR-0003 Tournament Results Only]]; V-010 |
 | CAT-024 | MUST NOT | Card images and card text MUST NOT be copied into event files; only `cardKey` + published name. Images come from the Riot API via SPEC-001. | [[Riot Developer Rules]] rule 7 |
@@ -127,9 +151,9 @@ The IDs are retired and not reused.
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | CAT-070 | MUST | Every catalog decklist (Tournaments row and deck detail), including historical and `incomplete` ones, has a one-click **"Add to Your decks"** action. One click adds the deck; there is no confirmation dialog and no editing step. | [[ADR-0006 Two Imports - Collection and Decks]] (follow-up decisions) |
-| CAT-071 | MUST | The action creates a **new user deck** in Your decks exactly as if the same list had been imported via [[Deck Import]] (SPEC-006): same zones (Legend, Chosen Champion, main without the champion, runes, battlefields, sideboard), same quantities, each card keyed by `cardKey` with its canonical SPEC-001 name. Because every card already has a `cardKey`, SPEC-006's parsing and fuzzy-suggestion steps are skipped and the import cannot fail on names. Format is the decklist's `format` (`standard`). | [[ADR-0006 Two Imports - Collection and Decks]]; [[Deck Import]] |
+| CAT-071 | MUST | The action creates a **new user deck** in Your decks exactly as if the same list had been imported via [[Deck Import]] (SPEC-006): same zones (Legend, Chosen Champion, main without the champion, runes, battlefields, sideboard), same quantities, each card keyed by `cardKey` with its canonical SPEC-001 name. Because every card already has a `cardKey`, SPEC-006's parsing and fuzzy-suggestion steps are skipped and the import cannot fail on names (SPEC-006 DECK-065). Format is the decklist's `format` (`standard`). | [[ADR-0006 Two Imports - Collection and Decks]]; [[Deck Import]] DECK-060, DECK-065 |
 | CAT-072 | MUST | The user deck records its origin as a `TournamentDeckSource` (Data contract): `kind: "tournament"`, `eventId`, `eventName`, `eventStartDate`, `eventEndDate`, `region`, `decklistId`, `publishedRank`, `placingLabel`, `pilot`, `sourceUrl` (the Riot article) and `addedAt`. `TournamentDeckSource` is the **tournament variant of SPEC-006's `DeckSource`**: SPEC-006 owns the single definition, and the two MUST be identical field for field (no second, diverging shape). | [[ADR-0006 Two Imports - Collection and Decks]] ("event and placing recorded as its source") |
-| CAT-073 | MUST | The default deck name is `<Legend>: <pilot> (<placingLabel>, <event name>)`, e.g. `Kennen: ASC Evansrhim (1st, Regional Championship: Europe)`. `<Legend>` is the Legend's canonical name up to the first comma (`Kennen, Heart of the Tempest` → `Kennen`; the whole name if it has no comma), as in RJ's example. Pilot and placing are copied verbatim (CAT-011, CAT-012). The user MAY rename it later (SPEC-006). | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 1; [[Riot Developer Rules]] rule 8 |
+| CAT-073 | MUST | The default deck name is `<Legend>: <pilot> (<placingLabel>, <event name>)`, e.g. `Kennen: ASC Evansrhim (1st, Regional Championship: Europe)`. `<Legend>` is the Legend's canonical name up to the first comma (`Kennen, Heart of the Tempest` → `Kennen`; the whole name if it has no comma), as in RJ's example. Pilot and placing are copied verbatim (CAT-011, CAT-012). The result is trimmed to 80 characters (the deck name limit, SPEC-006 DECK-070), the same rule as DECK-062. The user MAY rename it later (SPEC-006). | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 1; [[Riot Developer Rules]] rule 8; [[Deck Import]] DECK-062, DECK-070 |
 | CAT-074 | MUST | **Duplicates.** A decklist is "already added" when Your decks holds a deck whose `source.decklistId` equals its `id`. Then the button reads `In Your decks` and opens that deck, and a separate `Add another copy` link creates a further copy named with a ` (2)`, ` (3)`… suffix. One click on the primary action never creates a second copy. Editing a copy does not change this; deleting every copy makes "Add to Your decks" available again. Identical lists from different pilots (CAT-050) have different ids, so each can be added once on its own. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 2 |
 | CAT-075 | MUST | The copy is independent: later edits to the user deck never change the catalog, and later catalog corrections never change existing copies. No legality is copied; Your decks computes legality and ban status itself via SPEC-002 (SPEC-005). | [[Deck Legality]]; [[ADR-0006 Two Imports - Collection and Decks]] |
 | CAT-076 | MUST | After adding, the user sees a neutral confirmation `Added to Your decks` with a link to open the deck. For a historical list the confirmation also shows the CAT-041 label. | [[ADR-0005 MVP Product Defaults]] decision 3 |
@@ -414,9 +438,6 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
 - **Depends on SPEC-002:** ban-list versioning, `bannedSince` dates, `legalAtEvent`, regional ban lists. Regional
   (KR/TW) lists are out of MVP; catalog legality uses the global Standard list. `BannedCardRef.kind` is looked up in
   `banlist.json` via `banStatus()` (CAT-017); if SPEC-002 later adds the kind to `Violation`, use that instead.
-- **Cross-spec (SPEC-006):** SPEC-006 is being revised to own the single `DeckSource` type; its tournament variant must
-  equal `TournamentDeckSource` field for field (CAT-072). SPEC-006 v0.1 still shows `{ eventId, decklistId, placing, url }`;
-  re-check once its revision lands.
 - **Importer note:** research notes carry `players: 307` (derived); the importer MUST NOT map it to `playerCount` (CAT-002).
   Notes' `legal_as_of` is the event start date and is not imported as data (CAT-017).
 - **RQ lists** (LA, Singapore, earlier) are not captured yet; the RQ table is mostly creator-tier.
@@ -426,25 +447,4 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
   Confirm, or use the full Legend name.
 
 ## Changelog
-- 0.3 (2026-11-23): H-035: CAT-050 compares by `cardKey`; `BannedCardRef.kind` looked up from `banlist.json` via SPEC-002
-  `banStatus()` (LEGAL-B10) (CAT-017, mapping table, AC21); CAT-072 states `TournamentDeckSource` is the tournament variant of
-  SPEC-006's single `DeckSource`; ADR-0006 Gate H-036: default name `<Legend>: <pilot> (<placingLabel>, <event name>)`
-  (CAT-073, AC16), `In Your decks` button + `Add another copy` link (CAT-074, AC17); sources added for CAT-021, CAT-022,
-  CAT-053; open questions refreshed (removed the notes-bucket item and the answered duplicate question). H-037: one meaning
-  for `legal_as_of` = event start date, `asOf` = check date (CAT-017, CAT-018, data contract, mapping table, AC20); new
-  CAT-037 shared display rules (dates `Nov 23, 2026`, incomplete = `Not fully checked`) applied to CAT-041, CAT-045 and ACs
-  8, 10, 15, 16, 22.
-- 0.2 (2026-11-23): applied [[ADR-0006 Two Imports - Collection and Decks]] and [[ADR-0005 MVP Product Defaults]]
-  decision 3: catalog shown on the Tournaments screen only; removed CAT-042, CAT-043, CAT-044 (Your decks toggle,
-  empty state, persistence); historical lists shown by default with label (CAT-040, CAT-041). Added "Add to Your decks"
-  (CAT-070…CAT-077, `TournamentDeckSource`) and legality display (CAT-045, CAT-046). H-016: format id `standard`;
-  `cardKey` replaces `cardId`; `DecklistLegality` now derived from SPEC-002 `LegalityResult` (historical = LEGAL-016
-  fails today, `legalAtEvent` = LEGAL-016 at event start, tri-state `verdict` replaces `legalNow`, `checkedAsOf` →
-  `asOf`, `banListVersion` → `banListDataVersion`, added `catalogVersion`, `bannedCards[]` carry `cardKey`/`zone`)
-  with a mapping table. H-017: AC7 rewritten with a genuinely unknown name, AC7a added. H-018: ADR-0003 references
-  linked, CAT-004 no longer cites a non-existent CAT-030 tie-break; CAT-028 uses exact `nameKey` lookup with no
-  alias table. ACs 10 and 14 rewritten (no "Decks I can build"); ACs 15–19 added. Decklist template: `format: standard`,
-  `placing` = published rank.
-- 0.1 (2026-11-23): draft. Event and decklist models, JSON storage, Riot text conversion, display order,
-  historical-list handling (default excluded from "Your decks" with toggle), duplicate handling,
-  ADR-0003 prohibitions.
+Current: 0.4 (2026-11-23). Full history: [[Tournament Deck Catalog changelog]] (archived). New entries go in the archive note.
