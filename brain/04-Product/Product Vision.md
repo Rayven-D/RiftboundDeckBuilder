@@ -10,7 +10,7 @@ they can actually build from it, or how few cards they'd need to buy to get ther
 
 ## Core loop
 1. **Import** your physical collection (paste a list, upload a CSV, or import from other tools).
-2. **Match** it against the winning decks from recent tournaments.
+2. **Match** it against the Top 8 decks from recent tournaments.
 3. **See** which of those decks you can build, sorted by completion % then how recent the event is, with official card images.
 4. **Drill in** to a deck: each card marked owned or missing, with a missing-cards shopping list.
 
@@ -22,10 +22,11 @@ they can actually build from it, or how few cards they'd need to buy to get ther
 - [ ] "Decks I can build" view + deck detail
 
 ## Later
+- Hosting on Firebase or AWS, whichever is cheaper (deferred: [[ADR-0004 Hosting (Deferred)]])
 - Accounts & saved collections · near-miss suggestions ("buy these 3 cards to unlock 4 decks")
 - Card-substitution suggestions · price data · collection scanning by camera · alerts when the meta shifts
 
 ## Open questions
 - Do we treat printings and variants (foil, alt-art) as the same card for matching? (likely yes, but confirm)
 - Do we need accounts for MVP, or is local-only (browser storage) enough?
-- Which regions and events do we include? Winners only, or all published top placings?
+- Which regions and events do we include? (Decided: the full Top 8, with placing labels.)
