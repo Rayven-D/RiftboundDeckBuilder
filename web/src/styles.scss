@@ -1,22 +1,102 @@
+@use '@angular/material' as mat;
+@use './theme-colors' as theme;
+// Display font for headlines (RJ, 2026-11-23): Archivo, self-hosted (OFL), weight and width axes.
+@use '@fontsource-variable/archivo/wdth';
+
 /*
- * Design tokens (placeholder). Neutral palette, dark by default with a light scheme.
- * The real visual direction is chosen with RJ: see brain/04-UI/Design Direction.md.
+ * Design direction A, "Table Tool" (RJ, 2026-11-23): quiet slate surfaces, one blue accent (#378ADD),
+ * system font for body text, Archivo for headlines, dense lists, slight 4/6/8px corners. Card art
+ * supplies the colour. Angular Material (M3) is themed from the same accent.
+ * See brain/04-UI/Design Direction.md.
  */
-:root {
+html {
   color-scheme: dark light;
 
-  /* Colors: dark (default) */
-  --color-bg: #121417;
-  --color-surface: #1b1e23;
-  --color-surface-raised: #252930;
-  --color-border: #343a43;
-  --color-text: #e8eaed;
-  --color-text-muted: #a3a9b3;
-  --color-accent: #5b9bd5;
-  --color-accent-contrast: #0d1013;
-  --color-owned: #4caf7a;
-  --color-missing: #e06c60;
-  --color-focus: #8ab8ff;
+  @include mat.theme(
+    (
+      color: (
+        primary: theme.$primary-palette,
+        tertiary: theme.$tertiary-palette,
+      ),
+      typography: (
+        plain-family: (
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          'Helvetica Neue',
+          Arial,
+          sans-serif,
+        ),
+        brand-family: (
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          'Helvetica Neue',
+          Arial,
+          sans-serif,
+        ),
+      ),
+      density: 0,
+    )
+  );
+
+  /* Slightly rounded corners (RJ, 2026-11-23): 4px small controls, 6px buttons, 8px cards and
+     dialogs. Always give units: Material puts these in max(16px, …), where a unitless 0 breaks. */
+  @include mat.theme-overrides(
+    (
+      corner-extra-small: 4px,
+      corner-extra-small-top: 4px 4px 0 0,
+      corner-small: 6px,
+      corner-medium: 8px,
+      corner-large: 8px,
+      corner-large-top: 8px 8px 0 0,
+      corner-large-end: 0 8px 8px 0,
+      corner-large-start: 8px 0 0 8px,
+      corner-extra-large: 8px,
+      corner-extra-large-top: 8px 8px 0 0,
+      corner-full: 6px,
+    )
+  );
+
+  /* Buttons use our accent and text colours, not Material's generated tones. */
+  @include mat.button-overrides(
+    (
+      filled-container-color: var(--color-accent),
+      filled-label-text-color: var(--color-accent-contrast),
+      filled-label-text-weight: 600,
+      outlined-label-text-color: var(--color-text),
+      outlined-outline-color: var(--color-border),
+      text-label-text-color: var(--color-accent-text),
+    )
+  );
+}
+
+/* Icons in Material buttons (marked matButtonIcon so Material puts them in its icon slot). */
+.mat-mdc-button-base > app-icon {
+  margin-inline-end: var(--space-2);
+  font-size: 18px;
+}
+
+:root {
+  /* Colors: dark slate (default) */
+  --color-bg: #1b1f24;
+  --color-surface: #242a31;
+  --color-surface-raised: #2d343c;
+  --color-border: #343c45;
+  --color-text: #e6e8eb;
+  --color-text-muted: #9aa3ad;
+  --color-accent: #378add;
+  --color-accent-hover: #4f9be4;
+  --color-accent-contrast: #031a33;
+  /* Accent as text on slate: #378ADD is 4.0:1 on the surface, so text uses a lighter tint (AA). */
+  --color-accent-text: #85b7eb;
+  --color-owned: #378add;
+  --color-missing: #9aa3ad;
+  --color-focus: #85b7eb;
+  --color-danger: #f09595;
+  --color-warning: #ef9f27;
 
   /* Spacing (4px scale) */
   --space-1: 0.25rem;
@@ -27,14 +107,19 @@
   --space-6: 2rem;
   --space-7: 3rem;
 
-  /* Radius */
+  /* Radius (RJ, 2026-11-23: "slight 4-8px"): sm chips and inputs, md buttons and card art, lg panels. */
   --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
 
   /* Type */
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* Headlines: Archivo, semi-expanded and heavy (--display-stretch / --display-weight). */
+  --font-display: 'Archivo Variable', var(--font-sans);
+  --display-stretch: 112%;
+  --display-weight: 800;
   --font-mono: ui-monospace, 'Cascadia Code', Consolas, 'Liberation Mono', monospace;
+  --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-md: 1rem;
   --font-size-lg: 1.25rem;
@@ -45,21 +130,31 @@
 
   /* Card images: placeholder ratio (standard TCG card 63x88mm). Confirm against the API's images. */
   --card-aspect-ratio: 63 / 88;
+
+  /* Keep Material surfaces on the same slate as our own tokens. */
+  --mat-sys-surface: var(--color-bg);
+  --mat-sys-surface-container: var(--color-surface);
+  --mat-sys-surface-container-high: var(--color-surface-raised);
+  --mat-sys-outline-variant: var(--color-border);
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    --color-bg: #f6f7f9;
+    --color-bg: #f4f6f8;
     --color-surface: #ffffff;
-    --color-surface-raised: #eceef2;
-    --color-border: #d4d8de;
-    --color-text: #1a1d21;
-    --color-text-muted: #5a616b;
-    --color-accent: #2f6fb0;
+    --color-surface-raised: #e9edf1;
+    --color-border: #d3d9e0;
+    --color-text: #1a1f24;
+    --color-text-muted: #56606b;
+    --color-accent: #185fa5;
+    --color-accent-hover: #0c447c;
+    --color-accent-text: #185fa5;
     --color-accent-contrast: #ffffff;
-    --color-owned: #2e7d4f;
-    --color-missing: #b3402f;
-    --color-focus: #2f6fb0;
+    --color-owned: #185fa5;
+    --color-missing: #56606b;
+    --color-focus: #185fa5;
+    --color-danger: #a32d2d;
+    --color-warning: #854f0b;
   }
 }
 
@@ -79,7 +174,7 @@ body {
 }
 
 a {
-  color: var(--color-accent);
+  color: var(--color-accent-text);
 }
 
 :focus-visible {
@@ -87,10 +182,56 @@ a {
   outline-offset: 2px;
 }
 
+h1,
+h2,
+.display {
+  font-family: var(--font-display);
+  font-stretch: var(--display-stretch);
+  font-weight: var(--display-weight);
+  letter-spacing: -0.015em;
+}
+
 h1 {
   margin: 0 0 var(--space-2);
   font-size: var(--font-size-xl);
-  line-height: 1.2;
+  line-height: 1.15;
+}
+
+/* Small mono label above a heading ("OWNERSHIP"). */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-accent-text);
+}
+
+/* Secondary text link with a trailing arrow ("Your decks →"). */
+.arrow-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-decoration: none;
+
+  &::after {
+    content: '\2192';
+    transition: transform 120ms ease;
+  }
+
+  &:hover {
+    color: var(--color-text);
+
+    &::after {
+      transform: translateX(2px);
+    }
+  }
 }
 
 .page-header {
@@ -111,11 +252,15 @@ h1 {
 .button {
   display: inline-block;
   padding: var(--space-2) var(--space-4);
-  border-radius: 0;
+  border-radius: var(--radius-md);
   background: var(--color-accent);
   color: var(--color-accent-contrast);
   font-weight: 600;
   text-decoration: none;
+
+  &:hover {
+    background: var(--color-accent-hover);
+  }
 }
 
 /* Reserve card image space so the layout does not shift while images load. */
