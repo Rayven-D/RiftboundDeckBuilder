@@ -9,7 +9,9 @@ you are missing. Uses the official card images.
 This folder is an Obsidian vault. `brain/` holds all project knowledge. **Read before you act,
 write when you learn.**
 
-- Start at `brain/Home.md`.
+- **Start at `brain/Current State.md`** (one screen). Then open only the notes your task needs.
+- Each spec opens with a **Summary** block. Read that first, and the full spec only when you need detail.
+- **`brain/Archive/` is low priority:** skip it unless the task specifically needs history. Archived notes are marked `archived: true`, may be outdated, and the live notes always win.
 - Facts about the game live in `brain/01-Research/`, with sources and dates on every claim.
 - Buildable requirements live in `brain/02-Specs/`. Code is built from specs, not from memory.
 - Architecture choices live in `brain/03-Decisions/` as ADRs.
@@ -33,7 +35,7 @@ and on every ADR. Any agent can post a request to the Handoff Board.
 ## The closed loop
 
 - `/loop [rounds]`: works the Handoff Board (pick → build → validate → merge into `dev`) until a gate. See `brain/07-Loop/Loop Protocol.md`.
-- `/research-refresh [focus]`: checks for new bans, sets, events, and meta, and files board items for what changed. Also runs weekly on a schedule.
+- `/research-refresh [focus]`: checks for new bans, sets, events, and meta, and files board items for what changed. A weekly scheduled run is planned but **not set up yet**: RJ deleted the original task on 2026-11-23 and will recreate it inside the Claude project later (H-042).
 - `validator` agent: nothing is `done` until it passes. Failures become new board items.
 - Git: `loop/<ID>-<slug>` branches → `dev`. Only RJ merges `dev` → `main`. Never push.
 

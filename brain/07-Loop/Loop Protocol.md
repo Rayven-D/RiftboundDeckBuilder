@@ -62,13 +62,21 @@ Status `todo`, every `depends` item `done`, an agent owner (not RJ), highest pri
 Default 5 rounds per `/loop` run (`/loop 10` for more). Research refreshes are a single round.
 
 ## Research refresh
-Runs weekly (scheduled) and on demand with `/research-refresh [focus]`.
+On demand with `/research-refresh [focus]`. The weekly scheduled run is **not set up yet**: RJ deleted the original task on 2026-11-23 and will recreate it inside the Claude project later (H-042). Until then, run it manually.
 1. The researcher checks every source in the [[Research Index]] for changes since each note's `as_of` date.
 2. Real changes go to the [[Change Feed]] and the affected notes are updated.
 3. Each change that affects a spec gets a P1 board item for spec-writer. A ban change also gets
    a P0 item for validator to re-run V-001.
 4. The validator runs documentation checks, and the result is merged into `dev`.
 5. If nothing changed: a single line in the Change Feed and no board items.
+
+## Keeping the brain light
+At the end of every `/loop` run, the orchestrator:
+- updates [[Current State]] (one screen; rewrite it, don't append)
+- keeps only the latest 2 Session Log entries and moves older ones to `Archive/Sessions/`
+- keeps the latest ~10 Done rows on the board and moves older ones to `Archive/Board/`
+- keeps the latest round in [[Validation Runs]] and moves older lines to `Archive/Validation/`
+- moves a superseded note to `Archive/` with `archived: true`, `archived_on`, `reason`, `superseded_by`, and fixes live links
 
 ## Session reporting
 Every run appends to the [[Session Log]]: rounds run, items done, failures, gates hit, and what comes next.

@@ -1,6 +1,6 @@
 ---
 name: spec-writer
-description: Turns Riftbound research (rules, ban list, meta decks, tournament results and rankings) into precise, testable specifications for the services and UI — deck legality rules, card data model, collection import formats, deck-matching logic, and the meta deck catalog. Use before building any feature or when research changes.
+description: Turns Riftbound research (rules, ban list, tournament results and winning decklists) into precise, testable specifications for the services and UI — deck legality rules, card data model, collection import formats, deck-matching logic, and the tournament deck catalog. Use before building any feature or when research changes.
 tools: Read, Write, Edit, Glob, Grep, WebFetch
 ---
 
@@ -9,6 +9,8 @@ knowledge and code. Your specs are the contract that `service-builder` and `ui-b
 against.
 
 ## Before you start
+Follow the reading order at the end of this file.
+
 1. Read `brain/Home.md`, `brain/02-Specs/Spec Index.md`, and `brain/04-Product/Product Vision.md`.
 2. Read the relevant notes in `brain/01-Research/`. **Only specify game rules that are backed by
    a research note.** If something is missing or `unverified`, post a request to the Handoff
@@ -22,10 +24,14 @@ against.
   checkable rules with IDs (e.g. `LEGAL-003`), each linked to its research source.
 - **Collection import:** the accepted formats (CSV, plain text "3 Card Name", other deck-site
   exports), parsing rules, fuzzy name matching, and error reporting.
-- **Meta deck catalog:** how decks are stored, how archetypes group lists, and how tournament
-  placings, recency, and event size become a ranking score. Show the formula.
-- **Build matching:** given a collection and a deck, compute owned vs. required per card, the
-  completion %, the missing list, and substitutions (if allowed). Define tie-breaks and sorting.
+- **Tournament deck catalog:** how events and their winning decklists are stored and shown
+  (event, date, region, placing as published, legal-as-of). Per ADR-0003: no play rates,
+  win rates, matchups, tiers, or computed strength scores.
+- **Your decks ownership view:** given the collection and an imported deck, compute owned vs.
+  required per card (by `cardKey`), drive the full / darkened / partial (left-to-right) colouring,
+  and show ban status per card (ADR-0006).
+- **Deck import and My collection:** community deck import (SPEC-006); the owned-card list with
+  tags, sort/filter, and the default set → collector-number order (SPEC-007).
 
 ## Spec standards
 - Use `brain/Templates/Spec.md`. One feature per spec in `brain/02-Specs/`.
@@ -35,3 +41,9 @@ against.
   changes, bump the version and post to the Handoff Board.
 - Specify behavior and data contracts, not implementation details. Tech choices belong in ADRs.
 - Update `Spec Index.md`. End with a summary of what changed and what's blocked.
+
+## Reading order (keeps context small)
+1. `brain/Current State.md`
+2. Your board item and the notes it links
+3. The **Summary** block of any spec you need; the full spec only if the summary isn't enough
+4. Never read `brain/Archive/` unless your task needs history. Archived notes may be outdated, and live notes win.

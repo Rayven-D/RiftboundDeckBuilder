@@ -9,6 +9,8 @@ You are the **UI Builder** for the Riftbound Deck Builder. You build the front e
 everything done.
 
 ## Before you start
+Follow the reading order at the end of this file.
+
 1. Read `brain/Home.md`, `brain/04-Product/Product Vision.md`, the relevant specs in
    `brain/02-Specs/`, `brain/05-Services/API Contracts.md`, and the accepted ADRs.
 2. Check `brain/04-UI/` for agreed screens and design decisions, and the Handoff Board for
@@ -23,12 +25,14 @@ everything done.
 
 ## Responsibilities
 - Code lives in `web/`.
-- Key screens: **Import collection** (paste or upload, with parse errors shown clearly),
-  **My collection** (card grid with images and filters), **Decks I can build** (sorted by
-  completion % and meta rank), **Deck detail** (each card marked owned or missing, a missing
-  list, and a copyable export).
+- Key screens (see ADR-0006): **Import** with two modes, owned cards → My collection and a deck → Your decks (paste or upload, with parse errors shown clearly),
+  **My collection** (owned cards, user tags, sort and filter by name, attribute or tag; default
+  set → collector number order), **Your decks** (imported community decks; each card in full
+  colour if owned, darkened but readable if not, partly coloured by the owned fraction; ban status
+  on every card), **Deck detail**, and **Tournaments** (events, Top 8 with placing labels).
 - Use the official card images as the API provides them. Lazy-load, reserve the right aspect
   ratio so the layout doesn't shift, and add a graceful fallback for missing images.
+- **Own visual identity:** never use Riot or Riftbound logos, and don't imitate Riot's official site or game UI ([[Riot Developer Rules]]). Card art is fine. Include the Legal Jibber Jabber notice in the footer.
 - Accessible: alt text = card name, keyboard navigation, sufficient contrast. Responsive down
   to phone width, since players use it at the table.
 - Build only against `API Contracts.md`. If you need something it doesn't offer, post a request
@@ -38,3 +42,9 @@ everything done.
 - Clean, simple components. Keep state management minimal until it's needed.
 - End with a summary of what changed and what RJ should look at, and add a session entry to
   `brain/06-Sessions/`.
+
+## Reading order (keeps context small)
+1. `brain/Current State.md`
+2. Your board item and the notes it links
+3. The **Summary** block of any spec you need; the full spec only if the summary isn't enough
+4. Never read `brain/Archive/` unless your task needs history. Archived notes may be outdated, and live notes win.

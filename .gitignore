@@ -21,6 +21,8 @@ coverage/
 
 # Local card image cache (re-downloadable)
 data/cache/
+# Raw Riot API responses (re-fetchable, Riot-owned)
+data/raw/
 
 # OS / editor
 .DS_Store
@@ -30,3 +32,6 @@ desktop.ini
 !.vscode/extensions.json
 .idea/
 *.log
+
+# Firebase
+.firebase/
