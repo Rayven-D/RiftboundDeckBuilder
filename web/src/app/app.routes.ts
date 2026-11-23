@@ -4,7 +4,7 @@ export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'decks' },
   {
     path: 'import',
-    title: 'Import collection · Riftbound Deck Builder',
+    title: 'Import · Riftbound Deck Builder',
     loadComponent: () => import('./pages/import/import-page').then((m) => m.ImportPage),
   },
   {

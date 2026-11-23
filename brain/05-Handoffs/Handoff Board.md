@@ -34,6 +34,7 @@ The loop's state. See [[Loop Protocol]]. One row per item. Take the next ID from
 ## Done
 | ID | Owner | Request | Result |
 |---|---|---|---|
+| H-029 | RJ | Product model correction | Two imports: owned cards → My collection, community decks → Your decks; ownership colouring; tags and default order ([[ADR-0006 Two Imports - Collection and Decks]]) |
 | H-028 | ui-builder | Shorter page descriptions + rename (RJ feedback) | One-line descriptions; "Decks I can build" → "Your decks" across app and vault ([[Design Direction]]) |
 | H-027 | ui-builder | Straight button borders (RJ feedback) | Square corners on nav links and .button; active state is a straight accent bottom border ([[Design Direction]]) |
 | H-003 | spec-writer | SPEC-001 Card Data Model | PASS v0.1 draft, 45 reqs; follow-ups H-015, H-017 ([[Card Data Model]]) |
