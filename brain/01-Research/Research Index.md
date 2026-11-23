@@ -10,6 +10,7 @@ Owner: **researcher**. Every note needs sources and an *as-of* date. Status: `to
 |---|---|---|---|
 | Core rules | [[Rules Overview]] | verified | Latest official rules doc & version? Turn structure, win condition |
 | Deck construction | [[Deck Construction Rules]] | verified | Deck size, copy limits, legend/champion, runes, battlefields, domain restrictions |
+| Physical copies across decks | [[Physical Copies Across Decks]] | verified | Which sections share physical cards (champion = main pool; Legend / Battlefields separate but physical); can runes be ignored? |
 | Organized play formats | [[Formats]] | conflict | Which formats exist (constructed, limited)? Which do we support? |
 | Ban & restriction list | [[Ban List]] | verified | Current official list for organized play, effective dates, change history |
 | Sets & release schedule | [[Sets]] | unverified | Released sets, set codes, upcoming releases & rotation (if any) |
