@@ -1,20 +1,35 @@
 /**
  * Shared card-list parsing for both imports (SPEC-003 Part A, reused by SPEC-006).
  *
- * Every entry is a quantity followed by a card name: `3 Lightning Rush`, `3x Lightning Rush`,
- * `3 x Lightning Rush` (IMP-019). A row without a quantity is an error (RJ, 2026-11-23; this
- * replaces IMP-021's "assume 1"). CSV and Excel rows follow the same rule: either one cell
- * holding `3x Name`, or a quantity cell followed by the name. Parsing never writes anything
- * (IMP-002) and one bad line never stops the rest (IMP-003).
+ * Every entry is a quantity plus a card part (SPEC-003 v0.5 "Line grammar"). The quantity leads
+ * (`3 Name`, `3x Name`, `3 x Name`, `x3 Name`) or trails (`Name x3`), once per line (IMP-019/020).
+ * The card part is a name, a printing code (`RAD 001/167`, `OGN-007a`, `(OGN 299/298)`) at its
+ * start or end, or both (IMP-064/065); a code alone is a valid entry (IMP-066). A line without a
+ * quantity is an error (IMP-021). CSV and Excel rows become one line each and use the same
+ * grammar (IMP-040). Parsing never writes anything (IMP-002) and one bad line never stops the
+ * rest (IMP-003). Codes are only read here; resolving them needs the card catalog (IMP-067…069).
  */
 
 export type DeckSection = 'legend' | 'champion' | 'main' | 'battlefields' | 'runes' | 'sideboard';
+
+/** The printing a line names, before resolution (SPEC-003 Data contract, IMP-064). */
+export interface PrintingHint {
+  /** Upper-cased, e.g. `RAD`. */
+  readonly setCode: string;
+  /** Verbatim as typed, e.g. `001 /167`, `007a`, `SP1/005`. */
+  readonly collectorNumber: string;
+  /** The code as typed without brackets, e.g. `RAD 001 /167`, `OGN-007a`. */
+  readonly text: string;
+}
 
 export interface ParsedEntry {
   /** 1-based line (text) or row (CSV / Excel) number. */
   readonly line: number;
   readonly quantity: number;
+  /** Card name as typed, without quantity or code. Empty only for a code-only line (IMP-066). */
   readonly name: string;
+  /** Printing code written on the line, or null (IMP-064). */
+  readonly printing: PrintingHint | null;
   /** Section label in effect for this line, or null when there was none (IMP-018). */
   readonly section: DeckSection | null;
 }
@@ -69,7 +84,26 @@ const SECTION_ALIASES: Readonly<Record<string, DeckSection>> = {
 };
 
 const LABEL_RE = /^#*\s*([a-z][a-z ]*?)\s*(?::\s*(.*))?$/i;
-const ENTRY_RE = /^(\d+)\s*(?:[xX]\s+|\s+)(\S.*)$/;
+
+// SPEC-003 v0.5 Line grammar (IMP-019, IMP-020, IMP-064, IMP-065).
+const QTY_LEAD_RE = /^(?:(\d+)(?:\s*[xX])?|[xX](\d+))\s+(.+)$/;
+const QTY_TRAIL_RE = /\s+[xX](\d+)$/;
+const QTY_ONLY_RE = /^(?:\d+(?:\s*[xX])?|[xX]\d+)$/;
+const NEG_LEAD_RE = /^-\d/;
+/** A second quantity left at the end of the card part, also when it is all that is left. */
+const SECOND_QTY_RE = /(?:^|\s)[xX]\d+$/;
+
+/** Collector number: block `SP1/005`, fraction `001/167` / `001 /167`, plain `001` / `7a`. */
+const NUM = String.raw`[A-Za-z]+\d*\s*\/\s*\d+[A-Za-z*]*|\d+[A-Za-z*]*\s*\/\s*\d+|\d+[A-Za-z*]*`;
+/** A printing code; groups: whole code, set code, collector number. */
+const CODE = String.raw`(([A-Za-z]{3})(?:-|\s+)?(${NUM}))`;
+const SEP = String.raw`(?:\s+-\s+|\s*,\s*|\s+)`;
+const BRACKETED = String.raw`(?:\(\s*${CODE}\s*\)|\[\s*${CODE}\s*\])`;
+
+const CODE_ONLY_RE = new RegExp(String.raw`^(?:${CODE}|${BRACKETED})$`);
+const CODE_AT_END_RE = new RegExp(String.raw`^(.*?)(?:${SEP}${CODE}|${SEP}?${BRACKETED})$`);
+const CODE_AT_START_RE = new RegExp(String.raw`^(?:${CODE}${SEP}|${BRACKETED}${SEP}?)(.+)$`);
+
 const QUANTITY_CELL_RE = /^(\d+)\s*[xX]?$/;
 const STARTS_WITH_NUMBER_RE = /^-?\d/;
 const HEADER_WORDS = /^(qty|quantity|count|amount|copies|#|x|name|card|card name|cardname)$/i;
@@ -77,7 +111,7 @@ const HEADER_WORDS = /^(qty|quantity|count|amount|copies|#|x|name|card|card name
 type LineOutcome =
   | { kind: 'skip' }
   | { kind: 'section'; section: DeckSection; rest: string }
-  | { kind: 'entry'; quantity: number; name: string }
+  | { kind: 'entry'; quantity: number; name: string; printing: PrintingHint | null }
   | { kind: 'issue'; code: IssueCode; severity: 'error' | 'warning'; message: string };
 
 /** Parses pasted text or a .txt file: one entry per line. */
@@ -153,11 +187,12 @@ export function parseCardRows(rows: readonly (readonly unknown[])[]): ParseResul
     const quantityCell = QUANTITY_CELL_RE.exec(cells[0]);
     if (cells.length >= 2 && quantityCell) {
       // Card names can contain commas ("Kennen, Heart of the Tempest"): an unquoted CSV row
-      // splits them, so the rest of the row is joined back together.
+      // splits them, so the rest of the row is joined back together. The resulting line goes
+      // through the full line grammar, so a code cell after the name is read too (IMP-040).
       const name = cells.slice(1).filter(Boolean).join(', ');
-      outcome = toEntry(quantityCell[1], name);
+      outcome = parseEntry(`${cells[0]} ${name}`);
     } else if (cells.length >= 2 && STARTS_WITH_NUMBER_RE.test(cells[0])) {
-      outcome = toEntry(cells[0], cells.slice(1).filter(Boolean).join(', '));
+      outcome = toEntry(cells[0], cells.slice(1).filter(Boolean).join(', '), null);
     } else {
       outcome = classifyLine(cells.length === 1 ? cells[0] : raw);
       if (outcome.kind === 'section') {
@@ -196,7 +231,10 @@ export function rowsToText(rows: readonly (readonly unknown[])[]): string {
   return out.join('\n');
 }
 
-/** Turns a result back into one `qty name` line per entry, e.g. to show an upload in the text box. */
+/**
+ * Turns a result back into one `qty name` line per entry (with its printing code, if any), e.g. to
+ * show an upload in the text box.
+ */
 export function entriesToText(result: ParseResult): string {
   const out: string[] = [];
   let section: DeckSection | null = null;
@@ -205,7 +243,7 @@ export function entriesToText(result: ParseResult): string {
       section = e.section;
       out.push(`${SECTION_LABELS[section]}:`);
     }
-    out.push(`${e.quantity} ${e.name}`);
+    out.push([e.quantity, e.name, e.printing?.text].filter(Boolean).join(' '));
   }
   return out.join('\n');
 }
@@ -232,36 +270,121 @@ function classifyLine(raw: string): LineOutcome {
   return parseEntry(line);
 }
 
-function parseEntry(line: string): LineOutcome {
-  const match = ENTRY_RE.exec(line.trim());
-  if (match) return toEntry(match[1], match[2]);
-  if (/^-\d/.test(line.trim())) {
-    return issue('BAD_QUANTITY', 'error', 'Quantity must be a whole number from 1 to 999.');
+/** SPEC-003 Line grammar, steps 1-7, on a line that is not blank, a comment or a label. */
+function parseEntry(raw: string): LineOutcome {
+  const line = raw.trim();
+  // Step 1.
+  if (QTY_ONLY_RE.test(line)) return missingName();
+  if (NEG_LEAD_RE.test(line)) return badQuantity();
+
+  // Step 2: leading quantity.
+  let quantity: string | null = null;
+  let body = line;
+  const lead = QTY_LEAD_RE.exec(line);
+  if (lead) {
+    quantity = lead[1] ?? lead[2];
+    body = lead[3];
   }
-  if (/^\d+\s*[xX]?$/.test(line.trim())) {
-    return issue('MISSING_NAME', 'error', 'Add the card name after the number.');
+
+  // Step 3: trailing quantity and/or trailing code, at most once each.
+  let printing: PrintingHint | null = null;
+  let cutEnd = false;
+  for (let i = 0; i < 2; i++) {
+    const trail = quantity === null ? QTY_TRAIL_RE.exec(body) : null;
+    if (trail) {
+      quantity = trail[1];
+      body = body.slice(0, trail.index);
+      cutEnd = true;
+      continue;
+    }
+    const end: CodeCut | null = printing ? null : codeAtEnd(body);
+    if (!end) break;
+    printing = end.printing;
+    body = end.rest;
+    cutEnd = true;
   }
-  return issue(
-    'MISSING_QUANTITY',
-    'error',
-    'Start the line with a number, like "1 Card name" or "1x Card name".',
-  );
+
+  // Step 4: leading code.
+  let cutStart = false;
+  if (!printing) {
+    const start = CODE_AT_START_RE.exec(body);
+    if (start) {
+      printing = hintFrom(start, 1);
+      body = start[10];
+      cutStart = true;
+    }
+  }
+
+  // Step 5: two quantities.
+  if (lead && SECOND_QTY_RE.test(body)) {
+    return issue('BAD_QUANTITY', 'error', 'Give the number of copies once per line.');
+  }
+
+  // Step 6: name, without a separator left dangling at a cut.
+  let name = body.trim();
+  if (cutEnd) name = name.replace(/\s*[-,]$/, '');
+  if (cutStart) name = name.replace(/^[-,]\s*/, '');
+
+  // Step 7.
+  if (quantity === null) {
+    return issue(
+      'MISSING_QUANTITY',
+      'error',
+      'Start the line with a number, like "1 Card name" or "1x Card name".',
+    );
+  }
+  return toEntry(quantity, name, printing);
 }
 
-function toEntry(quantityText: string, rawName: string): LineOutcome {
+interface CodeCut {
+  readonly printing: PrintingHint;
+  readonly rest: string;
+}
+
+/** A code that is the whole card part, or ends it after a separator (IMP-065). */
+function codeAtEnd(body: string): CodeCut | null {
+  const only = CODE_ONLY_RE.exec(body);
+  if (only) return { printing: hintFrom(only, 1), rest: '' };
+  const end = CODE_AT_END_RE.exec(body);
+  return end ? { printing: hintFrom(end, 2), rest: end[1] } : null;
+}
+
+/** Reads the first matched (code, set, number) group triple: bare, `()` or `[]`. */
+function hintFrom(match: RegExpExecArray, first: number): PrintingHint {
+  for (let g = first; g < first + 9; g += 3) {
+    if (match[g] !== undefined) {
+      return {
+        setCode: match[g + 1].toUpperCase(),
+        collectorNumber: match[g + 2],
+        text: match[g],
+      };
+    }
+  }
+  throw new Error('No printing code in match');
+}
+
+function toEntry(
+  quantityText: string,
+  rawName: string,
+  printing: PrintingHint | null,
+): LineOutcome {
   const name = rawName.trim();
   const quantityPart = quantityText.trim().replace(/[xX]$/, '').trim();
-  if (!/^\d+$/.test(quantityPart)) {
-    return issue('BAD_QUANTITY', 'error', 'Quantity must be a whole number from 1 to 999.');
-  }
+  if (!/^\d+$/.test(quantityPart)) return badQuantity();
   const quantity = Number(quantityPart);
-  if (!name) return issue('MISSING_NAME', 'error', 'Add the card name after the number.');
+  if (!name && !printing) return missingName();
   if (quantity === 0)
     return issue('ZERO_QUANTITY', 'warning', 'Quantity is 0, so this line is skipped.');
-  if (quantity > MAX_QUANTITY) {
-    return issue('BAD_QUANTITY', 'error', 'Quantity must be a whole number from 1 to 999.');
-  }
-  return { kind: 'entry', quantity, name: name.replace(/\s+/g, ' ') };
+  if (quantity > MAX_QUANTITY) return badQuantity();
+  return { kind: 'entry', quantity, name: name.replace(/\s+/g, ' '), printing };
+}
+
+function badQuantity(): LineOutcome {
+  return issue('BAD_QUANTITY', 'error', 'Quantity must be a whole number from 1 to 999.');
+}
+
+function missingName(): LineOutcome {
+  return issue('MISSING_NAME', 'error', 'Add the card name after the number.');
 }
 
 function issue(code: IssueCode, severity: 'error' | 'warning', message: string): LineOutcome {
@@ -274,7 +397,8 @@ class ResultBuilder {
 
   add(line: number, raw: string, outcome: LineOutcome, section: DeckSection | null): void {
     if (outcome.kind === 'entry') {
-      this.entries.push({ line, quantity: outcome.quantity, name: outcome.name, section });
+      const { quantity, name, printing } = outcome;
+      this.entries.push({ line, quantity, name, printing, section });
     } else if (outcome.kind === 'issue') {
       this.issue(line, raw.trim(), outcome.code, outcome.severity, outcome.message);
     }

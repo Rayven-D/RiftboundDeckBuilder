@@ -170,3 +170,206 @@ describe('rowsToText', () => {
     expect(r.issues).toEqual([expect.objectContaining({ line: 3, code: 'MISSING_QUANTITY' })]);
   });
 });
+
+describe('quantity forms (IMP-019, IMP-020)', () => {
+  it.each([
+    ['3 Lightning Rush', 3],
+    ['3x Lightning Rush', 3],
+    ['3X Lightning Rush', 3],
+    ['3 x Lightning Rush', 3],
+    ['3 X Lightning Rush', 3],
+    ['x3 Lightning Rush', 3],
+    ['X3 Lightning Rush', 3],
+    ['Lightning Rush x3', 3],
+    ['Lightning Rush X3', 3],
+  ] as const)('reads "%s"', (line, quantity) => {
+    const r = parseCardText(line);
+    expect(r.issues).toEqual([]);
+    expect(r.entries).toEqual([
+      { line: 1, quantity, name: 'Lightning Rush', printing: null, section: null },
+    ]);
+  });
+
+  it('follows SPEC-003 AC 27', () => {
+    const r = parseCardText(
+      [
+        'x3 Lightning Rush',
+        'Lightning Rush x3',
+        'X2 Hextech Ray',
+        'Hextech Ray X2',
+        '3 Lightning Rush x3',
+        'Lightning Rush 3',
+        'x3',
+        'Gust x0',
+      ].join('\n'),
+    );
+    expect(r.entries.map((e) => [e.line, e.quantity, e.name])).toEqual([
+      [1, 3, 'Lightning Rush'],
+      [2, 3, 'Lightning Rush'],
+      [3, 2, 'Hextech Ray'],
+      [4, 2, 'Hextech Ray'],
+    ]);
+    expect(r.issues.map((i) => [i.line, i.code, i.severity])).toEqual([
+      [5, 'BAD_QUANTITY', 'error'],
+      [6, 'MISSING_QUANTITY', 'error'],
+      [7, 'MISSING_NAME', 'error'],
+      [8, 'ZERO_QUANTITY', 'warning'],
+    ]);
+    expect(r.issues[0].message).toBe('Give the number of copies once per line.');
+    expect(r.totalCopies).toBe(10);
+  });
+
+  it.each([
+    '3 Lightning Rush x3',
+    'x3 Lightning Rush x3',
+    '3 Lightning Rush x3 RAD 001',
+    '3x RAD 001 x2',
+  ])('rejects two quantities in "%s"', (line) => {
+    const r = parseCardText(line);
+    expect(r.entries).toEqual([]);
+    expect(r.issues).toEqual([
+      expect.objectContaining({
+        code: 'BAD_QUANTITY',
+        message: 'Give the number of copies once per line.',
+      }),
+    ]);
+  });
+
+  it.each(['Lightning Rush 3', 'Lightning Rush 3x', 'RAD 001/167'])(
+    'needs a quantity in "%s"',
+    (line) => {
+      expect(parseCardText(line).issues[0].code).toBe('MISSING_QUANTITY');
+    },
+  );
+
+  it.each(['3', '3x', '3 x', 'x3', 'X3'])('flags "%s" as a number without a name', (line) => {
+    expect(parseCardText(line).issues[0].code).toBe('MISSING_NAME');
+  });
+
+  it('applies the value rules to trailing quantities', () => {
+    const r = parseCardText('Gust x0\nGust x1000\n-1 Gust');
+    expect(r.issues.map((i) => i.code)).toEqual(['ZERO_QUANTITY', 'BAD_QUANTITY', 'BAD_QUANTITY']);
+  });
+});
+
+describe('printing codes (IMP-064, IMP-065, IMP-066)', () => {
+  it.each([
+    ['3 Lightning Rush RAD 001/167', 3, 'Lightning Rush', 'RAD', '001/167', 'RAD 001/167'],
+    ['3x RAD-001/167 Lightning Rush', 3, 'Lightning Rush', 'RAD', '001/167', 'RAD-001/167'],
+    [
+      '1 Kennen, Heart of the Tempest (OGN 299/298)',
+      1,
+      'Kennen, Heart of the Tempest',
+      'OGN',
+      '299/298',
+      'OGN 299/298',
+    ],
+    ['Lightning Rush x3 RAD 001 /167', 3, 'Lightning Rush', 'RAD', '001 /167', 'RAD 001 /167'],
+    ['Lightning Rush RAD 001/167 x3', 3, 'Lightning Rush', 'RAD', '001/167', 'RAD 001/167'],
+    ['2 OGN-007a Lightning Rush', 2, 'Lightning Rush', 'OGN', '007a', 'OGN-007a'],
+    ['2 [ogn-007a] Lightning Rush', 2, 'Lightning Rush', 'OGN', '007a', 'ogn-007a'],
+    ['1 Lightning Rush - rad 1 / 167', 1, 'Lightning Rush', 'RAD', '1 / 167', 'rad 1 / 167'],
+    ['1 Lightning Rush - RAD 001', 1, 'Lightning Rush', 'RAD', '001', 'RAD 001'],
+    ['1 Lightning Rush RAD-SP1/005', 1, 'Lightning Rush', 'RAD', 'SP1/005', 'RAD-SP1/005'],
+    ['3 Lightning Rush RAD001', 3, 'Lightning Rush', 'RAD', '001', 'RAD001'],
+    ['1 Lightning Rush(RAD 001)', 1, 'Lightning Rush', 'RAD', '001', 'RAD 001'],
+    ['1 Lightning Rush -(RAD 001)', 1, 'Lightning Rush', 'RAD', '001', 'RAD 001'],
+    ['1 Ion Arc 2', 1, 'Ion', 'ARC', '2', 'Arc 2'],
+  ] as const)('reads "%s"', (line, quantity, name, setCode, collectorNumber, text) => {
+    const r = parseCardText(line);
+    expect(r.issues).toEqual([]);
+    expect(r.entries).toEqual([
+      { line: 1, quantity, name, printing: { setCode, collectorNumber, text }, section: null },
+    ]);
+  });
+
+  it.each([
+    ['3 RAD 001/167', 3, 'RAD', '001/167'],
+    ['x2 OGN-007a', 2, 'OGN', '007a'],
+    ['RAD 001 x3', 3, 'RAD', '001'],
+    ['2 (OGN 299/298)', 2, 'OGN', '299/298'],
+  ] as const)('accepts the code-only line "%s"', (line, quantity, setCode, collectorNumber) => {
+    const r = parseCardText(line);
+    expect(r.issues).toEqual([]);
+    expect(r.entries[0]).toMatchObject({
+      quantity,
+      name: '',
+      printing: { setCode, collectorNumber },
+    });
+    expect(r.totalCopies).toBe(quantity);
+  });
+
+  it.each([
+    ['3 Lightning Rush 001/167', 'Lightning Rush 001/167'],
+    ['2 Seal of Discord RAD', 'Seal of Discord RAD'],
+    ['3 Lightning Rush 001', 'Lightning Rush 001'],
+    ['1 Lightning RushRAD 001', 'Lightning RushRAD 001'],
+    ['1 Lightning Rush -RAD 001', 'Lightning Rush -RAD 001'],
+  ])('keeps code-like text in the name of "%s"', (line, name) => {
+    const r = parseCardText(line);
+    expect(r.issues).toEqual([]);
+    expect(r.entries[0]).toMatchObject({ name, printing: null });
+  });
+
+  it('takes at most one code per line', () => {
+    const r = parseCardText('1 RAD 001 Lightning Rush OGN 002');
+    expect(r.entries[0]).toMatchObject({
+      name: 'RAD 001 Lightning Rush',
+      printing: { setCode: 'OGN', collectorNumber: '002' },
+    });
+  });
+
+  it('reads codes in the entry after a label', () => {
+    const r = parseCardText(
+      [
+        'Champion: 1 Kennen, Storm of Shuriken (OGN 299/298)',
+        'Legend: 1 OGN-007a',
+        'Main Deck:',
+        '3 RAD 001/167',
+      ].join('\n'),
+    );
+    expect(r.issues).toEqual([]);
+    expect(r.entries.map((e) => [e.section, e.quantity, e.name, e.printing?.text])).toEqual([
+      ['champion', 1, 'Kennen, Storm of Shuriken', 'OGN 299/298'],
+      ['legend', 1, '', 'OGN-007a'],
+      ['main', 3, '', 'RAD 001/167'],
+    ]);
+  });
+
+  it('writes codes back out in entriesToText', () => {
+    const r = parseCardText('Main Deck:\n3 Lightning Rush (RAD 001/167)\n2 OGN-007a');
+    const text = entriesToText(r);
+    expect(text).toBe('Main Deck:\n3 Lightning Rush RAD 001/167\n2 OGN-007a');
+    expect(parseCardText(text).entries.map((e) => [e.name, e.printing])).toEqual(
+      r.entries.map((e) => [e.name, e.printing]),
+    );
+  });
+});
+
+describe('printing codes in CSV and Excel rows (IMP-040)', () => {
+  it('follows SPEC-003 AC 34', () => {
+    const csv =
+      'Qty,Name\n3,Lightning Rush,RAD 001/167\nLightning Rush x2\n1,Lightning Rush,RAD,001a\n';
+    expect(rowsToText(splitCsv(csv))).toBe(
+      '3 Lightning Rush, RAD 001/167\nLightning Rush x2\n1 Lightning Rush, RAD, 001a',
+    );
+    for (const r of [parseCardCsv(csv), parseCardText(rowsToText(splitCsv(csv)))]) {
+      expect(r.issues).toEqual([]);
+      expect(r.entries.map((e) => [e.quantity, e.name, e.printing?.text ?? null])).toEqual([
+        [3, 'Lightning Rush', 'RAD 001/167'],
+        [2, 'Lightning Rush', null],
+        [1, 'Lightning Rush, RAD, 001a', null],
+      ]);
+    }
+  });
+
+  it('reads codes and trailing quantities in one-cell and Excel rows', () => {
+    const r = parseCardRows([['3 RAD 001/167 Lightning Rush'], [2, 'OGN-007a'], ['Gust x2']]);
+    expect(r.issues).toEqual([]);
+    expect(r.entries.map((e) => [e.quantity, e.name, e.printing?.setCode ?? null])).toEqual([
+      [3, 'Lightning Rush', 'RAD'],
+      [2, '', 'OGN'],
+      [2, 'Gust', null],
+    ]);
+  });
+});

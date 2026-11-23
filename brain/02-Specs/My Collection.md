@@ -14,7 +14,7 @@ as_of: 2026-11-23
 ## Summary
 > Read this first. Full detail below only if needed.
 
-**Purpose:** the My Collection screen: every owned printing as its own entry with a count badge, user tags on printings, sort and filter by any attribute or tag, and the `deckOwnership()` contract that Your decks reads.
+**Purpose:** the Collection screen: every owned printing as its own entry with a count badge, user tags on printings, sort and filter by any attribute or tag, and the `deckOwnership()` contract that Decks reads.
 
 **Key requirements**
 - COLL-001/011: one entry per owned printing, one unassigned entry per card, plus missing-printing entries.
@@ -26,7 +26,7 @@ as_of: 2026-11-23
 - COLL-035/041: Unknown is its own filter/sort bucket and sorts last.
 - COLL-060/061: the query is remembered per browser and mirrored in the URL.
 - COLL-070: browser-only stores (`CollectionStore`, `TagStore`, `PrintingCodeStore`, view state).
-- COLL-080/081: "exclude from decks" tag flag; `deckOwnership(cardKey)` → `owned`, `ownedForDecks`, `ownedExcluded`, per-entry breakdown.
+- COLL-080/081: "exclude from decks" tag flag; `deckOwnership(input, cardKey)` → `owned`, `ownedForDecks`, `ownedExcluded`, per-entry breakdown.
 
 **Shared types:** `DeckOwnership` / `DeckOwnershipInput` (read by SPEC-005) · `CollectionCatalogView` (catalog view read by the pure functions) · `Tag`, `TagTarget`, `StoredTags` · `CollectionEntry`, `EntryBan` · `CollectionQuery`, `CollectionQueryInput`.
 **Depends on:** [[Card Data Model]], [[Deck Legality]], [[Collection Import]]. **Consumers:** [[Your Decks Ownership View]].
@@ -35,7 +35,7 @@ as_of: 2026-11-23
 - Rarity order (COLL-034); domain list (CARD-025); variant representation (CARD-040/041); API set order (CARD-071).
 
 ## Purpose
-Define the **My Collection** screen and its data: a full list of the cards the user owns, user tags
+Define the **Collection** screen and its data: a full list of the cards the user owns, user tags
 on cards, and sorting, ordering and filtering by name, any card attribute, or tag. RJ's words
 ([[ADR-0006 Two Imports - Collection and Decks]]):
 
@@ -47,8 +47,8 @@ on cards, and sorting, ordering and filtering by name, any card attribute, or ta
 RJ's gate H-036 answers ([[ADR-0006 Two Imports - Collection and Decks]], "Gate H-036 decisions"
 3, 4, 6, 7) refine this: every printing type (regular, foil, alt-art, overnumbered, signature) is its
 own entry with a **count badge** when more than one copy is owned; **tags attach to printings**, not
-to card names; a tag can be marked **"exclude from decks"**, so tagged printings stay in My Collection
-but do not count as owned in Your decks.
+to card names; a tag can be marked **"exclude from decks"**, so tagged printings stay in Collection
+but do not count as owned in Decks.
 
 The collection itself is produced by [[Collection Import]] (SPEC-003) and stored in the browser
 ([[ADR-0005 MVP Product Defaults]] decision 1). This spec adds manual editing, tags, the list view
@@ -58,7 +58,7 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 ## Definitions
 - **`cardKey`** (SPEC-003 type `CardKey`): the playable-card key from [[Card Data Model]] (SPEC-001).
   All printings and variants that share a name share one `cardKey` ([[ADR-0005 MVP Product Defaults]]
-  decision 2). Ownership for Your decks is counted per `cardKey` (section J).
+  decision 2). Ownership for Decks is counted per `cardKey` (section J).
 - **`printingId`** (SPEC-003 type `PrintingId`): the Riot API id of one printing (SPEC-001 CARD-010).
   Each printing the catalog lists separately (base/regular, foil, alt-art, Showcase, overnumbered,
   signature, promo) has its own `printingId`. Foil depends on research (open question 1).
@@ -72,7 +72,7 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
   `quantity` is the total copies of the card and `byPrinting` maps `printingId` → copies (IMP-048).
 - **Unassigned count**: `quantity − Σ byPrinting`. Copies owned but with no known printing
   (e.g. imported from `3 Lightning Rush` plain text).
-- **Entry**: one owned item in My Collection. Three kinds:
+- **Entry**: one owned item in Collection. Three kinds:
   - **printing entry**: one `printingId` of `byPrinting` that resolves in the current catalog, with its count;
   - **unassigned entry**: the unassigned copies of one `cardKey` (at most one per card);
   - **missing-printing entry**: one `printingId` of `byPrinting` that no longer resolves (COLL-014).
@@ -116,13 +116,13 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
    printings. When unassigned copies later become printing-identified (e.g. a CSV Replace), nobody
    knows which printing the tagged copies were, so their tags are **not** moved automatically; the user
    is offered to copy them (COLL-019).
-4. **"Exclude from decks" is a tag property** (RJ, H-036 decision 6). My Collection computes the
-   per-`cardKey` ownership for Your decks once and exposes it as a pure contract (section J,
+4. **"Exclude from decks" is a tag property** (RJ, H-036 decision 6). Collection computes the
+   per-`cardKey` ownership for Decks once and exposes it as a pure contract (section J,
    `deckOwnership`), so SPEC-005 does not re-implement tag logic.
 5. **Tags live in their own store**, keyed by tag target and separate from quantities, so SPEC-003
    Add/Replace never touches them and they survive re-imports by `printingId`.
 6. **Printing codes are remembered locally.** SPEC-003 stores `byPrinting` by `printingId` only. To still
-   show "Printing no longer found: OGN-007a" after a catalog update drops a printing, My Collection keeps
+   show "Printing no longer found: OGN-007a" after a catalog update drops a printing, Collection keeps
    a small `printingId → printingCode` memory (COLL-075).
 7. **Unknown is a value.** Null attributes and `unknown` enum values form an "Unknown" bucket that can be
    filtered on and sorts last in both directions.
@@ -134,19 +134,19 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 ### A. Collection entries and display
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| COLL-001 | MUST | My Collection lists **every** entry derived from the stored collection: one printing entry per `byPrinting` printing with count ≥ 1, one unassigned entry per card with unassigned count ≥ 1, and missing-printing entries (COLL-014). Excluded entries are listed too (COLL-083). Entries with count 0 do not exist (COLL-052). | [[ADR-0006 Two Imports - Collection and Decks]] ("a full list of the cards the user owns"); H-036 #3, #6 |
+| COLL-001 | MUST | Collection lists **every** entry derived from the stored collection: one printing entry per `byPrinting` printing with count ≥ 1, one unassigned entry per card with unassigned count ≥ 1, and missing-printing entries (COLL-014). Excluded entries are listed too (COLL-083). Entries with count 0 do not exist (COLL-052). | [[ADR-0006 Two Imports - Collection and Decks]] ("a full list of the cards the user owns"); H-036 #3, #6 |
 | COLL-002 | MUST | A collection record is keyed by `cardKey` and holds `quantity` (integer ≥ 1) and `byPrinting` (**`printingId`** → integer ≥ 1), exactly as SPEC-003 `StoredCollection`. Invariant: `Σ byPrinting ≤ quantity`; the difference is the unassigned count. A stored record that breaks the invariant is repaired on load by raising `quantity` to `Σ byPrinting`, with a one-time notice. | [[Collection Import]] IMP-047, IMP-048, `StoredCollection`; design rule |
-| COLL-003 | MUST | `quantity` is the number of copies of a card the user owns, across all its printings; printing and `variant.kind` never change **which card** a copy counts toward (CARD-013). Ownership for **Your decks** (SPEC-005) is `ownedForDecks(cardKey)` from section J (COLL-081), i.e. `quantity` minus copies carrying an excluded tag; SPEC-005 reads COLL-081 and never re-derives it. | [[ADR-0005 MVP Product Defaults]] decision 2; [[ADR-0006 Two Imports - Collection and Decks]] H-036 #5, #6; [[Card Data Model]] CARD-013, CARD-043 |
+| COLL-003 | MUST | `quantity` is the number of copies of a card the user owns, across all its printings; printing and `variant.kind` never change **which card** a copy counts toward (CARD-013). Ownership for **Decks** (SPEC-005) is `ownedForDecks(cardKey)` from section J (COLL-081), i.e. `quantity` minus copies carrying an excluded tag; SPEC-005 reads COLL-081 and never re-derives it. | [[ADR-0005 MVP Product Defaults]] decision 2; [[ADR-0006 Two Imports - Collection and Decks]] H-036 #5, #6; [[Card Data Model]] CARD-013, CARD-043 |
 | COLL-004 | MUST | Each entry shows: card image (COLL-006), canonical card name (verbatim, SPEC-001 CARD-031), the count badge (COLL-016), ban status (COLL-008) and, for a **printing entry**: set code and set name, collector number (verbatim string), printing code, rarity, and the variant label when `variant.kind` is not `base`/`unknown` (e.g. "Showcase", "Overnumbered", "Signature"). An **unassigned entry** shows "Printing not specified" instead of set and number; a **missing-printing entry** shows the COLL-014 label. | [[ADR-0006 Two Imports - Collection and Decks]]; H-036 #3; [[Card Data & Images]] #10 |
 | COLL-005 | SHOULD | Each entry also shows its tags as chips (max 3 visible + "+N"; excluded tags marked per COLL-082), category/type, domains, and cost. Cards Riot marks as preview carry a "Preview" label. | [[Card Data & Images]] #3 (previews labelled); design rule |
 | COLL-006 | MUST | Images are the official Riot API URLs from SPEC-001 (`art.thumbnailUrl` in the list, `art.fullUrl` in the detail view). No other image source, no re-hosting. If the URL is null or fails to load, the row shows a text placeholder with the card name; the row is still listed. | [[Card Data & Images]] #3, #7; [[Card Data Model]] CARD-005 |
 | COLL-007 | MUST | Card data shown here (names, attributes, text) comes only from the SPEC-001 catalog (Riot API). No hand-curated tables. | [[ADR-0005 MVP Product Defaults]] decision 4; [[Card Data Model]] CARD-001 |
-| COLL-008 | MUST | Ban status per entry is SPEC-002's **`banStatus(cardKey, 'standard', 'global', today)`** (LEGAL-B10); My Collection never re-derives it from waves. All entries of one card show the same status. `banned` shows "Banned since" + `bannedSince` formatted per COLL-017, e.g. "Banned since Nov 23, 2026". If ban data cannot be loaded, no `BanStatus` exists and the entry's status is the local value `unknown`, shown as "Ban status unknown", never "not banned". | [[Deck Legality]] LEGAL-B10, LEGAL-B02, LEGAL-R02; [[Ban List]] |
+| COLL-008 | MUST | Ban status per entry is SPEC-002's **`banStatus(cardKey, 'standard', 'global', today)`** (LEGAL-B10); Collection never re-derives it from waves. All entries of one card show the same status. `banned` shows "Banned since" + `bannedSince` formatted per COLL-017, e.g. "Banned since Nov 23, 2026". If ban data cannot be loaded, no `BanStatus` exists and the entry's status is the local value `unknown`, shown as "Ban status unknown", never "not banned". | [[Deck Legality]] LEGAL-B10, LEGAL-B02, LEGAL-R02; [[Ban List]] |
 | COLL-009 | SHOULD | When `banStatus()` returns `upcoming`, the entry shows "Banned from" + `effective` (COLL-017), e.g. "Banned from Nov 23, 2026", as a separate, non-blocking notice. | [[Deck Legality]] LEGAL-B10, LEGAL-B08 |
 | COLL-010 | MUST | The screen shows a summary: distinct cards (`cardKey`s), entries, total copies, and, when a query is active, "showing X of Y entries" (rows in group-by-card view). | design rule |
 | COLL-016 | MUST | **Count badge:** an entry with count N ≥ 2 shows the badge `×N` (e.g. `×3`) with accessible text "3 copies". An entry with count 1 shows no badge. Copies of one printing are never shown as several entries. | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #3 |
 | COLL-017 | MUST | **Dates** are displayed as `MMM D, YYYY` with the English month abbreviation, e.g. `Nov 23, 2026`. Stored data, URLs and contracts keep ISO `YYYY-MM-DD`. | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #7 (shared display rule) |
-| COLL-018 | MUST | My Collection shows no deck legality verdict. Any SPEC-002 `incomplete` result shown here in a later version is labelled **"Not fully checked"**, never "Legal"; unknown ban status is "Ban status unknown", never "Not banned". | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #7; [[Deck Legality]] LEGAL-R04 |
+| COLL-018 | MUST | Collection shows no deck legality verdict. Any SPEC-002 `incomplete` result shown here in a later version is labelled **"Not fully checked"**, never "Legal"; unknown ban status is "Ban status unknown", never "Not banned". | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #7; [[Deck Legality]] LEGAL-R04 |
 
 ### B. Entries, views and position of unassigned copies
 | ID | Level | Requirement | Source |
@@ -166,7 +166,7 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 | COLL-022 | MUST | Limits: label length 1–40 characters after normalization; no control characters; at most **200 tags** per browser; at most **20 tags per tag target**. Exceeding a limit shows an inline error and changes nothing. | design rule |
 | COLL-023 | MUST | **Rename** a tag: the new label is validated as in COLL-021/022. Renaming to the key of another existing tag offers **merge** instead (COLL-024). Renaming keeps the tag's id, so assignments and saved views stay valid. | design rule |
 | COLL-024 | MUST | **Merge** tag A into tag B: every tag target that had A gets B (no duplicates), A is deleted, B keeps its label, colour and `excludeFromDecks` flag. A confirmation states how many entries change and, if A and B differ in the flag, that the merged tag is (or is not) excluded from decks. | design rule |
-| COLL-025 | MUST | **Delete** a tag: removes it and all its assignments after a confirmation naming the number of entries affected (and, for an excluded tag, the copies that will count in Your decks again). Quantities are not affected. | design rule |
+| COLL-025 | MUST | **Delete** a tag: removes it and all its assignments after a confirmation naming the number of entries affected (and, for an excluded tag, the copies that will count in Decks again). Quantities are not affected. | design rule |
 | COLL-026 | MUST | Assign / unassign tags from an entry (and from a multi-selection of entries, COLL-027). Assigning a tag label that does not exist creates it (type-ahead suggests existing tags by tag-key prefix). | design rule |
 | COLL-027 | SHOULD | Bulk tagging: select several entries (or "select all entries matching the current query") and add or remove one tag for all their tag targets in one action. In group-by-card view, selecting a group selects all its entries. | design rule |
 | COLL-028 | MAY | A tag may have a colour from a fixed palette of at least 8 colours with sufficient text contrast; default is a neutral colour. Colour is never the only way a tag is identified (label always shown). | design rule (accessibility) |
@@ -215,7 +215,7 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 ### G. View state and URL
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| COLL-060 | MUST | The current query (view mode, search text, filters, tag mode, ban filter, sort, direction) is remembered **per browser** and restored when the user returns to My Collection. | design rule; [[ADR-0005 MVP Product Defaults]] decision 1 |
+| COLL-060 | MUST | The current query (view mode, search text, filters, tag mode, ban filter, sort, direction) is remembered **per browser** and restored when the user returns to Collection. | design rule; [[ADR-0005 MVP Product Defaults]] decision 1 |
 | COLL-061 | MUST | The query is mirrored in URL query parameters (`view`, `q`, `sort`, `dir`, `set`, `cat`, `type`, `domain`, `cost`, `energy`, `might`, `power`, `rarity`, `variant`, `tag`, `tagMode`, `ban`, `decks`, `minQty`), with comma-separated multi-values, so a filtered view can be bookmarked or reopened in the same browser. `view=cards` selects group-by-card view. The unknown bucket is the token `_unknown`, "No domain" is `_none`, Untagged is `_untagged`, unassigned entries `_unassigned`, missing-printing entries `_missing`. Defaults are omitted, so the default query has a clean URL. | design rule |
 | COLL-062 | MUST | Tags are referenced in the URL by **tag id**, so a bookmark survives a rename. A URL that names a tag id, set code or value that does not exist in this browser drops that value and shows a one-line notice ("1 filter value not found and was ignored"). URLs never contain anything but query state (no quantities, no personal data). | design rule; privacy |
 | COLL-063 | MUST | On load, URL parameters (if any) win over the remembered state; the result becomes the remembered state. Changes to the query update the URL in place (no new history entry per keystroke). | design rule |
@@ -232,21 +232,21 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 ### I. Storage
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| COLL-070 | MUST | All My Collection data is stored **in the browser only**, no account, no server copy: quantities through SPEC-003's `CollectionStore`, tags through a `TagStore`, printing codes through a `PrintingCodeStore` (COLL-075), view state through a `CollectionViewStateStore`. Each is an interface with a browser adapter, so a server store can replace it later without changing behaviour. | [[ADR-0005 MVP Product Defaults]] decision 1; [[ADR-0006 Two Imports - Collection and Decks]] (tags in the browser); [[Collection Import]] IMP-053 |
+| COLL-070 | MUST | All Collection data is stored **in the browser only**, no account, no server copy: quantities through SPEC-003's `CollectionStore`, tags through a `TagStore`, printing codes through a `PrintingCodeStore` (COLL-075), view state through a `CollectionViewStateStore`. Each is an interface with a browser adapter, so a server store can replace it later without changing behaviour. | [[ADR-0005 MVP Product Defaults]] decision 1; [[ADR-0006 Two Imports - Collection and Decks]] (tags in the browser); [[Collection Import]] IMP-053 |
 | COLL-071 | MUST | Every stored record has a `schemaVersion`: `StoredTags` is `2`, `StoredViewState` is `2`, `StoredPrintingCodes` is `1`. A loader that finds an older version migrates it: `StoredTags` 1 (0.1 draft, assignments by `cardKey`) → each card's tags are copied to every printing entry currently owned for that card and to its unassigned target, `excludeFromDecks` = false; `StoredViewState` 1 → `view: 'printings'` becomes `'entries'`. A newer or unreadable version is not overwritten and the user is told the data could not be read. | [[Collection Import]] IMP-054; design rule |
 | COLL-072 | MUST | A failed save (e.g. browser storage full) shows an error, keeps the in-memory change visible as "not saved", and does not corrupt the previously stored record. | design rule |
 | COLL-073 | SHOULD | Changes made in another tab of the same browser are picked up (reload of stores on change) so two tabs do not overwrite each other silently. | design rule |
 | COLL-074 | MUST | The user can delete all local collection, tag, printing-code and view data from a settings action, after confirmation. | [[Card Data & Images]] #7 (data removal); design rule |
-| COLL-075 | MUST | **Printing-code memory:** whenever the collection is loaded or saved against a catalog, for every `byPrinting` `printingId` that resolves, My Collection records `printingId → printingCode` (SPEC-001 `publicCode`, or `SET-collectorNumber` if `publicCode` is null) with the `cardKey` and the `catalogVersion` it was seen in. A code is kept while its `printingId` is in the collection or in a tag assignment. It is display data only and never used as a key. | [[Collection Import]] `StoredCollection` (keys by `printingId` only); [[Card Data Model]] `Printing.publicCode`, CARD-066; design rule (decision 6) |
+| COLL-075 | MUST | **Printing-code memory:** whenever the collection is loaded or saved against a catalog, for every `byPrinting` `printingId` that resolves, Collection records `printingId → printingCode` (SPEC-001 `publicCode`, or `SET-collectorNumber` if `publicCode` is null) with the `cardKey` and the `catalogVersion` it was seen in. A code is kept while its `printingId` is in the collection or in a tag assignment. It is display data only and never used as a key. | [[Collection Import]] `StoredCollection` (keys by `printingId` only); [[Card Data Model]] `Printing.publicCode`, CARD-066; design rule (decision 6) |
 
-### J. Exclude from decks and the Your decks contract
+### J. Exclude from decks and the Decks contract
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | COLL-080 | MUST | Each tag has a boolean **`excludeFromDecks`**, default `false` (e.g. a `Collector` tag on an expensive printing). | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #6 |
-| COLL-081 | MUST | **Deck-ownership contract** (read by SPEC-005): `deckOwnership(cardKey)` returns `owned` (= SPEC-003 `quantity`, 0 if absent), `ownedExcluded` = Σ counts of that card's entries (printing, unassigned, missing-printing) that carry at least one excluded tag, `ownedForDecks = owned − ownedExcluded`, and the per-entry breakdown (entry kind, `printingId`, printing code, count, excluded, the excluding tag ids) in `printingSortKey` order, for SPEC-005's "show exact printings" expand and its "owned but excluded" display. An entry counts once however many excluded tags it carries; dormant assignments have no copies and count nothing. It is a pure function of (collection, tags, printing codes, catalog), all carried by `DeckOwnershipInput`. | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #5, #6 and Note (owned(cardKey) excludes excluded printings); [[Collection Import]] IMP-058 |
-| COLL-082 | MUST | The tag create/edit dialog and the tag manager show a toggle **"Exclude from decks"** with the help text "Cards with this tag stay in My Collection but don't count as owned in Your decks." Chips of excluded tags carry a marker with accessible text "excluded from decks" (not colour alone). | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #6; design rule (accessibility) |
-| COLL-083 | MUST | An excluded entry still appears in My Collection at its normal position with its count and badge, plus the label **"Not counted in Your decks"**. Sorting and filtering treat it like any other entry (COLL-049 can select it). | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #6 |
-| COLL-084 | MUST | Turning the flag on or off, assigning or removing an excluded tag, and merging or deleting a tag take effect on the next read of COLL-081, without re-import. Toggling the flag asks for confirmation stating the effect, e.g. "2 copies of 1 card will no longer count in Your decks". | design rule |
+| COLL-081 | MUST | **Deck-ownership contract** (read by SPEC-005): `deckOwnership(input, cardKey)` returns `owned` (= SPEC-003 `quantity`, 0 if absent), `ownedExcluded` = Σ counts of that card's entries (printing, unassigned, missing-printing) that carry at least one excluded tag, `ownedForDecks = owned − ownedExcluded`, and the per-entry breakdown (entry kind, `printingId`, printing code, count, excluded, the excluding tag ids) in `printingSortKey` order, for SPEC-005's "show exact printings" expand and its "owned but excluded" display. An entry counts once however many excluded tags it carries; dormant assignments have no copies and count nothing. It is a pure function of (collection, tags, printing codes, catalog), all carried by `DeckOwnershipInput`. | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #5, #6 and Note (owned(cardKey) excludes excluded printings); [[Collection Import]] IMP-058 |
+| COLL-082 | MUST | The tag create/edit dialog and the tag manager show a toggle **"Exclude from decks"** with the help text "Cards with this tag stay in your collection but don't count as owned in your decks." Chips of excluded tags carry a marker with accessible text "excluded from decks" (not colour alone). | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #6; design rule (accessibility) |
+| COLL-083 | MUST | An excluded entry still appears in Collection at its normal position with its count and badge, plus the label **"Not counted in your decks"**. Sorting and filtering treat it like any other entry (COLL-049 can select it). | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #6 |
+| COLL-084 | MUST | Turning the flag on or off, assigning or removing an excluded tag, and merging or deleting a tag take effect on the next read of COLL-081, without re-import. Toggling the flag asks for confirmation stating the effect, e.g. "2 copies of 1 card will no longer count in your decks". | design rule |
 | COLL-085 | SHOULD | The summary (COLL-010) shows "N copies excluded from decks" when N > 0. | design rule |
 
 ## Data contract
@@ -352,7 +352,7 @@ interface CollectionCatalogView {  // read-only view of the SPEC-001 snapshot (C
   printings: Record<PrintingId, Printing>;   // resolution, printingSortKey, publicCode, art (COLL-014, COLL-031, COLL-075)
 }
 
-// ---- Your decks contract (COLL-081), read by SPEC-005 ----
+// ---- Decks contract (COLL-081), read by SPEC-005 ----
 interface DeckOwnershipInput {   // everything COLL-081 reads; ownership needs no ban data or date
   collection: StoredCollection;
   tags: StoredTags;
@@ -444,17 +444,17 @@ catalog printing (open question 1).
 1. **Default order, numeric and overnumbered** (COLL-011, COLL-031)
    **Given** a collection with printings `SFD-012`, `OGN-100`, `OGN-010`, `OGN-298` (`variant.kind:
    overnumbered`, OGN regular range ends below 298), `OGN-007a` (suffix variant of `OGN-007`),
-   `OGN-007`, `RAD-SP1/005` and `OGS-003` **When** My Collection opens with the default query
+   `OGN-007`, `RAD-SP1/005` and `OGS-003` **When** Collection opens with the default query
    **Then** rows are in `printingSortKey` order: `OGN-007`, `OGN-007a`, `OGN-010`, `OGN-100`,
    `OGN-298`, `OGS-003`, `SFD-012`, `RAD-SP1/005` (Showcase position within RAD per `printingSortKey`).
    `OGN-010` comes before `OGN-100` (numeric, not text) and the overnumbered `OGN-298` comes after
    the regular OGN numbers and before any OGS card.
 2. **One entry per printing; optional group by card** (COLL-011, COLL-013, COLL-016, COLL-081)
    **Given** `Kai'Sa, Survivor` owned as 2 × base printing and 1 × Showcase `RAD-SP1/005`, no tags
-   **When** My Collection opens with the default query **Then** there are two entries in different
+   **When** Collection opens with the default query **Then** there are two entries in different
    places in set order: the base entry with badge `×2` and the Showcase entry with no badge.
    **When** the user turns on "Group by card" **Then** there is one row with quantity 3 at the base
-   printing's position, expanding to the two entries. **And** `deckOwnership('kaisa survivor')` gives
+   printing's position, expanding to the two entries. **And** `deckOwnership(input, 'kaisa survivor')` gives
    `owned = 3`, `ownedForDecks = 3`, `ownedExcluded = 0`.
 3. **Unassigned copies are placed in order** (COLL-012)
    **Given** `3 Lightning Rush` imported from plain text (no printing) and `Lightning Rush`'s
@@ -527,7 +527,7 @@ catalog printing (open question 1).
     the URL contains `tag=t_999` (unknown) **Then** that value is ignored with a notice and the rest
     applies. **When** the user clears all filters **Then** the URL is `…/collection`.
 16. **Remembered view** (COLL-060, COLL-063)
-    **Given** the user left My Collection in group-by-card view sorted by name **When** they return via
+    **Given** the user left Collection in group-by-card view sorted by name **When** they return via
     the nav link (no URL params) **Then** group-by-card view sorted by name is restored and mirrored in
     the URL (`view=cards&sort=name`).
 17. **Catalog update** (COLL-014, COLL-015, COLL-075)
@@ -535,7 +535,7 @@ catalog printing (open question 1).
     printing-code memory holds `p_lr_007a → OGN-007a`, and that printing is tagged `Trade binder`
     **When** the app loads a new catalog in which `p_lr_007a` no longer resolves **Then** the copy shows
     as its own entry "Printing no longer found: OGN-007a" with `Trade binder`, at the card's default
-    printing position, the stored count is unchanged, and `deckOwnership('lightning rush').owned = 1`.
+    printing position, the stored count is unchanged, and `deckOwnership(input, 'lightning rush').owned = 1`.
     **Given** a record whose `cardKey` no longer resolves **When** the app loads the new catalog
     **Then** it is listed under "Unresolved cards" with its quantity and tags.
 18. **Performance** (COLL-065..067)
@@ -548,7 +548,7 @@ catalog printing (open question 1).
     `schemaVersion`, and none contains any API key or card image data.
 20. **Count badge on a foil** (COLL-011, COLL-016)
     **Given** the user owns 3 copies of the foil printing of `Lightning Rush` (`p_lr_foil`) and 1 copy of
-    its regular printing **When** My Collection opens with the default query **Then** there are exactly
+    its regular printing **When** Collection opens with the default query **Then** there are exactly
     2 entries for Lightning Rush: the foil entry with badge `×3` and the regular entry with no badge; the
     foil is never shown as 3 entries; the summary counts 4 copies of 1 card.
 21. **A tag on the foil does not apply to the regular printing** (COLL-020, COLL-044)
@@ -557,13 +557,13 @@ catalog printing (open question 1).
     tag manager shows `Trade binder` on 1 entry, 3 copies.
 22. **Excluded tag keeps the card listed but not counted for decks** (COLL-080..084, COLL-049)
     **Given** `Kai'Sa, Survivor` 2 × base + 1 × `RAD-SP1/005`, and a tag `Collector` with "Exclude from
-    decks" on, assigned to the `RAD-SP1/005` entry **When** My Collection is shown **Then** both entries
+    decks" on, assigned to the `RAD-SP1/005` entry **When** Collection is shown **Then** both entries
     are listed in their normal positions; the Showcase entry shows the `Collector` chip with the
-    "excluded from decks" marker and "Not counted in Your decks"; and `deckOwnership('kaisa survivor')`
+    "excluded from decks" marker and "Not counted in your decks"; and `deckOwnership(input, 'kaisa survivor')`
     gives `owned = 3`, `ownedExcluded = 1`, `ownedForDecks = 2`, with the Showcase entry marked
     `excluded` and `excludedByTagIds = [<Collector id>]`. **When** the Decks filter is "excluded from
     decks" **Then** only the Showcase entry shows. **When** the user turns the flag off and confirms
-    "1 copy of 1 card will count in Your decks again" **Then** `ownedForDecks = 3`, without re-import.
+    "1 copy of 1 card will count in your decks again" **Then** `ownedForDecks = 3`, without re-import.
 23. **Unassigned copies are tagged separately** (COLL-019, COLL-029)
     **Given** `3 Lightning Rush` from plain text plus 1 × its foil printing, and the user tags the
     unassigned entry `Binder page 4` **When** the list is shown **Then** `Binder page 4` shows only on
@@ -587,7 +587,7 @@ catalog printing (open question 1).
    (foil included) appear in the API is unknown. If a foil shares the regular printing's id, SPEC-001
    and SPEC-003 need a finish dimension (entry key `printingId` + finish) before COLL-011/016/020 can
    separate foils. → researcher (live payload, H-020), then SPEC-001/SPEC-003.
-2. **SPEC-003 (optional):** `StoredCollection` keeps only `printingId`, so My Collection keeps its own
+2. **SPEC-003 (optional):** `StoredCollection` keeps only `printingId`, so Collection keeps its own
    printing-code memory (COLL-075). If a later SPEC-003 version stores the printing code beside
    `byPrinting`, COLL-075 can be dropped.
 3. **Needs RJ (low):** unassigned copies are a separate tag target per card (COLL-019, chosen) rather

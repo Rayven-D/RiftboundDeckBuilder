@@ -60,7 +60,7 @@ interface PendingImport {
           @for (e of p.result.entries; track $index) {
             <li>
               <span class="qty">{{ e.quantity }}</span>
-              <span>{{ e.name }}</span>
+              <span>{{ e.name || e.printing?.text }}</span>
               @if (p.kind === 'deck' && e.section) {
                 <span class="section">{{ sectionLabel(e.section) }}</span>
               }

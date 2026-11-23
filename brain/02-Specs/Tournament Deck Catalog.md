@@ -24,7 +24,7 @@ as_of: 2026-11-23
 - CAT-037: shared display rules (dates `Nov 23, 2026`, `incomplete` = "Not fully checked").
 - CAT-040/041: historical lists shown by default, labelled `Contains cards banned since <date>`.
 - CAT-045: legality label mapping (historical, illegal, incomplete, legal).
-- CAT-070…074: one-click "Add to Your decks" via SPEC-006 (DECK-060…065); default name trimmed to 80; "In Your decks" / "Add another copy".
+- CAT-070…074: one-click "Add to your decks" via SPEC-006 (DECK-060…065); default name trimmed to 80; "In your decks" / "Add another copy".
 - CAT-060…064 (MUST NOT): no play/win rates, tiers, shares, aggregates or player ratings.
 
 **Shared types:** `TournamentEvent` · `CatalogDecklist` · `CardEntry` · `EventFile` (one file) · `DecklistLegality` (computed legality view) · `BannedCardRef` · `TournamentDeckSource` (defined in SPEC-006, mirrored here).
@@ -39,8 +39,8 @@ Store and show **published tournament results**: each premier event and the **fu
 whatever top cut Riot publishes)** with each decklist, labelled with its placing exactly as
 published, plus the event, date(s) and region. The catalog is shown on its own **Tournaments**
 screen. Per [[ADR-0006 Two Imports - Collection and Decks]] tournament decks are **not** part of
-"Your decks" ([[Your Decks Ownership View]], SPEC-005); a user brings one in only with the one-click
-**"Add to Your decks"** action, which copies it as if imported via [[Deck Import]] (SPEC-006).
+the **Decks** screen ([[Your Decks Ownership View]], SPEC-005); a user brings one in only with the one-click
+**"Add to your decks"** action, which copies it as if imported via [[Deck Import]] (SPEC-006).
 Per [[ADR-0003 Tournament Results Only]] the catalog contains **no metagame statistics of any kind**,
 stored or shown. Legality of each list is **computed** by [[Deck Legality]] (SPEC-002) as a
 `LegalityResult` and is never hand-maintained in the app data.
@@ -60,9 +60,9 @@ stored or shown. Legality of each list is **computed** by [[Deck Legality]] (SPE
   today** (it contains a card, battlefield or Legend banned after the event). Other rule failures or
   `incomplete` verdicts do not make a list historical.
 - **Tournaments screen**: the screen that shows the catalog (events and their Top 8).
-- **Your decks**: the user's own deck list (SPEC-005/SPEC-006), stored in the browser. It never
+- **Decks**: the screen with the user's own deck list (SPEC-005/SPEC-006), stored in the browser. It never
   lists catalog decklists automatically ([[ADR-0006 Two Imports - Collection and Decks]]).
-- **Tournament deck copy**: a deck in Your decks created by "Add to Your decks" (CAT-070…CAT-077).
+- **Tournament deck copy**: a deck in Decks created by "Add to your decks" (CAT-070…CAT-077).
 - **Riot decklist text**: Riot's sectioned decklist layout (Legend / Champion / Main Deck /
   Battlefields / Rune Pool / Sideboard, each followed by `<qty> <name>` lines). See
   [[Collection Import Formats]] fact 1.
@@ -118,7 +118,7 @@ stored or shown. Legality of each list is **computed** by [[Deck Legality]] (SPE
 |---|---|---|---|
 | CAT-030 | MUST | The Tournaments screen lists events **newest first** by `endDate` descending, then `startDate` descending, then `name` ascending. | [[ADR-0003 Tournament Results Only]] (recency); [[ADR-0006 Two Imports - Collection and Decks]] (Tournaments) |
 | CAT-031 | MUST | Within an event, decklists are ordered by `publishedRank` ascending, then by order of appearance in the source. | [[ADR-0003 Tournament Results Only]] |
-| CAT-032 | MUST | Each decklist row shows: placing label with event name (e.g. `1st, Regional Championship: Europe`), pilot, Legend, Champion, the event's dates and region, the legality label per CAT-045, and the "Add to Your decks" action (CAT-070). The event header shows name, type, dates, region, location, player count (only if stored), format and a link to the source article. | [[ADR-0003 Tournament Results Only]] |
+| CAT-032 | MUST | Each decklist row shows: placing label with event name (e.g. `1st, Regional Championship: Europe`), pilot, Legend, Champion, the event's dates and region, the legality label per CAT-045, and the "Add to your decks" action (CAT-070). The event header shows name, type, dates, region, location, player count (only if stored), format and a link to the source article. | [[ADR-0003 Tournament Results Only]] |
 | CAT-033 | MUST | All published decklists for the event are shown (the full Top 8 or whatever cut Riot published), not only the winner. | [[ADR-0003 Tournament Results Only]] |
 | CAT-034 | MUST | The deck detail view shows Legend, Champion, Main Deck, Rune Pool, Battlefields and Sideboard as separate sections with quantities, using card names and images from SPEC-001. | [[Deck Construction Rules]] |
 | CAT-035 | MUST | Wording honours players: neutral or celebratory labels only. No negative framing of any placing or pilot (e.g. never "only 8th", "lost", "worst"). | [[Riot Developer Rules]] rule 8 |
@@ -134,8 +134,8 @@ stored or shown. Legality of each list is **computed** by [[Deck Legality]] (SPE
 | CAT-046 | MUST | `legalAtEvent` is shown in deck detail only, as `No banned cards at the event` (`true`), `Contained cards banned at the event` (`false`) or not shown (`null`). It MUST NOT be worded as "legal at the event" because it covers LEGAL-016 only (CAT-018). | [[Deck Legality]] LEGAL-016 |
 
 **Removed in 0.2:** CAT-042 (hide-by-default toggle in "Your decks"), CAT-043 (empty state with
-toggle) and CAT-044 (toggle persistence). Per [[ADR-0006 Two Imports - Collection and Decks]] "Your
-decks" does not show tournament decks at all, and per [[ADR-0005 MVP Product Defaults]] decision 3
+toggle) and CAT-044 (toggle persistence). Per [[ADR-0006 Two Imports - Collection and Decks]] the
+Decks screen does not show tournament decks at all, and per [[ADR-0005 MVP Product Defaults]] decision 3
 banned decks are shown by default with a label, now on the Tournaments screen (CAT-040, CAT-041).
 The IDs are retired and not reused.
 
@@ -145,18 +145,18 @@ The IDs are retired and not reused.
 | CAT-050 | MUST | Two decklists at the same event are **identical** when legend, champion, and the multisets of main deck, runes, battlefields and sideboard (by `cardKey` and qty) are all equal. Both are kept, each under its own pilot and rank. | [[Tournament Results]] (conflicts: #4 and #6 identical) |
 | CAT-051 | MUST | The converter/loader computes identical lists and records the link on each (`identicalTo: [<other decklist ids>]`), and also keeps a maintainer note field `sourceNote` (e.g. "Riot's article shows this list identical to #6; possible publishing error"). | same |
 | CAT-052 | MUST | The deck detail view shows a neutral notice on each member: "Riot's published list for this player is identical to <placing label> (<pilot>)." It MUST NOT suggest either player copied the other or that the list is wrong. | [[Riot Developer Rules]] rule 8 |
-| CAT-053 | SHOULD | On the Tournaments screen identical lists stay separate entries, each with its own placing, pilot and "Add to Your decks" action; they MAY be grouped visually. Adding one does not count as adding the other (CAT-074). | [[Tournament Results]] (conflicts: #4 and #6 identical, both kept); design rule for grouping |
+| CAT-053 | SHOULD | On the Tournaments screen identical lists stay separate entries, each with its own placing, pilot and "Add to your decks" action; they MAY be grouped visually. Adding one does not count as adding the other (CAT-074). | [[Tournament Results]] (conflicts: #4 and #6 identical, both kept); design rule for grouping |
 
-### "Add to Your decks"
+### "Add to your decks"
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| CAT-070 | MUST | Every catalog decklist (Tournaments row and deck detail), including historical and `incomplete` ones, has a one-click **"Add to Your decks"** action. One click adds the deck; there is no confirmation dialog and no editing step. | [[ADR-0006 Two Imports - Collection and Decks]] (follow-up decisions) |
-| CAT-071 | MUST | The action creates a **new user deck** in Your decks exactly as if the same list had been imported via [[Deck Import]] (SPEC-006): same zones (Legend, Chosen Champion, main without the champion, runes, battlefields, sideboard), same quantities, each card keyed by `cardKey` with its canonical SPEC-001 name. Because every card already has a `cardKey`, SPEC-006's parsing and fuzzy-suggestion steps are skipped and the import cannot fail on names (SPEC-006 DECK-065). Format is the decklist's `format` (`standard`). | [[ADR-0006 Two Imports - Collection and Decks]]; [[Deck Import]] DECK-060, DECK-065 |
+| CAT-070 | MUST | Every catalog decklist (Tournaments row and deck detail), including historical and `incomplete` ones, has a one-click **"Add to your decks"** action. One click adds the deck; there is no confirmation dialog and no editing step. | [[ADR-0006 Two Imports - Collection and Decks]] (follow-up decisions) |
+| CAT-071 | MUST | The action creates a **new user deck** in Decks exactly as if the same list had been imported via [[Deck Import]] (SPEC-006): same zones (Legend, Chosen Champion, main without the champion, runes, battlefields, sideboard), same quantities, each card keyed by `cardKey` with its canonical SPEC-001 name. Because every card already has a `cardKey`, SPEC-006's parsing and fuzzy-suggestion steps are skipped and the import cannot fail on names (SPEC-006 DECK-065). Format is the decklist's `format` (`standard`). | [[ADR-0006 Two Imports - Collection and Decks]]; [[Deck Import]] DECK-060, DECK-065 |
 | CAT-072 | MUST | The user deck records its origin as a `TournamentDeckSource` (Data contract): `kind: "tournament"`, `eventId`, `eventName`, `eventStartDate`, `eventEndDate`, `region`, `decklistId`, `publishedRank`, `placingLabel`, `pilot`, `sourceUrl` (the Riot article) and `addedAt`. `TournamentDeckSource` is the **tournament variant of SPEC-006's `DeckSource`**: SPEC-006 owns the single definition, and the two MUST be identical field for field (no second, diverging shape). | [[ADR-0006 Two Imports - Collection and Decks]] ("event and placing recorded as its source") |
 | CAT-073 | MUST | The default deck name is `<Legend>: <pilot> (<placingLabel>, <event name>)`, e.g. `Kennen: ASC Evansrhim (1st, Regional Championship: Europe)`. `<Legend>` is the Legend's canonical name up to the first comma (`Kennen, Heart of the Tempest` → `Kennen`; the whole name if it has no comma), as in RJ's example. Pilot and placing are copied verbatim (CAT-011, CAT-012). The result is trimmed to 80 characters (the deck name limit, SPEC-006 DECK-070), the same rule as DECK-062. The user MAY rename it later (SPEC-006). | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 1; [[Riot Developer Rules]] rule 8; [[Deck Import]] DECK-062, DECK-070 |
-| CAT-074 | MUST | **Duplicates.** A decklist is "already added" when Your decks holds a deck whose `source.decklistId` equals its `id`. Then the button reads `In Your decks` and opens that deck, and a separate `Add another copy` link creates a further copy named with a ` (2)`, ` (3)`… suffix. One click on the primary action never creates a second copy. Editing a copy does not change this; deleting every copy makes "Add to Your decks" available again. Identical lists from different pilots (CAT-050) have different ids, so each can be added once on its own. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 2 |
-| CAT-075 | MUST | The copy is independent: later edits to the user deck never change the catalog, and later catalog corrections never change existing copies. No legality is copied; Your decks computes legality and ban status itself via SPEC-002 (SPEC-005). | [[Deck Legality]]; [[ADR-0006 Two Imports - Collection and Decks]] |
-| CAT-076 | MUST | After adding, the user sees a neutral confirmation `Added to Your decks` with a link to open the deck. For a historical list the confirmation also shows the CAT-041 label. | [[ADR-0005 MVP Product Defaults]] decision 3 |
+| CAT-074 | MUST | **Duplicates.** A decklist is "already added" when Decks holds a deck whose `source.decklistId` equals its `id`. Then the button reads `In your decks` and opens that deck, and a separate `Add another copy` link creates a further copy named with a ` (2)`, ` (3)`… suffix. One click on the primary action never creates a second copy. Editing a copy does not change this; deleting every copy makes "Add to your decks" available again. Identical lists from different pilots (CAT-050) have different ids, so each can be added once on its own. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 2 |
+| CAT-075 | MUST | The copy is independent: later edits to the user deck never change the catalog, and later catalog corrections never change existing copies. No legality is copied; Decks computes legality and ban status itself via SPEC-002 (SPEC-005). | [[Deck Legality]]; [[ADR-0006 Two Imports - Collection and Decks]] |
+| CAT-076 | MUST | After adding, the user sees a neutral confirmation `Added to your decks` with a link to open the deck. For a historical list the confirmation also shows the CAT-041 label. | [[ADR-0005 MVP Product Defaults]] decision 3 |
 | CAT-077 | MUST NOT | The action stores the copy in the browser only ([[ADR-0005 MVP Product Defaults]] decision 1) and MUST NOT send, count or display how many times a deck was added (no popularity data). | [[ADR-0003 Tournament Results Only]]; V-010 |
 
 ### ADR-0003 prohibitions
@@ -255,7 +255,7 @@ interface CatalogEventView {
 }
 // GET catalog -> CatalogEventView[] ordered per CAT-030. No aggregate fields (CAT-063).
 
-// "Add to Your decks" (CAT-072): the tournament variant of SPEC-006's DeckSource.
+// "Add to your decks" (CAT-072): the tournament variant of SPEC-006's DeckSource.
 // SPEC-006 owns the single definition; it must be identical to this field for field.
 // Stored in the browser with the user deck (ADR-0005); never sent to a server.
 interface TournamentDeckSource {
@@ -366,10 +366,10 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
    `zone: "battlefields"` alongside the Chosen Champion Riven, Broken Blade (`zone: "champion"`), plus Stellacorn Herder
    and Zhonya's Hourglass (`zone: "main"`): 5 entries, each listed once with its `cardKey` (e.g. `"emperors dais"`) and
    `bannedSince: "2026-11-23"` (CAT-017).
-10. **Banned decks shown on Tournaments, not in Your decks.** **Given** all 8 catalog lists are historical as of
+10. **Banned decks shown on Tournaments, not in Decks.** **Given** all 8 catalog lists are historical as of
     2026-11-23 and the user has added no tournament deck, **When** they open Tournaments, **Then** all 8 lists are shown
     in published order, each labelled `Contains cards banned since Nov 23, 2026`, with no hide toggle; **When** they open
-    Your decks, **Then** none of the 8 lists appears there (CAT-040, CAT-041; ADR-0006).
+    Decks, **Then** none of the 8 lists appears there (CAT-040, CAT-041; ADR-0006).
 11. **Identical lists kept and flagged.** **Given** BQO Caravaggio (#4) and lets see lol (#6) have identical
     legend, champion, main, runes, battlefields and sideboard, **When** imported, **Then** both decklists exist,
     `2026-11-rc-europe-4.identicalTo = ["2026-11-rc-europe-6"]` and vice versa, and each detail view shows the
@@ -387,20 +387,20 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
     returning `verdict: "incomplete"` because LEGAL-002 is `not_evaluated` (`domains = null` for one card), **When** the
     row renders, **Then** it shows `Not fully checked`, not `Legal in Standard`, and no legal colour or icon;
     `historical` is false (CAT-045).
-16. **Add to Your decks.** **Given** ASC Evansrhim's list (`2026-11-rc-europe-1`) and an empty Your decks, **When** the
-    user clicks "Add to Your decks" once, **Then** Your decks holds one new deck named
+16. **Add to your decks.** **Given** ASC Evansrhim's list (`2026-11-rc-europe-1`) and an empty Decks screen, **When** the
+    user clicks "Add to your decks" once, **Then** Decks holds one new deck named
     `Kennen: ASC Evansrhim (1st, Regional Championship: Europe)` with Legend, Champion, 39 main,
     9 Chaos Rune + 3 Order Rune, Minefield, Veiled Temple, Zaun Warrens and 10 sideboard cards identical to the catalog
     list, format `standard`, and `source` = `{ kind: "tournament", eventId: "2026-11-rc-europe", decklistId:
     "2026-11-rc-europe-1", publishedRank: 1, placingLabel: "1st", pilot: "ASC Evansrhim", sourceUrl: <Riot article>, … }`;
-    the confirmation `Added to Your decks` also shows `Contains cards banned since Nov 23, 2026` (CAT-070…CAT-073, CAT-076).
+    the confirmation `Added to your decks` also shows `Contains cards banned since Nov 23, 2026` (CAT-070…CAT-073, CAT-076).
 17. **Duplicate add.** **Given** `2026-11-rc-europe-1` was already added, **When** the user views it on Tournaments,
-    **Then** the button reads `In Your decks` and clicking it opens the existing deck without creating another;
+    **Then** the button reads `In your decks` and clicking it opens the existing deck without creating another;
     **When** they click the `Add another copy` link, **Then** a second deck named
     `Kennen: ASC Evansrhim (1st, Regional Championship: Europe) (2)` is
-    created with the same `source.decklistId`; **When** they delete both copies, **Then** "Add to Your decks" returns (CAT-074).
-18. **Identical lists add separately.** **Given** BQO Caravaggio (#4) is already in Your decks, **When** the user views
-    lets see lol (#6, identical list), **Then** #6 still shows "Add to Your decks", and adding it creates a deck whose
+    created with the same `source.decklistId`; **When** they delete both copies, **Then** "Add to your decks" returns (CAT-074).
+18. **Identical lists add separately.** **Given** BQO Caravaggio (#4) is already in Decks, **When** the user views
+    lets see lol (#6, identical list), **Then** #6 still shows "Add to your decks", and adding it creates a deck whose
     source names `lets see lol` and `6th` (CAT-053, CAT-074).
 19. **Copy is independent.** **Given** the user removed one Nocturne, Horrifying from their copy of
     `2026-11-rc-europe-1`, **When** they open Tournaments, **Then** the catalog list still shows 3 Nocturne, Horrifying,
@@ -417,7 +417,7 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
     `Nov 6, 2026` and `Nov 8, 2026`; no date is shown as `2026-11-23` or `23 Nov 2026` (CAT-037).
 
 ## Out of scope
-- The Your decks screen, ownership display and ban status per card (SPEC-005, [[Your Decks Ownership View]]).
+- The Decks screen, ownership display and ban status per card (SPEC-005, [[Your Decks Ownership View]]).
 - User-deck storage, renaming and the general deck-source union (SPEC-006, [[Deck Import]]); this spec defines only the tournament source variant (CAT-072).
 - The legality rules and ban-list data themselves (SPEC-002, [[Deck Legality]]).
 - Card identity, names, images (SPEC-001, [[Card Data Model]]).
