@@ -62,7 +62,7 @@ Status `todo`, every `depends` item `done`, an agent owner (not RJ), highest pri
 Default 5 rounds per `/loop` run (`/loop 10` for more). Research refreshes are a single round.
 
 ## Research refresh
-Runs weekly (scheduled) and on demand with `/research-refresh [focus]`.
+On demand with `/research-refresh [focus]`. The weekly scheduled run is **not set up yet**: RJ deleted the original task on 2026-11-23 and will recreate it inside the Claude project later (H-042). Until then, run it manually.
 1. The researcher checks every source in the [[Research Index]] for changes since each note's `as_of` date.
 2. Real changes go to the [[Change Feed]] and the affected notes are updated.
 3. Each change that affects a spec gets a P1 board item for spec-writer. A ban change also gets

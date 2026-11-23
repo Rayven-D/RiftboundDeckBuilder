@@ -17,7 +17,7 @@ change often.
   [[Validation Checks]], and files a board item for every failure.
 - **Autonomy:** the loop stops only at gates (ADRs, UI reviews, behavior-changing spec reviews,
   3 failed attempts, anything destructive).
-- **Refresh:** a weekly scheduled research refresh, plus a manual `/research-refresh [focus]` for
+- **Refresh:** a weekly scheduled research refresh (status: **not set up yet**: RJ deleted the original task on 2026-11-23 and will recreate it inside the Claude project later (H-042)), plus a manual `/research-refresh [focus]` for
   news between runs.
 - **Git:** one branch per item (`loop/<ID>-<slug>`), merged into `dev` after validation. RJ merges `dev` → `main`.
 - **Host:** RJ's PC (G:\Projects\RiftboundDeckBuilder), from Claude Code locally or from a Claude

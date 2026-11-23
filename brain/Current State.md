@@ -40,6 +40,7 @@ updated: 2026-11-23
 ## Waiting on RJ
 - **H-020:** fetch the live Riot payload (or `cd services; npm install; npm run ingest:cards`). This unblocks most open card questions.
 - **H-023:** run the app and pick design direction A/B/C ([[Design Direction]]).
+- **H-042:** recreate the weekly research refresh as a scheduled task inside the Claude project (the old one was deleted; there is no automatic refresh until then).
 - **H-011:** apply for the production key once there's a demo ([[Riot App Application]]).
 
 ## Next for the loop

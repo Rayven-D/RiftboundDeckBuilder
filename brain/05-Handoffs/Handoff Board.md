@@ -1,6 +1,6 @@
 ---
 tags: [handoffs, loop]
-next_id: 41
+next_id: 43
 ---
 # Handoff Board
 
@@ -12,6 +12,7 @@ The loop's state. See [[Loop Protocol]]. One row per item. Take the next ID from
 ## Open
 | ID | Pri | Owner | Status | Depends | From | Request | Accept | Tries | Link |
 |---|---|---|---|---|---|---|---|---|---|
+| H-042 | P2 | RJ | needs-RJ | — | RJ | Recreate the weekly research refresh (Mon 6:58 pm Central, requires RJ's PC) as a scheduled task inside the Claude project "Riftbound Deck Generator". The prompt is in the 2026-11-23 chat. The old task was deleted. Until then, run `/research-refresh` manually. | Scheduled task exists in the project | 0 | [[Loop Protocol]] |
 | H-040 | P2 | spec-writer | todo | — | validator | SPEC-005 fixes: section order = Riot decklist order (Legend, Champion, Main, Battlefields, Runes, Sideboard; ADR-0006 "Your decks view decisions"; also update OWN-022 allocation to Main first in that order: Legend → Champion → Main → Battlefields → Runes → Sideboard); verdict labels match CAT-045/DECK-051 via LEGAL-R08 and `FormatDef.name`; pass tag names (TagStore/tag lookup) into the expand; reuse SPEC-007 `CollectionCatalogView` and `DeckOwnershipInput`, and call `deckOwnership(input, cardKey)`; add `isChampionUnit` to OWN-060; bump dependency versions; OWN-061 cites the right CARD rule | V-009 + cross-spec re-check | 0 | [[Your Decks Ownership View]] |
 | H-020 | P0 | RJ | needs-RJ | — | validator | Fetch one live Riot API response on your PC (the sandboxes are blocked) and save it to `data/raw/riftbound-content-en.json` (the PowerShell command is in the Session Log) ; or `cd services; npm install; npm run ingest:cards` then `npm run check:decklists` (closes V-003 for H-008) | File exists, valid JSON; V-003 passes | 0 | [[Card Data Model]] |
 | H-023 | P1 | RJ | needs-RJ | — | ui-builder | UI review gate: run the app (`cd web; npm install; npx ng serve`), pick design direction A/B/C + accent, wordmark and nav OK? (product defaults are answered in ADR-0005) | Choice recorded in [[Design Direction]] | 0 | [[Design Direction]] |
