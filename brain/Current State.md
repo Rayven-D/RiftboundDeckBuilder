@@ -39,12 +39,11 @@ updated: 2026-11-23
 
 ## Waiting on RJ
 - **H-020:** fetch the live Riot payload (or `cd services; npm install; npm run ingest:cards`). This unblocks most open card questions.
-- **H-023:** run the app and pick design direction A/B/C ([[Design Direction]]).
 - **H-042:** recreate the weekly research refresh as a scheduled task inside the Claude project (the old one was deleted; there is no automatic refresh until then).
 - **H-011:** apply for the production key once there's a demo ([[Riot App Application]]).
 
 ## Next for the loop
-All 7 specs drafted and validated. Next: small SPEC-005 fixes (H-040), then **build the UI screens** against [[API Contracts]] v1 and the specs. That needs RJ's design pick (H-023).
+All 7 specs drafted and validated. Next: small SPEC-005 fixes (H-040), then **build the UI screens** against [[API Contracts]] v1 and the specs. Design direction A is picked and applied (H-023 done, H-024 in verify on `loop/ui-direction-a`); shared deck components and a `/styleguide` preview exist. Screens that need no live card data come first: the two import flows, Tournaments, and the Your decks layout on the fixture.
 
 ## Biggest unknowns
 How the live API represents variants (is a foil its own printing?), domains, champion and

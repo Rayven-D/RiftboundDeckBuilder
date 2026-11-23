@@ -20,12 +20,19 @@ export const routes: Routes = [
   {
     path: 'decks/:id',
     title: 'Deck detail · Riftbound Deck Builder',
-    loadComponent: () => import('./pages/deck-detail/deck-detail-page').then((m) => m.DeckDetailPage),
+    loadComponent: () =>
+      import('./pages/deck-detail/deck-detail-page').then((m) => m.DeckDetailPage),
   },
   {
     path: 'tournaments',
     title: 'Tournaments · Riftbound Deck Builder',
-    loadComponent: () => import('./pages/tournaments/tournaments-page').then((m) => m.TournamentsPage),
+    loadComponent: () =>
+      import('./pages/tournaments/tournaments-page').then((m) => m.TournamentsPage),
+  },
+  {
+    path: 'styleguide',
+    title: 'Component preview · Riftbound Deck Builder',
+    loadComponent: () => import('./pages/styleguide/styleguide-page').then((m) => m.StyleguidePage),
   },
   { path: '**', redirectTo: 'decks' },
 ];

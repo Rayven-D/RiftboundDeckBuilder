@@ -5,7 +5,9 @@ import { routes } from './app.routes';
 
 describe('routes', () => {
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideRouter(routes, withComponentInputBinding())] });
+    TestBed.configureTestingModule({
+      providers: [provideRouter(routes, withComponentInputBinding())],
+    });
   });
 
   it('redirects the root path to /decks', async () => {
@@ -19,6 +21,7 @@ describe('routes', () => {
     ['/collection', 'My collection'],
     ['/tournaments', 'Tournaments'],
     ['/decks/abc', 'Deck detail'],
+    ['/styleguide', 'Kennen: ASC Evansrhim'],
   ])('renders %s', async (url, title) => {
     const harness = await RouterTestingHarness.create(url);
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain(title);
