@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-002
-version: 0.2
+version: 0.3
 status: draft
 depends_on: [SPEC-001]
 research: ["[[Deck Construction Rules]]", "[[Ban List]]", "[[Formats]]", "[[Sets]]", "[[Rules Overview]]", "[[Riot App Application]]"]
@@ -9,6 +9,29 @@ decisions: ["[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Colle
 as_of: 2026-11-23
 ---
 # SPEC-002: Deck Legality
+
+## Summary
+> Read this first. Full detail below only if needed.
+
+**Purpose:** decide whether a deck is legal in a format and region as of a date, explaining every failure in plain English. Riot requires rule enforcement for a production key. MVP: Standard, `global`.
+
+**Key requirements**
+- LEGAL-001…015: construction rules (1 Legend, 40-card main incl. Chosen Champion, ≤ 3 per `cardKey` across zones, 12 runes, 3 unique battlefields, sideboard ≤ 10, domain identity).
+- LEGAL-016: no banned card, battlefield or Legend in any zone as of `asOf`, matched by `cardKey`.
+- LEGAL-017/018: each card needs a printing in a set legal as of `asOf`; an overnumbered printing alone doesn't count.
+- LEGAL-019: every name resolves to exactly one `cardKey`; others are skipped, not guessed.
+- LEGAL-B02: banned set as of D = all waves with `effective <= D` (inclusive).
+- LEGAL-B10: `banStatus(cardKey, format, region, asOf)` → `banned` (with `bannedSince`) / `upcoming` / `not-banned`.
+- LEGAL-C02/C08: set legality from Riot-published dates or API release status only; no community dates.
+- LEGAL-R01/R04: pure function; verdict `illegal` > `incomplete` > `legal`; `incomplete` is never shown as legal.
+- LEGAL-R08: messages show dates as `Nov 23, 2026` and the format as "Standard" (id stays `standard`).
+
+**Shared types:** `DeckInput` (zones of a deck) · `LegalityRequest` · `LegalityResult` (verdict, `RuleResult[]`, data versions) · `Violation` · `BanStatus` (per-card status) · `Zone`, `FormatId`, `IsoDate` · `LegalityCardView` (card fields read) · `BanListFile`, `FormatsFile` (data files).
+**Depends on:** [[Card Data Model]]. **Consumers:** [[Your Decks Ownership View]], [[Tournament Deck Catalog]], [[Deck Import]], [[My Collection]].
+**BLOCKED / open:**
+- BLOCKED: card attributes from the API (`category` strings, domains, champion/signature, `variant.kind`), so LEGAL-002/004/006/007/009/012/014/015/018 return `not_evaluated`.
+- BLOCKED: set release status in the API (LEGAL-C02 (3)); promo sets OPP/JDG/PR excluded (LEGAL-C07).
+- Open: rotation conflict (`legalUntil` stays `null`, LEGAL-C05); Signature cap vs sideboard (LEGAL-006a warning); time zone of ban dates.
 
 ## Purpose
 Decide whether a deck is legal in a given **format**, **region**, and **as of a given date**, and
@@ -42,7 +65,7 @@ Card shapes come from [[Card Data Model]] (SPEC-001, source of truth). Cards are
 - **Battlefields:** the 3 battlefields brought to the match. ([[Deck Construction Rules]] #8)
 - **Sideboard:** up to 10 main-deck-eligible cards (tournament play). ([[Deck Construction Rules]] #9)
 - **Card key (`cardKey`):** SPEC-001's playable-card key, `nameKey(canonical name)`. It is the key for copy limits and ban lookups; all printings and variants with the same name share one limit. Messages show the canonical name. ([[Deck Construction Rules]] #5; [[Card Data Model]] CARD-012/013)
-- **Format:** an official play format. MVP: `standard` = Standard Constructed. ([[Formats]] #1, #2)
+- **Format:** an official play format. MVP: `standard` = Standard Constructed, display name **"Standard"** (LEGAL-R08). ([[Formats]] #1, #2)
 - **Region:** the ban-list / set-legality region. MVP: `global`. ([[Ban List]] #7)
 - **As-of date (`asOf`):** an ISO calendar date `YYYY-MM-DD`. "Legal as of D" means legal under the ban list and set list in force on D.
 - **Ban wave:** one official ban-list update with an announcement date and an effective date.
@@ -142,7 +165,8 @@ or creator release dates are stored or used.
 | LEGAL-R04 | MUST | Verdict: `illegal` if any rule has an `error` violation; else `incomplete` if any rule is `not_evaluated`; else `legal`. Warnings never change the verdict. The UI MUST NOT show `incomplete` as legal. | design rule, so that unknown card data (SPEC-001 CARD-029) never yields a false "legal" under Riot's enforce-the-rules requirement ([[Riot App Application]]; [[Card Data & Images]] #4) |
 | LEGAL-R05 | MUST | Only official formats are offered. A non-official format, if ever added, is labeled "Unofficial". | [[Riot App Application]] (don't alter official formats) |
 | LEGAL-R06 | MUST | The same evaluator runs in the API and the Angular editor (shared TypeScript types per ADR-0001); the API result is authoritative. | [[ADR-0001 Tech Stack]] |
-| LEGAL-R07 | MUST | Messages are plain English, name the card (canonical name) and zone, and state expected vs. actual (templates below). | design rule |
+| LEGAL-R07 | MUST | Messages are plain English, name the card (canonical name) and zone, and state expected vs. actual (templates below), rendered with the display rules of LEGAL-R08. | design rule |
+| LEGAL-R08 | MUST | **Shared display rules for messages** (same as SPEC-004 CAT-037, SPEC-006, SPEC-007 COLL-017): every date in a user-facing message (`{asOf}`, `{effective}`, `{legalFrom}` and any other) is shown as `MMM D, YYYY` with an English short month, e.g. `Nov 23, 2026`; `{format}` is the format's display name `FormatDef.name`, which is **`Standard`** for the id `standard`. Stored data, `Violation`/`RuleResult` fields and the API keep ISO `YYYY-MM-DD` dates and the id `standard`. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 7; [[Tournament Deck Catalog]] CAT-037 |
 
 ## Data contract
 ```ts
@@ -350,6 +374,7 @@ with waves 2026-07-24 (Master Yi, Wuju Bladesman as `legend`, plus the Standard 
 | PG2 | 2027-02-19 | null | riot-date | "Products and Sets into 2027" ([[Sets]] #2) |
 | REC | 2027-04-30 | null | riot-date | "Products and Sets into 2027" ([[Sets]] #2) |
 
+`name` for `standard`: `"Standard"` (display name used in messages, LEGAL-R08).
 `excludedSets` for `standard`: `["OPP", "JDG", "PR"]` (LEGAL-C07).
 `deckRules` for `standard`: `{ mainDeckSize: 40, mainDeckSizeMode: 'exact', copyLimit: 3, signatureLimit: 3, runeDeckSize: 12, battlefieldCount: 3, sideboardMax: 10 }` ([[Deck Construction Rules]] #3–#9).
 The community dates for OGN–VEN in [[Sets]] #4 are **not** stored (ADR-0005, LEGAL-C08). Consequence: for
@@ -357,6 +382,8 @@ those sets the app cannot say from which date they were legal; it treats them as
 matters only for decks dated before a set existed, which cannot contain that set's cards.
 
 ### Message templates (LEGAL-R07)
+Placeholders are rendered per LEGAL-R08. Example: LEGAL-016 for Nocturne, Horrifying as of 2026-11-23 reads "Nocturne, Horrifying is banned in Standard as of Nov 23, 2026 (Radiance ban list update, effective Nov 23, 2026)."
+
 | Rule | Fail message |
 |---|---|
 | LEGAL-001 | "A deck needs exactly 1 Legend; this deck has {n}." / "{name} is not a Legend." |
@@ -380,7 +407,7 @@ matters only for decks dated before a set existed, which cannot contain that set
 Fixtures: `KENNEN_1` = [[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]] (1st, RC Europe, 2026-11-08); `RIVEN_2` = [[2026-11 RC Europe - 2 - Sonecon - Riven]] (2nd). Both were registered and played at a sanctioned Regional Championship, so they are expected to pass every construction rule; their attribute-dependent rules (LEGAL-002/004/006/007/009/012) can only be asserted once SPEC-001 provides the card data.
 
 1. **Given** `KENNEN_1` (Legend Kennen, Heart of the Tempest; Chosen Champion Kennen, Storm of Shuriken; 39 main; 9 Chaos Rune + 3 Order Rune; Minefield, Veiled Temple, Zaun Warrens; 10 sideboard), format `standard`, region `global`, **When** evaluated with `asOf = 2026-11-08`, **Then** LEGAL-016 passes, LEGAL-003 passes with `counts.main = 40`, LEGAL-008 passes (12), LEGAL-010 and LEGAL-011 pass, LEGAL-013 passes (10), LEGAL-005 passes (e.g. An Offer You Can't Refuse = 1 main + 1 sideboard = 2), `upcomingBans` is **empty** (the Radiance wave was announced on 2026-11-13, after `asOf`, so it is not shown; LEGAL-B08), and, given complete card data, `verdict = legal`.
-2. **Given** `KENNEN_1`, **When** evaluated with `asOf = 2026-11-23`, **Then** `verdict = illegal`, LEGAL-016 fails with exactly two violations: "Nocturne, Horrifying is banned in Standard Constructed as of 2026-11-23 (Radiance ban list update, effective 2026-11-23)." and the same for Rhasa the Sunderer, each with `banWaveId = std-2026-11-23`, zone `main`. All count rules still pass.
+2. **Given** `KENNEN_1`, **When** evaluated with `asOf = 2026-11-23`, **Then** `verdict = illegal`, LEGAL-016 fails with exactly two violations: "Nocturne, Horrifying is banned in Standard as of Nov 23, 2026 (Radiance ban list update, effective Nov 23, 2026)." (LEGAL-R08) and the same for Rhasa the Sunderer, each with `banWaveId = std-2026-11-23`, zone `main`. All count rules still pass.
 3. **Given** `KENNEN_1`, **When** evaluated with `asOf = 2026-11-22`, **Then** LEGAL-016 passes (effective date is inclusive, the wave was announced but not effective) **and** `upcomingBans` lists Nocturne, Horrifying and Rhasa the Sunderer with `change: 'ban'`, `announced: 2026-11-13`, `effective: 2026-11-23`. The same holds for any `asOf` from 2026-11-13 to 2026-11-22; with `asOf = 2026-11-12` `upcomingBans` is empty.
 4. **Given** `RIVEN_2`, **When** evaluated with `asOf = 2026-11-23`, **Then** LEGAL-016 fails with exactly five violations: Riven, Broken Blade (zone `champion`), Stellacorn Herder and Zhonya's Hourglass (zone `main`), Emperor's Dais and Star Spring (zone `battlefields`); **and with `asOf = 2026-11-08`** LEGAL-016 passes.
 5. **Given** the Standard ban data, **When** the banned set is computed as of 2026-11-23, **Then** it has 15 `card` and 7 `battlefield` entries (LEGAL-B09); as of 2026-11-22 it has 7 cards and 5 battlefields; as of 2026-07-23 it has 4 cards and 3 battlefields; as of 2026-07-24 it includes Stealthy Pursuer; as of 2026-03-30 it is empty.
@@ -390,7 +417,7 @@ Fixtures: `KENNEN_1` = [[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]] (1st, 
 9. **Given** `KENNEN_1` with battlefields Minefield, Minefield, Zaun Warrens, **When** evaluated, **Then** LEGAL-011 fails naming Minefield (2), and LEGAL-010 passes (3).
 10. **Given** `KENNEN_1` with 8 Chaos Rune + 3 Order Rune, **When** evaluated, **Then** LEGAL-008 fails ("…it has 11.").
 11. **Given** `RIVEN_2` with Chosen Champion set to Kennen, Storm of Shuriken, **When** evaluated with card data where its Champion tag differs from the Legend's, **Then** LEGAL-004 fails with the "doesn't match the Legend" reason. *(tag values BLOCKED on SPEC-001.)*
-12. **Given** a deck containing a card whose only printings are in LGC, **When** evaluated with `asOf = 2026-11-23`, **Then** LEGAL-017 fails ("…not legal until 2027-01-29", `effectiveDate = 2027-01-29`), even if the catalog already returns LGC as a preview set; with `asOf = 2027-01-29` it passes.
+12. **Given** a deck containing a card whose only printings are in LGC, **When** evaluated with `asOf = 2026-11-23`, **Then** LEGAL-017 fails ("…not legal until Jan 29, 2027", `effectiveDate = 2027-01-29`), even if the catalog already returns LGC as a preview set; with `asOf = 2027-01-29` it passes.
 13. **Given** `KENNEN_1` with "Lightning Rsh" in `main`, **When** evaluated, **Then** LEGAL-019 fails ("Unknown card: \"Lightning Rsh\"…"), other rules don't count it as anything, and `verdict = illegal`.
 14. **Given** card data with `domains = null` for one main card and no other failures, **When** evaluated, **Then** LEGAL-002 is `not_evaluated` with that card named, and `verdict = incomplete` (not `legal`).
 15. **Given** any request, **When** evaluated, **Then** `rules` has one entry for every rule ID in section A, in ID order, and the result carries the `banListDataVersion`, `formatsDataVersion` and SPEC-001 `catalogVersion` used (e.g. `0.2+2026-11-20T18:04:00Z`).
@@ -419,5 +446,4 @@ Fixtures: `KENNEN_1` = [[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]] (1st, 
 10. **Battlefield domains** ("where applicable"): confirm whether any battlefields carry domains. LEGAL-012 applies the general fit rule meanwhile.
 
 ## Changelog
-- 0.2 (2026-11-23): H-015, H-018, H-026 (ADR-0005/0006). `LegalityCardView` aligned to SPEC-001 (`cardKey`, `category`, nullable `domains`/`isChampionUnit`/`isSignature`/`championTag`, overnumbered via `variant.kind`; `catalogVersion` = SPEC-001 CARD-068); LEGAL-001/004/005/008/010/011/014/015/016/017/018/019 restated on `category`/`cardKey`. Set legality per ADR-0005: `formats.json` schema 2 (`legalFrom` Riot-published or `null`, `basis`, `sourceUrl`, `excludedSets`; `sourceTier` and community dates removed), LEGAL-C01–C05/C07 rewritten, new LEGAL-C08 (no community dates) and LEGAL-C09 (status mismatch warning). LEGAL-C04 is now MUST in wording too. LEGAL-B08: upcoming bans only from the announced date (AC1 fixed: empty as of 2026-11-08; AC3 extended). New LEGAL-B10 per-card ban status for Your decks and Tournaments. Source links on LEGAL-019/R02/R04/R07 (design rules). Consumers updated per ADR-0006 (Your decks shows ban status per card; no legality filtering of decks). New AC16–20.
-- 0.1 (2026-11-23): draft. 19 construction rules (LEGAL-001…019, plus LEGAL-006a warning), ban-list data rules (B01–B09) with all four Standard waves through the Radiance update (effective 2026-11-23), format-legality data rules (C01–C07), evaluation rules (R01–R07), result contract, 15 acceptance criteria using the RC Europe Top 8 lists.
+Current: 0.3 (2026-11-23). Full history: [[Deck Legality changelog]] (archived). New entries go in the archive note.

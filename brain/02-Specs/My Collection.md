@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-007
-version: 0.2
+version: 0.3
 status: draft
 depends_on: ["SPEC-001", "SPEC-002", "SPEC-003"]
 research: ["[[Sets]]", "[[Card Data & Images]]", "[[Deck Construction Rules]]", "[[Ban List]]", "[[Collection Import Formats]]"]
@@ -10,6 +10,29 @@ board: H-034
 as_of: 2026-11-23
 ---
 # SPEC-007: My Collection
+
+## Summary
+> Read this first. Full detail below only if needed.
+
+**Purpose:** the My Collection screen: every owned printing as its own entry with a count badge, user tags on printings, sort and filter by any attribute or tag, and the `deckOwnership()` contract that Your decks reads.
+
+**Key requirements**
+- COLL-001/011: one entry per owned printing, one unassigned entry per card, plus missing-printing entries.
+- COLL-016: `×N` count badge when N ≥ 2.
+- COLL-008: ban status from SPEC-002 `banStatus(…, today)`; no ban data → "Ban status unknown".
+- COLL-012/014: unassigned and missing-printing entries sit at the card's `defaultPrintingId` (CARD-016).
+- COLL-019/020: tags attach to a printing (`p:<printingId>`) or a card's unassigned copies (`u:<cardKey>`), never a whole card.
+- COLL-031/033: default order `printingSortKey`; total, stable tie-breaker.
+- COLL-035/041: Unknown is its own filter/sort bucket and sorts last.
+- COLL-060/061: the query is remembered per browser and mirrored in the URL.
+- COLL-070: browser-only stores (`CollectionStore`, `TagStore`, `PrintingCodeStore`, view state).
+- COLL-080/081: "exclude from decks" tag flag; `deckOwnership(cardKey)` → `owned`, `ownedForDecks`, `ownedExcluded`, per-entry breakdown.
+
+**Shared types:** `DeckOwnership` / `DeckOwnershipInput` (read by SPEC-005) · `CollectionCatalogView` (catalog view read by the pure functions) · `Tag`, `TagTarget`, `StoredTags` · `CollectionEntry`, `EntryBan` · `CollectionQuery`, `CollectionQueryInput`.
+**Depends on:** [[Card Data Model]], [[Deck Legality]], [[Collection Import]]. **Consumers:** [[Your Decks Ownership View]].
+**BLOCKED (needs research):**
+- Whether a foil is its own Riot API printing (COLL-011/016/020).
+- Rarity order (COLL-034); domain list (CARD-025); variant representation (CARD-040/041); API set order (CARD-071).
 
 ## Purpose
 Define the **My Collection** screen and its data: a full list of the cards the user owns, user tags
@@ -204,7 +227,7 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 | COLL-065 | MUST | The list works with at least **5,000 entries** without blocking input. Basis: the Riot API catalog (SPEC-001) is the only card source; the community count is roughly 1,451 printings incl. promos ([[Card Data & Images]] #13, approximate, excludes RAD), so 5,000 leaves room for new sets and unassigned/missing entries. | [[Card Data & Images]] #13; [[Card Data Model]] CARD-001; design rule |
 | COLL-066 | SHOULD | The list uses virtual scrolling (only visible rows plus a small buffer are rendered). On RJ's PC, with 5,000 entries, a sort or filter change SHOULD show results within 200 ms and first render within 1 s after data is loaded. | design rule |
 | COLL-067 | MUST | Card images load lazily: only for rows in or near the viewport, thumbnails in the list, with fixed-size placeholders so the list does not jump. | [[Card Data & Images]] #7 (hotlink only); design rule |
-| COLL-068 | SHOULD | Query evaluation is a pure function of (collection, tags, printing codes, catalog, ban data, today, query), so it can be unit-tested and moved off the main thread if needed. | [[Deck Legality]] LEGAL-R01 (same pattern) |
+| COLL-068 | SHOULD | Query evaluation is a pure function of (collection, tags, printing codes, catalog, ban data, today, query), all carried by `CollectionQueryInput`, so it can be unit-tested and moved off the main thread if needed. | [[Deck Legality]] LEGAL-R01 (same pattern) |
 
 ### I. Storage
 | ID | Level | Requirement | Source |
@@ -220,7 +243,7 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | COLL-080 | MUST | Each tag has a boolean **`excludeFromDecks`**, default `false` (e.g. a `Collector` tag on an expensive printing). | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #6 |
-| COLL-081 | MUST | **Deck-ownership contract** (read by SPEC-005): `deckOwnership(cardKey)` returns `owned` (= SPEC-003 `quantity`, 0 if absent), `ownedExcluded` = Σ counts of that card's entries (printing, unassigned, missing-printing) that carry at least one excluded tag, `ownedForDecks = owned − ownedExcluded`, and the per-entry breakdown (entry kind, `printingId`, printing code, count, excluded, the excluding tag ids) in `printingSortKey` order, for SPEC-005's "show exact printings" expand and its "owned but excluded" display. An entry counts once however many excluded tags it carries; dormant assignments have no copies and count nothing. It is a pure function of (collection, tags, printing codes, catalog). | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #5, #6 and Note (owned(cardKey) excludes excluded printings); [[Collection Import]] IMP-058 |
+| COLL-081 | MUST | **Deck-ownership contract** (read by SPEC-005): `deckOwnership(cardKey)` returns `owned` (= SPEC-003 `quantity`, 0 if absent), `ownedExcluded` = Σ counts of that card's entries (printing, unassigned, missing-printing) that carry at least one excluded tag, `ownedForDecks = owned − ownedExcluded`, and the per-entry breakdown (entry kind, `printingId`, printing code, count, excluded, the excluding tag ids) in `printingSortKey` order, for SPEC-005's "show exact printings" expand and its "owned but excluded" display. An entry counts once however many excluded tags it carries; dormant assignments have no copies and count nothing. It is a pure function of (collection, tags, printing codes, catalog), all carried by `DeckOwnershipInput`. | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #5, #6 and Note (owned(cardKey) excludes excluded printings); [[Collection Import]] IMP-058 |
 | COLL-082 | MUST | The tag create/edit dialog and the tag manager show a toggle **"Exclude from decks"** with the help text "Cards with this tag stay in My Collection but don't count as owned in Your decks." Chips of excluded tags carry a marker with accessible text "excluded from decks" (not colour alone). | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #6; design rule (accessibility) |
 | COLL-083 | MUST | An excluded entry still appears in My Collection at its normal position with its count and badge, plus the label **"Not counted in Your decks"**. Sorting and filtering treat it like any other entry (COLL-049 can select it). | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #6 |
 | COLL-084 | MUST | Turning the flag on or off, assigning or removing an excluded tag, and merging or deleting a tag take effect on the next read of COLL-081, without re-import. Toggling the flag asks for confirmation stating the effect, e.g. "2 copies of 1 card will no longer count in Your decks". | design rule |
@@ -230,8 +253,8 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 ```ts
 // shapes only; no implementation
 import type { CardKey, PrintingId, PrintingCode, StoredCollection, CollectionStore } from './collection-import'; // SPEC-003 v0.2
-import type { CardCategory, VariantKind } from './card-data-model';  // SPEC-001 v0.2
-import type { BanStatus } from './deck-legality';                    // SPEC-002 v0.2, LEGAL-B10
+import type { CardCategory, VariantKind, CardSet, PlayableCard, Printing } from './card-data-model';  // SPEC-001
+import type { BanStatus, BanListFile } from './deck-legality';       // SPEC-002, LEGAL-B10
 type IsoDate = string;             // YYYY-MM-DD (display per COLL-017: 'Nov 23, 2026')
 type TagId = string;               // opaque, stable across rename (e.g. 't_01H…')
 
@@ -321,12 +344,20 @@ interface CardGroupRow {           // optional group-by-card view (COLL-013)
   entries: CollectionEntry[];      // printingSortKey order
 }
 
+// ---- Catalog view read by the pure functions (COLL-068, COLL-081) ----
+interface CollectionCatalogView {  // read-only view of the SPEC-001 snapshot (CardSnapshot)
+  catalogVersion: string;                    // SPEC-001 CARD-068
+  sets: CardSet[];                           // set names, setOrder (COLL-004, COLL-034)
+  cards: Record<CardKey, PlayableCard>;      // names, attributes, defaultPrintingId (COLL-012, COLL-014)
+  printings: Record<PrintingId, Printing>;   // resolution, printingSortKey, publicCode, art (COLL-014, COLL-031, COLL-075)
+}
+
 // ---- Your decks contract (COLL-081), read by SPEC-005 ----
-interface DeckOwnershipInput {
+interface DeckOwnershipInput {   // everything COLL-081 reads; ownership needs no ban data or date
   collection: StoredCollection;
   tags: StoredTags;
   printingCodes: StoredPrintingCodes;
-  catalogVersion: string;          // SPEC-001
+  catalog: CollectionCatalogView;  // printing resolution (missing-printing entries) and printingSortKey order
 }
 interface DeckOwnership {
   cardKey: CardKey;
@@ -384,12 +415,13 @@ interface CollectionViewStateStore {
 }
 
 // ---- Pure query function (COLL-068) ----
-interface CollectionQueryInput {
+interface CollectionQueryInput {   // everything COLL-068 reads
   collection: StoredCollection;
   tags: StoredTags;
   printingCodes: StoredPrintingCodes;
-  catalogVersion: string;          // SPEC-001
-  today: IsoDate;                  // asOf for SPEC-002 banStatus()
+  catalog: CollectionCatalogView;  // card and printing attributes, order (SPEC-001)
+  banData: BanListFile | null;     // SPEC-002 data/banlist.json; null = could not be loaded → EntryBan 'unknown' (COLL-008)
+  today: IsoDate;                  // asOf for SPEC-002 banStatus(cardKey, 'standard', 'global', today)
   query: CollectionQuery;
 }
 interface CollectionQueryResult {
@@ -555,54 +587,22 @@ catalog printing (open question 1).
    (foil included) appear in the API is unknown. If a foil shares the regular printing's id, SPEC-001
    and SPEC-003 need a finish dimension (entry key `printingId` + finish) before COLL-011/016/020 can
    separate foils. → researcher (live payload, H-020), then SPEC-001/SPEC-003.
-2. **Cross-spec alignment (spec-writer follow-up):** SPEC-003 IMP-058 still says Your decks ownership is
-   `quantity`; per ADR-0006 H-036 #6 it is `ownedForDecks` (COLL-081). IMP-058 should point Your decks
-   at COLL-081, and SPEC-005 (H-007) must read COLL-081 for owned / owned-but-excluded and the printing
-   expand.
-3. **SPEC-003 (optional):** `StoredCollection` keeps only `printingId`, so My Collection keeps its own
+2. **SPEC-003 (optional):** `StoredCollection` keeps only `printingId`, so My Collection keeps its own
    printing-code memory (COLL-075). If a later SPEC-003 version stores the printing code beside
    `byPrinting`, COLL-075 can be dropped.
-4. **Needs RJ (low):** unassigned copies are a separate tag target per card (COLL-019, chosen) rather
+3. **Needs RJ (low):** unassigned copies are a separate tag target per card (COLL-019, chosen) rather
    than untaggable, and their tags are not moved automatically when the printings become known.
    Proposed: keep.
-5. **Display rule alignment:** SPEC-004 and SPEC-006 currently show dates as `23 Nov 2026`; H-036 #7
-   sets `Nov 23, 2026` (COLL-017). Those specs need the same update.
-6. **BLOCKED: needs research:** rarity values and their rank order in the Riot API (COLL-034 sorts
+4. **BLOCKED: needs research:** rarity values and their rank order in the Riot API (COLL-034 sorts
    rarity alphabetically until then).
-7. **BLOCKED: needs research:** full domain list and API strings (SPEC-001 CARD-025); the domain filter
+5. **BLOCKED: needs research:** full domain list and API strings (SPEC-001 CARD-025); the domain filter
    lists only values present in data until then.
-8. **BLOCKED: needs research:** how variants/overnumbered printings are represented in the Riot API
+6. **BLOCKED: needs research:** how variants/overnumbered printings are represented in the Riot API
    (SPEC-001 CARD-040/041). Until then many printings have `variant.kind: unknown`, which the variant
    filter shows as Unknown; `printingSortKey` still orders them by number.
-9. **BLOCKED: needs research:** whether the API returns `sets[]` in release order (SPEC-001 CARD-071,
+7. **BLOCKED: needs research:** whether the API returns `sets[]` in release order (SPEC-001 CARD-071,
    open question 13); the default order of COLL-031 depends on it.
-10. **Time zone of "today"** for ban status follows SPEC-002's open question (LEGAL-R02).
+8. **Time zone of "today"** for ban status follows SPEC-002's open question (LEGAL-R02).
 
 ## Changelog
-- 0.2 (2026-11-23): H-034. Applies RJ's gate H-036 answers (ADR-0006 #3, #4, #6, #7) and the H-031
-  validator follow-ups. **Entries:** one entry per printing (every printing type separate) with a count
-  badge (new COLL-016); the default "Printings/Cards" toggle is gone, "Group by card" is an optional
-  SHOULD view (COLL-013 MUST → SHOULD); COLL-001/004/010/011/012 reworded; missing printings are their
-  own entry labelled with a remembered code (COLL-014, new COLL-075 printing-code memory, fourth store).
-  **Tags on printings:** tag targets `p:<printingId>` / `u:<cardKey>` (COLL-020/022/024–027/029/030;
-  new COLL-019 unassigned copies tagged separately, with copy offer); tags survive Add/Replace by
-  `printingId` (COLL-057, COLL-059). **Exclude from decks:** new section J, COLL-080–085 (tag flag,
-  `deckOwnership()` contract with `ownedForDecks`/`ownedExcluded` and per-entry breakdown for SPEC-005,
-  toggle UI, "Not counted in Your decks" label, summary); new COLL-049 Decks filter; COLL-003 now
-  points Your decks at COLL-081. **Validator fixes:** data contract uses SPEC-003 v0.2 `CardKey`,
-  `PrintingId`, `PrintingCode` (`byPrinting` keyed by `printingId`), SPEC-001 `CardCategory`/
-  `VariantKind`, SPEC-002 `BanStatus`; local `BanStatus` removed (`EntryBan` = `BanStatus` or
-  `unknown`); COLL-008/009 call `banStatus()` (LEGAL-B10); `category: 'unknown'` → Unknown bucket
-  (COLL-034/035/041); COLL-065 source is the Riot API catalog, ~1,451 community count, Riftcodex
-  removed; COLL-031/033/043/044/050–052/054/061/066/068/070/071/074 aligned to entries.
-  **Display rules:** dates `Nov 23, 2026` (new COLL-017), "Not fully checked" (new COLL-018).
-  StoredTags and StoredViewState schema 2 with migrations. ACs 2, 4, 5, 6, 7, 8, 14, 16, 17, 19 revised
-  (AC17 now has an explicit **When**); new ACs 20–23 (foil `×3` badge, foil-only tag, excluded
-  `Collector` tag, unassigned tags). Open questions refreshed: removed the answered ones (tags on
-  `cardKey` vs printing, per-printing rows) and the stale SPEC-001 v0.2 / SPEC-003 key items; added
-  foil-as-printing research, IMP-058/SPEC-005 alignment, date-format alignment. 78 requirements
-  (60 MUST, 14 SHOULD, 4 MAY); added COLL-016, 017, 018, 019, 049, 075, 080–085; none removed.
-- 0.1 (2026-11-23): first draft (H-031). Printings view by default with Cards view toggle; unassigned
-  copies placed at the default printing; tags on `cardKey` in a separate `TagStore`; sort by any
-  attribute with `printingSortKey` default and tie-breaker; Unknown bucket; ban status as of today;
-  manual quantity edits; URL and per-browser view state. 66 requirements (COLL-001…COLL-074: 51 MUST, 11 SHOULD, 4 MAY).
+Current: 0.3 (2026-11-23). Full history: [[My Collection changelog]] (archived). New entries go in the archive note.
