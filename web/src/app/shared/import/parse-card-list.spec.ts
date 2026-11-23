@@ -1,11 +1,43 @@
+import { readSheet } from 'read-excel-file/browser';
 import {
-  entriesToText,
-  parseCardCsv,
-  parseCardRows,
+  ImportFileError,
+  ParseResult,
   parseCardText,
+  readImportFile,
   rowsToText,
-  splitCsv,
 } from './parse-card-list';
+
+/** The dialog's upload path: file → text box (IMP-062) → the same parse as pasted text. */
+async function uploadFile(
+  name: string,
+  content: BlobPart,
+): Promise<{ text: string; result: ParseResult }> {
+  const { text, upload } = await readImportFile(new File([content], name));
+  return { text, result: parseCardText(text, { upload }) };
+}
+
+/** The Excel path after `readSheet` returns the first sheet's rows: rows → text box → parse. */
+function excelUpload(rows: readonly (readonly unknown[])[]): { text: string; result: ParseResult } {
+  const text = rowsToText(rows);
+  return {
+    text,
+    result: parseCardText(text, { upload: { fileName: 'owned.xlsx', fileType: 'xlsx' } }),
+  };
+}
+
+async function rejection(name: string, content: BlobPart): Promise<ImportFileError> {
+  try {
+    await readImportFile(new File([content], name));
+  } catch (err) {
+    if (err instanceof ImportFileError) return err;
+    throw err;
+  }
+  throw new Error(`${name} was not rejected`);
+}
+
+const MiB = 1024 * 1024;
+
+vi.mock('read-excel-file/browser', () => ({ readSheet: vi.fn() }));
 
 describe('parseCardText', () => {
   it('accepts "1 name", "1x name", "1 x name" and "1X name"', () => {
@@ -17,7 +49,7 @@ describe('parseCardText', () => {
       [1, 'Void Gate'],
       [4, 'Rally Banner'],
     ]);
-    expect(r.totalCopies).toBe(10);
+    expect(r.summary.totalCopies).toBe(10);
   });
 
   it('keeps commas inside card names', () => {
@@ -82,92 +114,10 @@ describe('parseCardText', () => {
     expect(r.entries[0].section).toBe(section);
   });
 
-  it('reads one-word labels in CSV rows too', () => {
-    const r = parseCardCsv('MainDeck\n3,Lightning Rush\nRunePool\n6,Calm Rune');
-    expect(r.entries.map((e) => e.section)).toEqual(['main', 'runes']);
-  });
-
   it('rejects input over the line limit', () => {
     const r = parseCardText('1 A\n'.repeat(10_001));
     expect(r.issues[0].code).toBe('INPUT_TOO_LARGE');
     expect(r.entries).toEqual([]);
-  });
-});
-
-describe('parseCardCsv', () => {
-  it('reads quantity and name columns and skips a header row', () => {
-    const r = parseCardCsv('Quantity,Name\n3,Lightning Rush\n2x,"Kennen, Heart of the Tempest"\n');
-    expect(r.issues).toEqual([]);
-    expect(r.entries.map((e) => [e.line, e.quantity, e.name])).toEqual([
-      [2, 3, 'Lightning Rush'],
-      [3, 2, 'Kennen, Heart of the Tempest'],
-    ]);
-  });
-
-  it('reads one-cell rows with the same rule as pasted text', () => {
-    const r = parseCardCsv('3x Lightning Rush\n1 Void Gate');
-    expect(r.entries.map((e) => e.name)).toEqual(['Lightning Rush', 'Void Gate']);
-  });
-
-  it('joins an unquoted name that was split on its comma', () => {
-    const r = parseCardCsv('1,Kennen, Heart of the Tempest');
-    expect(r.entries[0].name).toBe('Kennen, Heart of the Tempest');
-  });
-
-  it('supports semicolons, tabs and escaped quotes', () => {
-    expect(parseCardCsv('2;Void Gate').entries[0]).toMatchObject({
-      quantity: 2,
-      name: 'Void Gate',
-    });
-    expect(parseCardCsv('2\tVoid Gate').entries[0]).toMatchObject({
-      quantity: 2,
-      name: 'Void Gate',
-    });
-    expect(parseCardCsv('1,"An ""Odd"" Card"').entries[0].name).toBe('An "Odd" Card');
-  });
-
-  it('flags a row that does not start with a number', () => {
-    const r = parseCardCsv('3,Lightning Rush\nVoid Gate,2');
-    expect(r.issues).toEqual([expect.objectContaining({ line: 2, code: 'MISSING_QUANTITY' })]);
-  });
-});
-
-describe('parseCardRows (Excel)', () => {
-  it('reads numeric quantity cells and ignores empty trailing cells', () => {
-    const r = parseCardRows([
-      ['Qty', 'Card name', null],
-      [3, 'Lightning Rush', null],
-      ['1x Void Gate'],
-      [],
-    ]);
-    expect(r.issues).toEqual([]);
-    expect(r.entries.map((e) => [e.quantity, e.name])).toEqual([
-      [3, 'Lightning Rush'],
-      [1, 'Void Gate'],
-    ]);
-  });
-});
-
-describe('entriesToText', () => {
-  it('writes one line per entry with section labels', () => {
-    const r = parseCardText('Main Deck:\n3x Lightning Rush\nSideboard:\n1 Void Gate');
-    expect(entriesToText(r)).toBe('Main Deck:\n3 Lightning Rush\nSideboard:\n1 Void Gate');
-  });
-});
-
-describe('rowsToText', () => {
-  it('turns rows into editable lines that parse the same way', () => {
-    const rows = splitCsv(
-      'Qty,Name\n3,Lightning Rush\n2x,"Kennen, Heart of the Tempest"\nVoid Gate,2\n',
-    );
-    const text = rowsToText(rows);
-    expect(text).toBe('3 Lightning Rush\n2x Kennen, Heart of the Tempest\nVoid Gate, 2');
-    const r = parseCardText(text);
-    expect(r.entries.map((e) => e.name)).toEqual([
-      'Lightning Rush',
-      'Kennen, Heart of the Tempest',
-    ]);
-    expect(r.issues).toEqual([expect.objectContaining({ line: 3, code: 'MISSING_QUANTITY' })]);
   });
 });
 
@@ -216,7 +166,7 @@ describe('quantity forms (IMP-019, IMP-020)', () => {
       [8, 'ZERO_QUANTITY', 'warning'],
     ]);
     expect(r.issues[0].message).toBe('Give the number of copies once per line.');
-    expect(r.totalCopies).toBe(10);
+    expect(r.summary.totalCopies).toBe(10);
   });
 
   it.each([
@@ -296,7 +246,7 @@ describe('printing codes (IMP-064, IMP-065, IMP-066)', () => {
       name: '',
       printing: { setCode, collectorNumber },
     });
-    expect(r.totalCopies).toBe(quantity);
+    expect(r.summary.totalCopies).toBe(quantity);
   });
 
   it.each([
@@ -335,41 +285,435 @@ describe('printing codes (IMP-064, IMP-065, IMP-066)', () => {
       ['main', 3, '', 'RAD 001/167'],
     ]);
   });
+});
 
-  it('writes codes back out in entriesToText', () => {
-    const r = parseCardText('Main Deck:\n3 Lightning Rush (RAD 001/167)\n2 OGN-007a');
-    const text = entriesToText(r);
-    expect(text).toBe('Main Deck:\n3 Lightning Rush RAD 001/167\n2 OGN-007a');
-    expect(parseCardText(text).entries.map((e) => [e.name, e.printing])).toEqual(
-      r.entries.map((e) => [e.name, e.printing]),
+describe('CSV uploads (readImportFile, IMP-040…045, IMP-062)', () => {
+  it('follows SPEC-003 AC 13', async () => {
+    const { text, result } = await uploadFile(
+      'my.csv',
+      'Quantity,Card Name\n2,"Kennen, Storm of Shuriken"\n1,Kennen,Heart of the Tempest\n3x Gust\nTraveling Merchant,\n',
     );
+    expect(text).toBe(
+      '2 Kennen, Storm of Shuriken\n1 Kennen, Heart of the Tempest\n3x Gust\nTraveling Merchant',
+    );
+    expect(result.entries.map((e) => [e.line, e.quantity, e.name])).toEqual([
+      [1, 2, 'Kennen, Storm of Shuriken'],
+      [2, 1, 'Kennen, Heart of the Tempest'],
+      [3, 3, 'Gust'],
+    ]);
+    expect(result.issues).toEqual([expect.objectContaining({ line: 4, code: 'MISSING_QUANTITY' })]);
+    expect(result.upload).toEqual({ fileName: 'my.csv', fileType: 'csv' });
+  });
+
+  it('follows SPEC-003 AC 14 (name-first columns, semicolons)', async () => {
+    const nameFirst = await uploadFile('owned.csv', 'Card Name,Quantity\nSeal of Discord,2\n');
+    expect(nameFirst.text).toBe('Seal of Discord, 2');
+    expect(nameFirst.result.issues).toEqual([
+      expect.objectContaining({ line: 1, code: 'MISSING_QUANTITY' }),
+    ]);
+    const semi = await uploadFile('owned.csv', '2;Seal of Discord\n');
+    expect(semi.result.entries[0]).toMatchObject({ quantity: 2, name: 'Seal of Discord' });
+  });
+
+  it('follows SPEC-003 AC 15 (title row only when it looks like one)', async () => {
+    const foo = await uploadFile('owned.csv', 'foo,bar\n3,Gust\n');
+    expect(foo.text).toBe('foo, bar\n3 Gust');
+    expect(foo.result.issues).toEqual([
+      expect.objectContaining({ line: 1, code: 'MISSING_QUANTITY' }),
+    ]);
+    const data = await uploadFile('owned.csv', '3,Gust\n');
+    expect(data.result.entries[0]).toMatchObject({ line: 1, quantity: 3, name: 'Gust' });
+  });
+
+  it('reads quantity and name columns and skips a header row', async () => {
+    const { result } = await uploadFile(
+      'owned.csv',
+      'Quantity,Name\n3,Lightning Rush\n2x,"Kennen, Heart of the Tempest"\n',
+    );
+    expect(result.issues).toEqual([]);
+    expect(result.entries.map((e) => [e.line, e.quantity, e.name])).toEqual([
+      [1, 3, 'Lightning Rush'],
+      [2, 2, 'Kennen, Heart of the Tempest'],
+    ]);
+  });
+
+  it('reads one-cell rows with the same rule as pasted text', async () => {
+    const { result } = await uploadFile('owned.csv', '3x Lightning Rush\n1 Void Gate');
+    expect(result.entries.map((e) => e.name)).toEqual(['Lightning Rush', 'Void Gate']);
+  });
+
+  it('reads one-word labels in rows', async () => {
+    const { result } = await uploadFile(
+      'deck.csv',
+      'MainDeck\n3,Lightning Rush\nRunePool\n6,Calm Rune',
+    );
+    expect(result.issues).toEqual([]);
+    expect(result.entries.map((e) => e.section)).toEqual(['main', 'runes']);
+  });
+
+  it('supports semicolons, tabs and escaped quotes', async () => {
+    for (const csv of ['2;Void Gate', '2\tVoid Gate']) {
+      const { result } = await uploadFile('owned.csv', csv);
+      expect(result.entries[0]).toMatchObject({ quantity: 2, name: 'Void Gate' });
+    }
+    const { result } = await uploadFile('owned.csv', '1,"An ""Odd"" Card"');
+    expect(result.entries[0].name).toBe('An "Odd" Card');
+  });
+
+  it('strips a UTF-8 BOM', async () => {
+    const { text, result } = await uploadFile('owned.csv', '﻿Qty,Name\n3,Gust\n');
+    expect(text).toBe('3 Gust');
+    expect(result.entries[0]).toMatchObject({ quantity: 3, name: 'Gust' });
+  });
+
+  it('follows SPEC-003 AC 34 (codes in rows)', async () => {
+    const { text, result } = await uploadFile(
+      'owned.csv',
+      'Qty,Name\n3,Lightning Rush,RAD 001/167\nLightning Rush x2\n1,Lightning Rush,RAD,001a\n',
+    );
+    expect(text).toBe(
+      '3 Lightning Rush, RAD 001/167\nLightning Rush x2\n1 Lightning Rush, RAD, 001a',
+    );
+    expect(result.issues).toEqual([]);
+    expect(result.entries.map((e) => [e.quantity, e.name, e.printing?.text ?? null])).toEqual([
+      [3, 'Lightning Rush', 'RAD 001/167'],
+      [2, 'Lightning Rush', null],
+      [1, 'Lightning Rush, RAD, 001a', null],
+    ]);
   });
 });
 
-describe('printing codes in CSV and Excel rows (IMP-040)', () => {
-  it('follows SPEC-003 AC 34', () => {
-    const csv =
-      'Qty,Name\n3,Lightning Rush,RAD 001/167\nLightning Rush x2\n1,Lightning Rush,RAD,001a\n';
-    expect(rowsToText(splitCsv(csv))).toBe(
-      '3 Lightning Rush, RAD 001/167\nLightning Rush x2\n1 Lightning Rush, RAD, 001a',
-    );
-    for (const r of [parseCardCsv(csv), parseCardText(rowsToText(splitCsv(csv)))]) {
-      expect(r.issues).toEqual([]);
-      expect(r.entries.map((e) => [e.quantity, e.name, e.printing?.text ?? null])).toEqual([
-        [3, 'Lightning Rush', 'RAD 001/167'],
-        [2, 'Lightning Rush', null],
-        [1, 'Lightning Rush, RAD, 001a', null],
-      ]);
-    }
+describe('Excel rows (rowsToText → parseCardText)', () => {
+  it('reads numeric quantity cells and ignores empty trailing cells', () => {
+    const { result } = excelUpload([
+      ['Qty', 'Card name', null],
+      [3, 'Lightning Rush', null],
+      ['1x Void Gate'],
+      [],
+    ]);
+    expect(result.issues).toEqual([]);
+    expect(result.entries.map((e) => [e.quantity, e.name])).toEqual([
+      [3, 'Lightning Rush'],
+      [1, 'Void Gate'],
+    ]);
+    expect(result.format).toBe('csv');
   });
 
   it('reads codes and trailing quantities in one-cell and Excel rows', () => {
-    const r = parseCardRows([['3 RAD 001/167 Lightning Rush'], [2, 'OGN-007a'], ['Gust x2']]);
-    expect(r.issues).toEqual([]);
-    expect(r.entries.map((e) => [e.quantity, e.name, e.printing?.setCode ?? null])).toEqual([
+    const { result } = excelUpload([
+      ['3 RAD 001/167 Lightning Rush'],
+      [2, 'OGN-007a'],
+      ['Gust x2'],
+    ]);
+    expect(result.issues).toEqual([]);
+    expect(result.entries.map((e) => [e.quantity, e.name, e.printing?.setCode ?? null])).toEqual([
       [3, 'Lightning Rush', 'RAD'],
       [2, '', 'OGN'],
       [2, 'Gust', null],
     ]);
   });
+
+  it('writes Excel dates as YYYY-MM-DD', () => {
+    expect(excelUpload([[new Date(Date.UTC(2026, 10, 23)), 'Gust']]).text).toBe('2026-11-23, Gust');
+  });
+});
+
+describe('H-053 upload fixes', () => {
+  it('(1) prefers ; over the commas in a card name', async () => {
+    const { text, result } = await uploadFile(
+      'owned.csv',
+      '2;Kennen, Heart of the Tempest\n3;Gust\n',
+    );
+    expect(text).toBe('2 Kennen, Heart of the Tempest\n3 Gust');
+    expect(result.issues).toEqual([]);
+    expect(result.entries.map((e) => [e.quantity, e.name])).toEqual([
+      [2, 'Kennen, Heart of the Tempest'],
+      [3, 'Gust'],
+    ]);
+  });
+
+  it('(1) prefers tab over the commas in a card name', async () => {
+    const { result } = await uploadFile('owned.tsv.csv', '2\tKennen, Heart of the Tempest\n');
+    expect(result.entries[0]).toMatchObject({ quantity: 2, name: 'Kennen, Heart of the Tempest' });
+  });
+
+  it('(1) ignores ; inside quotes and blank first lines when picking the delimiter', async () => {
+    const { text } = await uploadFile('owned.csv', '\n1,"Odd; Card"\n2,Gust\n');
+    expect(text).toBe('1 Odd; Card\n2 Gust');
+  });
+
+  it('(1) keeps comma as the delimiter for comma files', async () => {
+    const { text } = await uploadFile('owned.csv', '1,Kennen,Heart of the Tempest\n');
+    expect(text).toBe('1 Kennen, Heart of the Tempest');
+  });
+
+  it('(3) flattens a quoted multi-line cell into one text-box line', async () => {
+    const { text, result } = await uploadFile(
+      'owned.csv',
+      '1,"Kennen,\nHeart of the Tempest"\r\n2,Gust\n',
+    );
+    expect(text).toBe('1 Kennen, Heart of the Tempest\n2 Gust');
+    expect(result.entries.map((e) => [e.line, e.name])).toEqual([
+      [1, 'Kennen, Heart of the Tempest'],
+      [2, 'Gust'],
+    ]);
+    expect(excelUpload([[1, 'Kennen,\r\nHeart of the Tempest']]).text).toBe(
+      '1 Kennen, Heart of the Tempest',
+    );
+  });
+
+  it('(4) gives a .txt upload the 1 MB text limit before reading', async () => {
+    // Just over 1 MiB (+ BOM allowance): rejected by size alone, the file is never read.
+    const file = new File(['a'.repeat(MiB + 4)], 'big.txt');
+    const arrayBuffer = vi.spyOn(file, 'arrayBuffer');
+    const text = vi.spyOn(file, 'text');
+    await expect(readImportFile(file)).rejects.toMatchObject({
+      code: 'INPUT_TOO_LARGE',
+      message: 'big.txt is too large to import (limit: 1 MB or 10,000 lines).',
+    });
+    expect(arrayBuffer).not.toHaveBeenCalled();
+    expect(text).not.toHaveBeenCalled();
+  });
+
+  it('(4) rejects a CSV whose text is over the limit with the same message', async () => {
+    const err = await rejection('big.csv', '1,Gust\n'.repeat(Math.ceil((2 * MiB) / 7)));
+    expect(err.code).toBe('INPUT_TOO_LARGE');
+    expect(err.message).toBe('big.csv is too large to import (limit: 1 MB or 10,000 lines).');
+    const lines = await rejection('many.csv', '1,Gust\n'.repeat(10_001));
+    expect(lines.message).toBe('many.csv is too large to import (limit: 1 MB or 10,000 lines).');
+  });
+
+  it('(4) rejects files over 5 MB before reading (IMP-061)', async () => {
+    const err = await rejection('huge.csv', 'a'.repeat(5 * MiB + 1));
+    expect(err.message).toBe('huge.csv is too large to import (limit: 5 MB).');
+  });
+
+  it('(4) rejects .xls files (IMP-061)', async () => {
+    const err = await rejection('old.xls', 'x');
+    expect(err.message).toBe(
+      'Older .xls files aren’t supported. Save it as .xlsx or .csv and try again.',
+    );
+  });
+
+  it('(5) reads a label in its own cell followed by the entry', async () => {
+    const { text, result } = await uploadFile(
+      'deck.csv',
+      'Champion,1 Kennen Storm\nMain Deck:,3,Gust\nLegend,"1 Kennen, Heart of the Tempest"\n',
+    );
+    expect(text).toBe(
+      'Champion: 1 Kennen Storm\nMain Deck: 3 Gust\nLegend: 1 Kennen, Heart of the Tempest',
+    );
+    expect(result.issues).toEqual([]);
+    expect(result.entries.map((e) => [e.section, e.quantity, e.name])).toEqual([
+      ['champion', 1, 'Kennen Storm'],
+      ['main', 3, 'Gust'],
+      ['legend', 1, 'Kennen, Heart of the Tempest'],
+    ]);
+  });
+});
+
+describe('H-046 parser conformance', () => {
+  it.each(['2.5 Gust', '2.5x Gust', 'x2.5 Gust', 'Gust x2.5', '.5 Gust'])(
+    '(1) reads the non-integer quantity in "%s" as BAD_QUANTITY (IMP-008)',
+    (line) => {
+      const r = parseCardText(line);
+      expect(r.entries).toEqual([]);
+      expect(r.issues).toEqual([expect.objectContaining({ line: 1, code: 'BAD_QUANTITY' })]);
+    },
+  );
+
+  it('(1) reads a CSV 2.5,Gust row as BAD_QUANTITY', async () => {
+    const { text, result } = await uploadFile('owned.csv', '2.5,Gust\n');
+    expect(text).toBe('2.5, Gust');
+    expect(result.issues).toEqual([expect.objectContaining({ line: 1, code: 'BAD_QUANTITY' })]);
+  });
+
+  it('(2) gives rows the 2,000-char row limit and text lines the 500-char limit (IMP-007)', async () => {
+    const longRow = await uploadFile('owned.csv', `1,${'A'.repeat(2100)}\n3,Gust\n`);
+    expect(longRow.result.issues).toEqual([
+      expect.objectContaining({
+        line: 1,
+        code: 'LINE_TOO_LONG',
+        message: 'Row is longer than 2,000 characters.',
+      }),
+    ]);
+    expect(longRow.result.entries.map((e) => e.name)).toEqual(['Gust']);
+
+    const okRow = await uploadFile('owned.csv', `1,${'A'.repeat(1500)}\n`);
+    expect(okRow.result.issues).toEqual([]);
+    expect(excelUpload([[1, 'A'.repeat(1500)]]).result.issues).toEqual([]);
+
+    const pasted = parseCardText(`1 ${'A'.repeat(1500)}`);
+    expect(pasted.issues).toEqual([
+      expect.objectContaining({
+        code: 'LINE_TOO_LONG',
+        message: 'Line is longer than 500 characters.',
+      }),
+    ]);
+  });
+
+  it('(3) caps issue raw text at 120 chars with … (IMP-056)', async () => {
+    const { result } = await uploadFile('owned.csv', `1,${'A'.repeat(2100)}\n`);
+    const raw = result.issues[0].raw;
+    expect(raw).toHaveLength(120);
+    expect(raw).toBe(`1 ${'A'.repeat(117)}…`);
+    const pasted = parseCardText('B'.repeat(300));
+    expect(pasted.issues[0].raw).toHaveLength(120);
+    expect(parseCardText('Gust').issues[0].raw).toBe('Gust');
+  });
+
+  it.each(['bad.txt', 'bad.csv'])(
+    '(4) rejects invalid UTF-8 in %s as INPUT_ENCODING (IMP-010)',
+    async (name) => {
+      const err = await rejection(name, new Uint8Array([0x32, 0x20, 0x47, 0xff, 0xfe, 0x0a]));
+      expect(err.code).toBe('INPUT_ENCODING');
+      expect(err.message).toBe(
+        `${name} isn’t UTF-8 text. Save it as UTF-8 or .xlsx and try again.`,
+      );
+    },
+  );
+
+  it('(4) decodes valid UTF-8 text uploads, BOM stripped', async () => {
+    const { text, result } = await uploadFile(
+      'deck.txt',
+      new Uint8Array([0xef, 0xbb, 0xbf, ...new TextEncoder().encode('2 Poké Gust\r\n')]),
+    );
+    expect(text).toBe('2 Poké Gust\r\n');
+    expect(result.entries[0]).toMatchObject({ quantity: 2, name: 'Poké Gust' });
+    expect(result.upload).toEqual({ fileName: 'deck.txt', fileType: 'txt' });
+  });
+
+  it('(5) reports summary counts (IMP-057, catalog-free part)', () => {
+    const r = parseCardText(
+      [
+        '3 Lightning Rush',
+        '1 lightning rush',
+        '2 Kennen, Heart of the Tempest',
+        '1 RAD 001/167',
+        '2 rad 001 / 167',
+        'Gust',
+        '0 Gust',
+        '',
+        '',
+      ].join('\n'),
+    );
+    expect(r.summary).toEqual({
+      linesRead: 8,
+      entriesParsed: 5,
+      errors: 1,
+      distinctNames: 3,
+      totalCopies: 9,
+    });
+  });
+
+  it('(5) reports the format and its reason (IMP-011 partial, IMP-012)', async () => {
+    const plain = parseCardText('3 Gust');
+    expect(plain).toMatchObject({ format: 'plain-text', formatReason: 'no section labels found' });
+    expect(plain.upload).toBeUndefined();
+
+    const riot = parseCardText('// list\n3 Gust\nMainDeck:\n1 Void Gate');
+    expect(riot).toMatchObject({
+      format: 'riot-text',
+      formatReason: 'found section label Main Deck on line 3',
+    });
+
+    const { result } = await uploadFile('deck.csv', 'Main Deck\n3,Gust\n');
+    expect(result).toMatchObject({
+      format: 'csv',
+      formatReason: 'uploaded file deck.csv',
+      upload: { fileName: 'deck.csv', fileType: 'csv' },
+    });
+    expect(excelUpload([[3, 'Gust']]).result.upload).toEqual({
+      fileName: 'owned.xlsx',
+      fileType: 'xlsx',
+    });
+
+    const txt = await uploadFile('deck.txt', 'Main Deck:\n3 Gust\n');
+    expect(txt.result.format).toBe('riot-text');
+    expect(txt.result.upload).toEqual({ fileName: 'deck.txt', fileType: 'txt' });
+  });
+
+  it('(5) gives an over-limit paste empty summary counts', () => {
+    const r = parseCardText('x'.repeat(MiB + 1));
+    expect(r.issues.map((i) => i.code)).toEqual(['INPUT_TOO_LARGE']);
+    expect(r.summary).toEqual({
+      linesRead: 0,
+      entriesParsed: 0,
+      errors: 1,
+      distinctNames: 0,
+      totalCopies: 0,
+    });
+  });
+});
+
+describe('review fixes', () => {
+  it.each(['3 Gust x2.5', 'x3 Gust x2.5', '3 Gust x2,5', '3 Gust x2.5 RAD 001'])(
+    '(1) rejects the decimal second quantity in "%s"',
+    (line) => {
+      const r = parseCardText(line);
+      expect(r.entries).toEqual([]);
+      expect(r.issues).toEqual([
+        expect.objectContaining({
+          code: 'BAD_QUANTITY',
+          message: 'Give the number of copies once per line.',
+        }),
+      ]);
+    },
+  );
+
+  it('(4) accepts x3 / X3 quantity cells like the text forms', async () => {
+    const { text, result } = await uploadFile('owned.csv', 'x3,Gust\nX2,Void Gate\n');
+    expect(text).toBe('x3 Gust\nX2 Void Gate');
+    expect(result.issues).toEqual([]);
+    expect(result.entries.map((e) => [e.quantity, e.name])).toEqual([
+      [3, 'Gust'],
+      [2, 'Void Gate'],
+    ]);
+    expect(excelUpload([['x3', 'Gust']]).result.entries[0]).toMatchObject({ quantity: 3 });
+  });
+
+  it('(4) reads a decimal-comma quantity cell (2,5;Gust) as BAD_QUANTITY', async () => {
+    const { text, result } = await uploadFile('owned.csv', '2,5;Gust\n');
+    expect(text).toBe('2,5, Gust');
+    expect(result.issues).toEqual([expect.objectContaining({ line: 1, code: 'BAD_QUANTITY' })]);
+    expect(parseCardText('2,5 Gust').issues[0].code).toBe('BAD_QUANTITY');
+  });
+
+  it('(5) reads the first sheet of an .xlsx upload', async () => {
+    vi.mocked(readSheet).mockResolvedValueOnce([
+      ['Qty', 'Card name'],
+      [3, 'Lightning Rush'],
+      ['Main Deck', 'x2', 'Gust'],
+    ] as never);
+    const { text, result } = await uploadFile('owned.xlsx', 'not read as text');
+    expect(text).toBe('3 Lightning Rush\nMain Deck: x2 Gust');
+    expect(result.format).toBe('csv');
+    expect(result.upload).toEqual({ fileName: 'owned.xlsx', fileType: 'xlsx' });
+    expect(result.entries.map((e) => [e.section, e.quantity, e.name])).toEqual([
+      [null, 3, 'Lightning Rush'],
+      ['main', 2, 'Gust'],
+    ]);
+  });
+
+  it('(5) rejects an .xlsx that cannot be read', async () => {
+    vi.mocked(readSheet).mockRejectedValueOnce(new Error('corrupt'));
+    const err = await rejection('broken.xlsx', 'x');
+    expect(err.code).toBe('FILE_REJECTED');
+    expect(err.message).toBe("Couldn't read broken.xlsx. Save it as .xlsx or .csv and try again.");
+  });
+
+  it('(6) rejects an upload that converts to no lines', async () => {
+    const err = await rejection('empty.csv', 'Qty,Name\n,\n');
+    expect(err.code).toBe('FILE_REJECTED');
+    expect(err.message).toBe('empty.csv has no lines to import.');
+  });
+
+  it.each(['deck.xlsm', 'deck.ods', 'deck.json', 'deck'])(
+    '(8) rejects the unsupported file %s',
+    async (name) => {
+      const err = await rejection(name, '3 Gust');
+      expect(err.code).toBe('FILE_REJECTED');
+      expect(err.message).toBe(`${name} can’t be imported. Use a .txt, .csv or .xlsx file.`);
+    },
+  );
 });

@@ -12,12 +12,11 @@ import { MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { Icon } from '../icon';
 import {
-  MAX_INPUT_BYTES,
   ParseResult,
   SECTION_LABELS,
+  UploadInfo,
   parseCardText,
-  rowsToText,
-  splitCsv,
+  readImportFile,
 } from './parse-card-list';
 
 export type ImportKind = 'collection' | 'deck';
@@ -72,6 +71,7 @@ const MAX_ISSUES_SHOWN = 50;
           rows="12"
           spellcheck="false"
           [value]="text()"
+          (beforeinput)="onBeforeInput($event)"
           (input)="onType($event)"
           [placeholder]="placeholder"
           aria-describedby="import-format-hint"
@@ -95,8 +95,8 @@ const MAX_ISSUES_SHOWN = 50;
           (change)="onFile($event)"
         />
         <span class="upload-hint">
-          @if (fileName(); as name) {
-            Loaded <strong>{{ name }}</strong>
+          @if (upload(); as u) {
+            Loaded <strong>{{ u.fileName }}</strong>
           } @else {
             CSV, Excel (.xlsx) or text. Rows use the same rule.
           }
@@ -109,8 +109,9 @@ const MAX_ISSUES_SHOWN = 50;
       @if (text().trim()) {
         <section class="summary" aria-live="polite">
           <p class="totals">
-            <strong>{{ result().totalCopies }}</strong>
-            {{ result().totalCopies === 1 ? 'card' : 'cards' }} from {{ result().entries.length }}
+            <strong>{{ result().summary.totalCopies }}</strong>
+            {{ result().summary.totalCopies === 1 ? 'card' : 'cards' }} from
+            {{ result().entries.length }}
             {{ result().entries.length === 1 ? 'line' : 'lines' }}
             @if (errorCount()) {
               <span class="bad"
@@ -172,14 +173,13 @@ export class ImportDialog {
       : '3 Lightning Rush\n2x Hextech Ray\n1 Kennen, Heart of the Tempest';
 
   protected readonly text = signal('');
-  protected readonly fileName = signal<string | null>(null);
+  /** The upload the text box content came from (IMP-062); cleared when the box is emptied. */
+  protected readonly upload = signal<UploadInfo | null>(null);
   protected readonly fileError = signal<string | null>(null);
   protected readonly submitError = signal<string | null>(null);
 
-  protected readonly result = computed(() => parseCardText(this.text()));
-  protected readonly errorCount = computed(
-    () => this.result().issues.filter((i) => i.severity === 'error').length,
-  );
+  protected readonly result = computed(() => parseCardText(this.text(), { upload: this.upload() }));
+  protected readonly errorCount = computed(() => this.result().summary.errors);
   protected readonly shownIssues = computed(() => this.result().issues.slice(0, MAX_ISSUES_SHOWN));
   protected readonly sections = computed(() => {
     const counts = new Map<string, number>();
@@ -190,8 +190,30 @@ export class ImportDialog {
     return [...counts].map(([label, count]) => ({ label, count }));
   });
 
+  /** Bumped on every file pick, so only the latest pick is applied (overlapping reads). */
+  private uploadRequest = 0;
+  /** Set by a paste or drop that replaces the whole text box content (see `onType`). */
+  private replacingAll = false;
+
+  protected onBeforeInput(event: Event): void {
+    const { inputType } = event as InputEvent;
+    const box = event.target as HTMLTextAreaElement;
+    const wholeSelected = box.selectionStart === 0 && box.selectionEnd === box.value.length;
+    this.replacingAll =
+      (inputType === 'insertFromPaste' || inputType === 'insertFromDrop') && wholeSelected;
+  }
+
+  /**
+   * The text box no longer holds the upload, so its file name, CSV format and row limit are
+   * dropped, when the box is emptied or a paste / drop replaces its whole content. Other edits
+   * keep the upload: they are fixes to the uploaded lines (IMP-062).
+   */
   protected onType(event: Event): void {
-    this.text.set((event.target as HTMLTextAreaElement).value);
+    const value = (event.target as HTMLTextAreaElement).value;
+    if (this.replacingAll || !value.trim()) this.upload.set(null);
+    this.replacingAll = false;
+    this.text.set(value);
+    this.fileError.set(null);
     this.submitError.set(null);
   }
 
@@ -200,13 +222,17 @@ export class ImportDialog {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
+    const request = ++this.uploadRequest;
     this.fileError.set(null);
     this.submitError.set(null);
     try {
-      this.text.set(await readImportFile(file));
-      this.fileName.set(file.name);
+      const { text, upload } = await readImportFile(file);
+      if (request !== this.uploadRequest) return;
+      this.text.set(text);
+      this.upload.set(upload);
     } catch (err) {
-      this.fileName.set(null);
+      if (request !== this.uploadRequest) return;
+      // IMP-061: a rejected file leaves the text box (and where it came from) unchanged.
       this.fileError.set(err instanceof Error ? err.message : `Couldn't read ${file.name}.`);
     }
   }
@@ -218,25 +244,4 @@ export class ImportDialog {
     }
     this.dialogRef.close(this.result());
   }
-}
-
-/** Reads an uploaded file into text lines. Excel support is loaded only when needed. */
-export async function readImportFile(file: File): Promise<string> {
-  if (file.size > MAX_INPUT_BYTES * 5) {
-    throw new Error(`${file.name} is too large to import (limit: 5 MB).`);
-  }
-  const name = file.name.toLowerCase();
-  if (name.endsWith('.xlsx')) {
-    const { readSheet } = await import('read-excel-file/browser');
-    try {
-      return rowsToText(await readSheet(file));
-    } catch {
-      throw new Error(`Couldn't read ${file.name}. Save it as .xlsx or .csv and try again.`);
-    }
-  }
-  if (name.endsWith('.xls')) {
-    throw new Error('Older .xls files aren’t supported. Save it as .xlsx or .csv and try again.');
-  }
-  const text = await file.text();
-  return name.endsWith('.csv') ? rowsToText(splitCsv(text)) : text;
 }

@@ -50,8 +50,8 @@ interface PendingImport {
       <section class="pending" aria-labelledby="pending-title">
         <h2 id="pending-title">
           {{ p.kind === 'deck' ? 'Deck list' : 'Collection list' }} ready:
-          {{ p.result.totalCopies }}
-          {{ p.result.totalCopies === 1 ? 'card' : 'cards' }}
+          {{ p.result.summary.totalCopies }}
+          {{ p.result.summary.totalCopies === 1 ? 'card' : 'cards' }}
         </h2>
         <p class="pending-note">
           Not saved yet. Matching names to cards and saving come once card data is connected.
