@@ -1,0 +1,32 @@
+# Tooling folders (per project decision)
+.claude/
+.obsidian/
+
+# Obsidian per-device files (in case they appear outside .obsidian)
+.trash/
+*.obsidian-workspace
+
+# Dependencies & builds
+node_modules/
+dist/
+build/
+.angular/
+coverage/
+*.tsbuildinfo
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Local card image cache (re-downloadable)
+data/cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.log
