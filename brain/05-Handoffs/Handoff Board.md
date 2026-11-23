@@ -1,6 +1,6 @@
 ---
 tags: [handoffs, loop]
-next_id: 33
+next_id: 34
 ---
 # Handoff Board
 
@@ -34,6 +34,7 @@ The loop's state. See [[Loop Protocol]]. One row per item. Take the next ID from
 ## Done
 | ID | Owner | Request | Result |
 |---|---|---|---|
+| H-033 | ui-builder | Import screen option cards (RJ feedback) | Two cards, Owned Cards Import and Deck Import, with subtext ([[Design Direction]]) |
 | H-032 | RJ | Fill direction + tournament add | Left-to-right partial fill; one-click Add to Your decks from Tournaments (ADR-0006) |
 | H-029 | RJ | Product model correction | Two imports: owned cards → My collection, community decks → Your decks; ownership colouring; tags and default order ([[ADR-0006 Two Imports - Collection and Decks]]) |
 | H-028 | ui-builder | Shorter page descriptions + rename (RJ feedback) | One-line descriptions; "Decks I can build" → "Your decks" across app and vault ([[Design Direction]]) |
