@@ -37,4 +37,4 @@ support Standard Constructed only**, with 2v2 as a later option. Limited decks a
 - The 2027 Premier Play and Local Play program changes (announced 2026-10-26) haven't been researched yet.
 
 ## Impacts
-_Which specs this affects:_ [[Deck Legality]] · [[Meta Deck Catalog & Ranking]]
+_Which specs this affects:_ [[Deck Legality]] · [[Tournament Deck Catalog]]

@@ -17,7 +17,7 @@ turn the open web into reliable, sourced facts in the project brain (`brain/`, a
   and Riot's Riftbound site.
 - **Bans & restrictions:** the official ban/restriction list for organized play, with
   effective dates and the history of changes.
-- **Meta:** archetypes, tier lists, and win-rates from reputable community sources.
+- **Meta:** which decks are winning events, and archetype names, for context. Per ADR-0003 the app never shows or stores play rates, win rates, matchups, or tiers, so don't compile those as data.
 - **Tournaments:** event name, date, region, player count, format, and each decklist's
   placing (1st, Top 4, Top 8…). Record the source URL for every list.
 - **Card data & images:** where to get a complete card list with stable IDs, set codes,

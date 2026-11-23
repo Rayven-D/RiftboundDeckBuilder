@@ -1,6 +1,6 @@
 ---
 name: spec-writer
-description: Turns Riftbound research (rules, ban list, meta decks, tournament results and rankings) into precise, testable specifications for the services and UI — deck legality rules, card data model, collection import formats, deck-matching logic, and the meta deck catalog. Use before building any feature or when research changes.
+description: Turns Riftbound research (rules, ban list, tournament results and winning decklists) into precise, testable specifications for the services and UI — deck legality rules, card data model, collection import formats, deck-matching logic, and the tournament deck catalog. Use before building any feature or when research changes.
 tools: Read, Write, Edit, Glob, Grep, WebFetch
 ---
 
@@ -22,8 +22,9 @@ against.
   checkable rules with IDs (e.g. `LEGAL-003`), each linked to its research source.
 - **Collection import:** the accepted formats (CSV, plain text "3 Card Name", other deck-site
   exports), parsing rules, fuzzy name matching, and error reporting.
-- **Meta deck catalog:** how decks are stored, how archetypes group lists, and how tournament
-  placings, recency, and event size become a ranking score. Show the formula.
+- **Tournament deck catalog:** how events and their winning decklists are stored and shown
+  (event, date, region, placing as published, legal-as-of). Per ADR-0003: no play rates,
+  win rates, matchups, tiers, or computed strength scores.
 - **Build matching:** given a collection and a deck, compute owned vs. required per card, the
   completion %, the missing list, and substitutions (if allowed). Define tie-breaks and sorting.
 

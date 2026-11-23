@@ -25,7 +25,7 @@ everything done.
 - Code lives in `web/`.
 - Key screens: **Import collection** (paste or upload, with parse errors shown clearly),
   **My collection** (card grid with images and filters), **Decks I can build** (sorted by
-  completion % and meta rank), **Deck detail** (each card marked owned or missing, a missing
+  completion %, then event recency; placing shown as a label), **Deck detail** (event + placing, each card marked owned or missing, a missing
   list, and a copyable export).
 - Use the official card images as the API provides them. Lazy-load, reserve the right aspect
   ratio so the layout doesn't shift, and add a graceful fallback for missing images.
