@@ -5,9 +5,11 @@
  * (`3 Name`, `3x Name`, `3 x Name`, `x3 Name`) or trails (`Name x3`), once per line (IMP-019/020).
  * The card part is a name, a printing code (`RAD 001/167`, `OGN-007a`, `(OGN 299/298)`) at its
  * start or end, or both (IMP-064/065); a code alone is a valid entry (IMP-066). A line without a
- * quantity is an error (IMP-021). CSV and Excel rows become one line each and use the same
- * grammar (IMP-040). Parsing never writes anything (IMP-002) and one bad line never stops the
- * rest (IMP-003). Codes are only read here; resolving them needs the card catalog (IMP-067…069).
+ * quantity is an error (IMP-021). Uploads go through `readImportFile`, which turns CSV and Excel
+ * rows into one text line each (IMP-040, IMP-062); the dialog writes that text into its text box
+ * and parses it with `parseCardText`, like pasted text. There is one parse path. Parsing never
+ * writes anything (IMP-002) and one bad line never stops the rest (IMP-003). Codes are only read
+ * here; resolving them needs the card catalog (IMP-067…069).
  */
 
 export type DeckSection = 'legend' | 'champion' | 'main' | 'battlefields' | 'runes' | 'sideboard';
@@ -40,7 +42,8 @@ export type IssueCode =
   | 'ZERO_QUANTITY'
   | 'MISSING_NAME'
   | 'LINE_TOO_LONG'
-  | 'INPUT_TOO_LARGE';
+  | 'INPUT_TOO_LARGE'
+  | 'INPUT_ENCODING';
 
 export interface ParseIssue {
   /** 0 for input-level issues. */
@@ -48,21 +51,61 @@ export interface ParseIssue {
   readonly code: IssueCode;
   readonly severity: 'error' | 'warning';
   readonly message: string;
+  /** Raw text excerpt, at most 120 characters (IMP-056). */
   readonly raw: string;
+}
+
+/** SPEC-003 `SourceFormat`. Only `csv`, `riot-text` and `plain-text` are produced so far (H-047). */
+export type SourceFormat = 'riot-text' | 'plain-text' | 'piltover-code' | 'tts' | 'csv';
+
+/** SPEC-003 `UploadInfo` (IMP-001, IMP-061, IMP-062). */
+export interface UploadInfo {
+  readonly fileName: string;
+  readonly fileType: 'txt' | 'csv' | 'xlsx';
+}
+
+/**
+ * The catalog-free part of SPEC-003 `ImportResult.summary` (IMP-057). `resolvedExact` and
+ * `needsReview` need name resolution against the card catalog and are added with it.
+ */
+export interface ParseSummary {
+  /** Lines of the parsed text; a final empty line after a trailing line break is not counted. */
+  readonly linesRead: number;
+  readonly entriesParsed: number;
+  /** Issues with severity `error`, input-level ones included. */
+  readonly errors: number;
+  /** Distinct `nameKey`s (CARD-030) of the entries; a code-only entry counts by its code. */
+  readonly distinctNames: number;
+  /** Sum of quantities over all entries. */
+  readonly totalCopies: number;
 }
 
 export interface ParseResult {
   readonly entries: readonly ParsedEntry[];
   readonly issues: readonly ParseIssue[];
-  /** Sum of quantities over all entries. */
-  readonly totalCopies: number;
+  /** IMP-011 (partial, H-047): `csv` for a .csv/.xlsx upload, else riot-text / plain-text. */
+  readonly format: SourceFormat;
+  /** IMP-012. */
+  readonly formatReason: string;
+  /** The upload the text came from; absent for pasted or typed text. */
+  readonly upload?: UploadInfo;
+  readonly summary: ParseSummary;
+}
+
+export interface ParseOptions {
+  /** Set when the text is the converted content of an upload (IMP-062). */
+  readonly upload?: UploadInfo | null;
 }
 
 export const MAX_INPUT_BYTES = 1024 * 1024;
 export const MAX_LINES = 10_000;
+/** IMP-061: files above this are rejected before reading. */
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const MAX_LINE_LENGTH = 500;
 const MAX_ROW_LENGTH = 2000;
+const MAX_RAW_LENGTH = 120;
 const MAX_QUANTITY = 999;
+const TOO_LARGE_LIMIT = `limit: 1 MB or ${MAX_LINES.toLocaleString('en-US')} lines`;
 
 /**
  * IMP-016 / IMP-017: section labels and their accepted aliases, keyed without spaces so one- and
@@ -90,8 +133,14 @@ const QTY_LEAD_RE = /^(?:(\d+)(?:\s*[xX])?|[xX](\d+))\s+(.+)$/;
 const QTY_TRAIL_RE = /\s+[xX](\d+)$/;
 const QTY_ONLY_RE = /^(?:\d+(?:\s*[xX])?|[xX]\d+)$/;
 const NEG_LEAD_RE = /^-\d/;
+/**
+ * IMP-008: a non-integer quantity is BAD_QUANTITY: `2.5 Gust`, `x2.5 Gust`, `Gust x2.5`, and a
+ * decimal comma (`2,5 Gust`, or CSV `2,5;Gust` → `2,5, Gust`). A digit must follow the `.`/`,`.
+ */
+const DECIMAL_LEAD_RE = /^(?:\d*[.,]\d+(?:\s*[xX])?|[xX]\d*[.,]\d+)(?=[\s,]|$)/;
+const DECIMAL_TRAIL_RE = /\s[xX]\d*[.,]\d+$/;
 /** A second quantity left at the end of the card part, also when it is all that is left. */
-const SECOND_QTY_RE = /(?:^|\s)[xX]\d+$/;
+const SECOND_QTY_RE = /(?:^|\s)[xX](?:\d+|\d*[.,]\d+)$/;
 
 /** Collector number: block `SP1/005`, fraction `001/167` / `001 /167`, plain `001` / `7a`. */
 const NUM = String.raw`[A-Za-z]+\d*\s*\/\s*\d+[A-Za-z*]*|\d+[A-Za-z*]*\s*\/\s*\d+|\d+[A-Za-z*]*`;
@@ -104,8 +153,8 @@ const CODE_ONLY_RE = new RegExp(String.raw`^(?:${CODE}|${BRACKETED})$`);
 const CODE_AT_END_RE = new RegExp(String.raw`^(.*?)(?:${SEP}${CODE}|${SEP}?${BRACKETED})$`);
 const CODE_AT_START_RE = new RegExp(String.raw`^(?:${CODE}${SEP}|${BRACKETED}${SEP}?)(.+)$`);
 
-const QUANTITY_CELL_RE = /^(\d+)\s*[xX]?$/;
-const STARTS_WITH_NUMBER_RE = /^-?\d/;
+/** SPEC-003 "Quantity cell": `3`, `3x`, `3 X`, and (like the text forms, IMP-020) `x3` / `X3`. */
+const QUANTITY_CELL_RE = /^(?:\d+\s*[xX]?|[xX]\d+)$/;
 const HEADER_WORDS = /^(qty|quantity|count|amount|copies|#|x|name|card|card name|cardname)$/i;
 
 type LineOutcome =
@@ -114,102 +163,136 @@ type LineOutcome =
   | { kind: 'entry'; quantity: number; name: string; printing: PrintingHint | null }
   | { kind: 'issue'; code: IssueCode; severity: 'error' | 'warning'; message: string };
 
-/** Parses pasted text or a .txt file: one entry per line. */
-export function parseCardText(text: string): ParseResult {
-  const tooLarge = checkSize(text);
-  if (tooLarge) return tooLarge;
+/**
+ * Parses the dialog's text: pasted or typed text, or the text an upload was converted into
+ * (`readImportFile`). One entry per line.
+ */
+export function parseCardText(text: string, options: ParseOptions = {}): ParseResult {
+  const upload = options.upload ?? undefined;
+  const fromRows = upload?.fileType === 'csv' || upload?.fileType === 'xlsx';
+  if (exceedsTextLimit(text)) return inputTooLarge(upload);
   const lines = splitLines(text);
   const builder = new ResultBuilder();
   let section: DeckSection | null = null;
+  let firstLabel: { line: number; section: DeckSection } | null = null;
 
-  lines.forEach((raw, i) => {
+  // IMP-007: a line converted from a CSV/Excel row has the 2,000-char row limit, a text line 500.
+  const maxLength = fromRows ? MAX_ROW_LENGTH : MAX_LINE_LENGTH;
+  const tooLong = `${fromRows ? 'Row' : 'Line'} is longer than ${maxLength.toLocaleString('en-US')} characters.`;
+
+  for (const [i, raw] of lines.entries()) {
     const lineNo = i + 1;
-    if (raw.length > MAX_LINE_LENGTH) {
-      builder.issue(
-        lineNo,
-        raw,
-        'LINE_TOO_LONG',
-        'error',
-        `Line is longer than ${MAX_LINE_LENGTH} characters.`,
-      );
-      return;
+    if (raw.length > maxLength) {
+      builder.issue(lineNo, raw, 'LINE_TOO_LONG', 'error', tooLong);
+      continue;
     }
     let outcome = classifyLine(raw);
     if (outcome.kind === 'section') {
       section = outcome.section;
-      if (!outcome.rest) return;
+      firstLabel ??= { line: lineNo, section };
+      if (!outcome.rest) continue;
       // IMP-023: "Champion: 1 Kennen, Storm of Shuriken" carries an entry after the label.
       outcome = parseEntry(outcome.rest);
     }
     builder.add(lineNo, raw, outcome, section);
-  });
-  return builder.result();
+  }
+
+  // IMP-011 steps 1, 4 and 5 (deck codes and TTS tokens are H-047).
+  let format: SourceFormat = 'plain-text';
+  let formatReason = 'no section labels found';
+  if (fromRows) {
+    format = 'csv';
+    formatReason = `uploaded file ${upload.fileName}`;
+  } else if (firstLabel) {
+    format = 'riot-text';
+    formatReason = `found section label ${SECTION_LABELS[firstLabel.section]} on line ${firstLabel.line}`;
+  }
+  return builder.result(countLines(lines), format, formatReason, upload);
 }
 
-/** Parses CSV text (comma, semicolon or tab separated, RFC 4180 quoting). */
-export function parseCardCsv(text: string): ParseResult {
-  const tooLarge = checkSize(text);
-  if (tooLarge) return tooLarge;
-  return parseCardRows(splitCsv(stripBom(text)));
+/** An upload converted into text for the dialog's text box (IMP-062). */
+export interface ImportFile {
+  readonly text: string;
+  readonly upload: UploadInfo;
+}
+
+/** An upload that was rejected; the text box is left unchanged (IMP-061). */
+export class ImportFileError extends Error {
+  constructor(
+    readonly code: 'INPUT_TOO_LARGE' | 'INPUT_ENCODING' | 'FILE_REJECTED',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ImportFileError';
+  }
 }
 
 /**
- * Parses spreadsheet-like rows (CSV or Excel). A row is either one cell with `3x Name`, or a
- * quantity cell followed by the name. A first row of column titles is skipped.
+ * Reads an uploaded file into the text the dialog writes into its text box (IMP-001, IMP-061,
+ * IMP-062): `.txt` as-is, `.csv` and `.xlsx` (first sheet) one line per row (IMP-040). Text is
+ * decoded as strict UTF-8 (IMP-010). Excel support is loaded only when needed.
+ *
+ * Limits (H-053): a `.txt` file *is* its text, so it gets the 1 MiB text limit (IMP-006) before
+ * reading, with the same message. `.csv` / `.xlsx` are rejected above 5 MiB before reading
+ * (IMP-061), and the text they convert into must then fit the IMP-006 limit too; if it doesn't,
+ * the upload is rejected with that message instead of filling the text box with text that can't
+ * be imported.
  */
-export function parseCardRows(rows: readonly (readonly unknown[])[]): ParseResult {
-  if (rows.length > MAX_LINES) return inputTooLarge();
-  const builder = new ResultBuilder();
-  let section: DeckSection | null = null;
-  let seenContent = false;
+export async function readImportFile(file: File): Promise<ImportFile> {
+  const lower = file.name.toLowerCase();
+  if (lower.endsWith('.xls')) {
+    throw new ImportFileError(
+      'FILE_REJECTED',
+      'Older .xls files aren’t supported. Save it as .xlsx or .csv and try again.',
+    );
+  }
+  const fileType = (['txt', 'csv', 'xlsx'] as const).find((t) => lower.endsWith(`.${t}`));
+  if (!fileType) {
+    throw new ImportFileError(
+      'FILE_REJECTED',
+      `${file.name} can’t be imported. Use a .txt, .csv or .xlsx file.`,
+    );
+  }
+  const tooLarge = `${file.name} is too large to import (${TOO_LARGE_LIMIT}).`;
+  if (fileType === 'txt' && file.size > MAX_INPUT_BYTES + 3 /* UTF-8 BOM */) {
+    throw new ImportFileError('INPUT_TOO_LARGE', tooLarge);
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new ImportFileError(
+      'INPUT_TOO_LARGE',
+      `${file.name} is too large to import (limit: 5 MB).`,
+    );
+  }
 
-  rows.forEach((row, i) => {
-    const rowNo = i + 1;
-    const cells = trimTrailingEmpty(row.map(cellText));
-    const raw = cells.join(', ');
-    if (cells.length === 0) return;
-    if (raw.length > MAX_ROW_LENGTH) {
-      builder.issue(
-        rowNo,
-        raw.slice(0, 120) + '…',
-        'LINE_TOO_LONG',
-        'error',
-        `Row is longer than ${MAX_ROW_LENGTH} characters.`,
+  let text: string;
+  if (fileType === 'xlsx') {
+    const { readSheet } = await import('read-excel-file/browser');
+    try {
+      text = rowsToText(await readSheet(file));
+    } catch {
+      throw new ImportFileError(
+        'FILE_REJECTED',
+        `Couldn't read ${file.name}. Save it as .xlsx or .csv and try again.`,
       );
-      return;
     }
-    if (!seenContent) {
-      seenContent = true;
-      if (isHeaderRow(cells)) return;
-    }
-
-    let outcome: LineOutcome;
-    const quantityCell = QUANTITY_CELL_RE.exec(cells[0]);
-    if (cells.length >= 2 && quantityCell) {
-      // Card names can contain commas ("Kennen, Heart of the Tempest"): an unquoted CSV row
-      // splits them, so the rest of the row is joined back together. The resulting line goes
-      // through the full line grammar, so a code cell after the name is read too (IMP-040).
-      const name = cells.slice(1).filter(Boolean).join(', ');
-      outcome = parseEntry(`${cells[0]} ${name}`);
-    } else if (cells.length >= 2 && STARTS_WITH_NUMBER_RE.test(cells[0])) {
-      outcome = toEntry(cells[0], cells.slice(1).filter(Boolean).join(', '), null);
-    } else {
-      outcome = classifyLine(cells.length === 1 ? cells[0] : raw);
-      if (outcome.kind === 'section') {
-        section = outcome.section;
-        if (!outcome.rest) return;
-        outcome = parseEntry(outcome.rest);
-      }
-    }
-    builder.add(rowNo, raw, outcome, section);
-  });
-  return builder.result();
+  } else {
+    const decoded = decodeUtf8(await file.arrayBuffer(), file.name);
+    text = fileType === 'csv' ? rowsToText(splitCsv(decoded)) : decoded;
+  }
+  if (exceedsTextLimit(text)) throw new ImportFileError('INPUT_TOO_LARGE', tooLarge);
+  if (!text.trim()) {
+    throw new ImportFileError('FILE_REJECTED', `${file.name} has no lines to import.`);
+  }
+  return { text, upload: { fileName: file.name, fileType } };
 }
 
 /**
- * Turns CSV / Excel rows into one text line per row so an upload can be shown and edited in the
- * text box: `qty, name` cells become `qty name`, one-cell rows stay as they are, and a first row of
- * column titles is dropped. Rows that don't fit the rule are kept as-is so they show up as errors.
+ * IMP-040: turns CSV / Excel rows into one text line per row for the text box. `qty, name…` rows
+ * become `qty name…`, one-cell rows stay as they are, a first row of column titles is dropped
+ * (IMP-041), and other rows are kept as their cells joined with `, ` so they show up as errors.
+ * A row whose first cell is a section label and whose later cells hold the entry
+ * (`Champion,1 Kennen` or `Champion,1,Kennen`) becomes `Champion: 1 Kennen` (label with an
+ * entry, IMP-023). Interim rule from H-053 (5); IMP-040 does not cover it yet.
  */
 export function rowsToText(rows: readonly (readonly unknown[])[]): string {
   const out: string[] = [];
@@ -221,31 +304,20 @@ export function rowsToText(rows: readonly (readonly unknown[])[]): string {
       seenContent = true;
       if (isHeaderRow(cells)) continue;
     }
-    const quantityCell = QUANTITY_CELL_RE.exec(cells[0]);
-    if (cells.length >= 2 && quantityCell) {
-      out.push(`${cells[0]} ${cells.slice(1).filter(Boolean).join(', ')}`);
-    } else {
-      out.push(cells.filter(Boolean).join(', '));
-    }
+    out.push(rowToLine(cells));
   }
   return out.join('\n');
 }
 
-/**
- * Turns a result back into one `qty name` line per entry (with its printing code, if any), e.g. to
- * show an upload in the text box.
- */
-export function entriesToText(result: ParseResult): string {
-  const out: string[] = [];
-  let section: DeckSection | null = null;
-  for (const e of result.entries) {
-    if (e.section && e.section !== section) {
-      section = e.section;
-      out.push(`${SECTION_LABELS[section]}:`);
-    }
-    out.push([e.quantity, e.name, e.printing?.text].filter(Boolean).join(' '));
+function rowToLine(cells: readonly string[]): string {
+  if (cells.length >= 2 && QUANTITY_CELL_RE.test(cells[0])) {
+    return `${cells[0]} ${cells.slice(1).filter(Boolean).join(', ')}`;
   }
-  return out.join('\n');
+  if (cells.length >= 2 && isLabelOnly(cells[0])) {
+    const rest = cells.slice(1).filter(Boolean);
+    return `${cells[0].replace(/\s*:$/, '')}: ${rowToLine(rest)}`;
+  }
+  return cells.filter(Boolean).join(', ');
 }
 
 export const SECTION_LABELS: Readonly<Record<DeckSection, string>> = {
@@ -275,7 +347,7 @@ function parseEntry(raw: string): LineOutcome {
   const line = raw.trim();
   // Step 1.
   if (QTY_ONLY_RE.test(line)) return missingName();
-  if (NEG_LEAD_RE.test(line)) return badQuantity();
+  if (NEG_LEAD_RE.test(line) || DECIMAL_LEAD_RE.test(line)) return badQuantity();
 
   // Step 2: leading quantity.
   let quantity: string | null = null;
@@ -325,8 +397,9 @@ function parseEntry(raw: string): LineOutcome {
   if (cutEnd) name = name.replace(/\s*[-,]$/, '');
   if (cutStart) name = name.replace(/^[-,]\s*/, '');
 
-  // Step 7.
+  // Step 7. A trailing non-integer quantity (`Gust x2.5`) is BAD_QUANTITY too (IMP-008).
   if (quantity === null) {
+    if (DECIMAL_TRAIL_RE.test(body)) return badQuantity();
     return issue(
       'MISSING_QUANTITY',
       'error',
@@ -411,35 +484,100 @@ class ResultBuilder {
     severity: 'error' | 'warning',
     message: string,
   ): void {
-    this.issues.push({ line, raw, code, severity, message });
+    this.issues.push({ line, raw: excerpt(raw), code, severity, message });
   }
 
-  result(): ParseResult {
-    const totalCopies = this.entries.reduce((sum, e) => sum + e.quantity, 0);
-    return { entries: this.entries, issues: this.issues, totalCopies };
+  result(
+    linesRead: number,
+    format: SourceFormat,
+    formatReason: string,
+    upload: UploadInfo | undefined,
+  ): ParseResult {
+    const entries = this.entries;
+    const issues = this.issues;
+    const summary: ParseSummary = {
+      linesRead,
+      entriesParsed: entries.length,
+      errors: issues.filter((i) => i.severity === 'error').length,
+      distinctNames: new Set(entries.map(entryKey)).size,
+      totalCopies: entries.reduce((sum, e) => sum + e.quantity, 0),
+    };
+    return { entries, issues, format, formatReason, ...(upload ? { upload } : {}), summary };
   }
 }
 
-function checkSize(text: string): ParseResult | null {
-  if (new TextEncoder().encode(text).length > MAX_INPUT_BYTES) return inputTooLarge();
-  if (splitLines(text).length > MAX_LINES) return inputTooLarge();
-  return null;
+/** IMP-056: raw excerpts are at most 120 characters, ending in `…` when cut. */
+function excerpt(raw: string): string {
+  return raw.length > MAX_RAW_LENGTH ? raw.slice(0, MAX_RAW_LENGTH - 1) + '…' : raw;
 }
 
-function inputTooLarge(): ParseResult {
+/** The key `distinctNames` counts: the CARD-030 name key, or the code for a code-only entry. */
+function entryKey(e: ParsedEntry): string {
+  if (e.name || !e.printing) return 'n:' + nameKey(e.name);
+  return 'c:' + e.printing.setCode + e.printing.collectorNumber.replace(/\s+/g, '').toUpperCase();
+}
+
+/**
+ * CARD-030 `nameKey` (same steps as `services/src/domain/name-key.ts`). Only used for the
+ * `distinctNames` count here; resolution against the catalog uses the catalog's own keys.
+ */
+function nameKey(name: string): string {
+  return name
+    .normalize('NFKC')
+    .replace(/[’‘ʼ´`]/gu, "'")
+    .replace(/[“”]/gu, '"')
+    .replace(/[‐‑–—]/gu, '-')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
+/** IMP-006: more than 1 MiB of UTF-8 or more than 10,000 lines. */
+function exceedsTextLimit(text: string): boolean {
+  return (
+    new TextEncoder().encode(text).length > MAX_INPUT_BYTES ||
+    countLines(splitLines(text)) > MAX_LINES
+  );
+}
+
+/** Lines of a split text, not counting the empty line after a trailing line break. */
+function countLines(lines: readonly string[]): number {
+  return lines.length > 0 && lines[lines.length - 1] === '' ? lines.length - 1 : lines.length;
+}
+
+function inputTooLarge(upload: UploadInfo | undefined): ParseResult {
+  const issues: ParseIssue[] = [
+    {
+      line: 0,
+      raw: '',
+      code: 'INPUT_TOO_LARGE',
+      severity: 'error',
+      message: `This is too large to import (${TOO_LARGE_LIMIT}).`,
+    },
+  ];
   return {
     entries: [],
-    totalCopies: 0,
-    issues: [
-      {
-        line: 0,
-        raw: '',
-        code: 'INPUT_TOO_LARGE',
-        severity: 'error',
-        message: `This is too large to import (limit: 1 MB or ${MAX_LINES.toLocaleString('en-US')} lines).`,
-      },
-    ],
+    issues,
+    format: upload && upload.fileType !== 'txt' ? 'csv' : 'plain-text',
+    formatReason: 'input too large to read',
+    ...(upload ? { upload } : {}),
+    summary: { linesRead: 0, entriesParsed: 0, errors: 1, distinctNames: 0, totalCopies: 0 },
   };
+}
+
+/** IMP-010: strict UTF-8; the decoder drops a leading BOM. */
+function decodeUtf8(bytes: ArrayBuffer, fileName: string): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw new ImportFileError(
+      'INPUT_ENCODING',
+      `${fileName} isn’t UTF-8 text. Save it as UTF-8 or .xlsx and try again.`,
+    );
+  }
 }
 
 function stripBom(text: string): string {
@@ -450,10 +588,17 @@ function splitLines(text: string): string[] {
   return stripBom(text).split(/\r\n|\r|\n/);
 }
 
+/**
+ * Cell text for IMP-040: trimmed, Excel dates as `YYYY-MM-DD`. Line breaks inside a cell (a quoted
+ * multi-line CSV field, or Alt+Enter in Excel) become one space, so a row stays one line in the
+ * text box (IMP-042; H-053).
+ */
 function cellText(value: unknown): string {
   if (value === null || value === undefined) return '';
   if (value instanceof Date) return value.toISOString().slice(0, 10);
-  return String(value).trim();
+  return String(value)
+    .replace(/\s*(?:\r\n|\r|\n)\s*/g, ' ')
+    .trim();
 }
 
 function trimTrailingEmpty(cells: string[]): string[] {
@@ -466,11 +611,47 @@ function isHeaderRow(cells: readonly string[]): boolean {
   return cells.some((c) => HEADER_WORDS.test(c)) && !cells.some((c) => /^\d/.test(c));
 }
 
-/** Minimal RFC 4180 CSV reader. The delimiter (comma, semicolon or tab) comes from the first line. */
-export function splitCsv(text: string): string[][] {
-  const firstLine = text.split(/\r\n|\r|\n/, 1)[0] ?? '';
-  const counts = [',', ';', '\t'].map((d) => [d, firstLine.split(d).length - 1] as const);
-  const delimiter = counts.reduce((best, c) => (c[1] > best[1] ? c : best), counts[0])[0];
+/** A cell that is a section label with nothing after it (IMP-016), e.g. `Champion` or `Main Deck:`. */
+function isLabelOnly(cell: string): boolean {
+  const outcome = classifyLine(cell);
+  return outcome.kind === 'section' && !outcome.rest;
+}
+
+/**
+ * Picks the CSV delimiter from the first non-empty line, counting only characters outside double
+ * quotes. Interim rule approved by RJ (2026-11-23, H-053) until SPEC-003 IMP-042 is updated to
+ * match (H-049 item 4): if `;` or tab occurs there, it wins over `,`, because commas appear in
+ * card names (`2;Kennen, Heart of the Tempest`); between `;` and tab the more frequent wins
+ * (tie → `;`); otherwise `,`.
+ */
+function detectDelimiter(text: string): ',' | ';' | '\t' {
+  let semicolons = 0;
+  let tabs = 0;
+  let quoted = false;
+  let content = false;
+  for (const ch of text) {
+    if (ch === '"') {
+      quoted = !quoted; // `""` inside a quoted field toggles twice, so it nets out.
+      content = true;
+    } else if (quoted) {
+      continue;
+    } else if (ch === '\n' || ch === '\r') {
+      if (content) break;
+    } else if (ch === ';') {
+      semicolons++;
+    } else if (ch === '\t') {
+      tabs++;
+    } else if (ch.trim()) {
+      content = true;
+    }
+  }
+  if (semicolons === 0 && tabs === 0) return ',';
+  return tabs > semicolons ? '\t' : ';';
+}
+
+/** Minimal RFC 4180 CSV reader (IMP-042); the delimiter comes from `detectDelimiter`. */
+function splitCsv(text: string): string[][] {
+  const delimiter = detectDelimiter(text);
 
   const rows: string[][] = [];
   let row: string[] = [];
