@@ -71,7 +71,7 @@ fantasy-UI styling.
   routes, SCSS, strict TypeScript, no SSR ([[ADR-0001 Tech Stack]]).
 - **Routes:** `/decks` (default), `/decks/:id`, `/collection`, `/import`, `/tournaments`. Unknown
   paths redirect to `/decks`. Route params bind to component inputs.
-- **Shell:** a plain-text wordmark "Rift Decks" (renamed 2026-11-23; was "Riftbound Deck Builder") (no logo, no imitation of official
+- **Shell:** a plain-text wordmark "Rift Builder" (renamed 2026-11-23; was "Riftbound Deck Builder", then briefly "Rift Decks") (no logo, no imitation of official
   lettering), a nav list, a skip link, `<main>`, and a footer with the Legal Jibber Jabber notice.
 - **Tokens:** CSS custom properties in `web/src/styles.scss`. The neutral palette is dark by default
   and follows `prefers-color-scheme` for light. There's a 4px spacing scale, radii, system font
@@ -88,7 +88,7 @@ fantasy-UI styling.
 - **Copy:** no metagame language (win rates, tiers, "meta" scores) in the UI ([[ADR-0003 Tournament Results Only]]).
 
 ## Name and favicon (RJ, 2026-11-23)
-- **Product name: Rift Decks.** Replaces "Riftbound Deck Builder" in the wordmark, page titles and the Legal Jibber Jabber notice. This also follows the Riot rule that trademarks can't be used in project names or domains ([[Card Data & Images]] #8); "Riftbound" is a Riot trademark. The repo and folder keep their names.
+- **Product name: Rift Builder** (RJ, 2026-11-23; briefly "Rift Decks", dropped the same day because a Riftbound site called riftdecks already exists). Replaces "Riftbound Deck Builder" in the wordmark, page titles and the Legal Jibber Jabber notice. This also follows the Riot rule that trademarks can't be used in project names or domains ([[Card Data & Images]] #8); "Riftbound" is a Riot trademark. The repo and folder keep their names.
 - **Favicon:** an original deck mark: three stacked square-cornered cards, blue front card (`#378ADD`) with two slate cards behind, dark outline so it reads on light and dark tabs. Files in `web/public/`: `favicon.svg` (source), `favicon.ico` (16/32/48), `apple-touch-icon.png` (180, slate background). No Riot marks.
 
 ## RJ feedback
@@ -100,3 +100,4 @@ fantasy-UI styling.
 - 2026-11-23: Import button icon misaligned (fixed: icon marked `matButtonIcon`). Import cards were flat: now clickable cards opening a paste-or-upload dialog. Rename to Collection / Deck with clearer descriptions. Legal footer smaller (wording kept).
 - 2026-11-23: Corners too sharp: slight 4-8px radius on cards, buttons, chips, dialogs (tabs top-only). Deck import accepts "MainDeck" / "Main Deck" and "RunePool" / "Rune Pool".
 - 2026-11-23: "Something like riftatlas.com": home page at `/`, headline "Import what you own. See what you can build.", ownership fan, Archivo for headlines.
+- 2026-11-23: "There's already a Rift Decks": renamed to **Rift Builder**.

@@ -4,39 +4,39 @@ export const routes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    title: 'Rift Decks: import your Riftbound cards and see what you can build',
+    title: 'Rift Builder: import your Riftbound cards and see what you can build',
     loadComponent: () => import('./pages/home/home-page').then((m) => m.HomePage),
   },
   {
     path: 'import',
-    title: 'Import · Rift Decks',
+    title: 'Import · Rift Builder',
     loadComponent: () => import('./pages/import/import-page').then((m) => m.ImportPage),
   },
   {
     path: 'collection',
-    title: 'My collection · Rift Decks',
+    title: 'My collection · Rift Builder',
     loadComponent: () => import('./pages/collection/collection-page').then((m) => m.CollectionPage),
   },
   {
     path: 'decks',
-    title: 'Your decks · Rift Decks',
+    title: 'Your decks · Rift Builder',
     loadComponent: () => import('./pages/decks/decks-page').then((m) => m.DecksPage),
   },
   {
     path: 'decks/:id',
-    title: 'Deck detail · Rift Decks',
+    title: 'Deck detail · Rift Builder',
     loadComponent: () =>
       import('./pages/deck-detail/deck-detail-page').then((m) => m.DeckDetailPage),
   },
   {
     path: 'tournaments',
-    title: 'Tournaments · Rift Decks',
+    title: 'Tournaments · Rift Builder',
     loadComponent: () =>
       import('./pages/tournaments/tournaments-page').then((m) => m.TournamentsPage),
   },
   {
     path: 'styleguide',
-    title: 'Component preview · Rift Decks',
+    title: 'Component preview · Rift Builder',
     loadComponent: () => import('./pages/styleguide/styleguide-page').then((m) => m.StyleguidePage),
   },
   { path: '**', redirectTo: '' },

@@ -1,4 +1,4 @@
-# Rift Decks
+# Rift Builder
 
 Import your physical Riftbound TCG collection and find out which meta decks you can build
 today, which ones you're close to, and what you're missing.

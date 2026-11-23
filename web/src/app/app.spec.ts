@@ -20,7 +20,7 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('.wordmark')?.textContent).toContain('Rift Decks');
+    expect(el.querySelector('.wordmark')?.textContent).toContain('Rift Builder');
     const links = Array.from(el.querySelectorAll('nav a')).map((a) => a.getAttribute('href'));
     expect(links).toEqual(['/decks', '/collection', '/tournaments']);
   });
