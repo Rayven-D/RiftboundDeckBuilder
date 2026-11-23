@@ -14,7 +14,9 @@ import { EmptyState } from '../../shared/empty-state';
       heading="Your collection is empty"
       message="Import the cards you own and they will appear here."
     >
-      <a class="button" routerLink="/import">Import collection</a>
+      <a class="button" routerLink="/import" [queryParams]="{ type: 'collection' }"
+        >Import collection</a
+      >
     </app-empty-state>
   `,
 })

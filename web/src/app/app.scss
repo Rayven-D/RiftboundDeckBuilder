@@ -21,18 +21,25 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-3) var(--space-5);
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
 }
 
 .wordmark {
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-stretch: var(--display-stretch);
+  font-weight: var(--display-weight);
+  letter-spacing: -0.01em;
   font-size: var(--font-size-lg);
   color: var(--color-text);
   text-decoration: none;
+}
+
+.site-nav {
+  /* Pushes the Import action to the far right. */
+  margin-right: auto;
 }
 
 .site-nav ul {
@@ -47,7 +54,8 @@
 .site-nav a {
   display: block;
   padding: var(--space-2) var(--space-3);
-  border-radius: 0;
+  /* Rounded top only, so the active tab's 2px underline stays straight (RJ, 2026-11-23). */
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   border-bottom: 2px solid transparent;
   color: var(--color-text-muted);
   text-decoration: none;
@@ -64,6 +72,59 @@
   }
 }
 
+/* Phones: wordmark and Import on one row, the tabs on a scrollable row below. */
+@media (max-width: 40rem) {
+  .site-header {
+    gap: var(--space-2) var(--space-3);
+    padding-bottom: 0;
+  }
+
+  .wordmark {
+    font-size: var(--font-size-md);
+  }
+
+  .import-action {
+    margin-left: auto;
+  }
+
+  .site-nav {
+    order: 3;
+    flex-basis: 100%;
+    margin-right: 0;
+    overflow-x: auto;
+  }
+
+  .site-nav ul {
+    flex-wrap: nowrap;
+  }
+
+  .site-nav a {
+    white-space: nowrap;
+  }
+}
+
+/* Raised primary action: the accent fill plus a lift, so it reads above the flat tabs. */
+.import-action {
+  --mat-button-filled-container-height: 40px;
+
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 30%),
+    0 3px 8px rgb(0 0 0 / 25%);
+  transition: box-shadow 120ms ease;
+
+  &:hover {
+    --mat-button-filled-container-color: var(--color-accent-hover);
+
+    box-shadow:
+      0 2px 4px rgb(0 0 0 / 30%),
+      0 6px 14px rgb(0 0 0 / 28%);
+  }
+
+  &.active {
+    box-shadow: inset 0 -2px 0 var(--color-accent-contrast);
+  }
+}
+
 .site-main {
   flex: 1;
   width: 100%;
@@ -77,14 +138,16 @@
 }
 
 .site-footer {
-  padding: var(--space-4);
+  padding: var(--space-2) var(--space-4);
   border-top: 1px solid var(--color-border);
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
   text-align: center;
 }
 
+/* Riot's required notice: wording kept as Riot gives it, set small so it takes one or two lines. */
 .legal {
-  max-width: 60ch;
+  max-width: 100ch;
   margin: 0 auto;
 }

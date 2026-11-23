@@ -14,7 +14,7 @@ import { Component, input } from '@angular/core';
     .empty-state {
       padding: var(--space-5) var(--space-4);
       border: 1px dashed var(--color-border);
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-lg);
       background: var(--color-surface);
       text-align: center;
     }
