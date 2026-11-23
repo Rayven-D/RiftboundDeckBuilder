@@ -14,18 +14,18 @@ describe('routes', () => {
     const harness = await RouterTestingHarness.create('/');
     expect(TestBed.inject(Router).url).toBe('/');
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain(
-      'See what you can build.',
+      'See what you need.',
     );
   });
 
   it('renders /decks', async () => {
     const harness = await RouterTestingHarness.create('/decks');
-    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain('Your decks');
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain('Decks');
   });
 
   it.each([
     ['/import', 'Import'],
-    ['/collection', 'My collection'],
+    ['/collection', 'Collection'],
     ['/tournaments', 'Tournaments'],
     ['/decks/abc', 'Deck detail'],
     ['/styleguide', 'Kennen: ASC Evansrhim'],

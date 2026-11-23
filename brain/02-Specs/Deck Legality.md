@@ -44,7 +44,7 @@ lists per format × region, legal sets per format with dates) is built so that 2
 lists can be added as data plus a few new rules, without changing the result contract.
 
 Consumers (per [[ADR-0006 Two Imports - Collection and Decks]]):
-- **Your decks** ([[Your Decks Ownership View]], SPEC-005): shows **ban status on every card** of an
+- **Decks** ([[Your Decks Ownership View]], SPEC-005): shows **ban status on every card** of an
   imported deck, owned or not, via the per-card ban status query (LEGAL-B10), and may show the deck
   verdict. It does not filter or hide decks by legality.
 - **Tournaments** ([[Tournament Deck Catalog]], SPEC-004): "legal as of" label on each Top 8 decklist, and
@@ -137,7 +137,7 @@ Notes backed by research but not checked (informational only, never a failure):
 | LEGAL-B07 | MUST | Waves are **append-only**: corrections are new waves or a bumped `dataVersion` with a changelog line, never silent edits of past waves. When a new wave is added, this spec's version is bumped and a Handoff Board item is posted. | [[spec-writer]] standards |
 | LEGAL-B08 | SHOULD | Show the ban wave name and effective date in the failure message. List **upcoming** bans/unbans as a separate `upcomingBans` notice (never a failure) only for waves with `announced <= asOf < effective`. A wave whose `announced` date is after `asOf` is not shown at all (it was not public on that date). | [[Ban List]] #5, #6 |
 | LEGAL-B09 | MUST | Standard (`global`) data contains exactly the four waves below; as of 2026-11-23 it yields **15 cards and 7 battlefields**, matching the Rules Hub count. | [[Ban List]] #1–#5 |
-| LEGAL-B10 | MUST | A **per-card ban status** query `banStatus(cardKey, format, region, asOf)` returns `banned` (with the wave that added it: id, name, effective date = "banned since"), `upcoming` (announced, not yet effective, LEGAL-B08 semantics), or `not-banned`, computed by LEGAL-B02/B03 from the same data. Your decks (SPEC-005) uses it for every card of a deck; Tournaments (SPEC-004) uses the earliest "banned since" date of a deck's banned cards for its "Contains cards banned since <date>" label. | [[ADR-0006 Two Imports - Collection and Decks]] (ban status on every card); [[ADR-0005 MVP Product Defaults]] #3; [[Ban List]] |
+| LEGAL-B10 | MUST | A **per-card ban status** query `banStatus(cardKey, format, region, asOf)` returns `banned` (with the wave that added it: id, name, effective date = "banned since"), `upcoming` (announced, not yet effective, LEGAL-B08 semantics), or `not-banned`, computed by LEGAL-B02/B03 from the same data. Decks (SPEC-005) uses it for every card of a deck; Tournaments (SPEC-004) uses the earliest "banned since" date of a deck's banned cards for its "Contains cards banned since <date>" label. | [[ADR-0006 Two Imports - Collection and Decks]] (ban status on every card); [[ADR-0005 MVP Product Defaults]] #3; [[Ban List]] |
 
 ### C. Format legality (sets per format, dated)
 Per [[ADR-0005 MVP Product Defaults]] #4, set legality comes from Riot data only: Riot-published dates
@@ -239,7 +239,7 @@ interface RuleResult {
 // LEGAL-B08: only waves with announced <= asOf < effective
 interface UpcomingBan { cardKey: string; name: string; kind: BanKind; change: 'ban' | 'unban'; announced: IsoDate; effective: IsoDate; waveId: string }
 
-// LEGAL-B10: per-card ban status (Your decks, Tournaments)
+// LEGAL-B10: per-card ban status (Decks, Tournaments)
 type BanStatus =
   | { status: 'banned'; waveId: string; waveName: string; bannedSince: IsoDate }   // effective date of the wave that added it
   | { status: 'upcoming'; waveId: string; waveName: string; announced: IsoDate; effective: IsoDate }

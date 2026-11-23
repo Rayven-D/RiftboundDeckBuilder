@@ -77,8 +77,8 @@ const MAX_ISSUES_SHOWN = 50;
           aria-describedby="import-format-hint"
         ></textarea>
         <mat-hint id="import-format-hint"
-          >One card per line: a number, then the name. "3 Lightning Rush" or "3x Lightning
-          Rush".</mat-hint
+          >One card per line with its number: "3x Lightning Rush", "Lightning Rush x3". A set code
+          is optional: "3 Lightning Rush RAD 001/167".</mat-hint
         >
       </mat-form-field>
 

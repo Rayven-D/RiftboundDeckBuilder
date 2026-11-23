@@ -17,8 +17,8 @@ interface NavItem {
 export class App {
   /** Main tabs. Import is not a tab: it is the raised action at the far right of the header. */
   protected readonly nav: NavItem[] = [
-    { path: '/decks', label: 'Your decks' },
-    { path: '/collection', label: 'My collection' },
+    { path: '/decks', label: 'Decks' },
+    { path: '/collection', label: 'Collection' },
     { path: '/tournaments', label: 'Tournaments' },
   ];
 }

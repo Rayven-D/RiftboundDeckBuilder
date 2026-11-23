@@ -7,7 +7,7 @@ import { EmptyState } from '../../shared/empty-state';
   imports: [EmptyState, RouterLink],
   template: `
     <header class="page-header">
-      <h1>My collection</h1>
+      <h1>Collection</h1>
       <p class="page-lede">Every card you own.</p>
     </header>
     <app-empty-state

@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-006
-version: 0.3
+version: 0.5
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-003, SPEC-004]
 consumers: [SPEC-005]
@@ -15,18 +15,21 @@ as_of: 2026-11-23
 ## Summary
 > Read this first. Full detail below only if needed.
 
-**Purpose:** import a complete community deck (paste or `.txt`) into Your decks: parse → review (zones, names, legality) → save. Second path: "Add to Your decks" from Tournaments.
+**Purpose:** import a complete community deck (paste, or upload `.txt` / `.csv` / `.xlsx`) into Decks: parse → review (zones, names, legality) → save. Second path: "Add to your decks" from Tournaments.
 
 **Key requirements**
-- DECK-002/003: one import = at most one deck; only Save writes; My collection is never changed.
-- DECK-010/013: reuses SPEC-003 Part A except CSV, IMP-009 and IMP-015 (not applicable to decks).
-- DECK-020/021: section labels map to zones; the same card in two zones stays separate.
+- DECK-001: the shared paste-or-upload dialog (SPEC-003 IMP-062/063); uploads land in the editable text box; every line needs a quantity (IMP-021).
+- DECK-002/003: one import = at most one deck; only Save writes; the collection is never changed.
+- DECK-010/013: reuses SPEC-003 Part A, incl. CSV/Excel (v0.4); only IMP-009 and IMP-015 are not applicable to decks.
+- DECK-011: CSV/Excel rows follow the same line rule; section labels work in one-cell rows.
+- DECK-014/015 (v0.5): `x3 Name` / `Name x3` and printing codes on a line (`3 Lightning Rush RAD 001/167`, SPEC-003 IMP-020, IMP-064…070) are accepted; the code only resolves the `cardKey` and is then dropped.
+- DECK-020/021: section labels (any case, with or without spaces) map to zones; the same card in two zones stays separate.
 - DECK-030/032: zones are never guessed silently: inferred from SPEC-001 `category` or asked as zone questions.
 - DECK-026: token cards are rejected with a warning.
 - DECK-041: a deck can't be saved while any name is unresolved (fix or remove the line).
 - DECK-050/051: SPEC-002 legality is shown and never blocks saving; ban status via `banStatus()`.
 - DECK-055: the verdict is not stored; it is computed as of today.
-- DECK-061/062/064: `TournamentDeckSource` defined here; default name `<Legend>: <pilot> (<placing>, <event>)` ≤ 80; "In Your decks" / "Add another copy".
+- DECK-061/062/064: `TournamentDeckSource` defined here; default name `<Legend>: <pilot> (<placing>, <event>)` ≤ 80; "In your decks" / "Add another copy".
 - DECK-090/096: browser `DeckStore`; deck entries by `cardKey` only (no printing, ownership or tags).
 
 **Shared types:** `UserDeck` · `DeckCard` (`cardKey`, name, qty) · `DeckSource` = `UserDeckSource | TournamentDeckSource` · `DeckZone` (= SPEC-002 `Zone`) · `DeckImportResult` · `ZoneQuestion` · `DeckStore`.
@@ -39,8 +42,8 @@ as_of: 2026-11-23
 ## Purpose
 Let a user bring in a **complete deck someone else built** (a forum post, a deck site, a friend's
 list) because they want to build it. They may own none of it. The result is a **user deck** in
-**Your decks** ([[ADR-0006 Two Imports - Collection and Decks]]). [[Your Decks Ownership View]]
-(SPEC-005) is the consumer: it shows each card of a user deck against My collection.
+**Decks** ([[ADR-0006 Two Imports - Collection and Decks]]). [[Your Decks Ownership View]]
+(SPEC-005) is the consumer: it shows each card of a user deck against the user's collection.
 
 Deck import is the second card on the Import screen, "Deck Import: Created deck list that you want
 to make" ([[Design Direction]]). The first card, Owned Cards Import, is [[Collection Import]] (SPEC-003).
@@ -49,14 +52,14 @@ How it differs from owned-card import (SPEC-003):
 
 | | Owned-card import (SPEC-003) | Deck import (this spec) |
 |---|---|---|
-| Result | owned counts in My collection | one `UserDeck` in Your decks |
+| Result | owned counts in Collection | one `UserDeck` in Decks |
 | Sections | merged, display only (IMP-018) | **mapped to deck zones** |
 | Legality | never checked (IMP-004) | checked with SPEC-002 and shown, **never blocks saving** |
 | Unknown names | dropped from the commit | must be resolved or removed **before saving** |
 | Commit | Add / Replace | Save as a new deck |
 
 The flow is **parse → review (zones, names, legality) → save**. A second entry path,
-**"Add to Your decks"** on a Top 8 deck in Tournaments (SPEC-004), creates the same deck object
+**"Add to your decks"** on a Top 8 deck in Tournaments (SPEC-004), creates the same deck object
 without parsing.
 
 ## Definitions
@@ -90,26 +93,27 @@ without parsing.
 ### A. Entry paths and general flow
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| DECK-001 | MUST | Deck import is reached from the **Deck Import** card on the Import screen. Input is pasted text or an uploaded `.txt` file (as IMP-001, without `.csv`). | [[Design Direction]] 2026-11-23; [[ADR-0006 Two Imports - Collection and Decks]] |
-| DECK-002 | MUST | One import produces **at most one** deck. It goes into **Your decks** only and never changes My collection. | [[ADR-0006 Two Imports - Collection and Decks]] |
+| DECK-001 | MUST | Deck import is reached from the **Deck Import** card on the Import screen. It opens the shared paste-or-upload dialog (SPEC-003 IMP-062, IMP-063; title "Import deck", hint "Section labels like "Main Deck:" are kept."). Input is pasted text or an uploaded `.txt`, `.csv` or `.xlsx` file (IMP-001, IMP-061), written into the editable text box. Every line needs a quantity (IMP-021). The dialog also shows copies per section as parsed (unlabelled entries as "No section"). | [[Design Direction]] 2026-11-23; [[ADR-0006 Two Imports - Collection and Decks]]; RJ decision 2026-11-23 (H-043) |
+| DECK-002 | MUST | One import produces **at most one** deck. It goes into **Decks** only and never changes the collection. | [[ADR-0006 Two Imports - Collection and Decks]] |
 | DECK-003 | MUST | Parsing and review MUST NOT write to the deck store. Only an explicit **Save** creates the deck (same principle as IMP-002). Leaving or reloading the page before saving stores nothing. | design rule |
 | DECK-004 | MUST | Import is tolerant: one bad line never aborts it (IMP-003). Every issue is reported with its location (IMP-056). | [[Collection Import]] IMP-003, IMP-056 |
-| DECK-005 | MUST | The second entry path, **Add to Your decks** on a Tournaments decklist (SPEC-004), creates a `UserDeck` by copying the catalog decklist's zones and `cardKey`s (DECK-060…065). It does not parse text and does not run name resolution. | [[ADR-0006 Two Imports - Collection and Decks]] follow-up decisions |
+| DECK-005 | MUST | The second entry path, **Add to your decks** on a Tournaments decklist (SPEC-004), creates a `UserDeck` by copying the catalog decklist's zones and `cardKey`s (DECK-060…065). It does not parse text and does not run name resolution. | [[ADR-0006 Two Imports - Collection and Decks]] follow-up decisions |
 | DECK-006 | MUST | Raw input is never sent to a third party; resolution runs only against our own card catalog (IMP-005). | [[Riot Developer Rules]] #7 |
 
 ### B. Input formats (shared parsing)
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| DECK-010 | MUST | Deck import reuses SPEC-003 **Part A** (shared parsing), as SPEC-003 states, with only the exceptions in DECK-013. Reused unchanged: flow **IMP-002, IMP-003, IMP-005**, and **IMP-001** except the `.csv` file type; limits and encoding **IMP-006, IMP-007, IMP-008, IMP-010**; detection **IMP-011 (steps 2–5), IMP-012, IMP-013, IMP-014**; text grammar **IMP-016 … IMP-024** (IMP-018 for its parser part: labels are not entries, each line keeps its section, nothing is merged across sections); name resolution **IMP-025 … IMP-030, IMP-059**; Piltover deck codes **IMP-031 … IMP-035**; TTS **IMP-036 … IMP-039**; error reporting **IMP-056, IMP-057**. If SPEC-003 renumbers or relabels these, the reference follows the requirement, not the number. | [[Collection Import]]; [[Collection Import Formats]] |
-| DECK-011 | MUST | Accepted source formats: `riot-text`, `plain-text`, `piltover-code`, `tts`. **CSV is not a deck format**: IMP-011 step 1 is skipped, and a `.csv` upload or a forced `csv` gives input-level error `FORMAT_NOT_FOR_DECKS` pointing the user to Owned Cards Import. | [[Collection Import Formats]] (CSV is a collection export); design rule |
+| DECK-010 | MUST | Deck import reuses SPEC-003 **Part A** (shared parsing), as SPEC-003 states, with only the exceptions in DECK-013. Reused unchanged: flow **IMP-001, IMP-002, IMP-003, IMP-005, IMP-061, IMP-062, IMP-063**; limits and encoding **IMP-006, IMP-007, IMP-008, IMP-010**; detection **IMP-011, IMP-012, IMP-013, IMP-014**; text grammar **IMP-016 … IMP-024** and the Line grammar (IMP-018 for its parser part: labels are not entries, each line keeps its section, nothing is merged across sections); printing codes in text lines **IMP-064 … IMP-070** (v0.5); CSV/Excel **IMP-040 … IMP-046** (v0.4); name resolution **IMP-025 … IMP-030, IMP-059**; Piltover deck codes **IMP-031 … IMP-035**; TTS **IMP-036 … IMP-039**; error reporting **IMP-056, IMP-057**. If SPEC-003 renumbers or relabels these, the reference follows the requirement, not the number. | [[Collection Import]]; [[Collection Import Formats]] |
+| DECK-011 | MUST | Accepted source formats: `riot-text`, `plain-text`, `piltover-code`, `tts`, and `csv` (a `.csv` or `.xlsx` upload). CSV/Excel rows follow SPEC-003 IMP-040 … IMP-043: one cell `3x Name`, or a quantity cell then the name; a first row of column titles is skipped. **Section labels work in one-cell rows** (e.g. a row `Main Deck:`), so a spreadsheet laid out like Riot text keeps its sections and zones (DECK-020). *(v0.3 refused CSV with `FORMAT_NOT_FOR_DECKS`; removed in v0.4.)* | RJ decision 2026-11-23 (H-043) |
 | DECK-012 | MUST | IMP-015 (several deck codes as one import) does **not** apply. More than one deck code in the input gives input-level error `MULTIPLE_DECKS` ("Paste one deck at a time"). | DECK-002 |
-| DECK-013 | MUST | **Part A requirements not applicable to decks** (the same exceptions SPEC-003's Part A preamble lists): the `.csv` file type in IMP-001 and IMP-011 step 1 (CSV detection), replaced by DECK-011; **IMP-009** (collection total cap after merging), replaced by DECK-092; **IMP-015** (several deck codes), replaced by DECK-012; **IMP-040 … IMP-046** (CSV), replaced by DECK-011. No other Part A requirement is excepted. SPEC-003 **Part B** (IMP-004, IMP-047 … IMP-055, IMP-058, IMP-060) is collection-specific and is not reused; sections C–J of this spec define the deck behaviour instead. | [[Collection Import]] Part A preamble; [[ADR-0006 Two Imports - Collection and Decks]] |
-| DECK-014 | MUST | Riftbound card names contain commas (`Kennen, Storm of Shuriken`); the whole rest of the line after the quantity is the name (IMP-019). | [[Collection Import Formats]] table |
+| DECK-013 | MUST | **Part A requirements not applicable to decks** (the same exceptions SPEC-003's Part A preamble lists): **IMP-009** (collection total cap after merging), replaced by DECK-092; **IMP-015** (several deck codes), replaced by DECK-012. No other Part A requirement is excepted; since v0.4 the CSV/Excel parts (IMP-001 `.csv`/`.xlsx`, IMP-011 step 1, IMP-040 … IMP-046) apply to decks too (RJ decision 2026-11-23 (H-043)). SPEC-003 **Part B** (IMP-004, IMP-047 … IMP-055, IMP-058, IMP-060) is collection-specific and is not reused; sections C–J of this spec define the deck behaviour instead. | [[Collection Import]] Part A preamble; [[ADR-0006 Two Imports - Collection and Decks]] |
+| DECK-014 | MUST | Riftbound card names contain commas (`Kennen, Storm of Shuriken`); the name is the whole card part of the line once the quantity and an optional printing code at its start or end are removed (IMP-019, Line grammar). The quantity may lead or trail (`3x Name`, `x3 Name`, `Name x3`; IMP-020). In CSV/Excel rows, cells after the quantity are re-joined with `, ` (IMP-040). | [[Collection Import Formats]] table; RJ decision 2026-11-23 (H-043); RJ decision 2026-11-23 (H-048) |
+| DECK-015 | MUST | **Printing codes in deck lines** (v0.5). A deck line may carry a printing code (`3 Lightning Rush RAD 001/167`, `Legend: 1 Kennen, Heart of the Tempest (OGN 299/298)`, code-only `3 RAD 001/167`), parsed and resolved exactly as SPEC-003 IMP-064 … IMP-070. The code is used **only to resolve the `cardKey`** and is then dropped (DECK-096); the zone still comes from the section or from inference (DECK-020, DECK-030). For saving (DECK-041): a line in `needs-review` because of `PRINTING_NAME_MISMATCH` or `AMBIGUOUS_PRINTING`, and a code-only line with error `UNKNOWN_PRINTING`, block Save until fixed or removed; a **resolved** line that only carries warning `UNKNOWN_PRINTING` (name fallback), `PRINTING_NAME_MISMATCH` (code used) or `VARIANT_UNMAPPED` does not block. Before the card catalog is loaded, review and Save wait (IMP-066). | RJ decision 2026-11-23 (H-048); [[Collection Import]] IMP-064 … IMP-070 |
 
 ### C. Sections to deck zones
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| DECK-020 | MUST | Unlike owned-card import, **sections matter**. Section labels (IMP-016, IMP-017) map to zones: `Legend`/`Legends` → `legend`; `Champion`/`Champions` → `champion`; `Main Deck`/`Main`/`Main deck` → `main`; `Battlefields`/`Battlefield` → `battlefields`; `Rune Pool`/`Runes`/`Rune Deck` → `runes`; `Sideboard` → `sideboard`. Each entry under a label is assigned that zone with `method: 'section'`. | [[Collection Import Formats]] fact 1 (official); [[Deck Construction Rules]] #1, #11 |
+| DECK-020 | MUST | Unlike owned-card import, **sections matter**. Section labels (IMP-016, IMP-017: any case, with or without spaces, optional leading `#`, optional trailing colon, optional entry after the colon per IMP-023) map to zones: `Legend`/`Legends` → `legend`; `Champion`/`Champions` → `champion`; `Main Deck`/`MainDeck`/`Main` → `main`; `Battlefields`/`Battlefield` → `battlefields`; `Rune Pool`/`RunePool`/`Runes`/`Rune Deck`/`RuneDeck` → `runes`; `Sideboard` → `sideboard`. Each entry under a label (including one on the label line itself) is assigned that zone with `method: 'section'`. | [[Collection Import Formats]] fact 1 (official); [[Deck Construction Rules]] #1, #11; RJ decision 2026-11-23 (H-043) (spacing, aliases) |
 | DECK-021 | MUST | Within one zone, entries with the same `cardKey` are merged (quantities summed, source lines kept). Across zones they stay **separate**: `1 An Offer You Can't Refuse` in Main Deck and again in Sideboard is 1 in `main` and 1 in `sideboard`, not 2 in one place. | [[Deck Construction Rules]] #9 (copy limit counted across zones by SPEC-002, not by merging) |
 | DECK-022 | MUST | A section label is the user's (or author's) statement and **wins over card data**. If an entry's known card data disagrees with its section, the entry stays in the labelled zone and gets warning `ZONE_CATEGORY_MISMATCH` naming the expected zone from the DECK-032 table. Disagreement means: a `legend`, `rune` or `battlefield` outside its own zone (e.g. `Zaun Warrens`, a battlefield, under `Main Deck`); a known non-`legend` under `Legend`; a known non-Champion Unit under `Champion`; a `unit`, `spell`, `gear` or `champion` under `Runes` or `Battlefields`. `category: 'unknown'` or a `null` attribute never produces this warning. SPEC-002 then reports it (LEGAL-015 / LEGAL-014). | design rule; [[Deck Legality]] LEGAL-014, LEGAL-015 |
 | DECK-023 | SHOULD | A `ZONE_CATEGORY_MISMATCH` warning offers a one-click "Move to <zone>". Nothing moves without that click. | design rule |
@@ -139,7 +143,7 @@ have no Legend or Champion section).
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | DECK-040 | MUST | Name resolution is SPEC-003's (IMP-025…030): exact `nameKey` match resolves; fuzzy suggestions are **never applied automatically** (IMP-027); `AMBIGUOUS_NAME` for shared prefixes (IMP-029). No alias table is used. | [[ADR-0005 MVP Product Defaults]] #4; [[Collection Import]] |
-| DECK-041 | MUST | **A deck cannot be saved while any line is `needs-review` or `UNKNOWN_CARD`/`UNKNOWN_PRINTING`/`UNKNOWN_SET_INDEX`.** For each, the user picks a suggestion, types another name (re-resolved), or **removes the line**. Save shows "N cards need attention" until the count is 0. | design rule (see Rationale) |
+| DECK-041 | MUST | **A deck cannot be saved while any line is `needs-review` or an error line with `UNKNOWN_CARD`/`UNKNOWN_PRINTING`/`UNKNOWN_SET_INDEX`** (v0.5: a resolved line with only a warning, e.g. `UNKNOWN_PRINTING` after a name fallback, does not block; DECK-015). For each, the user picks a suggestion, types another name (re-resolved), or **removes the line**. Save shows "N cards need attention" until the count is 0. | design rule (see Rationale) |
 | DECK-042 | MUST | Removing an unresolved line is recorded in the import summary (`removedLines`) and shown on the saved deck's notes area as a one-time info "2 lines were removed during import" with the raw text, so the user knows the deck is not the full original list. | design rule |
 | DECK-043 | SHOULD | Pre-selection and "Accept all pre-selected" follow IMP-028. "Accept all" is one explicit user action and counts as resolving. | [[Collection Import]] IMP-028 |
 | DECK-044 | MUST | Resolution and zone assignment are independent: picking a suggestion for a line under `Champion:` keeps it in `champion`. For an unsectioned line, zone inference (section D) runs again after resolution. | design rule |
@@ -171,16 +175,16 @@ information about a deck the user wants to build, so it never blocks (DECK-050).
 | DECK-073 | MUST | **Notes**: optional free text, ≤ 4,000 characters, shown as plain text (no HTML rendering). | design rule |
 | DECK-074 | MUST | `createdAt` is set on save; `updatedAt` on save and every later change (ISO 8601 UTC). | design rule |
 | DECK-075 | MUST | `format` is `'standard'` for every deck in the MVP. | [[Deck Legality]] (MVP scope) |
-| DECK-076 | MUST | The deck records the `catalogVersion` (SPEC-001 CARD-068) it was resolved against and its `sourceFormat` (`riot-text`, `plain-text`, `piltover-code`, `tts`, `tournament`, `manual`). | [[Collection Import]] IMP-054 (same reason) |
+| DECK-076 | MUST | The deck records the `catalogVersion` (SPEC-001 CARD-068) it was resolved against and its `sourceFormat` (`riot-text`, `plain-text`, `piltover-code`, `tts`, `csv` (`.csv` or `.xlsx` upload, v0.4), `tournament`, `manual`). | [[Collection Import]] IMP-054 (same reason) |
 
-### H. Tournaments path: "Add to Your decks"
+### H. Tournaments path: "Add to your decks"
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| DECK-060 | MUST | Every catalog decklist in Tournaments has a one-click **Add to Your decks** (CAT-070). It creates a `UserDeck` whose zones are a copy of the `CatalogDecklist` (`legend`, `champion`, `mainDeck` → `main`, `runes`, `battlefields`, `sideboard`), same quantities, each `DeckCard` taking the entry's `cardKey` and the SPEC-001 canonical name for that `cardKey` (CAT-071). `sourceFormat: 'tournament'`, `format` = the decklist's `format` (`standard`). | [[ADR-0006 Two Imports - Collection and Decks]] follow-up decisions; [[Tournament Deck Catalog]] CAT-010, CAT-070, CAT-071 |
+| DECK-060 | MUST | Every catalog decklist in Tournaments has a one-click **Add to your decks** (CAT-070). It creates a `UserDeck` whose zones are a copy of the `CatalogDecklist` (`legend`, `champion`, `mainDeck` → `main`, `runes`, `battlefields`, `sideboard`), same quantities, each `DeckCard` taking the entry's `cardKey` and the SPEC-001 canonical name for that `cardKey` (CAT-071). `sourceFormat: 'tournament'`, `format` = the decklist's `format` (`standard`). | [[ADR-0006 Two Imports - Collection and Decks]] follow-up decisions; [[Tournament Deck Catalog]] CAT-010, CAT-070, CAT-071 |
 | DECK-061 | MUST | `source` is a `TournamentDeckSource` (Data contract; **defined once here**, referenced by SPEC-004 CAT-072): `kind: 'tournament'`, `eventId` (= `TournamentEvent.id`), `eventName` (= `TournamentEvent.name`), `eventStartDate`, `eventEndDate` (= `startDate`, `endDate`), `region`, `decklistId` (= `CatalogDecklist.id`), `publishedRank`, `placingLabel`, `pilot`, `sourceUrl` (= `CatalogDecklist.sourceUrl`) and `addedAt` (ISO 8601 date-time of the click). Values are copied verbatim (CAT-011, CAT-012); no placing is re-bucketed or scored. | [[Tournament Deck Catalog]] CAT-011, CAT-012, CAT-062, CAT-072; [[ADR-0003 Tournament Results Only]] |
 | DECK-062 | MUST | Default name (RJ, Gate H-036 #1; same rule as CAT-073): `<Legend>: <pilot> (<placingLabel>, <event name>)`, where `<Legend>` is the Legend's canonical name up to its first `, ` (the whole name if it has no comma), `<pilot>` and `<placingLabel>` are copied verbatim, and `<event name>` is `eventName`. Example: `Kennen: ASC Evansrhim (1st, Regional Championship: Europe)`. Trimmed to 80 characters (DECK-070). Wording stays neutral (CAT-035). | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 #1; [[Tournament Deck Catalog]] CAT-035, CAT-073; [[Riot Developer Rules]] rule 8 |
 | DECK-063 | MUST | The copy is a **snapshot**: later edits to the catalog or to the user deck do not affect each other. Banned cards are copied like any card (decks with banned cards are shown, labelled; ADR-0005 #3). | design rule; [[ADR-0005 MVP Product Defaults]] #3 |
-| DECK-064 | MUST | **Duplicates (same rule as CAT-074).** A decklist is "already added" when Your decks holds a deck whose `source.kind === 'tournament'` and `source.decklistId` equals the decklist's `id`. Then the primary button reads **"In Your decks"** and opens that deck (the most recently created one if several); one click on it never creates a deck. A separate **"Add another copy"** creates a further copy named `<default name> (n)`, where n is the smallest integer ≥ 2 not already used by a deck with the same `decklistId` (`… (2)`, `… (3)`…). Editing or renaming a copy does not change this; deleting every copy makes "Add to Your decks" available again. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 #2; [[Tournament Deck Catalog]] CAT-074 |
+| DECK-064 | MUST | **Duplicates (same rule as CAT-074).** A decklist is "already added" when Decks holds a deck whose `source.kind === 'tournament'` and `source.decklistId` equals the decklist's `id`. Then the primary button reads **"In your decks"** and opens that deck (the most recently created one if several); one click on it never creates a deck. A separate **"Add another copy"** creates a further copy named `<default name> (n)`, where n is the smallest integer ≥ 2 not already used by a deck with the same `decklistId` (`… (2)`, `… (3)`…). Editing or renaming a copy does not change this; deleting every copy makes "Add to your decks" available again. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 #2; [[Tournament Deck Catalog]] CAT-074 |
 | DECK-065 | MUST | **No name parsing on this path (CAT-071).** Catalog decklists already carry `cardKey`s, so the Add path copies them directly: it runs no text parsing, no name resolution and no fuzzy suggestions, raises no zone questions, and **cannot fail on names**. If a copied `cardKey` is not in the current card data (e.g. a card removed per CARD-066), the deck is still created with that `cardKey` and the catalog entry's name, and is then handled like any stored deck by DECK-088. | [[Tournament Deck Catalog]] CAT-071; [[Card Data Model]] CARD-066 |
 
 ### I. Managing decks
@@ -188,7 +192,7 @@ information about a deck the user wants to build, so it never blocks (DECK-050).
 |---|---|---|---|
 | DECK-080 | MUST | **Edit**: in a deck editor the user can add a card (catalog search, exact + fuzzy as in DECK-040), change a quantity (1–999), move an entry between zones, and remove an entry. Legality re-runs (DECK-054); saving never requires legality. | board H-030 |
 | DECK-081 | MUST | **Rename** and edit source and notes, with the limits of section G. | board H-030 |
-| DECK-082 | MUST | **Delete** asks for confirmation naming the deck ("Delete 'Kennen, Heart of the Tempest'? This can't be undone.") and removes it from the store. My collection is untouched. | design rule |
+| DECK-082 | MUST | **Delete** asks for confirmation naming the deck ("Delete 'Kennen, Heart of the Tempest'? This can't be undone.") and removes it from the store. The collection is untouched. | design rule |
 | DECK-083 | SHOULD | After a delete, offer **Undo** for 10 seconds (restores the identical record, same `id` and timestamps). | design rule |
 | DECK-084 | MUST | **Duplicate** creates a new deck with a new `id`, name `<name> (copy)` (trimmed to 80), identical zones, metadata and `source`, new `createdAt`/`updatedAt`, and `duplicatedFrom = <original id>`. | board H-030 |
 | DECK-085 | MUST | **Export** a deck as Riot-style text: labels `Legend:`, `Champion:`, `Main Deck:`, `Battlefields:`, `Rune Pool:`, `Sideboard:` in that order, one blank line between sections, `<qty> <canonical name>` lines in stored order, empty zones omitted, `\n` line endings. Copy to clipboard and download `.txt` (`<name>.txt`, unsafe file-name characters replaced by `_`). | [[Collection Import Formats]] fact 1 (Riot layout); board H-030 |
@@ -205,7 +209,7 @@ information about a deck the user wants to build, so it never blocks (DECK-050).
 | DECK-093 | MUST | Writes are atomic per deck: a failed write (e.g. quota exceeded → `STORAGE_FULL`) leaves the previous record intact and tells the user. | design rule |
 | DECK-094 | SHOULD | A save carries the `updatedAt` it was based on; if the stored record has a newer `updatedAt` (another tab), ask "This deck changed in another tab. Overwrite or reload?" | design rule |
 | DECK-095 | MUST | Stored decks contain card **keys, names and quantities only**: no card text, images or other Riot content copies (those come from the catalog at display time). | [[Card Data Model]] CARD-007 |
-| DECK-096 | MUST | **Deck entries are by `cardKey`, never by printing.** A `DeckCard` stores no printing, variant, set, ownership, owned count or tag. A printing named by the source (deck code, TTS) is used only to resolve the `cardKey` and is then dropped; entries of one name in one zone merge (DECK-021). Ownership is computed by the consumer, [[Your Decks Ownership View]] (SPEC-005): it groups each deck card by card name, can expand it to the exact owned printings, and does not count printings carrying a tag marked "exclude from decks". Nothing in this spec changes when collection, printings or tags change. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 #5, #6; [[Card Data Model]] CARD-012, CARD-013 |
+| DECK-096 | MUST | **Deck entries are by `cardKey`, never by printing.** A `DeckCard` stores no printing, variant, set, ownership, owned count or tag. A printing named by the source (deck code, TTS, or a printing code on a text line, DECK-015) is used only to resolve the `cardKey` and is then dropped; entries of one name in one zone merge (DECK-021). Ownership is computed by the consumer, [[Your Decks Ownership View]] (SPEC-005): it groups each deck card by card name, can expand it to the exact owned printings, and does not count printings carrying a tag marked "exclude from decks". Nothing in this spec changes when collection, printings or tags change. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 #5, #6; [[Card Data Model]] CARD-012, CARD-013 |
 
 ## Data contract
 ```ts
@@ -218,7 +222,7 @@ type IsoDate = string;          // 'YYYY-MM-DD' (SPEC-004 ISODate)
 type IsoDateTime = string;      // ISO 8601 UTC
 type DeckZone = Zone;           // 'legend' | 'champion' | 'main' | 'sideboard' | 'runes' | 'battlefields'
 
-type DeckSourceFormat = Exclude<SourceFormat, 'csv'> | 'tournament' | 'manual';
+type DeckSourceFormat = SourceFormat | 'tournament' | 'manual'; // v0.4: includes 'csv' (.csv / .xlsx upload, DECK-011)
 
 interface DeckCard {             // DECK-096: by cardKey only; no printing, ownership or tags
   cardKey: CardKey;
@@ -235,7 +239,7 @@ interface UserDeckSource {      // DECK-071; text and url both null = no source
   url: string | null;
 }
 
-interface TournamentDeckSource {  // DECK-061; "Add to Your decks" (SPEC-004 CAT-072)
+interface TournamentDeckSource {  // DECK-061; "Add to your decks" (SPEC-004 CAT-072)
   kind: 'tournament';
   eventId: string;                  // '2026-11-rc-europe'
   eventName: string;                // 'Regional Championship: Europe'
@@ -286,7 +290,7 @@ interface ZoneQuestion {
 }
 
 type DeckIssueCode =
-  | 'FORMAT_NOT_FOR_DECKS' | 'MULTIPLE_DECKS'
+  | 'MULTIPLE_DECKS'           // v0.4: FORMAT_NOT_FOR_DECKS removed (CSV/Excel accepted, DECK-011)
   | 'ZONE_CATEGORY_MISMATCH' | 'NO_SIDEBOARD_SECTION' | 'ZONE_INFERRED' | 'TOKEN_NOT_DECK_CARD'
   | 'SOURCE_URL_INVALID' | 'DECK_LIMIT' | 'DECK_TOO_LARGE' | 'STORAGE_FULL';
 
@@ -346,7 +350,7 @@ shown in the display format (`Nov 23, 2026`).
    `canSave = true`; default name `Kennen, Heart of the Tempest`.
    **And** legality (`asOf` 2026-11-23) is `illegal` ("Not legal in Standard today") with LEGAL-016 listing
    `Nocturne, Horrifying` and `Rhasa the Sunderer` (zone `main`, Radiance ban list update), each shown
-   "banned since Nov 23, 2026" from `banStatus()`; the count rules pass. **When** the user clicks Save **Then** the deck is stored and appears in Your decks.
+   "banned since Nov 23, 2026" from `banStatus()`; the count rules pass. **When** the user clicks Save **Then** the deck is stored and appears in Decks.
 
 2. **Never blocks on bans** (DECK-050, 055) **Given** `RIVEN_2` as Riot text with all six sections
    **When** reviewed **Then** LEGAL-016 shows five banned cards with dates (`Riven, Broken Blade` in
@@ -401,10 +405,10 @@ shown in the display format (`Nov 23, 2026`).
     `AMBIGUOUS_NAME` with `Kennen, Heart of the Tempest` and `Kennen, Storm of Shuriken`, none
     pre-selected; **When** the user picks `Kennen, Storm of Shuriken` **Then** it is in `champion`.
 
-11. **Add to Your decks from Tournaments** (DECK-060…062, 065) **Given** the RC Europe 1st-place decklist
+11. **Add to your decks from Tournaments** (DECK-060…062, 065) **Given** the RC Europe 1st-place decklist
     by ASC Evansrhim (`2026-11-rc-europe-1`, event `2026-11-rc-europe` "Regional Championship: Europe",
-    `publishedRank: 1`, `placingLabel: "1st"`) and an empty Your decks **When** the user clicks Add to Your
-    decks **Then** one `UserDeck` exists with `source = {kind: 'tournament', eventId: '2026-11-rc-europe',
+    `publishedRank: 1`, `placingLabel: "1st"`) and an empty Decks screen **When** the user clicks "Add to your
+    decks" **Then** one `UserDeck` exists with `source = {kind: 'tournament', eventId: '2026-11-rc-europe',
     eventName: 'Regional Championship: Europe', eventStartDate, eventEndDate, region: 'Europe',
     decklistId: '2026-11-rc-europe-1', publishedRank: 1, placingLabel: '1st', pilot: 'ASC Evansrhim',
     sourceUrl: 'https://playriftbound.com/en-us/news/organizedplay/best-ofs-for-the-european-championship',
@@ -414,11 +418,11 @@ shown in the display format (`Nov 23, 2026`).
     since Nov 23, 2026".
 
 11a. **Already added** (DECK-064) **Given** the AC 11 deck exists **When** the user views
-    `2026-11-rc-europe-1` on Tournaments **Then** the button reads "In Your decks" and clicking it opens
+    `2026-11-rc-europe-1` on Tournaments **Then** the button reads "In your decks" and clicking it opens
     that deck without creating another. **When** the user clicks "Add another copy" **Then** a second deck
     `Kennen: ASC Evansrhim (1st, Regional Championship: Europe) (2)` exists with the same
     `source.decklistId`; another click on it creates `… (3)`. **When** the user deletes all copies
-    **Then** "Add to Your decks" is shown again.
+    **Then** "Add to your decks" is shown again.
 
 12. **Source URL is never fetched** (DECK-071, 072) **Given** the user pastes source URL
     `https://example.com/kennen-list` **When** the deck is saved and opened **Then** the network log
@@ -433,16 +437,35 @@ shown in the display format (`Nov 23, 2026`).
 14. **Duplicate, rename, delete** (DECK-081, 082, 084) **Given** the AC 1 deck **When** duplicated
     **Then** a second deck `Kennen, Heart of the Tempest (copy)` exists with a new `id` and
     `duplicatedFrom` set. **When** renamed to an empty string **Then** the rename is refused. **When**
-    deleted and confirmed **Then** it is gone from Your decks and My collection is unchanged.
+    deleted and confirmed **Then** it is gone from Decks and the collection is unchanged.
 
 15. **Limits** (DECK-092, 093) **Given** 200 stored decks **When** the user saves another **Then**
     `DECK_LIMIT`, nothing written. **Given** a paste with 301 copies **Then** Save gives
     `DECK_TOO_LARGE`.
 
-16. **CSV and multiple codes refused** (DECK-011, 012) **Given** an uploaded `deck.csv` **When** the
-    user starts Deck Import with it **Then** input-level error `FORMAT_NOT_FOR_DECKS` pointing to Owned
-    Cards Import and nothing is parsed. **Given** two Piltover codes on two lines **When** pasted and
-    parsed **Then** input-level error `MULTIPLE_DECKS`.
+16. **CSV/Excel deck with sections; multiple codes refused** (DECK-001, 011, 012, 020) **Given** an
+    uploaded `deck.csv`
+    ```
+    Qty,Name
+    Legend:
+    1,Kennen,Heart of the Tempest
+    MainDeck
+    3,Lightning Rush
+    2x Hextech Ray
+    Rune Pool:
+    9,Chaos Rune
+    ```
+    **When** the user starts Deck Import with it **Then** the title row is skipped, the text box holds
+    `Legend:` / `1 Kennen, Heart of the Tempest` / `MainDeck` / `3 Lightning Rush` / `2x Hextech Ray` /
+    `Rune Pool:` / `9 Chaos Rune`, the dialog shows "Legend 1", "Main Deck 5", "Rune Pool 9", and review
+    puts `Kennen, Heart of the Tempest` in `legend`, `Lightning Rush ×3` and `Hextech Ray ×2` in `main`,
+    `Chaos Rune ×9` in `runes`, all `zoneMethod: 'section'`, `sourceFormat: 'csv'`. The same rows in the
+    first sheet of `deck.xlsx` give the same result. **Given** two Piltover codes on two lines **When**
+    pasted and parsed **Then** input-level error `MULTIPLE_DECKS`.
+
+16a. **Every line needs a quantity** (DECK-001; IMP-021) **Given** `Main Deck:` / `Lightning Rush` /
+    `3 Hextech Ray` **When** pasted **Then** line 2 → `MISSING_QUANTITY` and is left out, `Hextech Ray ×3`
+    is in `main`, and Continue is enabled (one valid entry).
 
 17. **Parse writes nothing** (DECK-003) **Given** any input **When** parsed and reviewed but not saved
     and the page is reloaded **Then** the deck store is unchanged.
@@ -466,14 +489,25 @@ shown in the display format (`Nov 23, 2026`).
 
 22. **Entries by cardKey only** (DECK-096) **Given** TTS input `OGN-265-1 OGN-265-1` for a printing of
     a `unit` card **When** saved **Then** the stored `DeckCard` has only `cardKey`, `name` and `qty: 2`
-    (no printing, ownership or tag field), and changing My collection or tags afterwards leaves the
+    (no printing, ownership or tag field), and changing the collection or tags afterwards leaves the
     stored deck byte-identical.
+
+23. **Quantity forms and printing codes in a deck** (DECK-014, 015, 041, 096; SPEC-003 IMP-020, IMP-064…069)
+    Uses SPEC-003 fixture F1 (hypothetical collector numbers). **Given** the paste
+    `Legend: 1 Kennen, Heart of the Tempest (OGN 299/298)` / `Main Deck:` / `Lightning Rush x3 RAD 001 /167` /
+    `x2 Hextech Ray` / `2 RAD 001a` / `1 Hextech Ray RAD 001` **When** parsed and reviewed **Then**
+    `Kennen, Heart of the Tempest` is in `legend`; `Lightning Rush` is 5 in `main` (lines 3 and 5 merged by
+    `cardKey`, DECK-021); `Hextech Ray ×2` is in `main`; line 6 is `needs-review` with
+    `PRINTING_NAME_MISMATCH` and Save is disabled ("1 card needs attention"). **When** the user picks
+    `Hextech Ray` **Then** `main` has `Hextech Ray ×3`, Save is enabled, and the saved `DeckCard`s hold
+    only `cardKey`, `name` and `qty` (no printing). **Given** instead `Main Deck:` / `3 Lightning Rush RAD 999`
+    **Then** `Lightning Rush ×3` is in `main` with warning `UNKNOWN_PRINTING` and Save is not blocked.
 
 ## Out of scope
 - **Fetching URLs** or importing from a deck site by link or API (DECK-072; IMP-005).
 - **Accounts, sync, cloud backup** ([[ADR-0005 MVP Product Defaults]] #1).
 - **Sharing decks** (share links, public decks, deck codes as output). Export is text for the user only.
-- CSV deck import; importing several decks at once; Pixelborn codes.
+- Importing several decks at once; Pixelborn codes. (CSV/Excel deck import is in scope since v0.4, DECK-011.)
 - Ownership display, partial colouring and the deck-level owned summary (SPEC-005 [[Your Decks Ownership View]]).
 - Formats other than Standard; 2v2, Limited.
 - Deck statistics, curves, ratings, or any metagame number ([[ADR-0003 Tournament Results Only]]).
@@ -494,10 +528,11 @@ shown in the display format (`Nov 23, 2026`).
 - **Resolved (H-039)**: SPEC-003 v0.3's Part A preamble lists the same deck exceptions as DECK-013;
   SPEC-004 v0.4 CAT-071 cites DECK-065 and CAT-073 trims the default name to 80 characters like DECK-062
   (CAT-072 and the CAT-073 example already matched).
+- **Resolved (H-048)**: RJ decision 2026-11-23: `x3 Name` / `Name x3` and printing codes on a line are accepted for decks too (DECK-014, DECK-015); the code never reaches the stored deck (DECK-096).
 - **Needs RJ**: confirm DECK-041 (unknown names must be fixed or removed before saving, rather than
   saved as placeholders) and the limits in DECK-092 (200 decks, 300 copies).
 - **Defaults chosen by Claude (RJ may change, ADR-0006 H-036 #7)**: display date format `Nov 23, 2026`
   and the label "Not fully checked".
 
 ## Changelog
-Current: 0.3 (2026-11-23). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.
+Current: 0.5 (2026-11-23, H-048). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.

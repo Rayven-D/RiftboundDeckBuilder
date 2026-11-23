@@ -8,6 +8,14 @@ reason: finished board items
 
 | ID | Owner | Request | Result |
 |---|---|---|---|
+| H-035 | spec-writer | SPEC-004 v0.3 | PASS |
+| H-037 | spec-writer | legal_as_of + display rules | PASS: legal_as_of = event start date; Nov 23, 2026; "Not fully checked" |
+| H-008 | service-builder | services scaffold | PASS (lint, build, 88 tests, fixture ingest); V-003 pending the live payload (H-020) |
+| H-038 | RJ | Lighter brain | [[Current State]], `Archive/` (sessions, board, validation, meta overview), reading-order rule in CLAUDE.md and agents |
+| H-036 | RJ | Gate decisions | Recorded in [[ADR-0006 Two Imports - Collection and Decks]]: name Legend + pilot + placing; In Your decks + Add another copy; printings separate in My Collection with count badge and tags on printings; Your decks grouped by name with expand; tags excludable from decks |
+| H-015 | spec-writer | SPEC-001/002 alignment | PASS: v0.2, nullable attrs, isChampionUnit, catalogVersion, CARD-036/037, printingSortKey, Riot-only set legality |
+| H-016 | spec-writer | SPEC-004 fixes | PASS v0.2 with follow-ups → H-035 |
+| H-017 | spec-writer | Wrong ACs + counts | PASS (SPEC-001 AC5, SPEC-003 AC10, SPEC-004 AC7, IMP-006) |
 | H-032 | RJ | Fill direction + tournament add | Left-to-right partial fill; one-click Add to Your decks from Tournaments (ADR-0006) |
 | H-029 | RJ | Product model correction | Two imports: owned cards → My collection, community decks → Your decks; ownership colouring; tags and default order ([[ADR-0006 Two Imports - Collection and Decks]]) |
 | H-028 | ui-builder | Shorter page descriptions + rename (RJ feedback) | One-line descriptions; "Decks I can build" → "Your decks" across app and vault ([[Design Direction]]) |

@@ -1,0 +1,1517 @@
+{
+  "game": "riftbound",
+  "version": "fixture-0.1",
+  "lastUpdated": "2026-11-23T00:00:00Z",
+  "_fixture": "INVENTED SAMPLE DATA for local UI work. Not Riot data. Do not ship.",
+  "sets": [
+    {
+      "id": "OGN",
+      "name": "Origins",
+      "cards": [
+        {
+          "id": "OGN-001",
+          "collectorNumber": "001",
+          "set": "OGN",
+          "name": "Varrow, Ember Warden",
+          "description": "When you play a unit with 4+ Might, ready a rune.",
+          "type": "Legend",
+          "rarity": "Rare",
+          "faction": "Fury, Body",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-001.svg",
+            "fullURL": "/fixture-cards/OGN-001.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": [
+            "Varrow"
+          ]
+        },
+        {
+          "id": "OGN-001a",
+          "collectorNumber": "001a",
+          "set": "OGN",
+          "name": "Varrow, Ember Warden",
+          "description": "When you play a unit with 4+ Might, ready a rune.",
+          "type": "Legend",
+          "rarity": "Showcase",
+          "faction": "Fury, Body",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-001a.svg",
+            "fullURL": "/fixture-cards/OGN-001a.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": [
+            "Varrow"
+          ]
+        },
+        {
+          "id": "OGN-002",
+          "collectorNumber": "002",
+          "set": "OGN",
+          "name": "Varrow, Ashen Blade",
+          "description": "Assault 2. When Varrow conquers, deal 2 to an enemy unit here.",
+          "type": "Champion",
+          "rarity": "Epic",
+          "faction": "Fury",
+          "stats": {
+            "energy": 5,
+            "might": 5,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [
+            "Assault"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-002.svg",
+            "fullURL": "/fixture-cards/OGN-002.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": [
+            "Varrow"
+          ]
+        },
+        {
+          "id": "OGN-003",
+          "collectorNumber": "003",
+          "set": "OGN",
+          "name": "Cinder Recruit",
+          "description": "Assault 1.",
+          "type": "Unit",
+          "rarity": "Common",
+          "faction": "Fury",
+          "stats": {
+            "energy": 2,
+            "might": 2,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Assault"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-003.svg",
+            "fullURL": "/fixture-cards/OGN-003.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGN-004",
+          "collectorNumber": "004",
+          "set": "OGN",
+          "name": "Kiln Brawler",
+          "description": "",
+          "type": "Unit",
+          "rarity": "Common",
+          "faction": "Fury",
+          "stats": {
+            "energy": 3,
+            "might": 3,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-004.svg",
+            "fullURL": "/fixture-cards/OGN-004.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGN-004a",
+          "collectorNumber": "004a",
+          "set": "OGN",
+          "name": "Kiln Brawler",
+          "description": "",
+          "type": "Unit",
+          "rarity": "Common",
+          "faction": "Fury",
+          "stats": {
+            "energy": 3,
+            "might": 3,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-004a.svg",
+            "fullURL": "/fixture-cards/OGN-004a.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGN-005",
+          "collectorNumber": "005",
+          "set": "OGN",
+          "name": "Flashfire",
+          "description": "Deal 2 to a unit at a battlefield.",
+          "type": "Spell",
+          "rarity": "Common",
+          "faction": "Fury",
+          "stats": {
+            "energy": 1,
+            "might": null,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Action"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-005.svg",
+            "fullURL": "/fixture-cards/OGN-005.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGN-006",
+          "collectorNumber": "006",
+          "set": "OGN",
+          "name": "Ironbark Hauler",
+          "description": "",
+          "type": "Unit",
+          "rarity": "Common",
+          "faction": "Body",
+          "stats": {
+            "energy": 4,
+            "might": 5,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-006.svg",
+            "fullURL": "/fixture-cards/OGN-006.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGN-007",
+          "collectorNumber": "007",
+          "set": "OGN",
+          "name": "Stonehide Pup",
+          "description": "Tank.",
+          "type": "Unit",
+          "rarity": "Uncommon",
+          "faction": "Body",
+          "stats": {
+            "energy": 2,
+            "might": 3,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Tank"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-007.svg",
+            "fullURL": "/fixture-cards/OGN-007.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGN-008",
+          "collectorNumber": "008",
+          "set": "OGN",
+          "name": "Varrow's Last Stand",
+          "description": "Your units here get +2 Might this turn. If you control Varrow, they also gain Tank.",
+          "type": "Spell",
+          "rarity": "Epic",
+          "faction": "Fury",
+          "stats": {
+            "energy": 3,
+            "might": null,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [
+            "Reaction"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-008.svg",
+            "fullURL": "/fixture-cards/OGN-008.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": [
+            "Signature",
+            "Varrow"
+          ]
+        },
+        {
+          "id": "OGN-009",
+          "collectorNumber": "009",
+          "set": "OGN",
+          "name": "Still Water",
+          "description": "Heal a unit fully. Draw 1.",
+          "type": "Spell",
+          "rarity": "Common",
+          "faction": "Calm",
+          "stats": {
+            "energy": 1,
+            "might": null,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Reaction"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-009.svg",
+            "fullURL": "/fixture-cards/OGN-009.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGN-010",
+          "collectorNumber": "010",
+          "set": "OGN",
+          "name": "Lantern Keeper",
+          "description": "Other friendly units here have +1 Might.",
+          "type": "Unit",
+          "rarity": "Uncommon",
+          "faction": "Calm",
+          "stats": {
+            "energy": 4,
+            "might": 4,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-010.svg",
+            "fullURL": "/fixture-cards/OGN-010.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGN-011",
+          "collectorNumber": "011",
+          "set": "OGN",
+          "name": "Ashfall Crossing",
+          "description": "When you conquer here, deal 1 to each enemy unit here.",
+          "type": "Battlefield",
+          "rarity": "Uncommon",
+          "faction": null,
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-011.svg",
+            "fullURL": "/fixture-cards/OGN-011.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGN-012",
+          "collectorNumber": "012",
+          "set": "OGN",
+          "name": "Quiet Harbor",
+          "description": "Units here can't be moved by enemy effects.",
+          "type": "Battlefield",
+          "rarity": "Uncommon",
+          "faction": null,
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-012.svg",
+            "fullURL": "/fixture-cards/OGN-012.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGN-301",
+          "collectorNumber": "301",
+          "set": "OGN",
+          "name": "Varrow, Ashen Blade",
+          "description": "Assault 2. When Varrow conquers, deal 2 to an enemy unit here.",
+          "type": "Champion",
+          "rarity": "Showcase",
+          "faction": "Fury",
+          "stats": {
+            "energy": 5,
+            "might": 5,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [
+            "Assault"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGN-301.svg",
+            "fullURL": "/fixture-cards/OGN-301.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": [
+            "Varrow"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "OGS",
+      "name": "Proving Grounds",
+      "cards": [
+        {
+          "id": "OGS-001",
+          "collectorNumber": "001",
+          "set": "OGS",
+          "name": "Fury Rune",
+          "description": "Exhaust: add 1 energy. Recycle: add 1 Fury power.",
+          "type": "Rune",
+          "rarity": "Common",
+          "faction": "Fury",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGS-001.svg",
+            "fullURL": "/fixture-cards/OGS-001.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGS-002",
+          "collectorNumber": "002",
+          "set": "OGS",
+          "name": "Calm Rune",
+          "description": "Exhaust: add 1 energy. Recycle: add 1 Calm power.",
+          "type": "Rune",
+          "rarity": "Common",
+          "faction": "Calm",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGS-002.svg",
+            "fullURL": "/fixture-cards/OGS-002.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGS-003",
+          "collectorNumber": "003",
+          "set": "OGS",
+          "name": "Mind Rune",
+          "description": "Exhaust: add 1 energy. Recycle: add 1 Mind power.",
+          "type": "Rune",
+          "rarity": "Common",
+          "faction": "Mind",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGS-003.svg",
+            "fullURL": "/fixture-cards/OGS-003.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGS-004",
+          "collectorNumber": "004",
+          "set": "OGS",
+          "name": "Body Rune",
+          "description": "Exhaust: add 1 energy. Recycle: add 1 Body power.",
+          "type": "Rune",
+          "rarity": "Common",
+          "faction": "Body",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGS-004.svg",
+            "fullURL": "/fixture-cards/OGS-004.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGS-005",
+          "collectorNumber": "005",
+          "set": "OGS",
+          "name": "Chaos Rune",
+          "description": "Exhaust: add 1 energy. Recycle: add 1 Chaos power.",
+          "type": "Rune",
+          "rarity": "Common",
+          "faction": "Chaos",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGS-005.svg",
+            "fullURL": "/fixture-cards/OGS-005.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "OGS-006",
+          "collectorNumber": "006",
+          "set": "OGS",
+          "name": "Order Rune",
+          "description": "Exhaust: add 1 energy. Recycle: add 1 Order power.",
+          "type": "Rune",
+          "rarity": "Common",
+          "faction": "Order",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/OGS-006.svg",
+            "fullURL": "/fixture-cards/OGS-006.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "SFD",
+      "name": "Spiritforged",
+      "cards": [
+        {
+          "id": "SFD-001",
+          "collectorNumber": "001",
+          "set": "SFD",
+          "name": "Sorrel, Tide Reader",
+          "description": "Once each turn, when you play a spell while you have 3 or fewer cards in hand, draw 1.",
+          "type": "Legend",
+          "rarity": "Rare",
+          "faction": "Mind, Calm",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/SFD-001.svg",
+            "fullURL": "/fixture-cards/SFD-001.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": [
+            "Sorrel"
+          ]
+        },
+        {
+          "id": "SFD-002",
+          "collectorNumber": "002",
+          "set": "SFD",
+          "name": "Sorrel, Quiet Current",
+          "description": "When you play your second spell each turn, draw 1.",
+          "type": "Champion",
+          "rarity": "Epic",
+          "faction": "Mind",
+          "stats": {
+            "energy": 4,
+            "might": 3,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/SFD-002.svg",
+            "fullURL": "/fixture-cards/SFD-002.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": [
+            "Sorrel"
+          ]
+        },
+        {
+          "id": "SFD-003",
+          "collectorNumber": "003",
+          "set": "SFD",
+          "name": "Furnace Charge",
+          "description": "Give a unit +3 Might this turn. It gains Assault.",
+          "type": "Spell",
+          "rarity": "Uncommon",
+          "faction": "Fury",
+          "stats": {
+            "energy": 3,
+            "might": null,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [
+            "Reaction"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/SFD-003.svg",
+            "fullURL": "/fixture-cards/SFD-003.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "SFD-004",
+          "collectorNumber": "004",
+          "set": "SFD",
+          "name": "Rampart Ox",
+          "description": "Tank. When played, ready it.",
+          "type": "Unit",
+          "rarity": "Uncommon",
+          "faction": "Body",
+          "stats": {
+            "energy": 5,
+            "might": 6,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [
+            "Tank"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/SFD-004.svg",
+            "fullURL": "/fixture-cards/SFD-004.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "SFD-005",
+          "collectorNumber": "005",
+          "set": "SFD",
+          "name": "Tidepool Scholar",
+          "description": "When played, draw 1.",
+          "type": "Unit",
+          "rarity": "Common",
+          "faction": "Mind",
+          "stats": {
+            "energy": 2,
+            "might": 1,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/SFD-005.svg",
+            "fullURL": "/fixture-cards/SFD-005.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "SFD-005a",
+          "collectorNumber": "005a",
+          "set": "SFD",
+          "name": "Tidepool Scholar",
+          "description": "When played, draw 1.",
+          "type": "Unit",
+          "rarity": "Common",
+          "faction": "Mind",
+          "stats": {
+            "energy": 2,
+            "might": 1,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/SFD-005a.svg",
+            "fullURL": "/fixture-cards/SFD-005a.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "SFD-006",
+          "collectorNumber": "006",
+          "set": "SFD",
+          "name": "Driftglass Sentry",
+          "description": "Shield 1.",
+          "type": "Unit",
+          "rarity": "Common",
+          "faction": "Calm",
+          "stats": {
+            "energy": 3,
+            "might": 3,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Shield"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/SFD-006.svg",
+            "fullURL": "/fixture-cards/SFD-006.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "SFD-007",
+          "collectorNumber": "007",
+          "set": "SFD",
+          "name": "Recall Current",
+          "description": "Return a unit to its owner's hand.",
+          "type": "Spell",
+          "rarity": "Common",
+          "faction": "Mind",
+          "stats": {
+            "energy": 2,
+            "might": null,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Action"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/SFD-007.svg",
+            "fullURL": "/fixture-cards/SFD-007.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "SFD-008",
+          "collectorNumber": "008",
+          "set": "SFD",
+          "name": "Sorrel's Undercurrent",
+          "description": "Return up to two enemy units to their owners' hands.",
+          "type": "Spell",
+          "rarity": "Epic",
+          "faction": "Mind",
+          "stats": {
+            "energy": 4,
+            "might": null,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [
+            "Action"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/SFD-008.svg",
+            "fullURL": "/fixture-cards/SFD-008.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": [
+            "Signature",
+            "Sorrel"
+          ]
+        },
+        {
+          "id": "SFD-009",
+          "collectorNumber": "009",
+          "set": "SFD",
+          "name": "Sunken Library",
+          "description": "When you hold here, draw 1.",
+          "type": "Battlefield",
+          "rarity": "Uncommon",
+          "faction": null,
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/SFD-009.svg",
+            "fullURL": "/fixture-cards/SFD-009.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "SFD-251",
+          "collectorNumber": "251",
+          "set": "SFD",
+          "name": "Sorrel, Quiet Current",
+          "description": "When you play your second spell each turn, draw 1.",
+          "type": "Champion",
+          "rarity": "Showcase",
+          "faction": "Mind",
+          "stats": {
+            "energy": 4,
+            "might": 3,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/SFD-251.svg",
+            "fullURL": "/fixture-cards/SFD-251.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": [
+            "Sorrel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "UNL",
+      "name": "Unleashed",
+      "cards": [
+        {
+          "id": "UNL-001",
+          "collectorNumber": "001",
+          "set": "UNL",
+          "name": "Bloodline Gauntlet",
+          "description": "Equip 1. Attached unit has +2 Might.",
+          "type": "Gear",
+          "rarity": "Rare",
+          "faction": "Body",
+          "stats": {
+            "energy": 2,
+            "might": null,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Equip"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/UNL-001.svg",
+            "fullURL": "/fixture-cards/UNL-001.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "UNL-002",
+          "collectorNumber": "002",
+          "set": "UNL",
+          "name": "Ember Volley",
+          "description": "Deal 1 to up to three units.",
+          "type": "Spell",
+          "rarity": "Common",
+          "faction": "Fury",
+          "stats": {
+            "energy": 2,
+            "might": null,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Action"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/UNL-002.svg",
+            "fullURL": "/fixture-cards/UNL-002.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "UNL-003",
+          "collectorNumber": "003",
+          "set": "UNL",
+          "name": "Ashen Oath",
+          "description": "Equip 2. Attached unit has +3 Might and can't be stunned.",
+          "type": "Gear",
+          "rarity": "Epic",
+          "faction": "Body",
+          "stats": {
+            "energy": 2,
+            "might": null,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [
+            "Equip"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/UNL-003.svg",
+            "fullURL": "/fixture-cards/UNL-003.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": [
+            "Signature",
+            "Varrow"
+          ]
+        },
+        {
+          "id": "UNL-004",
+          "collectorNumber": "004",
+          "set": "UNL",
+          "name": "Thought Snare",
+          "description": "Counter a spell that costs 4 or less.",
+          "type": "Spell",
+          "rarity": "Uncommon",
+          "faction": "Mind",
+          "stats": {
+            "energy": 3,
+            "might": null,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [
+            "Reaction"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/UNL-004.svg",
+            "fullURL": "/fixture-cards/UNL-004.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "UNL-005",
+          "collectorNumber": "005",
+          "set": "UNL",
+          "name": "Reef Warden",
+          "description": "Shield 2. Tank.",
+          "type": "Unit",
+          "rarity": "Uncommon",
+          "faction": "Calm",
+          "stats": {
+            "energy": 5,
+            "might": 5,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [
+            "Shield",
+            "Tank"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/UNL-005.svg",
+            "fullURL": "/fixture-cards/UNL-005.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "UNL-006",
+          "collectorNumber": "006",
+          "set": "UNL",
+          "name": "Crooked Toll",
+          "description": "Each opponent loses 1 energy.",
+          "type": "Spell",
+          "rarity": "Uncommon",
+          "faction": "Chaos",
+          "stats": {
+            "energy": 2,
+            "might": null,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Reaction"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/UNL-006.svg",
+            "fullURL": "/fixture-cards/UNL-006.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "UNL-007",
+          "collectorNumber": "007",
+          "set": "UNL",
+          "name": "Oathbound Squire",
+          "description": "Shield 1.",
+          "type": "Unit",
+          "rarity": "Common",
+          "faction": "Order",
+          "stats": {
+            "energy": 3,
+            "might": 3,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Shield"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/UNL-007.svg",
+            "fullURL": "/fixture-cards/UNL-007.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "UNL-008",
+          "collectorNumber": "008",
+          "set": "UNL",
+          "name": "Broken Aqueduct",
+          "description": "When you conquer here, channel 1 rune exhausted.",
+          "type": "Battlefield",
+          "rarity": "Uncommon",
+          "faction": null,
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/UNL-008.svg",
+            "fullURL": "/fixture-cards/UNL-008.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "VEN",
+      "name": "Vendetta",
+      "cards": [
+        {
+          "id": "VEN-001",
+          "collectorNumber": "001",
+          "set": "VEN",
+          "name": "Trailbreaker",
+          "description": "Ganking. Assault 2.",
+          "type": "Unit",
+          "rarity": "Rare",
+          "faction": "Fury",
+          "stats": {
+            "energy": 6,
+            "might": 6,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [
+            "Ganking",
+            "Assault"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/VEN-001.svg",
+            "fullURL": "/fixture-cards/VEN-001.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "VEN-002",
+          "collectorNumber": "002",
+          "set": "VEN",
+          "name": "Hearth Guardian",
+          "description": "",
+          "type": "Unit",
+          "rarity": "Common",
+          "faction": "Body",
+          "stats": {
+            "energy": 3,
+            "might": 4,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/VEN-002.svg",
+            "fullURL": "/fixture-cards/VEN-002.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "VEN-003",
+          "collectorNumber": "003",
+          "set": "VEN",
+          "name": "Mirror Archive",
+          "description": "Once each turn, when you play a spell, channel 1.",
+          "type": "Gear",
+          "rarity": "Rare",
+          "faction": "Mind",
+          "stats": {
+            "energy": 3,
+            "might": null,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/VEN-003.svg",
+            "fullURL": "/fixture-cards/VEN-003.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "VEN-004",
+          "collectorNumber": "004",
+          "set": "VEN",
+          "name": "Undertow Mage",
+          "description": "When played, stun an enemy unit.",
+          "type": "Unit",
+          "rarity": "Common",
+          "faction": "Mind",
+          "stats": {
+            "energy": 3,
+            "might": 2,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/VEN-004.svg",
+            "fullURL": "/fixture-cards/VEN-004.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "VEN-005",
+          "collectorNumber": "005",
+          "set": "VEN",
+          "name": "Chaos Gambit",
+          "description": "Discard 1, then draw 2.",
+          "type": "Spell",
+          "rarity": "Common",
+          "faction": "Chaos",
+          "stats": {
+            "energy": 1,
+            "might": null,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Action"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/VEN-005.svg",
+            "fullURL": "/fixture-cards/VEN-005.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "VEN-006",
+          "collectorNumber": "006",
+          "set": "VEN",
+          "name": "Iron Magistrate",
+          "description": "Enemy spells cost 1 more.",
+          "type": "Unit",
+          "rarity": "Rare",
+          "faction": "Order",
+          "stats": {
+            "energy": 5,
+            "might": 5,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/VEN-006.svg",
+            "fullURL": "/fixture-cards/VEN-006.svg",
+            "artist": "Sample Artist A"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "VEN-007",
+          "collectorNumber": "007",
+          "set": "VEN",
+          "name": "Gallows Market",
+          "description": "When you conquer here, each player discards 1.",
+          "type": "Battlefield",
+          "rarity": "Uncommon",
+          "faction": null,
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/VEN-007.svg",
+            "fullURL": "/fixture-cards/VEN-007.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "RAD",
+      "name": "Radiance",
+      "cards": [
+        {
+          "id": "RAD-001",
+          "collectorNumber": "001",
+          "set": "RAD",
+          "name": "Quillon, Gilded Schemer",
+          "description": "At the start of your turn, look at the top card of your deck. You may recycle it.",
+          "type": "Legend",
+          "rarity": "Rare",
+          "faction": "Chaos, Order",
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/RAD-001.svg",
+            "fullURL": "/fixture-cards/RAD-001.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": [
+            "Quillon"
+          ]
+        },
+        {
+          "id": "RAD-002",
+          "collectorNumber": "002",
+          "set": "RAD",
+          "name": "Quillon, Coin in the Dark",
+          "description": "Hidden. When Quillon is revealed, gain 1 energy.",
+          "type": "Champion",
+          "rarity": "Epic",
+          "faction": "Chaos",
+          "stats": {
+            "energy": 4,
+            "might": 4,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [
+            "Hidden"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/RAD-002.svg",
+            "fullURL": "/fixture-cards/RAD-002.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": [
+            "Quillon"
+          ]
+        },
+        {
+          "id": "RAD-003",
+          "collectorNumber": "003",
+          "set": "RAD",
+          "name": "Forge Sprinter",
+          "description": "Ganking.",
+          "type": "Unit",
+          "rarity": "Common",
+          "faction": "Fury",
+          "stats": {
+            "energy": 1,
+            "might": 1,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Ganking"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/RAD-003.svg",
+            "fullURL": "/fixture-cards/RAD-003.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "RAD-004",
+          "collectorNumber": "004",
+          "set": "RAD",
+          "name": "Moonlit Ferry",
+          "description": "Accelerate. When played, move a friendly unit here.",
+          "type": "Unit",
+          "rarity": "Rare",
+          "faction": "Calm",
+          "stats": {
+            "energy": 6,
+            "might": 6,
+            "cost": null,
+            "power": 1
+          },
+          "keywords": [
+            "Accelerate"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/RAD-004.svg",
+            "fullURL": "/fixture-cards/RAD-004.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "RAD-005",
+          "collectorNumber": "005",
+          "set": "RAD",
+          "name": "Glimmer Insight",
+          "description": "Look at the top 3 cards of your deck. Draw 1.",
+          "type": "Spell",
+          "rarity": "Common",
+          "faction": "Mind",
+          "stats": {
+            "energy": 1,
+            "might": null,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Action"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/RAD-005.svg",
+            "fullURL": "/fixture-cards/RAD-005.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "RAD-006",
+          "collectorNumber": "006",
+          "set": "RAD",
+          "name": "Saltwind Courier",
+          "description": "When played, heal a friendly unit 2.",
+          "type": "Unit",
+          "rarity": "Common",
+          "faction": "Calm",
+          "stats": {
+            "energy": 2,
+            "might": 2,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/RAD-006.svg",
+            "fullURL": "/fixture-cards/RAD-006.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "RAD-007",
+          "collectorNumber": "007",
+          "set": "RAD",
+          "name": "Gilded Informant",
+          "description": "When played, look at an opponent's hand.",
+          "type": "Unit",
+          "rarity": "Common",
+          "faction": "Order",
+          "stats": {
+            "energy": 2,
+            "might": 2,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/RAD-007.svg",
+            "fullURL": "/fixture-cards/RAD-007.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "RAD-008",
+          "collectorNumber": "008",
+          "set": "RAD",
+          "name": "Rumor Mill",
+          "description": "When you discard a card, draw 1.",
+          "type": "Gear",
+          "rarity": "Uncommon",
+          "faction": "Chaos",
+          "stats": {
+            "energy": 2,
+            "might": null,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/RAD-008.svg",
+            "fullURL": "/fixture-cards/RAD-008.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "RAD-009",
+          "collectorNumber": "009",
+          "set": "RAD",
+          "name": "Lantern Steps",
+          "description": "When you hold here, your next spell this turn costs 1 less.",
+          "type": "Battlefield",
+          "rarity": "Uncommon",
+          "faction": null,
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/RAD-009.svg",
+            "fullURL": "/fixture-cards/RAD-009.svg",
+            "artist": "Sample Artist C"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "RAD-010",
+          "collectorNumber": "010",
+          "set": "RAD",
+          "name": "Cracked Colosseum",
+          "description": "Units here have +1 Might.",
+          "type": "Battlefield",
+          "rarity": "Uncommon",
+          "faction": null,
+          "stats": {
+            "energy": null,
+            "might": null,
+            "cost": null,
+            "power": null
+          },
+          "keywords": [],
+          "art": {
+            "thumbnailURL": "/fixture-cards/RAD-010.svg",
+            "fullURL": "/fixture-cards/RAD-010.svg",
+            "artist": "Sample Artist D"
+          },
+          "flavorText": null,
+          "tags": []
+        },
+        {
+          "id": "RAD-011",
+          "collectorNumber": "011",
+          "set": "RAD",
+          "name": "Flashfire",
+          "description": "Deal 2 to a unit at a battlefield.",
+          "type": "Spell",
+          "rarity": "Common",
+          "faction": "Fury",
+          "stats": {
+            "energy": 1,
+            "might": null,
+            "cost": null,
+            "power": 0
+          },
+          "keywords": [
+            "Action"
+          ],
+          "art": {
+            "thumbnailURL": "/fixture-cards/RAD-011.svg",
+            "fullURL": "/fixture-cards/RAD-011.svg",
+            "artist": "Sample Artist B"
+          },
+          "flavorText": null,
+          "tags": []
+        }
+      ]
+    }
+  ]
+}

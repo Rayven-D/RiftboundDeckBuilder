@@ -16,7 +16,9 @@
     "test": "vitest run",
     "lint": "eslint . && tsc -p tsconfig.json --noEmit",
     "ingest:cards": "node --env-file-if-exists=../.env --disable-warning=ExperimentalWarning src/cli/ingest-cards.ts",
-    "check:decklists": "node --env-file-if-exists=../.env --disable-warning=ExperimentalWarning src/cli/check-decklists.ts"
+    "ingest:fixture": "node --env-file-if-exists=../.env --disable-warning=ExperimentalWarning src/cli/ingest-cards.ts --from ../data/samples/fixture/riot-contents.fixture.json",
+    "check:decklists": "node --env-file-if-exists=../.env --disable-warning=ExperimentalWarning src/cli/check-decklists.ts",
+    "check:collection": "node --env-file-if-exists=../.env --disable-warning=ExperimentalWarning src/cli/check-collection.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
