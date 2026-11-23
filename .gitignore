@@ -21,6 +21,8 @@ coverage/
 
 # Local card image cache (re-downloadable)
 data/cache/
+# Raw Riot API responses (re-fetchable, Riot-owned)
+data/raw/
 
 # OS / editor
 .DS_Store
