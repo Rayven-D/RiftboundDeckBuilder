@@ -39,21 +39,21 @@ html {
     )
   );
 
-  /* Square corners on every Material component. Use 0px, not 0: Material puts these in
-     max(16px, …), and a unitless 0 makes that invalid (form fields lose their padding). */
+  /* Slightly rounded corners (RJ, 2026-11-23): 4px small controls, 6px buttons, 8px cards and
+     dialogs. Always give units: Material puts these in max(16px, …), where a unitless 0 breaks. */
   @include mat.theme-overrides(
     (
-      corner-extra-small: 0px,
-      corner-extra-small-top: 0px,
-      corner-small: 0px,
-      corner-medium: 0px,
-      corner-large: 0px,
-      corner-large-top: 0px,
-      corner-large-end: 0px,
-      corner-large-start: 0px,
-      corner-extra-large: 0px,
-      corner-extra-large-top: 0px,
-      corner-full: 0px,
+      corner-extra-small: 4px,
+      corner-extra-small-top: 4px 4px 0 0,
+      corner-small: 6px,
+      corner-medium: 8px,
+      corner-large: 8px,
+      corner-large-top: 8px 8px 0 0,
+      corner-large-end: 0 8px 8px 0,
+      corner-large-start: 8px 0 0 8px,
+      corner-extra-large: 8px,
+      corner-extra-large-top: 8px 8px 0 0,
+      corner-full: 6px,
     )
   );
 
@@ -104,10 +104,10 @@ html {
   --space-6: 2rem;
   --space-7: 3rem;
 
-  /* Radius: direction A is square. Kept as tokens so a later change is one edit. */
-  --radius-sm: 0;
-  --radius-md: 0;
-  --radius-lg: 0;
+  /* Radius (RJ, 2026-11-23: "slight 4-8px"): sm chips and inputs, md buttons and card art, lg panels. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
 
   /* Type */
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -199,7 +199,7 @@ h1 {
 .button {
   display: inline-block;
   padding: var(--space-2) var(--space-4);
-  border-radius: 0;
+  border-radius: var(--radius-md);
   background: var(--color-accent);
   color: var(--color-accent-contrast);
   font-weight: 600;

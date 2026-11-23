@@ -21,6 +21,7 @@ import { OWNERSHIP_ICON, OwnershipState } from './ownership';
       gap: var(--space-1);
       padding: 1px var(--space-2) 1px var(--space-1);
       border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
       background: var(--color-surface-raised);
       color: var(--color-text);
       font-size: var(--font-size-xs);

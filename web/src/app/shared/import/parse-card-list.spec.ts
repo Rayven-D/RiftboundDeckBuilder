@@ -69,6 +69,24 @@ describe('parseCardText', () => {
     ]);
   });
 
+  it.each([
+    ['Main Deck', 'main'],
+    ['MainDeck', 'main'],
+    ['maindeck:', 'main'],
+    ['Rune Pool', 'runes'],
+    ['RunePool:', 'runes'],
+    ['## RUNEPOOL', 'runes'],
+  ] as const)('reads the label "%s" as a section', (label, section) => {
+    const r = parseCardText(`${label}\n3 Lightning Rush`);
+    expect(r.issues).toEqual([]);
+    expect(r.entries[0].section).toBe(section);
+  });
+
+  it('reads one-word labels in CSV rows too', () => {
+    const r = parseCardCsv('MainDeck\n3,Lightning Rush\nRunePool\n6,Calm Rune');
+    expect(r.entries.map((e) => e.section)).toEqual(['main', 'runes']);
+  });
+
   it('rejects input over the line limit', () => {
     const r = parseCardText('1 A\n'.repeat(10_001));
     expect(r.issues[0].code).toBe('INPUT_TOO_LARGE');

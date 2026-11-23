@@ -49,19 +49,22 @@ const MAX_LINE_LENGTH = 500;
 const MAX_ROW_LENGTH = 2000;
 const MAX_QUANTITY = 999;
 
-/** IMP-016 / IMP-017: section labels and their accepted aliases. */
+/**
+ * IMP-016 / IMP-017: section labels and their accepted aliases, keyed without spaces so one- and
+ * two-word spellings both match ("Main Deck" / "MainDeck", "Rune Pool" / "RunePool"; RJ, 2026-11-23).
+ */
 const SECTION_ALIASES: Readonly<Record<string, DeckSection>> = {
   legend: 'legend',
   legends: 'legend',
   champion: 'champion',
   champions: 'champion',
-  'main deck': 'main',
+  maindeck: 'main',
   main: 'main',
   battlefields: 'battlefields',
   battlefield: 'battlefields',
-  'rune pool': 'runes',
+  runepool: 'runes',
   runes: 'runes',
-  'rune deck': 'runes',
+  runedeck: 'runes',
   sideboard: 'sideboard',
 };
 
@@ -221,7 +224,7 @@ function classifyLine(raw: string): LineOutcome {
   if (!line) return { kind: 'skip' };
   const label = LABEL_RE.exec(line);
   if (label && !/^\d/.test(line)) {
-    const section = SECTION_ALIASES[label[1].toLowerCase().replace(/\s+/g, ' ')];
+    const section = SECTION_ALIASES[label[1].toLowerCase().replace(/\s+/g, '')];
     if (section) return { kind: 'section', section, rest: (label[2] ?? '').trim() };
   }
   // IMP-022: comment lines.
