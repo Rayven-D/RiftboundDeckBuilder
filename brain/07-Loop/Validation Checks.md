@@ -19,4 +19,5 @@ prerequisites exist). Builders: when your work makes a planned check possible, m
 | V-008 | Build, lint, and unit tests pass for `web/` and `services/`. | code | planned | npm scripts |
 | V-010 | No metagame statistics (play/win rates, matchups, tiers, meta scores) in app data, API contracts, or UI (ADR-0003). | data, api, ui | active | grep data/, services/, web/, [[API Contracts]] |
 | V-011 | Host-neutral: no Firebase or AWS SDK imports outside `services/**/adapters/`; config comes from env vars listed in `.env.example` (ADR-0001/0004). | services, web | planned | activates with H-008 |
+| V-012 | Secrets & branding: no `RGAPI-` string in tracked files or the web bundle; `.env` is gitignored; no Riot or Riftbound logo files in `web/`; the Legal notice is present in the footer. | repo, web | active | `git grep RGAPI-`; check assets |
 | V-009 | Documentation hygiene: research notes have sources, tiers, `as_of`, and `status`; specs have numbered requirements and Given/When/Then; wikilinks resolve. | all notes | active | read notes |

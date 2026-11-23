@@ -29,6 +29,7 @@ everything done.
   list, and a copyable export).
 - Use the official card images as the API provides them. Lazy-load, reserve the right aspect
   ratio so the layout doesn't shift, and add a graceful fallback for missing images.
+- **Own visual identity:** never use Riot or Riftbound logos, and don't imitate Riot's official site or game UI ([[Riot Developer Rules]]). Card art is fine. Include the Legal Jibber Jabber notice in the footer.
 - Accessible: alt text = card name, keyboard navigation, sufficient contrast. Responsive down
   to phone width, since players use it at the table.
 - Build only against `API Contracts.md`. If you need something it doesn't offer, post a request

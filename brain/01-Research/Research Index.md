@@ -18,6 +18,11 @@ Owner: **researcher**. Every note needs sources and an *as-of* date. Status: `to
 | Tournaments | [[Tournament Results]] | unverified | Major events worldwide (Regionals, Nationals, Worlds…), placings, decklist sources |
 | Import formats | [[Collection Import Formats]] | unverified | Formats other deck sites/apps export, to support importing from them |
 
+## Policy
+| Topic | Note | Status | Notes |
+|---|---|---|---|
+| Riot developer rules | [[Riot Developer Rules]] | verified | Development key = prototype only; the app stays free; no Riot logos or lookalike design; Riot API is the only data source |
+
 ## Decklists
 Stored one per note in `Decklists/` using the Decklist template.
 

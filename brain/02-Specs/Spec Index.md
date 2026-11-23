@@ -18,4 +18,11 @@ Owner: **spec-writer**. Status: `draft` · `review` · `approved` · `blocked` �
 - **Local-first:** build and run everything locally until the MVP is done.
 - **Hosting:** Firebase or AWS, whichever is cheaper, decided after the MVP ([[ADR-0004 Hosting (Deferred)]]).
   Specs must not depend on host-specific features. Storage, config, and file access stay behind interfaces.
+- **Riot API compliance** ([[Riot Developer Rules]]):
+  - Card data and images come only from the Riot API (`riftbound-content-v1`).
+  - `RIOT_API_KEY` lives server-side in `.env` and never reaches the Angular app.
+  - Development key for local prototyping only; production key before anyone else can use the site.
+  - The app is completely free (no paid tiers or exclusive access).
+  - No Riot/Riftbound logos and no lookalike of Riot branding.
+  - Show the Legal Jibber Jabber notice.
 - **No metagame statistics:** tournament results only, the full Top 8 with placing labels ([[ADR-0003 Tournament Results Only]]).

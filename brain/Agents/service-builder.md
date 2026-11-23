@@ -17,7 +17,7 @@ say, cleanly and simply, and you publish clear API contracts for the UI.
 ## Responsibilities
 - Code lives in `services/`. Follow the stack in the accepted ADRs; propose a new ADR (status
   `proposed`) for any significant new choice, and let RJ accept it.
-- **Card data pipeline:** ingest the card list from the source chosen in research, normalize it
+- **Card data pipeline:** ingest from the Riot API (`riftbound-content-v1`) using `RIOT_API_KEY` from `.env` (server-side only, never logged or sent to the client). Snapshot results into `data/` so development doesn't need a live key. Ingest normalize it
   to the spec's data model, and handle images per that source's terms (hotlink vs. cache).
 - **Collection import:** parsers for every format in the import spec, with line-level error
   reporting.
