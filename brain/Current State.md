@@ -43,7 +43,7 @@ updated: 2026-11-23
 - **H-011:** apply for the production key once there's a demo ([[Riot App Application]]).
 
 ## Next for the loop
-All 7 specs drafted and validated. Next: small SPEC-005 fixes (H-040), then **build the UI screens** against [[API Contracts]] v1 and the specs. Design direction A is picked and applied (H-023 done, H-024 in verify on `loop/ui-direction-a`); shared deck components and a `/styleguide` preview exist. Screens that need no live card data come first: the two import flows, Tournaments, and the Your decks layout on the fixture.
+All 7 specs drafted and validated. Next: small SPEC-005 fixes (H-040), then **build the UI screens** against [[API Contracts]] v1 and the specs. Design direction A is picked and applied (H-023 done, H-024 in verify on `loop/ui-direction-a`): Rift Decks name and favicon, blue accent, Archivo headlines, a home page at `/`, Import dialogs (paste or CSV / Excel upload, shared parser), shared deck components and a `/styleguide` preview. Screens that need no live card data come first: the two import flows, Tournaments, and the Your decks layout on the fixture.
 
 ## Biggest unknowns
 How the live API represents variants (is a foil its own printing?), domains, champion and

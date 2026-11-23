@@ -21,6 +21,17 @@ centrepiece. The Legal Jibber Jabber notice always sits in the footer.
 - **Icons:** inline SVG from Material Symbols (Apache 2.0) through `app-icon` (`web/src/app/shared/icon.ts`); only the icons in use are shipped, instead of a 4 MB icon font and with no Google Fonts request.
 - **Built (branch `loop/ui-direction-a`):** theme and tokens, header, `app-ownership-chip`, `app-card-tile` (full / partial left-to-right / none treatment, 1 px divider at the fill edge), `app-deck-heading`, and a preview page at `/styleguide` (sample data, not in the nav).
 
+## Home page and headline font (RJ, 2026-11-23)
+- Reference: riftatlas.com (layout ideas only; our own identity). Ideas came from ui-builder; RJ picked:
+  - **`/` is the home page for everyone** (was a redirect to `/decks`); the wordmark links home; unknown paths go home.
+  - **Headline:** "Import what you own. / See what you can build." (second line in `--color-accent-text`).
+  - **Hero visual: ownership fan** (`pages/home/ownership-fan.ts`): three tilted placeholder cards (missing, 1 of 3, 3 of 3) with their chips, our deck-stack mark faded behind. Real card art drops into the same `app-card-art` later.
+  - **Headline font: Archivo**, self-hosted (`@fontsource-variable/archivo`, OFL, no Google Fonts request), heavy (800) and semi-expanded (112%), via `--font-display`. Used for h1, h2, `.display` and the wordmark; body text stays the system font.
+- Page sections: hero (two import buttons, "Free · No account · Stored in your browser", arrow links); three step tiles with dividers (Import your cards, Add a deck, See what's missing); "Ownership" feature with a framed example deck panel; "Tournaments" feature with an example Top 8 panel (placings only, no stats). Example content is labelled "example".
+- Shared pieces added: `.eyebrow` (mono uppercase label), `.arrow-link` (text link with →), `app-card-art` (ownership image treatment, used by the tile and the fan), `sampleCardArt()` (abstract placeholder art).
+- Not copied on purpose: Rift Atlas's font, cyan, wording; Riot's domain symbols; Play / Sealed; a card search box (no card data yet); language picker; anything popularity-based.
+- Later ideas from ui-builder, not built yet: returning-user summary in the hero ("3 decks · 412 cards · Continue"), card search with a Ctrl+K hint once card data exists, footer Privacy / About / Contact, a dismissible "Card data coming soon" banner, `kbd` hints.
+
 ## Corners (RJ, 2026-11-23, later the same day)
 - Square corners felt too sharp. Now a slight radius: **4px** small controls and chips (`--radius-sm`), **6px** buttons and card art (`--radius-md`), **8px** cards, panels and dialogs (`--radius-lg`). Material corner tokens match (buttons 6px, dialogs 8px, inputs 4px).
 - Nav tabs round the **top corners only**, so the active tab's 2px underline stays straight (earlier feedback).
@@ -88,3 +99,4 @@ fantasy-UI styling.
 - 2026-11-23: Accent changed from teal to blue `#378ADD` (tokens, Material theme, favicon).
 - 2026-11-23: Import button icon misaligned (fixed: icon marked `matButtonIcon`). Import cards were flat: now clickable cards opening a paste-or-upload dialog. Rename to Collection / Deck with clearer descriptions. Legal footer smaller (wording kept).
 - 2026-11-23: Corners too sharp: slight 4-8px radius on cards, buttons, chips, dialogs (tabs top-only). Deck import accepts "MainDeck" / "Main Deck" and "RunePool" / "Rune Pool".
+- 2026-11-23: "Something like riftatlas.com": home page at `/`, headline "Import what you own. See what you can build.", ownership fan, Archivo for headlines.

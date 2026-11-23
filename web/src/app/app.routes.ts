@@ -1,7 +1,12 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'decks' },
+  {
+    path: '',
+    pathMatch: 'full',
+    title: 'Rift Decks: import your Riftbound cards and see what you can build',
+    loadComponent: () => import('./pages/home/home-page').then((m) => m.HomePage),
+  },
   {
     path: 'import',
     title: 'Import · Rift Decks',
@@ -34,5 +39,5 @@ export const routes: Routes = [
     title: 'Component preview · Rift Decks',
     loadComponent: () => import('./pages/styleguide/styleguide-page').then((m) => m.StyleguidePage),
   },
-  { path: '**', redirectTo: 'decks' },
+  { path: '**', redirectTo: '' },
 ];

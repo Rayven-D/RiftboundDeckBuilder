@@ -1,0 +1,119 @@
+:host {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 22rem;
+}
+
+.hero-mark {
+  position: absolute;
+  width: min(80%, 22rem);
+  fill: none;
+  stroke: var(--color-border);
+  stroke-width: 0.6;
+  opacity: 0.7;
+}
+
+/*
+ * Each card is placed with margins (no transform), so it doesn't create its own stacking
+ * context: the tilt is on the art only, and every chip can sit above all three cards.
+ */
+.fan {
+  --card-w: 9.5rem;
+  --card-h: calc(var(--card-w) * 88 / 63);
+
+  position: relative;
+  width: 100%;
+  max-width: 26rem;
+  height: 20rem;
+}
+
+.fan-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--card-w);
+  margin-top: calc(var(--card-h) * -0.52);
+  transition: margin-left 200ms ease;
+}
+
+.fan-art {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 45%);
+  transition: transform 200ms ease;
+}
+
+.fan-card--0 {
+  margin-left: calc(var(--card-w) * -1.28);
+
+  .fan-art {
+    transform: rotate(-9deg);
+  }
+}
+
+.fan-card--1 {
+  margin-left: calc(var(--card-w) * -0.5);
+  margin-top: calc(var(--card-h) * -0.58);
+
+  .fan-art {
+    z-index: 1;
+  }
+}
+
+.fan-card--2 {
+  margin-left: calc(var(--card-w) * 0.28);
+
+  .fan-art {
+    z-index: 2;
+    transform: rotate(8deg);
+  }
+}
+
+.fan:hover {
+  .fan-card--0 {
+    margin-left: calc(var(--card-w) * -1.36);
+  }
+
+  .fan-card--2 {
+    margin-left: calc(var(--card-w) * 0.36);
+  }
+}
+
+.fan-chip {
+  position: absolute;
+  z-index: 3;
+  left: var(--space-2);
+  bottom: calc(-1 * var(--space-3));
+  box-shadow: 0 2px 6px rgb(0 0 0 / 40%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fan-card,
+  .fan-art {
+    transition: none;
+  }
+}
+
+@media (max-width: 52rem) {
+  :host {
+    min-height: 17rem;
+  }
+
+  .fan {
+    --card-w: 6.75rem;
+
+    height: 16rem;
+  }
+
+  .fan-chip {
+    left: var(--space-1);
+  }
+
+  /* Chips are wider than the gap between cards here: lift the middle card's chip to its top edge. */
+  .fan-card--1 .fan-chip {
+    top: calc(-1 * var(--space-3));
+    bottom: auto;
+  }
+}

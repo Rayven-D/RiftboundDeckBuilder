@@ -1,10 +1,13 @@
 @use '@angular/material' as mat;
 @use './theme-colors' as theme;
+// Display font for headlines (RJ, 2026-11-23): Archivo, self-hosted (OFL), weight and width axes.
+@use '@fontsource-variable/archivo/wdth';
 
 /*
- * Design direction A, "Table Tool" (RJ, 2026-11-23): quiet slate surfaces, one blue accent (#378ADD, RJ 2026-11-23),
- * system fonts, dense lists. Card art supplies the colour. Square corners everywhere.
- * Angular Material (M3) is themed from the same accent; see brain/04-UI/Design Direction.md.
+ * Design direction A, "Table Tool" (RJ, 2026-11-23): quiet slate surfaces, one blue accent (#378ADD),
+ * system font for body text, Archivo for headlines, dense lists, slight 4/6/8px corners. Card art
+ * supplies the colour. Angular Material (M3) is themed from the same accent.
+ * See brain/04-UI/Design Direction.md.
  */
 html {
   color-scheme: dark light;
@@ -111,6 +114,10 @@ html {
 
   /* Type */
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* Headlines: Archivo, semi-expanded and heavy (--display-stretch / --display-weight). */
+  --font-display: 'Archivo Variable', var(--font-sans);
+  --display-stretch: 112%;
+  --display-weight: 800;
   --font-mono: ui-monospace, 'Cascadia Code', Consolas, 'Liberation Mono', monospace;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
@@ -175,10 +182,56 @@ a {
   outline-offset: 2px;
 }
 
+h1,
+h2,
+.display {
+  font-family: var(--font-display);
+  font-stretch: var(--display-stretch);
+  font-weight: var(--display-weight);
+  letter-spacing: -0.015em;
+}
+
 h1 {
   margin: 0 0 var(--space-2);
   font-size: var(--font-size-xl);
-  line-height: 1.2;
+  line-height: 1.15;
+}
+
+/* Small mono label above a heading ("OWNERSHIP"). */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-accent-text);
+}
+
+/* Secondary text link with a trailing arrow ("Your decks →"). */
+.arrow-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-decoration: none;
+
+  &::after {
+    content: '\2192';
+    transition: transform 120ms ease;
+  }
+
+  &:hover {
+    color: var(--color-text);
+
+    &::after {
+      transform: translateX(2px);
+    }
+  }
 }
 
 .page-header {

@@ -1,0 +1,100 @@
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-copy">
+    <h1 id="hero-title" class="hero-title">
+      Import what you own.
+      <span class="accent">See what you can build.</span>
+    </h1>
+    <p class="hero-lede">
+      Paste your Riftbound collection, add any deck list or tournament Top 8, and see card by card
+      what you already have and what you still need.
+    </p>
+    <div class="hero-actions">
+      <a matButton="filled" routerLink="/import" [queryParams]="{ type: 'collection' }">
+        <app-icon matButtonIcon name="upload" />
+        Import your collection
+      </a>
+      <a matButton="outlined" routerLink="/import" [queryParams]="{ type: 'deck' }"
+        >Import a deck</a
+      >
+    </div>
+    <p class="hero-note">Free · No account · Stored in your browser</p>
+    <nav class="hero-links" aria-label="Go to">
+      <a class="arrow-link" routerLink="/decks">Your decks</a>
+      <a class="arrow-link" routerLink="/collection">My collection</a>
+      <a class="arrow-link" routerLink="/tournaments">Tournament Top 8s</a>
+    </nav>
+  </div>
+
+  <app-ownership-fan class="hero-visual" />
+</section>
+
+<nav class="steps" aria-label="How it works">
+  @for (step of steps; track step.title) {
+    <a class="step" [routerLink]="step.link" [queryParams]="step.query ?? null">
+      <span class="step-top">
+        <app-icon class="step-icon" [name]="step.icon" />
+        <app-icon class="step-arrow" name="chevron_right" />
+      </span>
+      <span class="step-title">{{ step.title }}</span>
+      <span class="step-subtitle">{{ step.subtitle }}</span>
+    </a>
+  }
+</nav>
+
+<section class="feature" aria-labelledby="ownership-title">
+  <div class="feature-copy">
+    <p class="eyebrow"><app-icon name="contrast" />Ownership</p>
+    <h2 id="ownership-title" class="feature-title">Full colour, half colour, not yet.</h2>
+    <p class="feature-text">
+      Every card in a deck shows how many copies you own. Owned cards are in full colour, missing
+      cards are dimmed, and partly owned cards fill in from left to right. Copy the missing list
+      when you're ready to trade or buy.
+    </p>
+    <div class="feature-actions">
+      <a matButton="filled" routerLink="/import" [queryParams]="{ type: 'collection' }"
+        >Try it with your cards</a
+      >
+      <a class="arrow-link" routerLink="/styleguide">See an example deck</a>
+    </div>
+  </div>
+  <figure class="panel">
+    <figcaption class="panel-bar">Rift Decks / Deck view · example</figcaption>
+    <div class="panel-tiles">
+      @for (card of showcase; track card.name; let i = $index) {
+        <app-card-tile
+          [name]="card.name"
+          zone="Main Deck"
+          [owned]="card.owned"
+          [required]="card.required"
+          [imageUrl]="art(card, i)"
+        />
+      }
+    </div>
+  </figure>
+</section>
+
+<section class="feature feature--flip" aria-labelledby="tournaments-title">
+  <div class="feature-copy">
+    <p class="eyebrow"><app-icon name="playing_cards" />Tournaments</p>
+    <h2 id="tournaments-title" class="feature-title">Top 8 lists, one click into Your decks.</h2>
+    <p class="feature-text">
+      Browse recent events with their full published Top 8. Add a list to Your decks and see
+      straight away which cards you already own.
+    </p>
+    <div class="feature-actions">
+      <a matButton="outlined" routerLink="/tournaments">Browse tournaments</a>
+    </div>
+  </div>
+  <figure class="panel">
+    <figcaption class="panel-bar">Rift Decks / Tournaments · example</figcaption>
+    <ol class="placings">
+      @for (place of ['1st', '2nd', '3rd', '4th']; track place) {
+        <li>
+          <span class="placing">{{ place }}</span>
+          <span class="placing-deck">Legend: Player {{ $index + 1 }}</span>
+          <span class="placing-action">Add to Your decks</span>
+        </li>
+      }
+    </ol>
+  </figure>
+</section>

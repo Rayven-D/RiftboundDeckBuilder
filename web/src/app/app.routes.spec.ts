@@ -10,9 +10,16 @@ describe('routes', () => {
     });
   });
 
-  it('redirects the root path to /decks', async () => {
+  it('shows the home page at the root path', async () => {
     const harness = await RouterTestingHarness.create('/');
-    expect(TestBed.inject(Router).url).toBe('/decks');
+    expect(TestBed.inject(Router).url).toBe('/');
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain(
+      'See what you can build.',
+    );
+  });
+
+  it('renders /decks', async () => {
+    const harness = await RouterTestingHarness.create('/decks');
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain('Your decks');
   });
 
@@ -32,8 +39,8 @@ describe('routes', () => {
     expect(harness.routeNativeElement?.textContent).toContain('Deck abc');
   });
 
-  it('redirects unknown paths to /decks', async () => {
+  it('redirects unknown paths to the home page', async () => {
     await RouterTestingHarness.create('/nope');
-    expect(TestBed.inject(Router).url).toBe('/decks');
+    expect(TestBed.inject(Router).url).toBe('/');
   });
 });

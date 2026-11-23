@@ -3,6 +3,7 @@ import { MatButton } from '@angular/material/button';
 import { Icon } from '../../shared/icon';
 import { CardTile } from '../../shared/deck/card-tile';
 import { DeckHeading } from '../../shared/deck/deck-heading';
+import { sampleCardArt } from '../../shared/deck/sample-art';
 
 interface SampleCard {
   readonly name: string;
@@ -11,12 +12,6 @@ interface SampleCard {
   readonly required: number;
   readonly color: string;
   readonly ban?: string;
-}
-
-/** Plain SVG stand-in art so the preview needs no API data. */
-function sampleArt(color: string): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 63 88"><rect width="63" height="88" fill="${color}"/><rect x="8" y="14" width="47" height="38" fill="#fff" fill-opacity=".25"/><rect x="5" y="66" width="53" height="16" fill="#000" fill-opacity=".3"/></svg>`;
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
 /**
@@ -116,6 +111,6 @@ export class StyleguidePage {
   ];
 
   protected art(color: string): string {
-    return sampleArt(color);
+    return sampleCardArt(color, color.length + color.charCodeAt(2));
   }
 }
