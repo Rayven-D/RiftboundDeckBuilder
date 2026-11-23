@@ -1,5 +1,6 @@
+import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { App } from './app';
 import { routes } from './app.routes';
 
@@ -42,5 +43,40 @@ describe('App', () => {
       (fixture.nativeElement as HTMLElement).querySelector('footer')?.textContent ?? '';
     expect(footer).toContain(`created under Riot Games' "Legal Jibber Jabber" policy`);
     expect(footer).toContain('Riot Games does not endorse or sponsor this project.');
+  });
+});
+
+@Component({ template: '<h1>Stub page</h1>' })
+class StubPage {}
+
+describe('App skip link', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [App],
+      providers: [
+        provideRouter([
+          { path: '', component: StubPage },
+          { path: 'import', component: StubPage },
+        ]),
+      ],
+    }).compileComponents();
+  });
+
+  it('focuses main without navigating away from a non-root route', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/import');
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+
+    const skip = el.querySelector<HTMLAnchorElement>('.skip-link')!;
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+    skip.dispatchEvent(click);
+    await fixture.whenStable();
+
+    // jsdom never follows an anchor click, so the real guard against the old bug
+    // (href="#main" resolving to "/#main" under <base href="/">) is that the click is cancelled.
+    expect(click.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(el.querySelector('main'));
   });
 });

@@ -18,6 +18,7 @@ import { OwnershipChip } from './ownership-chip';
         [state]="ownership().state"
         [fill]="ownership().fill"
         [imageUrl]="imageUrl()"
+        decorative
       />
       <h3 class="name">{{ name() }}</h3>
       @if (type()) {

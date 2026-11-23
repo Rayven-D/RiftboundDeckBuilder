@@ -1,20 +1,27 @@
-import { Component, input } from '@angular/core';
+import { booleanAttribute, Component, computed, input } from '@angular/core';
 import { OwnershipState } from './ownership';
 
 /**
  * Card image with the ownership treatment (SPEC-005 OWN-030..036): full colour, left-to-right
  * partial fill with a 1px divider, or dimmed. Only the image is darkened. Used by the deck tile and
  * the home page fan.
+ *
+ * Accessibility: the image's alt text is the card name by default (or `alt` when given). Set
+ * `decorative` when the name is already shown or announced next to the image (e.g. the card tile's
+ * heading); the image then gets `alt=""` and the missing-image placeholder is hidden from assistive
+ * technology, so the name is not read twice.
  */
 @Component({
   selector: 'app-card-art',
   template: `
     <div class="art" [class]="'art art--' + state()" [style.--fill]="fill()">
       @if (imageUrl(); as url) {
-        <img class="card-image" [src]="url" [alt]="alt()" loading="lazy" />
+        <img class="card-image" [src]="url" [alt]="altText()" loading="lazy" />
         <img class="card-image dimmed" [src]="url" alt="" loading="lazy" aria-hidden="true" />
       } @else {
-        <div class="card-image placeholder">{{ name() }}</div>
+        <div class="card-image placeholder" [attr.aria-hidden]="decorative() ? 'true' : null">
+          {{ name() }}
+        </div>
         <div class="card-image placeholder dimmed" aria-hidden="true">{{ name() }}</div>
       }
     </div>
@@ -69,6 +76,12 @@ export class CardArt {
   /** Owned fraction in [0, 1]. */
   readonly fill = input.required<number>();
   readonly imageUrl = input<string | null>(null);
-  /** Image alt text; the card name by default. Pass '' when the name is already announced nearby. */
-  readonly alt = input<string>('');
+  /** Image alt text; defaults to the card name. Ignored when `decorative` is set. */
+  readonly alt = input<string>();
+  /** The name is already shown or announced nearby: render the image with `alt=""`. */
+  readonly decorative = input(false, { transform: booleanAttribute });
+
+  protected readonly altText = computed(() =>
+    this.decorative() ? '' : (this.alt() ?? this.name()),
+  );
 }
