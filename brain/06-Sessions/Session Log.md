@@ -5,6 +5,12 @@ tags: [sessions]
 
 Newest first. One short entry per working session.
 
+## 2026-11-23: /loop round 2
+- RJ feedback applied first: straight button borders (H-027), "Your decks" rename + one-line descriptions (H-028), product model correction ADR-0006 (H-029, H-032), Import option cards (H-033).
+- Done: H-015 (SPEC-001/002 v0.2), H-016 (SPEC-004 v0.2), H-017, H-018, H-019, H-025, H-026, H-031 (SPEC-007 v0.1).
+- FAIL: H-030 SPEC-006 Deck Import contradicts SPEC-004 on Add to Your decks (source shape, default name, duplicates) and uses old field names. WIP kept on its branch.
+- Stopped at gate H-036 (RJ decisions). The services scaffold H-008 is now unblocked.
+
 ## 2026-11-23: /loop round 1 (orchestrated in a Claude session)
 - Done: H-003, H-004, H-005, H-006 (specs SPEC-001 to SPEC-004, v0.1 drafts; validator PASS with follow-ups) and H-009 (Angular 22.3 scaffold in web/: lint, build and tests green).
 - Validator follow-ups filed: H-015 to H-019 (cross-spec alignment, wrong ACs, decklist backfill).

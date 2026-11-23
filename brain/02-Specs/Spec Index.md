@@ -7,13 +7,13 @@ Owner: **spec-writer**. Status: `draft` · `review` · `approved` · `blocked` �
 
 | ID | Spec | Version | Status | Depends on research |
 |---|---|---|---|---|
-| SPEC-001 | [[Card Data Model]] | 0.1 | draft | [[Card Data & Images]], [[Sets]] |
-| SPEC-002 | [[Deck Legality]] | 0.1 | draft | [[Deck Construction Rules]], [[Ban List]], [[Formats]] |
-| SPEC-003 | [[Collection Import]] | 0.1 | draft | [[Collection Import Formats]] |
-| SPEC-004 | [[Tournament Deck Catalog]] | 0.1 | draft | [[Tournament Results]], [[ADR-0003 Tournament Results Only]] |
+| SPEC-001 | [[Card Data Model]] | 0.2 | draft | [[Card Data & Images]], [[Sets]] |
+| SPEC-002 | [[Deck Legality]] | 0.2 | draft | [[Deck Construction Rules]], [[Ban List]], [[Formats]] |
+| SPEC-003 | [[Collection Import]] | 0.2 | draft | [[Collection Import Formats]] |
+| SPEC-004 | [[Tournament Deck Catalog]] | 0.2 | draft | [[Tournament Results]], [[ADR-0003 Tournament Results Only]] |
 | SPEC-005 | [[Your Decks Ownership View]] | — | todo | SPEC-001, SPEC-002, SPEC-006, SPEC-007 |
-| SPEC-006 | [[Deck Import]] | — | todo | [[Collection Import Formats]], SPEC-003 |
-| SPEC-007 | [[My Collection]] | — | todo | SPEC-001, SPEC-003 |
+| SPEC-006 | [[Deck Import]] | 0.1 | draft, failed validation (on branch loop/H-030-deck-import) | [[Collection Import Formats]], SPEC-003 |
+| SPEC-007 | [[My Collection]] | 0.1 | draft | SPEC-001, SPEC-003 |
 
 ## Cross-cutting constraints (apply to every spec)
 - **Stack:** an Angular front end and a TypeScript (Node) API ([[ADR-0001 Tech Stack]]).

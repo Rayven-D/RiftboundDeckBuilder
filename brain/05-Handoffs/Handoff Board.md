@@ -1,6 +1,6 @@
 ---
 tags: [handoffs, loop]
-next_id: 34
+next_id: 38
 ---
 # Handoff Board
 
@@ -12,28 +12,32 @@ The loop's state. See [[Loop Protocol]]. One row per item. Take the next ID from
 ## Open
 | ID | Pri | Owner | Status | Depends | From | Request | Accept | Tries | Link |
 |---|---|---|---|---|---|---|---|---|---|
+| H-036 | P0 | RJ | needs-RJ | — | validator | Decide: default name and duplicate behaviour for "Add to Your decks"; My Collection rows per printing vs per card, and tags on card vs printing; legality label wording and date format | Answers recorded in ADR-0006 | 0 | [[ADR-0006 Two Imports - Collection and Decks]] |
+| H-034 | P1 | spec-writer | todo | H-036 | validator | SPEC-007 fixes: types per SPEC-003 v0.2 (`CardKey`, `printingId` keys, keep the public code for display); COLL-065 count/source (Riot API; 1,451 community count); use SPEC-002 `banStatus()`/`BanStatus`; category `unknown` bucket; refresh open questions; When in AC17; apply the H-036 answers | Validator PASS | 0 | [[My Collection]] |
+| H-035 | P1 | spec-writer | todo | H-036 | validator | SPEC-004 fixes: CAT-050 `cardKey`; a source for `BannedCardRef.kind` (add `banKind` to SPEC-002 `Violation` or look it up in banlist.json); refresh open questions; apply the H-036 answers | Validator PASS | 0 | [[Tournament Deck Catalog]] |
+| H-037 | P2 | spec-writer | todo | H-036 | validator | One meaning for `legal_as_of` (template, 8 notes, CAT-017); one date format and one "incomplete" label across SPEC-004/006/007 | Validator PASS | 0 | [[Spec Index]] |
 | H-020 | P0 | RJ | needs-RJ | — | validator | Fetch one live Riot API response on your PC (the sandboxes are blocked) and save it to `data/raw/riftbound-content-en.json` (the PowerShell command is in the Session Log) | File exists, valid JSON | 0 | [[Card Data Model]] |
 | H-023 | P1 | RJ | needs-RJ | — | ui-builder | UI review gate: run the app (`cd web; npm install; npx ng serve`), pick design direction A/B/C + accent, wordmark and nav OK? (product defaults are answered in ADR-0005) | Choice recorded in [[Design Direction]] | 0 | [[Design Direction]] |
-| H-026 | P1 | spec-writer | todo | — | RJ | Apply [[ADR-0005 MVP Product Defaults]]: SPEC-001 remove the alias and release-date tables; SPEC-002 set legality from the API's released sets plus Riot-published dates only; SPEC-004: remove CAT-042/043 (Your decks no longer shows tournament decks, per ADR-0006); banned decks are labelled on the Tournaments screen; add an "Add to Your decks" action on each Top 8 deck; SPEC-003 confirm IMP-048/053 | Specs bumped to 0.2; validator re-check | 0 | [[ADR-0005 MVP Product Defaults]] |
-| H-030 | P1 | spec-writer | todo | — | RJ | SPEC-006 Deck Import: import community decklists (Riot-style sectioned text, plain qty + name, Piltover deck codes, TTS; reuse the SPEC-003 parsers); deck name, source/URL, notes; legality check on import (SPEC-002) shown but never blocking; stored in the browser; also the "Add to Your decks" path from Tournaments (source = event + placing) | as H-003 | 0 | [[ADR-0006 Two Imports - Collection and Decks]] |
-| H-031 | P1 | spec-writer | todo | — | RJ | SPEC-007 My Collection: owned-card list; user tags (free text, many per card); sort/order/filter by name, any card attribute, or tag; default order = set order, then collector number, overnumbered included; stored in the browser. Also narrow SPEC-003 to owned cards only | as H-003 | 0 | [[ADR-0006 Two Imports - Collection and Decks]] |
-| H-015 | P1 | spec-writer | todo | — | validator | Align SPEC-001 ↔ SPEC-002: nullable/unknown `domains`/`isSignature`/`isChampion`/`championTag`; one champion field name; overnumbered → `variant.kind`; `type`/`category` mapping; define `catalogVersion`; CARD-036 set+number lookup → MUST with collector-number normalization; SPEC-003 A1 resolved / A2 bound to CARD-036 | Validator re-check of the cross-spec issues passes | 0 | [[Card Data Model]] |
-| H-016 | P1 | spec-writer | todo | — | validator | SPEC-004: FormatId `standard` (also in the Decklist template), `cardKey` instead of `cardId`, DecklistLegality ↔ LegalityResult mapping (historical = LEGAL-016 fail; handling `incomplete`) | as H-015 | 0 | [[Tournament Deck Catalog]] |
-| H-017 | P1 | spec-writer | todo | — | validator | Fix the ACs that are wrong under CARD-030 (SPEC-001 AC5, SPEC-003 AC10, SPEC-004 AC7) and the IMP-006 printing count (1,451) | as H-015 | 0 | [[Spec Index]] |
-| H-018 | P2 | spec-writer | todo | H-015 | validator | Clean-up: When clauses in SPEC-003 ACs 10/12/14/15/17/18/21; IMP-011→IMP-031; LEGAL-C04 level; ADR-0003 wikilinks; CAT-004 reference; LEGAL-B08 announced-date semantics; source links on LEGAL-019/R02/R04/R07 | V-009 | 0 | [[Spec Index]] |
-| H-019 | P1 | researcher | todo | — | validator | Add `rank`, `format: standard`, `legal_as_of` to the 8 RC Europe decklist notes; fix the template's `placing` comment | V-009; CAT-011 consistent | 0 | [[Tournament Results]] |
+| H-030 | P0 | spec-writer | todo | H-036 | RJ | SPEC-006 Deck Import, retry 1 (WIP on branch `loop/H-030-deck-import`). Make the tournament deck source ONE type shared with SPEC-004 `TournamentDeckSource`; default name and duplicate handling identical to CAT-072–074 per H-036; `isChampion` → `isChampionUnit`; zone inference on the SPEC-001 category enum (`unknown`; rules for champion/spell/gear/token); DECK-065 vs CAT-071 (no name parsing for catalog decks); DECK-092 = 66; When in AC7/16; refresh open questions; DECK-013 vs SPEC-003 Part A | Validator PASS on cross-spec checks | 1 | [[Deck Import]] |
 | H-021 | P1 | researcher | todo | H-020 | spec-writer | Analyze the live API payload: field names, id format, type and domain lists, champion/signature/championTag fields, preview flag, variants, promos and tokens, image aspect ratio and size; propose the first `variant-rules.json` entries | Card Data & Images note updated; BLOCKED items in SPEC-001/002 resolved or listed | 0 | [[Card Data & Images]] |
 | H-022 | P2 | researcher | todo | — | spec-writer | Open research: rotation conflict; whether the Signature cap spans the sideboard; canonical name for "The Dreaming Tree"; time zone of ban effective dates; whether promos (OPP/JDG/PR) are legal; official release dates for OGN–VEN; battlefield domains; Piltover set table (UNL/VEN/RAD, ARC, variant letters, sample codes); CSV/TXT export samples; TTS COPY suffix; RC Europe official name, player total, bracket; a verbatim Riot decklist text sample | Notes updated, statuses honest | 0 | [[Research Index]] |
 | H-024 | P1 | ui-builder | blocked | H-023 | ui-builder | Apply the chosen design direction to the tokens; original favicon (no Riot marks) | V-008, V-012 | 0 | [[Design Direction]] |
-| H-025 | P2 | validator | todo | — | ui-builder | Activate V-008 for web/ (lint, build, test) and extend V-010 search terms for cross-deck counts and shares (CAT-061/063) | Validation Checks updated | 0 | [[Validation Checks]] |
 | H-011 | P2 | RJ | needs-RJ | H-009 | researcher | Once there's a working local prototype, put a demo or mockup at a reachable URL and apply via Register Product ([[Riot App Application]]). Ask in an App Note: (a) caching vs. hotlinking card images, (b) whether decklists hand-copied from Riot's articles are OK, (c) storing an API snapshot locally for development, (d) a permitted source for TCGplayer IDs | Application submitted with the App Note | 0 | [[Riot Developer Rules]] |
-| H-007 | P1 | spec-writer | todo | H-015, H-016, H-026, H-030, H-031 | RJ | SPEC-005 Your Decks Ownership View (replaces Build Matching): per-card owned/required by name; full colour / darkened-but-readable / partial colour fill by fraction, **left to right**; ban status and card info on every card; deck-level summary | as H-003; V-010 | 0 | [[ADR-0006 Two Imports - Collection and Decks]] |
+| H-007 | P1 | spec-writer | todo | H-030, H-034, H-035 | RJ | SPEC-005 Your Decks Ownership View (replaces Build Matching): per-card owned/required by name; full colour / darkened-but-readable / partial colour fill by fraction, **left to right**; ban status and card info on every card; deck-level summary | as H-003; V-010 | 0 | [[ADR-0006 Two Imports - Collection and Decks]] |
 | H-008 | P1 | service-builder | todo | H-015 | RJ | Scaffold the TypeScript API in `services/`, host-neutral per ADR-0001, and the card data pipeline from the Riot API using the dev key in `.env`, snapshotted to `data/`. No Riftcodex ([[Riot Developer Rules]]) | V-003, V-008, V-011, V-012 activated and passing | 0 | [[API Contracts]] |
 | H-012 | P3 | RJ | blocked | MVP complete | RJ | Choose hosting: Firebase vs. AWS, whichever is cheaper | ADR-0004 accepted | 0 | [[ADR-0004 Hosting (Deferred)]] |
 
 ## Done
 | ID | Owner | Request | Result |
 |---|---|---|---|
+| H-015 | spec-writer | SPEC-001/002 alignment | PASS: v0.2, nullable attrs, isChampionUnit, catalogVersion, CARD-036/037, printingSortKey, Riot-only set legality |
+| H-016 | spec-writer | SPEC-004 fixes | PASS v0.2 with follow-ups → H-035 |
+| H-017 | spec-writer | Wrong ACs + counts | PASS (SPEC-001 AC5, SPEC-003 AC10, SPEC-004 AC7, IMP-006) |
+| H-018 | spec-writer | Spec clean-ups | PASS |
+| H-019 | researcher | Decklist backfill | PASS: placing = published rank, format, legal_as_of (no separate rank field); meaning of legal_as_of → H-037 |
+| H-026 | spec-writer | Apply ADR-0005/0006 | PASS; Add to Your decks contradiction moved to H-030 |
+| H-031 | spec-writer | SPEC-007 My Collection | PASS v0.1 with follow-ups → H-034 |
+| H-025 | validator | Activate V-008 (web), extend V-010 | Done ([[Validation Checks]]) |
 | H-033 | ui-builder | Import screen option cards (RJ feedback) | Two cards, Owned Cards Import and Deck Import, with subtext ([[Design Direction]]) |
 | H-032 | RJ | Fill direction + tournament add | Left-to-right partial fill; one-click Add to Your decks from Tournaments (ADR-0006) |
 | H-029 | RJ | Product model correction | Two imports: owned cards → My collection, community decks → Your decks; ownership colouring; tags and default order ([[ADR-0006 Two Imports - Collection and Decks]]) |

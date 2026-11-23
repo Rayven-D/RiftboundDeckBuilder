@@ -25,8 +25,11 @@ against.
 - **Tournament deck catalog:** how events and their winning decklists are stored and shown
   (event, date, region, placing as published, legal-as-of). Per ADR-0003: no play rates,
   win rates, matchups, tiers, or computed strength scores.
-- **Build matching:** given a collection and a deck, compute owned vs. required per card, the
-  completion %, the missing list, and substitutions (if allowed). Define tie-breaks and sorting.
+- **Your decks ownership view:** given the collection and an imported deck, compute owned vs.
+  required per card (by `cardKey`), drive the full / darkened / partial (left-to-right) colouring,
+  and show ban status per card (ADR-0006).
+- **Deck import and My collection:** community deck import (SPEC-006); the owned-card list with
+  tags, sort/filter, and the default set → collector-number order (SPEC-007).
 
 ## Spec standards
 - Use `brain/Templates/Spec.md`. One feature per spec in `brain/02-Specs/`.
