@@ -66,6 +66,8 @@ put it next to the code that uses it, and note the choice in your summary.
 - Accessible (keyboard, contrast) and responsive down to phone width.
 
 ## Standards
+- **Test data:** to fill `/collection` (or the deck engine) with sample cards in the browser or in unit tests, follow `brain/07-Loop/Collection Test Data.md` ([[Collection Test Data]]). Load samples only into a browser profile with no real data.
+
 - Clean, straightforward code. Minimal state management until it's needed.
 - No secrets in the repo (use `.env.example`).
 - Before you finish, run lint, build and tests for every package you touched (`web/`,

@@ -3,6 +3,8 @@ tags: [loop, validation]
 ---
 # Validation Checks
 
+Sample cards for Collection / deck checks: [[Collection Test Data]].
+
 Catalogue for the **validator**. Status: `active` (runs now) · `planned` (activates once its
 prerequisites exist). Builders: when your work makes a planned check possible, mark it
 `active` and point to the script.

@@ -64,6 +64,8 @@ The skills give guidance. Specs, accepted ADRs, [[Design Direction]] and RJ's de
 when they disagree; point out the conflict.
 
 ## Looking at the app (Playwright)
+- **Test data:** to fill `/collection` (or the deck engine) with sample cards in the browser or in unit tests, follow `brain/07-Loop/Collection Test Data.md` ([[Collection Test Data]]). Load samples only into a browser profile with no real data.
+
 1. Start the dev server in the background (`cd web; npm start`, http://localhost:4200) or use
    the live site / a preview channel RJ names. Stop any server you started when you're done.
 2. For each screen you review, at **1440, 1024, 768 and 390** wide: screenshot (and read it) and
