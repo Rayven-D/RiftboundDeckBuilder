@@ -2,11 +2,11 @@ import { tileOwnership } from './ownership';
 
 describe('tileOwnership', () => {
   it.each([
-    [3, 3, 'full', 1, '3 of 3 owned'],
-    [1, 3, 'partial', 1 / 3, '1 of 3 owned'],
-    [2, 3, 'partial', 2 / 3, '2 of 3 owned'],
-    [1, 2, 'partial', 0.5, '1 of 2 owned'],
-    [0, 2, 'none', 0, '0 of 2 owned'],
+    [3, 3, 'full', 1, '3 of 3 available'],
+    [1, 3, 'partial', 1 / 3, '1 of 3 available'],
+    [2, 3, 'partial', 2 / 3, '2 of 3 available'],
+    [1, 2, 'partial', 0.5, '1 of 2 available'],
+    [0, 2, 'none', 0, '0 of 2 available'],
   ] as const)('%i of %i is %s', (allocated, required, state, fill, label) => {
     const o = tileOwnership(allocated, required);
     expect(o.state).toBe(state);
@@ -18,7 +18,7 @@ describe('tileOwnership', () => {
     expect(tileOwnership(5, 3)).toMatchObject({
       allocated: 3,
       state: 'full',
-      label: '3 of 3 owned',
+      label: '3 of 3 available',
     });
   });
 

@@ -10,7 +10,7 @@ export interface TileOwnership {
   /** Exact fraction in [0, 1]; 1 of 3 is 0.333…, never rounded to steps (OWN-032). */
   readonly fill: number;
   readonly state: OwnershipState;
-  /** Visible count label, e.g. "1 of 3 owned" (OWN-033). */
+  /** Visible count label, e.g. "1 of 3 available" (SPEC-005 v0.3 OWN-033, SPEC-008 SHARE-040). */
   readonly label: string;
 }
 
@@ -22,7 +22,7 @@ export function tileOwnership(allocated: number, required: number): TileOwnershi
   const capped = Math.min(Math.max(0, Math.trunc(allocated)), required);
   const fill = capped / required;
   const state: OwnershipState = capped === required ? 'full' : capped === 0 ? 'none' : 'partial';
-  return { allocated: capped, required, fill, state, label: `${capped} of ${required} owned` };
+  return { allocated: capped, required, fill, state, label: `${capped} of ${required} available` };
 }
 
 /** Icon per state (OWN-033: full check, partial half circle, none empty circle). */

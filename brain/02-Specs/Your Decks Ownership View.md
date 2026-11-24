@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-005
-version: 0.3
+version: 0.4
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-004, SPEC-006, SPEC-007, SPEC-008, SPEC-009]
 research: ["[[Ban List]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]", "[[Card Data & Images]]", "[[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]]", "[[2026-11 RC Europe - 5 - CTCG DZiden - Kai'Sa]]"]
@@ -26,7 +26,9 @@ as_of: 2026-11-23
   decks (SHARE-011). The pool is shared across zones and allocated in Riot decklist order, Main before
   Sideboard: **Legend → Champion → Main → Battlefields → (Runes) → Sideboard** (OWN-022). Rune entries are
   always full and never counted (SPEC-009). Sections are shown in the same order (OWN-011, ADR-0006 "Your
-  decks view decisions"). Labels read "`<a>` of `<q>` available" / "… locked in" (SHARE-040).
+  decks view decisions"). Labels read "`<a>` of `<q>` available" / "… locked in" (SHARE-040). v0.4: every
+  deck has exactly one ownership filter group (SHARE-051); an empty or runes-only deck reads "No cards to
+  count" and is "None available".
 - **Legality label:** same labels as SPEC-004 CAT-045 and SPEC-006 DECK-051, format name from
   `FormatDef.name` per SPEC-002 LEGAL-R08: "Legal in Standard as of Nov 23, 2026", "Not legal in Standard
   today", "Not fully checked" (OWN-004).
@@ -36,8 +38,8 @@ as_of: 2026-11-23
   `DeckLockState` (SPEC-008), `isRuneEntry()` (SPEC-009). Defines `computeDeckOwnership()` →
   `DeckOwnershipView`, `OwnershipCard`, `DeckTileSummary`. Excluding tag names come from
   `DeckOwnershipInput.tags` (SPEC-007 `TagStore`).
-- **Depends on:** SPEC-001 v0.3, SPEC-002 v0.3, SPEC-004 v0.4, SPEC-006 v0.6, SPEC-007 v0.4, SPEC-008 v0.1,
-  SPEC-009 v0.1. Nothing is stored by this spec; everything is computed on display.
+- **Depends on:** SPEC-001 v0.3, SPEC-002 v0.3, SPEC-004 v0.4, SPEC-006 v0.6, SPEC-007 v0.5, SPEC-008 v0.2,
+  SPEC-009 v0.2. Nothing is stored by this spec; everything is computed on display.
 - **Blocked / open:** foil as its own printing (SPEC-007 open question 1, H-020); card image aspect
   ratio and battlefield orientation in the API (OWN-081). Unknown card = 0 owned is a Claude default RJ
   may change (Open questions).
@@ -96,9 +98,6 @@ card fields are SPEC-001 ([[Card Data Model]]).
    Battlefields and Runes never changes a result; it follows the display order so one list
    (`ZONE_ORDER`) serves both and the function is fully deterministic. Since v0.3 rune entries are skipped
    by the allocation (always full, SPEC-009).
-7. **Available, not owned** (v0.3, RJ, ADR-0006 "Shared cards, lock in and runes"). Copies another deck has
-   locked in are not available here, so the fill, labels and summary use SPEC-008 `available(D, k)`.
-   Unlocked decks don't reserve copies from each other; instead each tile says "Also in N other decks".
 3. **Darkening is for ownership only.** Ban status is a label and icon, never a dim or a fill, so a
    banned card the user owns in full is shown in full colour with a ban label.
 4. **Only the card image is darkened.** Text the app renders (name, counts, type, ban label, rules text)
@@ -107,6 +106,9 @@ card fields are SPEC-001 ([[Card Data Model]]).
    says how many extra copies are available.
 6. **Counts, no percentages.** The summary uses copy and card counts. There is no completion %, score,
    rank or comparison with other users or the meta (ADR-0003).
+7. **Available, not owned** (v0.3, RJ, ADR-0006 "Shared cards, lock in and runes"). Copies another deck has
+   locked in are not available here, so the fill, labels and summary use SPEC-008 `available(D, k)`.
+   Unlocked decks don't reserve copies from each other; instead each tile says "Also in N other decks".
 
 ## Requirements
 ### A. Decks list
@@ -117,7 +119,7 @@ card fields are SPEC-001 ([[Card Data Model]]).
 | OWN-003 | MUST | Source line: for `source.kind === 'tournament'`: "`<placingLabel>`, `<eventName>` · `<eventStartDate>` – `<eventEndDate>`" (one date when equal; values verbatim, DECK-061), e.g. "1st, Regional Championship: Europe · Nov 6, 2026 – Nov 8, 2026". For `kind: 'user'`: the source text if any, else the URL as **plain text** (no fetch, no favicon, DECK-072), else "Imported". Wording stays neutral (no "top deck", "best", "meta"). | [[Deck Import]] DECK-061, DECK-071, DECK-072; [[Tournament Deck Catalog]] CAT-035, CAT-037 |
 | OWN-004 | MUST | Legality label from SPEC-002 evaluation of the deck (`toDeckInput`, `format`, region `global`, `asOf` = today), with **the same labels as SPEC-004 CAT-045 and SPEC-006 DECK-051**, rendered per SPEC-002 LEGAL-R08: `<format>` is the `FormatDef.name` of `deck.format` (**"Standard"** for `standard`; the id is never shown) and `<asOf>` uses the OWN-090 date format. Checked in this order: `illegal` → **"Not legal in `<format>` today"**; `incomplete` → **"Not fully checked"** (DECK-052; never shown as legal or with a legal colour/icon, LEGAL-R04); `legal` → **"Legal in `<format>` as of `<asOf>`"**, e.g. "Legal in Standard as of Nov 23, 2026". The CAT-045 historical label does not apply: a user deck is always checked as of today. If legality cannot be computed (catalog, ban or format data not loaded, so no `LegalityResult` or no `FormatDef`) the label is "Not fully checked". The verdict is computed on display, never stored (DECK-055). | [[Deck Legality]] LEGAL-R02, LEGAL-R04, LEGAL-R08, `FormatDef`; [[Tournament Deck Catalog]] CAT-045; [[Deck Import]] DECK-051, DECK-052, DECK-055; [[ADR-0006 Two Imports - Collection and Decks]] H-036 #7 |
 | OWN-005 | MUST | Default order: `updatedAt` descending (most recently changed first); ties by `createdAt` descending, then `id`. | design rule |
-| OWN-006 | SHOULD | Sort options: Last updated (default), Name A–Z (SPEC-007 COLL-034 name comparison), Date added (`createdAt`, newest first). Filters: text search on deck name (case- and accent-insensitive substring); legality (verdict `legal` / `illegal` / `incomplete`, options labelled with the OWN-004 labels without the date: "Legal in Standard", "Not legal in Standard today", "Not fully checked"); source (Imported / From Tournaments); ownership per SPEC-008 SHARE-051 (Ready to build / Partly available / None available, by the deck's available summary) and lock (Locked / Not locked). Sort and filters are reflected in the URL query (e.g. `?sort=name&legality=legal&own=ready`). | design rule; [[Shared Cards and Lock-in]] SHARE-051 |
+| OWN-006 | SHOULD | Sort options: Last updated (default), Name A–Z (SPEC-007 COLL-034 name comparison), Date added (`createdAt`, newest first). Filters: text search on deck name (case- and accent-insensitive substring); legality (verdict `legal` / `illegal` / `incomplete`, options labelled with the OWN-004 labels without the date: "Legal in Standard", "Not legal in Standard today", "Not fully checked"); source (Imported / From Tournaments); ownership per SPEC-008 SHARE-051 (Ready to build / Partly available / None available, by the deck's `ownershipFilter` group; each deck is in exactly one group, and a locked deck that is not short is in none of the three options) and lock (Locked / Not locked). Sort and filters are reflected in the URL query (e.g. `?sort=name&legality=legal&own=ready`). | design rule; [[Shared Cards and Lock-in]] SHARE-051 |
 | OWN-007 | MUST NOT | The list offers no sort, filter, badge or label based on meta or community data: no play rate, win rate, popularity, tier, "trending", or comparison with other users' ownership. | [[ADR-0003 Tournament Results Only]] |
 | OWN-008 | MUST | Empty state (no decks): "No decks yet" with links to **Import → Deck Import** and **Tournaments**. A filter with no matches shows "No decks match these filters" and a "Clear filters" action. | design rule |
 
@@ -173,7 +175,7 @@ card fields are SPEC-001 ([[Card Data Model]]).
 ### F. Deck-level summary and missing list
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| OWN-050 | MUST | Deck summary: "`<A>` of `<R>` copies available" ("… copies locked in" in a locked deck, SHARE-050), where `R` = Σ qty over all **counted** zone entries (rune entries left out, RUNE-003) and `A` = Σ allocated (= Σ over cards of `min(pool, card required)`); and "`<F>` of `<C>` cards fully available", where `C` = number of distinct counted `cardKey`s in the deck and `F` those with pool ≥ card required (OWN-021). When any deck card has `ownedExcluded > 0`, add "`<X>` copies excluded from decks" (Σ `min(ownedExcluded, card required − allocated card total)`, i.e. excluded copies that would have filled a gap). | [[ADR-0006 Two Imports - Collection and Decks]]; board H-007 |
+| OWN-050 | MUST | Deck summary: "`<A>` of `<R>` copies available" ("… copies locked in" in a locked deck, SHARE-050), where `R` = Σ qty over all **counted** zone entries (rune entries left out, RUNE-003) and `A` = Σ allocated (= Σ over cards of `min(pool, card required)`); and "`<F>` of `<C>` cards fully available", where `C` = number of distinct counted `cardKey`s in the deck and `F` those with pool ≥ card required (OWN-021). When any deck card has `ownedExcluded > 0`, add "`<X>` copies excluded from decks" (Σ `min(ownedExcluded, card required − allocated card total)`, i.e. excluded copies that would have filled a gap). When R = 0 (the deck is empty or holds only rune entries) the summary and the deck tile line read **"No cards to count"** instead of both count lines (SHARE-050), and the deck is "None available" (SHARE-051). | [[ADR-0006 Two Imports - Collection and Decks]]; board H-007; [[Shared Cards and Lock-in]] SHARE-050, SHARE-051 |
 | OWN-051 | MUST | **Missing list:** every counted zone entry with `allocated < qty` (never a rune entry, RUNE-003; copies locked by other decks count as missing here), quantity `qty − allocated`, grouped by zone in the deck view section order, each line "`<missing>` `<canonical name>`". Shown below the summary, collapsed by default when it has more than 10 lines. "All cards available" when empty. | board H-007; design rule |
 | OWN-052 | MUST | **Copy missing list** puts Riot-style text on the clipboard in the SPEC-006 DECK-085 layout (labels `Legend:`, `Champion:`, `Main Deck:`, `Battlefields:`, `Rune Pool:`, `Sideboard:` in that order, one blank line between sections, `<qty> <canonical name>` lines in stored order, empty sections omitted, `\n` line endings), so it can be pasted into Deck Import or another tool. The `Rune Pool:` section is always empty and so never appears (RUNE-003). Confirmation "Missing list copied". | [[Deck Import]] DECK-085; [[Collection Import Formats]] fact 1; [[Runes Assumed Owned]] RUNE-003 |
 | OWN-053 | SHOULD | A second copy option "Copy as one list" merges the missing list per `cardKey` (`<total missing> <name>`, deck order of first appearance, no section labels). | design rule |
@@ -219,9 +221,9 @@ card fields are SPEC-001 ([[Card Data Model]]).
 import type { UserDeck, DeckCard, DeckZone, DeckSource } from './deck-import';   // SPEC-006 v0.6
 import type {
   DeckOwnership, DeckOwnershipInput, CollectionCatalogView, StoredTags, Tag, TagId,
-} from './my-collection';                                                       // SPEC-007 v0.4, COLL-081
-import type { SharedPool, CardUse, DeckLockState } from './shared-cards';     // SPEC-008 v0.1
-// isRuneEntry(zone, card) from SPEC-009 v0.1 (RUNE-001)
+} from './my-collection';                                                       // SPEC-007 v0.5, COLL-081
+import type { SharedPool, CardUse, DeckLockState } from './shared-cards';     // SPEC-008 v0.2
+// isRuneEntry(zone, card) from SPEC-009 v0.2 (RUNE-001)
 import type { BanStatus, BanListFile, LegalityResult, FormatDef } from './deck-legality'; // SPEC-002 v0.3
 import type { PlayableCard, Printing, CardCategory } from './card-data-model';   // SPEC-001 v0.3
 type CardKey = string;
@@ -328,8 +330,11 @@ interface DeckTileSummary {
   legalityVerdict: 'legal' | 'illegal' | 'incomplete'; // OWN-004; 'incomplete' also when legality could not be computed
   legalityLabel: string;                      // OWN-004 = CAT-045 / DECK-051 labels, e.g. 'Legal in Standard as of Nov 23, 2026',
                                               // 'Not legal in Standard today', 'Not fully checked'
-  ownershipLine: string;                      // '34 of 54 copies available' / '54 of 54 copies locked in' (SHARE-050)
-  ownershipFilter: 'ready' | 'partial' | 'none' | 'locked'; // SHARE-051; 'locked' = locked and not short
+  ownershipLine: string;                      // '34 of 54 copies available' / '54 of 54 copies locked in' /
+                                              // 'No cards to count' when R = 0 (SHARE-050, OWN-050)
+  ownershipFilter: 'ready' | 'partial' | 'none' | 'locked'; // exactly one per deck, first match (SHARE-051):
+                                              // 'locked' = locked, not short, R > 0; 'none' = R = 0;
+                                              // 'ready' = unlocked and complete; 'none' = A = 0; else 'partial'
   lockBadge: string | null;                   // 'Locked' / 'Locked · 1 card short' (SHARE-050)
   updatedAt: string;                          // shown per OWN-090
 }
@@ -440,7 +445,7 @@ deck uses the cards and no deck is locked, so available = `ownedForDecks`.
     deck needs: 3" and the other deck "· needs 3 · Locked, holds 3"; the missing list has `3 Hextech Ray`.
     The other deck's view shows the "Locked" badge and "3 of 3 locked in".
 17. **Runes in the deck view** (OWN-011, OWN-022a; SPEC-009 AC 1)
-    **Given** `KENNEN_1` and an empty collection **Then** the Runes heading reads "Runes · 12 cards · not
+    **Given** `KENNEN_1` and an empty collection **When** the deck view opens **Then** the Runes heading reads "Runes · 12 cards · not
     tracked", both rune tiles read "Assumed owned" in full colour, and neither shows a shared indicator.
 
 ## Out of scope
@@ -464,8 +469,9 @@ deck uses the cards and no deck is locked, so available = `ownedForDecks`.
    placeholder tile (OWN-061), even if Collection still records copies under that `cardKey`.
 5. **Time zone of "today"** follows SPEC-002's open question (LEGAL-R02).
 6. **Resolved (RJ, 2026-11-23, ADR-0006 "Shared cards, lock in and runes"):** the pool is availability after
-   other decks' locks (OWN-020, SPEC-008) and runes are assumed owned (OWN-022a, SPEC-009). The lock-order and
-   shortfall defaults are SPEC-008's open question 1.
+   other decks' locks (OWN-020, SPEC-008) and runes are assumed owned (OWN-022a, SPEC-009). RJ also accepted
+   SPEC-008's lock-order and shortfall defaults and decided there is no force lock on 2026-11-23 (SPEC-008 open
+   questions 1 and 2, both resolved). Nothing here is open.
 
 ## Changelog
-Current: 0.3 (2026-11-23). Full history: [[Your Decks Ownership View changelog]] (archived). New entries go in the archive note.
+Current: 0.4 (2026-11-23, H-065/H-066/H-067). Full history: [[Your Decks Ownership View changelog]] (archived). New entries go in the archive note.

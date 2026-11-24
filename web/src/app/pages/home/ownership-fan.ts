@@ -15,7 +15,7 @@ import type { FanCard } from './home-page';
   host: {
     role: 'img',
     'aria-label':
-      'Three cards showing ownership: one missing, one with 1 of 3 copies owned, one fully owned',
+      'Three cards showing ownership: one missing, one with 1 of 3 copies available, one fully available',
   },
   template: `
     <svg class="hero-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
