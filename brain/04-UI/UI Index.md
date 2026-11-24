@@ -9,7 +9,7 @@ Owner: **builder** with RJ. Record agreed screens and design decisions here.
 | Screen | Status | Notes |
 |---|---|---|
 | Import (owned cards / deck) | scaffolded | paste / CSV upload, parse errors per line |
-| My collection | scaffolded | owned cards; user tags; sort/filter by name, attributes, tags; default set → collector number (overnumbered included) |
+| Collection | brief approved, rev 3 (RJ, 2026-11-24) | **[[Collection]]** design brief + **[[Collection Components]]** (component handoff for H-086) + **[[Collection Review H-086]]** (built page review: 4 blocking fixes in H-095) (ui-engineer, approved by RJ with all open choices answered). Rev 2 after RJ's review: image-only full-color tiles, one per printing (RJ), with a per-printing `×N` badge and a card-level "2 of this card locked in <deck>" band, a read-only card dialog (copies, printings, Locked in, Could fit in, ban, keywords slot), search + 3 sorts, Export. SPEC-007 editing/tags/filters out of scope pending H-091; build item H-086 |
 | Your decks | scaffolded | imported community decks; per-card ownership colouring (full / darkened / partial fraction), ban status on every card ([[ADR-0006 Two Imports - Collection and Decks]]) |
 | Tournaments | scaffolded | recent events, with winning decks and their lists |
 | Deck detail | scaffolded | owned/missing per card, missing list, export |

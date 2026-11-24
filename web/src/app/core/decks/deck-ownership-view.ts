@@ -1,6 +1,5 @@
 import { banStatus } from './ban-status';
 import { cachedDeckOwnership } from './deck-ownership';
-import { isRuneEntry } from './runes';
 import {
   ZONE_ORDER,
   availability,
@@ -57,10 +56,8 @@ export function formatIsoDate(iso: IsoDate): string {
  * SPEC-005 `computeDeckOwnership(deck, ownership, catalog, banData, today)` (OWN-025): pure.
  * The pool for counted card k is SPEC-008 `availability(shared, deck.id, k).available` (OWN-020),
  * allocated over the deck's counted entries of k in zone order, Main before Sideboard (OWN-022).
- * Rune entries are always full, "Assumed owned", and never counted (OWN-022a, SPEC-009). With
- * ownership unavailable or no catalog (OWN-062/063) every tile is full colour without a label.
- * Rune detection (RUNE-001) uses `ownership.input.catalog` when ownership is ok, the same catalog
- * `computeSharedPool` uses, so the view and the pool never disagree on which entries count.
+ * Rune entries are counted, allocated and listed like any entry (OWN-028). With ownership
+ * unavailable or no catalog (OWN-062/063) every tile is full colour without a label.
  * Entries must already be valid per SPEC-006 DECK-096 (`qty` an integer 1..999): this function
  * doesn't re-validate, and `tileOwnership` throws a RangeError for `qty < 1` (SHARE-003).
  */
@@ -74,12 +71,10 @@ export function computeDeckOwnership(
   const ok = ownership.status === 'ok' && catalog !== null ? ownership : null;
   const lock = ok ? (ok.shared.byDeck[deck.id] ?? null) : null;
   const locked = lock?.locked ?? false;
-  // RUNE-001: the pool's catalog when ownership is ok, so view and pool agree (SPEC-009).
-  const runeCatalog = ok ? ok.input.catalog : catalog;
 
   const tagLabels = new Map(ok ? ok.input.tags.tags.map((t) => [t.id, t.label]) : []);
 
-  // Counted entries per cardKey, in allocation order (OWN-022: ZONE_ORDER, rune entries skipped).
+  // Counted entries per cardKey, in allocation order (OWN-022: ZONE_ORDER, every entry, OWN-028).
   interface Counted {
     zone: DeckZone;
     qty: number;
@@ -89,7 +84,6 @@ export function computeDeckOwnership(
   const countedOf = new Map<DeckCard, Counted>();
   for (const zone of ZONE_ORDER) {
     for (const e of zoneEntries(deck, zone)) {
-      if (isRuneEntry(zone, runeCatalog?.cards[e.cardKey] ?? null)) continue;
       const c: Counted = { zone, qty: e.qty, allocated: 0 };
       const list = counted.get(e.cardKey);
       if (list) list.push(c);
@@ -151,7 +145,6 @@ export function computeDeckOwnership(
   const sections: ZoneSection[] = ZONE_ORDER.map((zone) => {
     const cards = zoneEntries(deck, zone).map((entry): OwnershipCard => {
       const card = catalog?.cards[entry.cardKey] ?? null;
-      const isRune = isRuneEntry(zone, runeCatalog?.cards[entry.cardKey] ?? null);
       const flags: OwnershipCard['flags'] = [];
       if (catalog && !card) flags.push('unknown-card');
       if (card?.isPreview === true) flags.push('preview');
@@ -160,19 +153,18 @@ export function computeDeckOwnership(
       const imageUrl = card
         ? (catalog?.printings[card.defaultPrintingId]?.art.thumbnailUrl ?? null)
         : null;
-      const ci = isRune ? undefined : info.get(entry.cardKey);
+      const ci = info.get(entry.cardKey);
       if (!ci) {
-        // OWN-022a (runes) and OWN-062/063 (ownership unavailable): full colour, nothing counted.
+        // OWN-062/063 (ownership unavailable): full colour, nothing counted.
         return {
           cardKey: entry.cardKey,
           zone,
           name,
-          isRune,
           required: entry.qty,
           allocated: entry.qty,
           fill: 1,
           state: 'full',
-          label: isRune ? 'Assumed owned' : '',
+          label: '',
           sharedLabel: null,
           cardRequired: 0,
           ownedForDecks: 0,
@@ -197,7 +189,6 @@ export function computeDeckOwnership(
         cardKey: entry.cardKey,
         zone,
         name,
-        isRune,
         required: entry.qty,
         allocated: tile.allocated,
         fill: tile.fill,
@@ -232,7 +223,7 @@ export function computeDeckOwnership(
     };
   });
 
-  // OWN-050 summary and OWN-051 missing list: counted entries only (RUNE-003).
+  // OWN-050 summary and OWN-051 missing list: every entry, Runes included (OWN-028).
   let copiesRequired = 0;
   let copiesAvailable = 0;
   let cardsFullyAvailable = 0;
@@ -249,7 +240,7 @@ export function computeDeckOwnership(
   if (ok) {
     for (const s of sections) {
       for (const c of s.cards) {
-        if (!c.isRune && c.allocated < c.required) {
+        if (c.allocated < c.required) {
           missing.push({
             zone: s.zone,
             cardKey: c.cardKey,

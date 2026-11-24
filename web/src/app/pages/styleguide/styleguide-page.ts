@@ -1,5 +1,23 @@
-import { Component, DOCUMENT, inject, signal } from '@angular/core';
+import { Component, DOCUMENT, inject, isDevMode, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
+import {
+  CardData,
+  DEV_LARGE_ENTRIES,
+  DEV_SAMPLE_DECKS_KEY,
+  DEV_SAMPLE_KEY,
+} from '../../core/cards/card-data';
+import { AppStores } from '../../core/storage/app-stores';
+import { STORAGE_KEYS } from '../../core/storage/local-stores';
+import { CARD_DIALOG_TITLE_ID, CardDialog, CardDialogData } from '../../shared/collection/card-dialog';
+import { CollectionTile } from '../../shared/collection/collection-tile';
+import { cardDetail } from '../../shared/collection/collection-view';
+import { CountBadge } from '../../shared/collection/count-badge';
+import { LockBand } from '../../shared/collection/lock-band';
+import { generateLargeSample, sampleOverCatalog, SampleData } from '../../shared/collection/sample-data';
+import { CardArt } from '../../shared/deck/card-art';
+import { StatusLabel } from '../../shared/status-label';
+import { styleguideCollection } from './collection-samples';
 import { Icon } from '../../shared/icon';
 import { CardTile } from '../../shared/deck/card-tile';
 import { DeckHeading } from '../../shared/deck/deck-heading';
@@ -22,7 +40,7 @@ interface SampleCard {
  */
 @Component({
   selector: 'app-styleguide-page',
-  imports: [CardTile, DeckHeading, MatButton, Icon],
+  imports: [CardTile, DeckHeading, MatButton, Icon, CardArt, CountBadge, LockBand, StatusLabel, CollectionTile],
   template: `
     <p class="page-eyebrow sample">Component preview · sample data, not real cards</p>
     <div class="accent-switch" role="group" aria-labelledby="accent-label">
@@ -76,6 +94,75 @@ interface SampleCard {
           [required]="2"
         />
       </div>
+    </section>
+
+    <section class="collection-preview" aria-labelledby="sg-collection">
+      <h2 id="sg-collection" class="zone">Collection (H-086)</h2>
+
+      <h3 class="sub">Count badge</h3>
+      <div class="frames">
+        @for (n of badgeCounts; track n) {
+          <div class="frame">
+            <app-card-art name="Badge sample" state="full" [fill]="1" [imageUrl]="art('#4a6fb5')" decorative />
+            <app-count-badge [count]="n" [announce]="true" />
+          </div>
+        }
+      </div>
+
+      <h3 class="sub">Lock band</h3>
+      <div class="frames">
+        @for (b of bands; track b.color) {
+          <div class="frame">
+            <app-card-art name="Band sample" state="full" [fill]="1" [imageUrl]="art(b.color)" decorative />
+            <app-lock-band [copies]="b.copies" [decks]="b.decks" />
+          </div>
+        }
+      </div>
+
+      <h3 class="sub">Status labels</h3>
+      <div class="labels">
+        <app-status-label variant="banned" text="Banned since Nov 23, 2026" />
+        <app-status-label variant="upcoming" text="Banned from Dec 15, 2026" />
+        <app-status-label variant="unknown" text="Ban status unknown" />
+      </div>
+
+      <h3 class="sub">Tiles: printing, Showcase, unassigned, missing, no image, rune ×999</h3>
+      <div class="tiles" role="list" aria-label="Sample tiles">
+        @for (tile of sample.tiles; track tile.entryId) {
+          <app-collection-tile
+            [tile]="tile"
+            [card]="sample.cards.get(tile.cardKey)"
+            (open)="openDialog(tile.entryId)"
+          />
+        }
+      </div>
+
+      <h3 class="sub">Card dialog</h3>
+      <div class="actions">
+        <button matButton="outlined" (click)="openDialog('p:SGP-007a')">Several printings, locked + short</button>
+        <button matButton="outlined" (click)="openDialog('p:SGP-012')">Banned, no image, two decks</button>
+        <button matButton="outlined" (click)="openDialog('p:SGP-031')">No decks</button>
+        <button matButton="outlined" (click)="openDialog('p:SGP-040')">Rune, locked in + could fit</button>
+      </div>
+
+      @if (devMode) {
+        <h3 class="sub">Sample collection (dev builds only)</h3>
+        <p class="sample">
+          Replaces this browser's collection, decks and locks with invented sample data, so the
+          Collection page has something to show. The fixture sample needs the services API
+          (<code>npm run ingest:fixture</code>, then <code>npm run dev</code> in services/).
+        </p>
+        <div class="actions">
+          <button matButton="outlined" (click)="loadFixtureSample()">Load fixture sample</button>
+          <button matButton="outlined" (click)="loadLargeSample()">
+            Load {{ largeEntriesText }} generated entries
+          </button>
+          <button matButton="outlined" (click)="clearSample()">Clear sample data</button>
+        </div>
+        @if (sampleStatus(); as status) {
+          <p class="sample" role="status">{{ status }}</p>
+        }
+      }
     </section>
   `,
   styles: `
@@ -136,6 +223,26 @@ interface SampleCard {
       border-bottom: 1px solid var(--color-border);
       font-size: var(--font-size-md);
     }
+    .collection-preview {
+      margin-top: var(--space-7);
+    }
+    .sub {
+      margin: var(--space-5) 0 var(--space-2);
+      font-family: var(--font-sans);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+    }
+    .frames,
+    .labels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-4);
+    }
+    .frame {
+      position: relative;
+      width: 9.5rem;
+      border-radius: var(--radius-md);
+    }
     .tiles {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
@@ -177,6 +284,107 @@ export class StyleguidePage {
       ban: 'Banned since Nov 23, 2026',
     },
   ];
+
+  // ---- Collection preview (H-086, Collection Components §10)
+  protected readonly badgeCounts = [2, 12, 999];
+  protected readonly bands = [
+    { color: '#f4f1e8', copies: 2, decks: ['Jinx Aggro'] },
+    { color: '#2f8f6b', copies: 1, decks: ['Kennen Tempo with a very long locked deck name'] },
+    { color: '#b8563a', copies: 3, decks: ['Jinx Aggro', 'Kennen Tempo'] },
+  ];
+  protected readonly sample = styleguideCollection();
+  protected readonly devMode = isDevMode();
+  protected readonly largeEntriesText = DEV_LARGE_ENTRIES.toLocaleString('en-US');
+  protected readonly sampleStatus = signal<string | null>(null);
+  private readonly dialog = inject(MatDialog);
+  private readonly stores = inject(AppStores).stores;
+  private readonly cardData = inject(CardData);
+
+  protected openDialog(entryId: string): void {
+    const data: CardDialogData = {
+      entryId,
+      detail: (id) => cardDetail(this.sample, id),
+      neighbour: (id, step) => {
+        const i = this.sample.tiles.findIndex((t) => t.entryId === id);
+        return this.sample.tiles[i + step]?.entryId ?? null;
+      },
+      stepping: true,
+    };
+    this.dialog.open(CardDialog, {
+      data,
+      ariaLabelledBy: CARD_DIALOG_TITLE_ID,
+      autoFocus: '.close-button',
+      panelClass: 'card-dialog-panel',
+      width: 'min(56rem, calc(100vw - 2 * var(--content-gutter)))',
+      maxWidth: '100vw',
+      maxHeight: 'min(90svh, 52rem)',
+    });
+  }
+
+  /** Dev only: writes invented sample data through the raw stores (sync never stamps it). */
+  private async writeSample(s: Omit<SampleData, 'catalog'>): Promise<void> {
+    await this.stores.raw.collection.save(s.collection);
+    await this.stores.printingCodes.save(s.printingCodes);
+    for (const d of await this.stores.raw.decks.list()) await this.stores.raw.decks.delete(d.id);
+    for (const d of s.decks) await this.stores.raw.decks.put(d);
+    localStorage.setItem(DEV_SAMPLE_DECKS_KEY, JSON.stringify(s.decks.map((d) => d.id)));
+    await this.stores.raw.locks.save({ schemaVersion: 1, updatedAt: new Date().toISOString(), locks: s.locks });
+  }
+
+  private confirmReplace(): boolean {
+    return confirm("Replace this browser's collection, decks and locks with sample data?");
+  }
+
+  protected async loadFixtureSample(): Promise<void> {
+    if (!this.confirmReplace()) return;
+    localStorage.removeItem(DEV_SAMPLE_KEY);
+    const result = await this.cardData.reload();
+    if (result.status === 'error') {
+      this.sampleStatus.set('Card data did not load. Start the services API with the fixture first.');
+      return;
+    }
+    await this.writeSample(sampleOverCatalog(result.catalog));
+    this.sampleStatus.set('Fixture sample loaded. Open Collection.');
+  }
+
+  protected async loadLargeSample(): Promise<void> {
+    if (!this.confirmReplace()) return;
+    localStorage.setItem(DEV_SAMPLE_KEY, 'large');
+    await this.cardData.reload();
+    await this.writeSample(generateLargeSample(DEV_LARGE_ENTRIES));
+    this.sampleStatus.set(`${this.largeEntriesText} generated entries loaded. Open Collection.`);
+  }
+
+  /** Deck ids the last sample load wrote (none if it predates the record or it is unreadable). */
+  private sampleDeckIds(): string[] {
+    try {
+      const ids: unknown = JSON.parse(localStorage.getItem(DEV_SAMPLE_DECKS_KEY) ?? '[]');
+      return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Dev only. The collection, locks and printing codes are whole records, so they go entirely;
+   * of the decks only those the sample wrote are deleted (H-086 review 1).
+   */
+  protected async clearSample(): Promise<void> {
+    if (
+      !confirm(
+        "Clear this browser's collection and locks, and the sample's decks? This can't be undone. Decks you added yourself are kept.",
+      )
+    )
+      return;
+    localStorage.removeItem(DEV_SAMPLE_KEY);
+    for (const key of [STORAGE_KEYS.collection, STORAGE_KEYS.locks, STORAGE_KEYS.printingCodes]) {
+      localStorage.removeItem(key);
+    }
+    for (const id of this.sampleDeckIds()) await this.stores.raw.decks.delete(id);
+    localStorage.removeItem(DEV_SAMPLE_DECKS_KEY);
+    await this.cardData.reload();
+    this.sampleStatus.set('Sample data cleared.');
+  }
 
   protected art(color: string): string {
     return sampleCardArt(color, color.length + color.charCodeAt(2));

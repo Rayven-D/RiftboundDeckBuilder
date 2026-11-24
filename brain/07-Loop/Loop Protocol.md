@@ -38,6 +38,7 @@ Status `todo`, every `depends` item `done`, an agent owner (not RJ), highest pri
 |---|---|---|
 | researcher | `riftbound-researcher` | game facts, decklists, card data sources |
 | spec-writer | `spec-writer` | requirements, data contracts, acceptance criteria |
+| ui-engineer | `ui-engineer` | UI/UX design guidance, no code: design briefs in `brain/04-UI/` before a screen is built, critiques and accessibility audits after (looked at in a browser at 1440 / 1024 / 768 / 390); files `builder` items for every change |
 | builder | `builder` | all code: `web/` screens and components, browser business logic, `services/`, data pipeline, API contracts (each finished screen goes to a `needs-RJ` review gate). Only `builder` changes code; other owners file a `builder` item |
 | validator | `validator` | re-runs checks, regression sweeps |
 | RJ | you | gates: ADRs, UI reviews, spec approvals, merging `dev` → `main` |
