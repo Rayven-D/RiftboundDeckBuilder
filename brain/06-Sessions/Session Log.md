@@ -7,6 +7,11 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: H-101 snack bars above the phone tab bar (builder, chain step 2)
+- `loop/H-101-snackbar-offset` from `loop/H-139-focus-ring` @ `ac93f84`. ui-engineer [[Brief H-101]] → builder → Playwright at 375 / 640 / 641 / 1440, dark and light, keyboard.
+- First check FAIL: gap 7px (the bar's 1px top border was left out) and the CDK overlay pane, grown by the margin, swallowed taps on the tabs. Fix: `--tabbar-border` token in the calc, pane `pointer-events: none` via `:has()` (600–640px panes lack the handset class), container `auto`. Re-check PASS.
+- Tests: 5 new in `snackbar-offset.spec.ts`; lint, build, 532 web, 34 rules green. Validator PASS round 1 ([[Validation H-101]]); code review: no findings. No new board IDs (`next_id` 140). Polish noted, not filed: focus drops to body after a notice closes (Material default).
+
 ## 2026-11-24: H-139 focus ring on Material buttons and menu items (builder, chain step 1)
 - `loop/H-139-focus-ring` from `loop/SPEC-010-v0.9-build` @ `49e3f8d` (started as H-100 on `259484b`, renumbered and rebased). ui-engineer [[Brief H-139]] → builder → two Playwright runs at 1440/375, dark/light, keyboard, plus green preview.
 - `styles.scss`: Material's `outline: none` / `outline: 0` / `.mdc-button:active` beat the global `:focus-visible` ring; new (0,3,0) rules for buttons (+2px outside, never inset on fills: ring vs fill 1.00–1.83) and menu items (inset), forced colors `Highlight`, no transition; replaces dev's H-095 icon-only rule. Sign-in dialog `.email` gets 4 px bottom room (Send link ring was clipped at 375; also removes the 4 px scroll of H-124).

@@ -137,6 +137,8 @@ html {
   --header-height: 4rem;
   /* Phone bottom tab bar (below 40rem), without the safe-area inset. */
   --tabbar-height: 4rem;
+  /* Its top hairline, drawn on top of --tabbar-height (H-101: offsets above the bar must add it). */
+  --tabbar-border: 1px;
 
   /* Motion (RJ, 2026-11-24, "fluid, but doesn't hinder"): one UI ease-out, one entrance curve. */
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -231,6 +233,23 @@ html {
 
   @media (max-width: 40rem) {
     scroll-padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--space-2));
+  }
+}
+
+/* H-101: on phones the fixed tab bar is always shown, so lift every snack bar above it: bar height + its
+ * hairline + safe-area inset + space-2 gap. Bottom margin only; Material keeps its side/top margins and width.
+ * The class is doubled (0,2,0) because Material's `.mat-mdc-snack-bar-container { margin: 8px }` is (0,1,0)
+ * and loads after this file, so a single class would tie and lose. No !important.
+ * The margin makes the CDK overlay pane grow over the bar, so the pane is click-through and only the snack
+ * bar itself takes taps. Matched with :has(), not .mat-mdc-snack-bar-handset: 600-640px panes lack that class. */
+@media (max-width: 40rem) {
+  .cdk-overlay-pane:has(> .mat-mdc-snack-bar-container) {
+    pointer-events: none;
+  }
+
+  .mat-mdc-snack-bar-container.mat-mdc-snack-bar-container {
+    margin-bottom: calc(var(--tabbar-height) + var(--tabbar-border) + env(safe-area-inset-bottom) + var(--space-2));
+    pointer-events: auto;
   }
 }
 
