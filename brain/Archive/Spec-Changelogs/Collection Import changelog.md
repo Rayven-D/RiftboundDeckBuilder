@@ -9,6 +9,18 @@ superseded_by: "[[Collection Import]]"
 
 Moved out of [[Collection Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.7 (2026-11-23, H-045): RJ decision 2026-11-23 (H-045). IMP-055 rewritten: the collection CSV export is
+  `Quantity,Card Name` only (no Tags column; tags expected to survive through sign-in sync, ADR-0007) and
+  writes printing codes so `byPrinting` round-trips. New normative block "Collection CSV export" under the
+  Storage table (rules 1–10: file and quoting, title row, canonical name, canonical code `<SET> <NUM>` inside
+  the name cell, printing rows, self-check against the Line grammar / exact-name guard with code-only and
+  name-only fallbacks, one name-only row for unassigned + missing-printing + no-code copies (counted in the
+  export notice), ⌈n/999⌉ rows of at most 999 with no `0` row, order, unresolved cards left out; the checks
+  also cover names the grammar misreads, e.g. `X Marks the Spot`) and a precise round-trip guarantee
+  (excludes rows of cards named in a rule 7 notice; code-only retries count as passing rule 6). New AC 35
+  (rows in `printingSortKey` order: name-only row right after its default printing, `001` before `001a`). Summary bullet added;
+  Open question H-045 marked Resolved. No new requirement IDs; requirement count unchanged.
+
 - 0.6 (2026-11-23, H-067): IMP-050's Replace confirmation SHOULD add SPEC-008's locked-deck warning
   ("'`<deck name>`' (locked) will be `<n>` cards short."), computed with `lockedShortfalls()` on the parsed
   import before anything is written; Add never warns; Undo of a commit (IMP-052) that lowers a hold shows a

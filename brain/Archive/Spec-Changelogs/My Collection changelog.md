@@ -9,6 +9,13 @@ superseded_by: "[[My Collection]]"
 
 Moved out of [[My Collection]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.6 (2026-11-23, H-045): RJ decision 2026-11-23 (H-045). COLL-059 (Tags column in the collection CSV
+  export) **withdrawn**: under SPEC-003's positional row rule the extra column broke the round trip; the
+  export is `Quantity,Card Name` only, tags and exclude flags are not in the CSV backup (expected to survive
+  through sign-in sync, ADR-0007), and per-printing counts round-trip per SPEC-003 0.7 IMP-055 (missing-printing
+  copies come back unassigned). New AC 24 (rows and entries in COLL-012/031/033 order). Out of scope notes tags in the export. Summary "Depends on" and the
+  data contract pin SPEC-003 v0.7. 80 requirements (62 MUST, 14 SHOULD, 4 MAY).
+
 - 0.5 (2026-11-23, H-067): COLL-088 agrees with SPEC-008 0.2 SHARE-034 and SPEC-003 0.6 IMP-050: the
   locked-deck warning is shown before the edit inside its confirmation (an edit without one, e.g. − or a
   typed quantity, asks for one only when a locked deck would go short; Cancel changes nothing); a Replace
