@@ -7,6 +7,11 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: H-102 danger button variant (builder, chain step 3)
+- `loop/H-102-danger-button` from `loop/H-101-snackbar-offset` @ `67f0eb8`. ui-engineer [[Brief H-102]] (filled danger chosen over outlined) → builder → Playwright at 1440/375, dark/light, teal and green accents, keyboard; signed-in menu and Delete dialog reached through Angular's dev console hook. PASS first time.
+- `styles.scss`: `--color-danger-contrast`, `.mat-mdc-button-base.danger` and `.mat-mdc-menu-item.danger` token overrides (no `!important`); account menu gets one divider before Delete account and data; `/styleguide` Buttons section.
+- Tests: 3 in account-menu / styleguide specs, 7 in `danger-button.spec.ts` (added after the validator noted no test guarded the CSS); lint, build, 542 web, 34 rules green. Validator PASS round 1 ([[Validation H-102]]); code review: no findings. No new board IDs (`next_id` 140). For H-110: divider colour is Material's teal-tinted grey, not `--color-border`.
+
 ## 2026-11-24: H-101 snack bars above the phone tab bar (builder, chain step 2)
 - `loop/H-101-snackbar-offset` from `loop/H-139-focus-ring` @ `ac93f84`. ui-engineer [[Brief H-101]] → builder → Playwright at 375 / 640 / 641 / 1440, dark and light, keyboard.
 - First check FAIL: gap 7px (the bar's 1px top border was left out) and the CDK overlay pane, grown by the margin, swallowed taps on the tabs. Fix: `--tabbar-border` token in the calc, pane `pointer-events: none` via `:has()` (600–640px panes lack the handset class), container `auto`. Re-check PASS.

@@ -74,6 +74,37 @@ html {
   );
 }
 
+/* H-102 danger variant (brain/04-UI/Brief H-102.md): class="danger" on any Material button. The mixin only
+ * sets --mat-button-* properties on the element, so the global overrides above and the H-139 focus ring
+ * (2px OUTSIDE: ring vs the fill is only 1.20 / 1.29) are untouched. Disabled is neutral, not red or teal:
+ * muted label on a 12% text-colour fill (4.69 dark / 4.66 light on the dialog bg). The green preview
+ * doesn't change danger. */
+.mat-mdc-button-base.danger {
+  @include mat.button-overrides(
+    (
+      filled-container-color: var(--color-danger),
+      filled-label-text-color: var(--color-danger-contrast),
+      filled-state-layer-color: var(--color-danger-contrast),
+      filled-ripple-color: color-mix(in srgb, var(--color-danger-contrast) 12%, transparent),
+      filled-disabled-container-color: color-mix(in srgb, var(--color-text) 12%, transparent),
+      filled-disabled-label-text-color: var(--color-text-muted),
+      text-label-text-color: var(--color-danger),
+      outlined-label-text-color: var(--color-danger),
+      outlined-outline-color: var(--color-danger),
+    )
+  );
+}
+
+/* H-102 danger menu item (Delete account and data). Plain `color` loses to Material's token.
+ * On the panel surface: 6.51 dark / 7.07 light at rest. */
+.mat-mdc-menu-item.danger {
+  @include mat.menu-overrides(
+    (
+      item-label-text-color: var(--color-danger),
+    )
+  );
+}
+
 /* Icons in Material buttons (marked matButtonIcon so Material puts them in its icon slot). */
 .mat-mdc-button-base > app-icon {
   margin-inline-end: var(--space-2);
@@ -100,7 +131,10 @@ html {
   --color-owned: #14b8a6;
   --color-missing: #9aa3ad;
   --color-focus: #2dd4bf;
+  /* Danger (H-102). Fill #f09595 on bg 7.44; label #3b0a0a on the fill 7.65 (6.68 under the 8% hover
+     layer, 6.17 under the 12% focus/pressed layer). Danger text on surface 6.51. */
   --color-danger: #f09595;
+  --color-danger-contrast: #3b0a0a;
   --color-warning: #ef9f27;
 
   /* Spacing (4px scale) */
@@ -180,7 +214,10 @@ html {
     --color-owned: #0f766e;
     --color-missing: #56606b;
     --color-focus: #0f766e;
+    /* Light danger: fill #a32d2d on bg 6.53; white label on it 7.07 (hover 6.06, focus 5.58);
+       danger text on surface 7.07. */
     --color-danger: #a32d2d;
+    --color-danger-contrast: #ffffff;
     --color-warning: #854f0b;
     --shadow-rest: 0 1px 2px rgb(15 23 42 / 10%);
     --shadow-lift: 0 6px 18px rgb(15 23 42 / 14%);

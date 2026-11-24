@@ -266,6 +266,20 @@ describe('Sign-in UI (SPEC-010)', () => {
     expect(closed).toBe(true);
   });
 
+  it('H-102: the Delete account dialog button is a filled danger button; Cancel is not', async () => {
+    TestBed.configureTestingModule({
+      imports: [DeleteAccountDialog],
+      providers: [{ provide: MatDialogRef, useValue: { close: () => undefined } }],
+    });
+    const fixture = TestBed.createComponent(DeleteAccountDialog);
+    await fixture.whenStable();
+    const all = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'));
+    const del = all.find((b) => text(b) === 'Delete account')!;
+    expect(del.classList).toContain('danger');
+    expect(del.classList).toContain('mat-mdc-unelevated-button');
+    expect(all.find((b) => text(b) === 'Cancel')!.classList).not.toContain('danger');
+  });
+
   it('SYNC-006 an email sign-in link is recognised from the URL without loading Firebase', () => {
     expect(isEmailLinkUrl('https://x.web.app/?apiKey=k&oobCode=abc&mode=signIn&lang=en')).toBe(true);
     expect(isEmailLinkUrl('https://x.web.app/decks')).toBe(false);
@@ -375,6 +389,16 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
   it('SYNC-096 without an unfinished deletion the menu offers neither Try again nor Cancel deletion', async () => {
     await menuFor(null);
     expect(menuButtons().map(text)).toEqual(['Sync now', 'Sign out', 'Delete account and data']);
+  });
+
+  it('H-102: one divider directly precedes Delete account and data, which carries the danger class', async () => {
+    await menuFor({ canCancel: true });
+    const panel = document.querySelector('.mat-mdc-menu-panel')!;
+    expect(panel.querySelectorAll('mat-divider')).toHaveLength(1);
+    const del = menuButton('Delete account and data')!;
+    expect(del.classList.contains('danger')).toBe(true);
+    expect(del.previousElementSibling?.tagName.toLowerCase()).toBe('mat-divider');
+    expect(menuButtons().filter((b) => b.classList.contains('danger')).map(text)).toEqual(['Delete account and data']);
   });
 
   it('SYNC-096 the menu Try again reruns the deletion without the confirmation dialog', async () => {

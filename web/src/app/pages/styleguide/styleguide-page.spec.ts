@@ -76,3 +76,19 @@ describe('StyleguidePage dev sample loader (H-086 review 1)', () => {
     expect(localStorage.getItem(DEV_SAMPLE_DECKS_KEY)).toBeNull();
   });
 });
+
+describe('StyleguidePage Buttons section (H-102)', () => {
+  it('H-102: the Buttons section renders a danger button and a disabled danger button', async () => {
+    const fixture = await render();
+    const el = fixture.nativeElement as HTMLElement;
+    const section = el.querySelector<HTMLElement>('section[aria-labelledby="sg-buttons"]')!;
+    expect(section.querySelector('h2')!.textContent!.trim()).toBe('Buttons');
+    const danger = [...section.querySelectorAll<HTMLButtonElement>('button.danger.mat-mdc-button-base')];
+    expect(danger.some((b) => !b.disabled && b.textContent!.includes('Delete account'))).toBe(true);
+    expect(danger.some((b) => b.disabled)).toBe(true);
+    // Dialog-style row: Cancel (text) then Delete account (filled danger).
+    const row = [...section.querySelectorAll('.dialog-actions button')];
+    expect(row.map((b) => b.textContent!.trim())).toEqual(['Cancel', 'Delete account']);
+    expect(row[1].classList.contains('danger')).toBe(true);
+  });
+});

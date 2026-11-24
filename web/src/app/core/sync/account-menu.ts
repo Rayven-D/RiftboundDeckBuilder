@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatDivider } from '@angular/material/divider';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { firstValueFrom } from 'rxjs';
@@ -16,7 +17,7 @@ import { SyncService } from './sync.service';
  */
 @Component({
   selector: 'app-account-menu',
-  imports: [MatButton, MatMenu, MatMenuItem, MatMenuTrigger],
+  imports: [MatButton, MatDivider, MatMenu, MatMenuItem, MatMenuTrigger],
   template: `
     @if (sync.enabled) {
       @if (!sync.signedIn()) {
@@ -37,7 +38,9 @@ import { SyncService } from './sync.service';
           }
           <button mat-menu-item type="button" [disabled]="!sync.online()" (click)="sync.syncNow()">Sync now</button>
           <button mat-menu-item type="button" [disabled]="!sync.online()" (click)="openSignOut()">Sign out</button>
-          <button mat-menu-item type="button" [disabled]="!sync.online()" (click)="openDelete()">
+          <!-- H-102: the destructive item is set apart (H-110 adds the other dividers). -->
+          <mat-divider />
+          <button mat-menu-item type="button" class="danger" [disabled]="!sync.online()" (click)="openDelete()">
             Delete account and data
           </button>
           @if (!sync.online()) {

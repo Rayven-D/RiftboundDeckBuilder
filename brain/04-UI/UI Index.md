@@ -22,6 +22,7 @@ Owner: **builder** with RJ. Record agreed screens and design decisions here.
 | 2026-11-24 | [[UI Review 2026-11-24]] | `loop/SPEC-010-v0.9-build`: sign-in gate, account menu, sign-in / sign-out / delete dialogs, notices, header and phone tab bar. 23 findings; top three: invisible keyboard focus on Material buttons, snack bars over the phone tab bar, Delete account styled as primary |
 | 2026-11-24 | [[Brief H-139]] | Brief for finding #1: focus ring on Material buttons (2px outside) and menu items (inset), plain CSS in `styles.scss`, contrast table, Playwright accept list |
 | 2026-11-24 | [[Brief H-101]] | Brief for finding #2: phone snack bars sit above the tab bar (bottom margin = bar + `--tabbar-border` + safe area + `--space-2`), overlay pane click-through via `:has()`, plain CSS in `styles.scss`; two Playwright passes |
+| 2026-11-24 | [[Brief H-102]] | Brief for finding #3: filled danger button (`--color-danger` fill, new `--color-danger-contrast` label: 7.65 dark / 7.07 light), neutral disabled, scoped `mat.button-overrides` on `.mat-mdc-button-base.danger`; one divider + danger label on the account menu item; styleguide Buttons section |
 
 ## Design decisions
 See [[Design Direction]]: candidate visual directions awaiting RJ's choice, and the decisions taken in the H-009 scaffold.
