@@ -46,6 +46,7 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 | SPEC-009 [[Runes Assumed Owned]] | 0.1 | runes never missing, never shared or locked |
 
 ## Waiting on RJ
+- **Merge the H-058 family into `dev`** (all local, none pushed). Base: `loop/H-058-shared-cards-lockin` (SPEC-008/009 v0.2, "available" label). On top of it: `loop/H-050-spec004-bump` (SPEC-004 0.5), `loop/H-045-tags-column` (export drops Tags, printing codes), `loop/H-049-spec-followups` (SPEC-003/007/008 follow-ups), `loop/H-059-lockin-engine` (engine in `web/src/app/core/decks/`, 217 tests), `loop/H-062-accounts-sync-build` (SPEC-010 v0.6 + sign-in/sync build; contains `loop/H-061-accounts-sync-spec`). **Version clash:** H-045 and H-049 both call their SPEC-003 0.7 and SPEC-007 0.6; renumber one when merging. H-074 (SPEC-010 follow-ups) is still running in its own session.
 - **Push rule:** CLAUDE.md and ADR-0002 say agents never push; RJ has asked for pushes (and `dev` → `main` merges) case by case. Update them if that should be the standing rule.
 - **H-063:** enable Firebase Auth sign-in providers; decide Firestore delete protection.
 - **H-056:** angular.json analytics id; `riot.txt` is still uncommitted (RJ unsure whether it should be in the repo). It is live only because of a local `firebase deploy --only hosting` on 2026-11-23; **every GitHub Actions deploy of `main` removes it again** until it is committed or the workflow adds it.

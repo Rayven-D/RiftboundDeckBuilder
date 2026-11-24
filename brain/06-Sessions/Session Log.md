@@ -7,6 +7,12 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-23: H-058 shared cards + lock-in, runes, then sessions per item (with RJ)
+- Researcher: [[Physical Copies Across Decks]]. The Chosen Champion shares the per-name pool with Main/Sideboard. RJ chose to count every physical section (Legend, Champion, Main, Sideboard, Battlefields) and to ignore runes.
+- SPEC-008 [[Shared Cards and Lock-in]] and SPEC-009 [[Runes Assumed Owned]]. RJ accepted the five lock-in defaults and decided no force lock.
+- Validator round 1 FAIL (missing When steps, filter overlap, cross-spec warning placement) → H-065..H-068; round 2 PASS. Code review: 2 nits, both fixed. Committed on `loop/H-058-shared-cards-lockin`. `loop/ui-direction-a` deleted locally (fully in `dev`).
+- One session per remaining item: H-050, H-045, H-049, H-059 done on their own branches; H-061 grew into H-062 (build) and H-074 (still running). Merge plan and the SPEC-003/007 version clash are in [[Current State]].
+
 ## 2026-11-23: Hero note text, local deploy with riot.txt (with RJ)
 - RJ shortened the home hero note to "Free". Committed on `dev`, merged into `main` (not pushed).
 - Local `firebase deploy --only hosting` from `dev` with the uncommitted `web/public/import/riot.txt`, so it is served at `/import/riot.txt` again (H-056 still open: the next Actions deploy of `main` drops it).
