@@ -44,6 +44,7 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 | SPEC-007 [[My Collection]] | 0.5 | per-printing, tags, `deckOwnership()` |
 | SPEC-008 [[Shared Cards and Lock-in]] | 0.2 | one per-name pool across decks; lock in a complete deck (H-058 PASS 2026-11-23; build: H-059 engine → H-060 Decks UI) |
 | SPEC-009 [[Runes Assumed Owned]] | 0.2 | runes never missing, never shared or locked |
+| SPEC-010 [[Accounts and Sync]] | 0.4 | optional sign-in + Firestore sync, LWW per card / tag target / lock / deck, owner-only rules (H-061 PASS 2026-11-23; 11 RJ questions → H-073; build: H-062 after H-071) |
 
 ## Waiting on RJ
 - **Push rule:** CLAUDE.md and ADR-0002 say agents never push; RJ has asked for pushes (and `dev` → `main` merges) case by case. Update them if that should be the standing rule.
