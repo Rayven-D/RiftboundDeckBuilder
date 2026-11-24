@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-004
-version: 0.4
+version: 0.5
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-006]
 research: ["[[Tournament Results]]", "[[Ban List]]", "[[Formats]]", "[[Riot Developer Rules]]", "[[Collection Import Formats]]", "[[Deck Construction Rules]]"]
@@ -447,4 +447,4 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
   Confirm, or use the full Legend name.
 
 ## Changelog
-Current: 0.4 (2026-11-23). Full history: [[Tournament Deck Catalog changelog]] (archived). New entries go in the archive note.
+Current: 0.5 (2026-11-23). Full history: [[Tournament Deck Catalog changelog]] (archived). New entries go in the archive note.
