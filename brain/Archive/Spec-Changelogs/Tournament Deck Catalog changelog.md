@@ -9,6 +9,12 @@ superseded_by: "[[Tournament Deck Catalog]]"
 
 Moved out of [[Tournament Deck Catalog]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.5 (2026-11-23): H-050. Versions the H-044 copy change already in the text: user-facing strings use lower-case
+  "your". CAT-076 and AC16 confirmation `Added to Your decks` → `Added to your decks`; CAT-074 and AC17 button
+  `In Your decks` → `In your decks`; CAT-070 action "Add to Your decks" → "Add to your decks", with the same change
+  wherever the action is quoted (Summary, Purpose, Definitions, CAT-032, CAT-053, section heading, data-contract
+  comment, ACs 16, 17, 18). No requirement meaning changes. Consumer pins updated: SPEC-005 Summary and SPEC-006
+  Summary now name SPEC-004 v0.5.
 - 0.4 (2026-11-23): H-039. CAT-021 table row fixed (source in its own column); CAT-071 cites SPEC-006 DECK-065; CAT-073 trims the default name to 80 characters like DECK-062; removed the stale open question about SPEC-006 v0.1's source shape. Summary block added; changelog moved to this archive note.
 - 0.3 (2026-11-23): H-035: CAT-050 compares by `cardKey`; `BannedCardRef.kind` looked up from `banlist.json` via SPEC-002
   `banStatus()` (LEGAL-B10) (CAT-017, mapping table, AC21); CAT-072 states `TournamentDeckSource` is the tournament variant of

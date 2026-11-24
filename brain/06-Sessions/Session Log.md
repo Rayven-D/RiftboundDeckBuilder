@@ -7,6 +7,9 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-23: H-050 SPEC-004 version bump (spec-writer)
+- SPEC-004 0.4 → 0.5 to record the H-044 lower-case "your decks" strings (CAT-070/074/076, ACs 16–18); archive changelog entry added. Pins → SPEC-004 0.5 in [[Spec Index]] (SPEC-004/005/006 rows), SPEC-005 and SPEC-006 Summary "Depends on" lines; SPEC-006 metadata-only changelog line. Validator PASS (V-009 + pins). H-050 → done. Branch `loop/H-050-spec004-bump`, no code.
+
 ## 2026-11-23: H-065 / H-066 / H-067 validator fixes for H-058 (spec-writer)
 - When steps added to every flagged AC; SHARE-051 makes each deck one ownership group (empty / runes-only → None available, "No cards to count"); `no-cards` message; Deck 3 = `Kennen Aggro`; locked-deck warning now always inside the confirmation (incl. the IMP-050 Replace confirmation), Undo of an import is the only notice. SPEC-003 0.6, SPEC-005 0.4, SPEC-007 0.5, SPEC-008 0.2, SPEC-009 0.2, SPEC-006 pins only; Spec Index, Current State and changelogs updated; H-065/066/067 → verify. RJ's decisions unchanged; no code, nothing committed.
 

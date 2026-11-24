@@ -9,6 +9,8 @@ superseded_by: "[[Deck Import]]"
 
 Moved out of [[Deck Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.6, metadata only (2026-11-23, H-050): the Summary "Depends on" line pins [[Tournament Deck Catalog]] v0.5 (was v0.4; SPEC-004 0.5 only versions the H-044 lower-case "your" strings). No requirement or AC changed, so no version bump.
+
 - 0.6, metadata only (2026-11-23, H-067): `depends_on` and the Summary "Depends on" line add SPEC-008 0.2 (DECK-080/082…084 cite SHARE requirements) and pin the other dependencies (SPEC-001 0.3, SPEC-002 0.3, SPEC-003 0.6, SPEC-004 0.4). No requirement or AC changed, so no version bump.
 
 - 0.6 (2026-11-23, H-058): lock in ([[Shared Cards and Lock-in]], ADR-0006 "Shared cards, lock in and runes"). DECK-080: card changes disabled while a deck is locked (SHARE-025); DECK-082: deleting a locked deck releases its lock, confirmation text added (SHARE-024); DECK-083: Undo restores the deck unlocked; DECK-084: a duplicate is unlocked (SHARE-026). Summary and consumers (SPEC-008) updated. `UserDeck` unchanged (locks in SPEC-008's `DeckLockStore`). No requirement added or removed.
