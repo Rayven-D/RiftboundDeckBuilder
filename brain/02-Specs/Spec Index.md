@@ -19,6 +19,7 @@ Owner: **spec-writer**. Status: `draft` · `review` · `approved` · `blocked` �
 | SPEC-008 | [[Shared Cards and Lock-in]] | 0.3 | draft | [[Physical Copies Across Decks]], [[Deck Construction Rules]], SPEC-001 0.3, SPEC-003 0.8, SPEC-005 0.4, SPEC-006 0.6, SPEC-007 0.7, SPEC-009 0.2 |
 | SPEC-009 | [[Runes Assumed Owned]] | 0.2 | draft | [[Physical Copies Across Decks]], [[Deck Construction Rules]], SPEC-001 0.3, SPEC-002 0.3, SPEC-005 0.4, SPEC-006 0.6, SPEC-007 0.7, SPEC-008 0.3 |
 | SPEC-010 | [[Accounts and Sync]] | 0.6 | draft | [[ADR-0007 Firebase Accounts and Firestore]], [[Firestore Data Shape]], SPEC-003 0.6, SPEC-005 0.4, SPEC-006 0.6, SPEC-007 0.5, SPEC-008 0.2, SPEC-009 0.2 |
+| SPEC-011 | [[Keyword Explanations]] | 0.2.1 | review (engine and hidden section testable on fixtures; definition source blocked on [[ADR-0008 Keyword Glossary Source]], keyword string format on H-020) | [[Card Keywords]] (H-089), [[Card Data & Images]], SPEC-001 0.3, SPEC-007 0.7 |
 
 ## Cross-cutting constraints (apply to every spec)
 - **Stack:** an Angular front end and a TypeScript (Node) API ([[ADR-0001 Tech Stack]]).

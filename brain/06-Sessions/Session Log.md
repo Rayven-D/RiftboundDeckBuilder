@@ -7,6 +7,12 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: Card keyword explanations, H-089 / H-090 (spec-writer → researcher → spec-writer)
+- Did: spec-writer set up the spec task. riftbound-researcher wrote [[Card Keywords]] (28 keywords; 24 confirmed on official Riot pages; 0 definitions checked against the official PDF; the API documents only `keywords: List[string]`; Riot's policy doesn't clearly allow rules text from outside the API). spec-writer finished [[Keyword Explanations]] SPEC-011 0.2.1: 33 requirements, 23 ACs. Validator: H-089 PASS round 2, H-090 PASS round 3 ([[Validation Runs]]).
+- Changed notes: [[Card Keywords]], [[Keyword Explanations]], [[ADR-0008 Keyword Glossary Source]] (proposed; recommends A + ask Riot), [[Decision Log]], [[Spec Index]], [[Research Index]], [[Change Feed]], board.
+- Open questions: H-092 (RJ) decides ADR-0008 and SPEC-011 RJ-1 (hide keywords with no definition vs show "No definition yet"). SPEC-007 still needs a pointer to SPEC-011 (H-091).
+- Next: H-093 (builder) builds the unblocked engine and the hidden section on fixtures. H-094 (research, PDF check) runs only if RJ picks option (b). H-020 re-checks the keyword string format. No code touched, nothing committed.
+
 ## 2026-11-24: H-085 fluid UI pass, teal accent, phone tab bar (builder)
 - RJ's brief: fluid pass + home redesign, teal (green as an alternative) instead of blue, fixed bottom tab bar on phones. Built on `loop/H-065-fluid-ui`; details, accent values and contrast ratios in [[Design Direction]] ("Fluid pass and teal accent").
 - Teal `#14B8A6` (light `#0F766E`) with AA text and label tones; green preview via `html[data-accent="green"]` and a switch on `/styleguide`. Material theme, favicon SVG/ICO/PNG regenerated.
