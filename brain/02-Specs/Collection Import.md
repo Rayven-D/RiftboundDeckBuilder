@@ -1,9 +1,9 @@
 ---
 tags: [spec]
 id: SPEC-003
-version: 0.5
+version: 0.6
 status: draft
-depends_on: [SPEC-001]
+depends_on: [SPEC-001, SPEC-008]
 related: ["[[Deck Import]]", "[[My Collection]]", "[[Your Decks Ownership View]]", "[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
 research: ["[[Collection Import Formats]]", "[[Card Data & Images]]", "[[Sets]]", "[[Deck Construction Rules]]"]
 as_of: 2026-11-23
@@ -28,13 +28,13 @@ as_of: 2026-11-23
 - IMP-025/027: exact `nameKey` match resolves; fuzzy suggestions are never applied automatically.
 - IMP-029: shared-prefix names (e.g. `Kennen`) are `AMBIGUOUS_NAME`; IMP-059: no alias table.
 - IMP-047/048: merged by `cardKey`; per-printing counts (deck code, TTS, or a text/CSV/Excel line resolved by its printing code) are kept for display only.
-- IMP-049/050: commit as Add (default) or Replace (with confirmation).
+- IMP-049/050: commit as Add (default) or Replace (with confirmation; v0.6: the confirmation also warns when a locked deck would go short, SPEC-008 SHARE-034).
 - IMP-053/054: browser storage behind `CollectionStore`, recording `catalogVersion`.
 - IMP-058: the committed collection feeds Collection; Decks reads SPEC-007 `deckOwnership()`.
 - Part A preamble: not applicable to decks: IMP-009 and IMP-015 only (= DECK-013). Since v0.4 CSV/Excel is shared with decks.
 
 **Shared types:** `CardKey`, `PrintingId`, `PrintingCode` (keys) · `ImportResult` / `ParsedLine` / `PrintingHint` / `ImportIssue` / `UploadInfo` (parser output, reused by SPEC-006) · `SourceFormat` · `StoredCollection` (`cardKey` → quantity + `byPrinting`) · `CollectionStore`.
-**Depends on:** [[Card Data Model]]. **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
+**Depends on:** [[Card Data Model]] v0.3; [[Shared Cards and Lock-in]] v0.2 (IMP-050 locked-deck warning only). **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
 **BLOCKED (needs research):**
 - Piltover deck-code set indexes beyond SFD and what `ARC` is (IMP-032); variant letters a/s/b (IMP-033).
 - Real deck codes with known contents for fixtures (AC 16).
@@ -261,7 +261,7 @@ These requirements apply only to the Owned Cards Import. SPEC-006 defines its ow
 | IMP-047 | MUST | All resolved entries are merged by **`cardKey`**: owned count = sum of quantities across lines, sections, tokens, and rows. Each merged card lists the source line numbers that contributed. | task brief; [[Deck Construction Rules]] fact 5; [[Card Data Model]] CARD-013 |
 | IMP-048 | MUST | Variants and printings (alt-art, Showcase, signature, foil, and overnumbered, i.e. `variant.kind === 'overnumbered'`) that share a name count toward the **same `cardKey`**. When the source identified the printing (deck code, TTS, or since v0.5 a text, CSV or Excel line whose printing code resolved, IMP-067/068), the per-printing count (by `printingId`) is also kept; it is for display in [[My Collection]] only and never affects ownership. A line resolved **by name** (no code, the exact-name guard, a code not found per IMP-069, or the user picking the name's card in IMP-068 (b)) has no `printingId`; its copies are unassigned (SPEC-007 COLL-002). A user pick of the code's card in IMP-068 (b), or of a card in an `AMBIGUOUS_PRINTING` review, keeps that printing. Owned counts are still per **`cardKey`** (IMP-047). **Confirmed** by RJ ([[ADR-0005 MVP Product Defaults]] #2). | [[Deck Construction Rules]] fact 5; [[ADR-0005 MVP Product Defaults]]; [[Card Data Model]] CARD-013, CARD-043; RJ decision 2026-11-23 (H-048) |
 | IMP-049 | MUST | Commit requires an explicit choice of mode: **Add** (owned += imported, per `cardKey` and per printing) or **Replace** (the collection becomes exactly the imported set). Default selection is **Add**. | design decision (see Rationale) |
-| IMP-050 | MUST | **Replace** shows a confirmation stating how many cards and names will be removed or changed before it executes. | design decision |
+| IMP-050 | MUST | **Replace** shows a confirmation stating how many cards and names will be removed or changed before it executes. When the replaced collection would leave a **locked deck** holding fewer copies, the same confirmation SHOULD add SPEC-008's warning per affected deck, "'`<deck name>`' (locked) will be `<n>` cards short.", computed with `lockedShortfalls(before, after)` on the parsed import before anything is written (SHARE-034). Cancel writes nothing. **Add** never lowers a hold and has no such warning. After an **Undo** of a commit (IMP-052) that lowers a hold, a notice reads "'`<deck name>`' (locked) is now `<n>` cards short." | design decision; [[Shared Cards and Lock-in]] SHARE-034 |
 | IMP-051 | SHOULD | The preview shows the resulting diff per name (before → after) for the selected mode. | design decision |
 | IMP-052 | SHOULD | Keep the previous collection snapshot so the last commit can be undone once. | design decision |
 
@@ -556,4 +556,4 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 - **Open** — fuzzy thresholds (0.85 / 0.60 / 0.05 margin) are initial values; tune against real typo samples.
 
 ## Changelog
-Current: 0.5 (2026-11-23, H-048). Full history: [[Collection Import changelog]] (archived). New entries go in the archive note.
+Current: 0.6 (2026-11-23, H-067). Full history: [[Collection Import changelog]] (archived). New entries go in the archive note.

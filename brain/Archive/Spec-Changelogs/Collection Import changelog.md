@@ -9,6 +9,12 @@ superseded_by: "[[Collection Import]]"
 
 Moved out of [[Collection Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.6 (2026-11-23, H-067): IMP-050's Replace confirmation SHOULD add SPEC-008's locked-deck warning
+  ("'`<deck name>`' (locked) will be `<n>` cards short."), computed with `lockedShortfalls()` on the parsed
+  import before anything is written; Add never warns; Undo of a commit (IMP-052) that lowers a hold shows a
+  notice "… is now `<n>` cards short.". Agrees with SPEC-008 SHARE-034 and SPEC-007 COLL-088. `depends_on`
+  adds SPEC-008; Summary updated. Requirement count unchanged.
+
 - 0.5 (2026-11-23, H-048): RJ decision 2026-11-23 (H-048). IMP-019 rewritten around a normative Line grammar; IMP-020 → MUST (`x3 Name`, `Name x3`, `X` too; two quantities → `BAD_QUANTITY`); IMP-021/024 updated (code-only lines are not `MISSING_NAME`). New IMP-064 (code shape: 3-letter set + CARD-037 number forms, spaces around `/`), IMP-065 (code at start or end, `()`/`[]`, ` - ` or comma separator; false-positive guard), IMP-066 (code-only lines; before the catalog loads), IMP-067 (resolution by `lookupPrinting`, exact-name guard, `AMBIGUOUS_PRINTING`), IMP-068 (`PRINTING_NAME_MISMATCH`), IMP-069 (`UNKNOWN_PRINTING` name fallback), IMP-070 (variant from the catalog; CARD-040 still BLOCKED). IMP-040/044/048/055 extended to codes in text/CSV/Excel lines. Data contract: `PrintingHint`, `ParsedLine.printing` replaces `inputPrinting`, two issue codes. ACs 27–34 and fixture F1 added; Summary and Open questions updated (IMP-020 question resolved).
 - 0.4 (2026-11-23, H-043): RJ import decisions. IMP-021 `MISSING_QUANTITY` replaces "assume 1" (`QUANTITY_ASSUMED` removed); `MISSING_NAME` added; IMP-024 drops `UNPARSEABLE_LINE`; IMP-001 adds `.xlsx`; new IMP-061 (upload limits), IMP-062 (one dialog, upload into the text box), IMP-063 (problem list, Continue); IMP-040/041/043/045 rewritten for positional CSV/Excel rows and title-row skipping (`CSV_NO_NAME_COLUMN`, `EMPTY_NAME` removed); IMP-044 withdrawn; IMP-016/017 label spacing (IMP-017 → MUST), IMP-023 → MUST; IMP-011 step 1 by file type; CSV/Excel now shared with decks; ACs 10, 13–15, 18, 22 updated, 2a, 15a, 15b added.
 - 0.3 (2026-11-23): H-039. Part A preamble now lists the requirements not applicable to decks (the `.csv` parts of IMP-001/IMP-011, IMP-009, IMP-015, IMP-040…046), matching SPEC-006 DECK-013; CSV heading marked owned cards only; Purpose bullet aligned. Summary block added; changelog moved to this archive note.

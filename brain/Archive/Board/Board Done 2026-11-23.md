@@ -39,3 +39,8 @@ reason: finished board items
 | H-031 | spec-writer | SPEC-007 My Collection | PASS v0.1 with follow-ups → H-034 |
 | H-025 | validator | Activate V-008 (web), extend V-010 | Done ([[Validation Checks]]) |
 | H-033 | ui-builder | Import screen option cards (RJ feedback) | Two cards, Owned Cards Import and Deck Import, with subtext ([[Design Direction]]) |
+| H-051 | RJ | Broken Firebase workflows | Deleted `firebase-hosting-merge.yml` and `firebase-hosting-pull-request.yml` (RJ, 2026-11-23); `firebase-hosting-deploy.yml` stays |
+| H-052 | RJ | Unused `firebase` dep in services | Removed; lockfile restored, `npm prune`, 88 tests pass |
+| H-044 | spec-writer | Screen names Decks / Collection | PASS: ADR-0006 rename section + SPEC-001…007, Spec Index; button/status copy lower-case "your decks"; links and titles unchanged; version bump for changed MUST strings → H-050 |
+| H-043 | spec-writer | SPEC-003 / SPEC-006 v0.4 import decisions | PASS: quantity required, .xlsx first sheet, deck CSV/Excel, labels with/without spaces, one dialog writing uploads into the text box all match the code (probe); spec'd code gaps → H-046, H-047, H-048; follow-ups H-045, H-049, H-053 |
+| H-040 | spec-writer | SPEC-005 v0.2 fixes | PASS: all 7 fixes; OWN-062/063 ownership unavailable without catalog or tags (deliberate); follow-ups → H-049 |

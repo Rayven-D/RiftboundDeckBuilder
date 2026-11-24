@@ -37,13 +37,13 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 |---|---|---|
 | SPEC-001 [[Card Data Model]] | 0.3 | nullable attrs, `cardKey`, `printingSortKey`, `catalogVersion`, `defaultPrintingId` |
 | SPEC-002 [[Deck Legality]] | 0.3 | 4 ban waves as data, `banStatus()`, display rules LEGAL-R08 |
-| SPEC-003 [[Collection Import]] | 0.5 | owned cards; Part A = shared parsers; quantity required (any side), printing codes, .xlsx |
+| SPEC-003 [[Collection Import]] | 0.6 | owned cards; Part A = shared parsers; quantity required (any side), printing codes, .xlsx; Replace confirmation warns about locked decks |
 | SPEC-004 [[Tournament Deck Catalog]] | 0.4 | Top 8, Add to your decks |
-| SPEC-005 [[Your Decks Ownership View]] | 0.3 | full / darkened / partial fill of **available** copies, Riot section order, ban labels |
+| SPEC-005 [[Your Decks Ownership View]] | 0.4 | full / darkened / partial fill of **available** copies, Riot section order, ban labels |
 | SPEC-006 [[Deck Import]] | 0.6 | community decks; CSV / Excel too; shared tournament source; locked decks can't change cards |
-| SPEC-007 [[My Collection]] | 0.4 | per-printing, tags, `deckOwnership()` |
-| SPEC-008 [[Shared Cards and Lock-in]] | 0.1 | one per-name pool across decks; lock in a complete deck (H-058, in verify) |
-| SPEC-009 [[Runes Assumed Owned]] | 0.1 | runes never missing, never shared or locked |
+| SPEC-007 [[My Collection]] | 0.5 | per-printing, tags, `deckOwnership()` |
+| SPEC-008 [[Shared Cards and Lock-in]] | 0.2 | one per-name pool across decks; lock in a complete deck (H-058 PASS 2026-11-23; build: H-059 engine → H-060 Decks UI) |
+| SPEC-009 [[Runes Assumed Owned]] | 0.2 | runes never missing, never shared or locked |
 
 ## Waiting on RJ
 - **Push rule:** CLAUDE.md and ADR-0002 say agents never push; RJ has asked for pushes (and `dev` → `main` merges) case by case. Update them if that should be the standing rule.
@@ -54,7 +54,7 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 - **H-011:** apply for the production key once there's a demo ([[Riot App Application]]).
 
 ## Next for the loop
-Code fixes H-046, H-053, H-054, H-055 PASS (2026-11-23). Next: **DB sizing and shape** for Firestore (its own session), then H-061 (accounts and sync spec) → H-062 (build). Spec work: H-045 (export Tags column vs positional CSV), H-049 (follow-ups incl. the interim CSV delimiter rule), H-050 (version bumps); H-058 shared cards / lock-in in verify (other session). Then the Collection page, Tournaments from `data/events/` and the Decks layout on the fixture. Card search, name matching and printing-code resolution (H-057) wait on H-020.
+Code fixes H-046, H-053, H-054, H-055 PASS (2026-11-23). Next: **DB sizing and shape** for Firestore (its own session), then H-061 (accounts and sync spec) → H-062 (build). Spec work: H-045 (export Tags column vs positional CSV), H-049 (follow-ups incl. the interim CSV delimiter rule), H-050 (version bumps); H-058 shared cards / lock-in PASS (validated + code review); next H-059 engine, then H-060 UI. Then the Collection page, Tournaments from `data/events/` and the Decks layout on the fixture. Card search, name matching and printing-code resolution (H-057) wait on H-020.
 
 ## Biggest unknowns
 How the live API represents variants (is a foil its own printing?), domains, champion and
