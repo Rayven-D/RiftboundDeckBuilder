@@ -7,6 +7,12 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: SPEC-010 v0.9 build chain, orchestrated (orchestrator)
+- Ran each item in its own session, one after another: H-086 Cancel deletion (`ccda2f2`, first H-076, then H-085, renumbered for dev's fluid UI pass) → H-081 account-required mode (`8a860a7`) + RJ decision 14 H-093/H-094 (`1da257d`) → H-077 write budget (`d029bd4`) → H-078 `appVersion` + preview deploy path (`c1ae411`) → H-079 AC 22 rules test (`7bb7252`). Each one passed the validator and a code review.
+- Merged the chain with `dev` @ `dd9673b` on `loop/SPEC-010-v0.9-build` (`1337685`): Import page gate around dev's drag-and-drop, AC 46 nav test split for the phone tab bar, API Contracts renumbered v1.7–v1.10. 444 web + 34 rules tests.
+- Incident: H-078 validation created an empty preview channel `sync-test` (real Firebase CLI ran instead of a fake). Briefs now forbid the real CLI.
+- Board IDs taken: H-087–H-094, H-097–H-099; `next_id` 100. Open work compiled in [[Open Work 2026-11-24]].
+
 ## 2026-11-24: H-079 H-062 clean-ups (builder)
 - [[Accounts and Sync]] AC 22 on `loop/H-079-rules-cleanups` (from H-078 tip `c1ae411`): rules test for a 37-character `duplicatedFrom` (denied; 36 allowed); stale comments fixed in `sync-types.ts` (`KNOWN_DOC_SCHEMA`, no spec version) and `firebase-adapters.ts` (`WRITE_TIMEOUT_MS` → `'unconfirmed'`, `withTimeout` SYNC-042 → SYNC-080). The `PushChanges.batch` comment was moot after H-077.
 - H-084 overlap check (`dev` board row): none. Tests: 376 web unit, 34 emulator (Java 21 prepended to PATH for `test:rules`; Java 17 is still first in agent shells). Validator PASS round 1 ([[Validation H-079]]); code review: no findings. No new board IDs (`next_id` 100); SYNC-113 spec text already filed as H-097.
