@@ -710,3 +710,19 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
     });
   });
 });
+
+describe('SYNC-006 v0.10 a failed Send link (AC 50, H-106)', () => {
+  it('AC 50 / SYNC-005 a failed send rejects to the dialog, shows no SYNC-005 notice, and leaves the device stores unchanged', async () => {
+    const d = new Device(new FakeFirestore());
+    await d.setCard('hextech ray', 2);
+    const before = new Map(d.backend.data);
+    d.auth.sendEmailLink = async () => {
+      throw new Error('auth/network-request-failed');
+    };
+    await expect(d.engine.sendEmailLink('rj@example.com')).rejects.toThrow('auth/network-request-failed');
+    await d.settle();
+    expect(d.notices).toEqual([]); // the dialog shows the send-failure text; never MESSAGES.signInFailed
+    expect(new Map(d.backend.data)).toEqual(before); // nothing stored, the sync log included
+    expect(d.engine.gate()).toBe('signed-out');
+  });
+});

@@ -43,3 +43,12 @@ describe('FirebaseAuthService provider config (SPEC-010 SYNC-006)', () => {
     expect(await svc.reauthenticate()).toBe('cancelled');
   });
 });
+
+describe('FirebaseAuthService.sendEmailLink (SPEC-010 SYNC-006, AC 50)', () => {
+  it('AC 50 / H-106 a send that Firebase rejects stores no address on this device', async () => {
+    localStorage.clear();
+    // The stub Auth has no config, so Firebase's sendSignInLinkToEmail rejects before any request.
+    await expect(new FirebaseAuthService(stubAuth([])).sendEmailLink('rj@example.com')).rejects.toBeDefined();
+    expect(localStorage.length).toBe(0);
+  });
+});

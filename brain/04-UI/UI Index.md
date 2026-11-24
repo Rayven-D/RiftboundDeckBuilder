@@ -23,6 +23,7 @@ Owner: **builder** with RJ. Record agreed screens and design decisions here.
 | 2026-11-24 | [[Brief H-139]] | Brief for finding #1: focus ring on Material buttons (2px outside) and menu items (inset), plain CSS in `styles.scss`, contrast table, Playwright accept list |
 | 2026-11-24 | [[Brief H-101]] | Brief for finding #2: phone snack bars sit above the tab bar (bottom margin = bar + `--tabbar-border` + safe area + `--space-2`), overlay pane click-through via `:has()`, plain CSS in `styles.scss`; two Playwright passes |
 | 2026-11-24 | [[Brief H-102]] | Brief for finding #3: filled danger button (`--color-danger` fill, new `--color-danger-contrast` label: 7.65 dark / 7.07 light), neutral disabled, scoped `mat.button-overrides` on `.mat-mdc-button-base.danger`; one divider + danger label on the account menu item; styleguide Buttons section |
+| 2026-11-24 | [[Brief H-104 H-106 H-124]] | Brief for findings #4, #5, #21: sign-in dialog leads with the email field (launch), all provider buttons outlined (Send link the only fill), custom send-failure line (icon + `--color-danger`, aria-invalid/describedby, focus to field, no alert), "Sending…" with `disabledInteractive`, phone stack at 40rem with full-width Send link, no dialog scrollbar |
 
 ## Design decisions
 See [[Design Direction]]: candidate visual directions awaiting RJ's choice, and the decisions taken in the H-009 scaffold.

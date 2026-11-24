@@ -105,6 +105,31 @@ html {
   );
 }
 
+/* H-106 (brain/04-UI/Brief H-104 H-106 H-124.md): the sign-in email field after a failed Send link. The dialog
+ * puts the field in Material's error state (aria-invalid), so the error tokens apply; the plain ones are set
+ * too so the field is red whichever set Material picks. Outline and label at rest, on hover and on focus use
+ * the danger colour (not Material's generated error tone, and no teal label on a red outline). Extra only: the
+ * icon and text under the field carry the meaning. */
+.mat-mdc-form-field.send-failed {
+  @include mat.form-field-overrides(
+    (
+      outlined-outline-color: var(--color-danger),
+      outlined-hover-outline-color: var(--color-danger),
+      outlined-focus-outline-color: var(--color-danger),
+      outlined-label-text-color: var(--color-danger),
+      outlined-hover-label-text-color: var(--color-danger),
+      outlined-focus-label-text-color: var(--color-danger),
+      outlined-error-outline-color: var(--color-danger),
+      outlined-error-hover-outline-color: var(--color-danger),
+      outlined-error-focus-outline-color: var(--color-danger),
+      outlined-error-label-text-color: var(--color-danger),
+      outlined-error-hover-label-text-color: var(--color-danger),
+      outlined-error-focus-label-text-color: var(--color-danger),
+      outlined-error-caret-color: var(--color-danger),
+    )
+  );
+}
+
 /* Icons in Material buttons (marked matButtonIcon so Material puts them in its icon slot). */
 .mat-mdc-button-base > app-icon {
   margin-inline-end: var(--space-2);

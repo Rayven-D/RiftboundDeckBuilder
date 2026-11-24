@@ -83,7 +83,7 @@ describe('Sign-in UI (SPEC-010)', () => {
     return fixture.nativeElement as HTMLElement;
   };
 
-  it('SYNC-003 / SYNC-006 with the default config the sign-in dialog offers exactly the email link', async () => {
+  it('SYNC-003 / SYNC-006 (a) with the default config the sign-in dialog offers only the email form, with no provider button', async () => {
     const el = await openSignInDialog(environment.authProviders);
     expect(environment.authProviders).toEqual(['email-link']);
     expect(text(el)).toContain(
@@ -91,13 +91,16 @@ describe('Sign-in UI (SPEC-010)', () => {
     );
     // SYNC-003 v0.8 / AC 3 / AC 48: no warning about legacy local data
     expect(text(el)).not.toMatch(/this device|cleared|removed|legacy|don't need an account/i);
-    expect(buttons(el).filter((b) => b !== 'Close')).toEqual(['Sign in with an email link']);
+    // SYNC-006 v0.10 (a), H-104: email link is the only provider, so the form shows at once.
+    expect(buttons(el).filter((b) => b !== 'Close')).toEqual(['Send link']);
+    expect(el.querySelector('input[type="email"]')).not.toBeNull();
     expect(text(el)).not.toContain('Google');
   });
 
-  it("SYNC-006 with authProviders ['email-link', 'google'] the dialog shows both, in configured order", async () => {
+  it("SYNC-006 (b) with authProviders ['email-link', 'google'] the dialog shows both, in configured order, and no field", async () => {
     const el = await openSignInDialog(['email-link', 'google']);
     expect(buttons(el).filter((b) => b !== 'Close')).toEqual(['Sign in with an email link', 'Continue with Google']);
+    expect(el.querySelector('input')).toBeNull();
   });
 
   it('SYNC-006 enabledProviders keeps known ids only, once each, in order', () => {
