@@ -26,6 +26,11 @@ Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 ## 2026-11-23: H-050 SPEC-004 version bump (spec-writer)
 - SPEC-004 0.4 → 0.5 to record the H-044 lower-case "your decks" strings (CAT-070/074/076, ACs 16–18); archive changelog entry added. Pins → SPEC-004 0.5 in [[Spec Index]] (SPEC-004/005/006 rows), SPEC-005 and SPEC-006 Summary "Depends on" lines; SPEC-006 metadata-only changelog line. Validator PASS (V-009 + pins). H-050 → done. Branch `loop/H-050-spec004-bump`, no code.
 
+## 2026-11-23: H-045 collection CSV export vs positional import (spec-writer, validator)
+- RJ decided: the collection CSV export has **no Tags column** (tags and exclude flags are not in the CSV backup; sync per ADR-0007), and it **writes printing codes** (`2,Lightning Rush RAD 001`) so `byPrinting` round-trips. Unassigned, missing-printing and no-code copies go on a name-only row, the export re-parses each row before writing it, and counts above 999 split across rows.
+- SPEC-003 0.7 (IMP-055, export rules 1–10, round-trip guarantee, AC 35), SPEC-007 0.6 (COLL-059 withdrawn, AC 24); changelogs, Spec Index, Current State updated.
+- Validator: round 1 FAIL (AC row order, guarantee vs rule 7, no-code printings, 999-multiple rest row) → fixed → round 2 PASS. H-045 done. Follow-up for H-050: SPEC-005/006/008/009 still cite SPEC-003 0.6 / SPEC-007 0.5.
+
 ## 2026-11-23: H-065 / H-066 / H-067 validator fixes for H-058 (spec-writer)
 - When steps added to every flagged AC; SHARE-051 makes each deck one ownership group (empty / runes-only → None available, "No cards to count"); `no-cards` message; Deck 3 = `Kennen Aggro`; locked-deck warning now always inside the confirmation (incl. the IMP-050 Replace confirmation), Undo of an import is the only notice. SPEC-003 0.6, SPEC-005 0.4, SPEC-007 0.5, SPEC-008 0.2, SPEC-009 0.2, SPEC-006 pins only; Spec Index, Current State and changelogs updated; H-065/066/067 → verify. RJ's decisions unchanged; no code, nothing committed.
 

@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-007
-version: 0.5
+version: 0.6
 status: draft
 depends_on: ["SPEC-001", "SPEC-002", "SPEC-003", "SPEC-008", "SPEC-009"]
 research: ["[[Sets]]", "[[Card Data & Images]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]", "[[Ban List]]", "[[Collection Import Formats]]"]
@@ -30,7 +30,7 @@ as_of: 2026-11-23
 - COLL-086…088 (v0.4): one per-name pool for decks: `ownedForDecks` sums every printing of a name, and SPEC-008 subtracts locked decks from it (Collection itself is unchanged by locks); runes are never needed (SPEC-009); changes that make a locked deck short warn first, inside their confirmation (v0.5: also inside the SPEC-003 Replace confirmation; Undo of an import gives a notice).
 
 **Shared types:** `DeckOwnership` / `DeckOwnershipInput` (read by SPEC-005, SPEC-008) · `CollectionCatalogView` (catalog view read by the pure functions) · `Tag`, `TagTarget`, `StoredTags` · `CollectionEntry`, `EntryBan` · `CollectionQuery`, `CollectionQueryInput`.
-**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3, [[Collection Import]] v0.6, [[Shared Cards and Lock-in]] v0.2 (`lockedShortfalls()`, SHARE-034), [[Runes Assumed Owned]] v0.2 (RUNE-008). **Consumers:** [[Your Decks Ownership View]], [[Shared Cards and Lock-in]].
+**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3, [[Collection Import]] v0.7, [[Shared Cards and Lock-in]] v0.2 (`lockedShortfalls()`, SHARE-034), [[Runes Assumed Owned]] v0.2 (RUNE-008). **Consumers:** [[Your Decks Ownership View]], [[Shared Cards and Lock-in]].
 **BLOCKED (needs research):**
 - Whether a foil is its own Riot API printing (COLL-011/016/020).
 - Rarity order (COLL-034); domain list (CARD-025); variant representation (CARD-040/041); API set order (CARD-071).
@@ -211,7 +211,7 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 | COLL-056 | MUST | Manual edits are saved through the same `CollectionStore` as imports, update `updatedAt`, and keep `catalogVersion`. They do not create a SPEC-003 import record. | [[Collection Import]] IMP-053, IMP-054 |
 | COLL-057 | MUST | Interaction with SPEC-003 commits: **Add** increases `quantity` and per-printing counts as in IMP-049; **Replace** sets the collection to exactly the imported set. In both modes **tags are untouched**: they stay attached by `printingId` (and by `cardKey` for unassigned copies), so a printing present after the import keeps its tags, and printings no longer owned keep dormant tags (COLL-029). A Replace confirmation (IMP-050) also states "Tags are kept". | [[Collection Import]] IMP-049, IMP-050; design rule (decision 5) |
 | COLL-058 | MUST | Undoing the last import (IMP-052) restores quantities only. If manual edits were made after that import, the undo confirmation warns that those edits will be lost. Tags are not affected by undo. | [[Collection Import]] IMP-052; design rule |
-| COLL-059 | SHOULD | The collection CSV export (IMP-055) includes a `Tags` column: on a printing line, the tags of that `printingId`; on a name-only line for unassigned copies, the unassigned tags (tags joined with `; `, labels containing `;` quoted). Import ignores that column unless a later SPEC-003 version defines tag import. | [[Collection Import]] IMP-055; design rule |
+| COLL-059 | — | **Withdrawn in v0.6.** v0.5 added a `Tags` column to the collection CSV export (IMP-055). Under SPEC-003's positional row rule (IMP-040) every cell after the name is joined into the name, so that export did not round-trip. The export is now `Quantity,Card Name` only: **tags and "exclude from decks" flags are not in the CSV backup**; they are expected to survive through the planned sign-in sync ([[ADR-0007 Firebase Accounts and Firestore]]). Per-printing counts do round-trip (one row per printing with its code, one name-only row per card for unassigned, missing-printing and no-code copies, COLL-002, COLL-014): the format and the guarantee are SPEC-003 IMP-055 and its "Collection CSV export" rules; see AC 24. | RJ decision 2026-11-23 (H-045); [[Collection Import]] IMP-055 |
 
 ### G. View state and URL
 | ID | Level | Requirement | Source |
@@ -256,7 +256,7 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { CardKey, PrintingId, PrintingCode, StoredCollection, CollectionStore } from './collection-import'; // SPEC-003 v0.6
+import type { CardKey, PrintingId, PrintingCode, StoredCollection, CollectionStore } from './collection-import'; // SPEC-003 v0.7
 import type { CardCategory, VariantKind, CardSet, PlayableCard, Printing } from './card-data-model';  // SPEC-001
 import type { BanStatus, BanListFile } from './deck-legality';       // SPEC-002, LEGAL-B10
 type IsoDate = string;             // YYYY-MM-DD (display per COLL-017: 'Nov 23, 2026')
@@ -575,6 +575,20 @@ catalog printing (open question 1).
     3 × the regular printing and 1 × the foil **Then** the unassigned entry disappears, `Binder page 4`
     is dormant on the unassigned target, and the app offers to copy it to the regular and/or foil
     entries; no tag is copied until the user chooses.
+24. **CSV export keeps counts per printing, not tags** (COLL-059 withdrawn, COLL-002, COLL-014, COLL-057; SPEC-003 IMP-055, AC 35)
+    **Given** `Lightning Rush` `{ quantity: 6, byPrinting: { p_lr_001: 2, p_lr_001a: 1, p_lr_old: 1 } }`, where
+    `p_lr_old` is a missing-printing entry ("Printing no longer found: RAD-002") and the unassigned entry
+    (×2) is tagged `Binder page 4`, and `Kennen, Heart of the Tempest` ×1 on `p_kn_299`, with the
+    hypothetical orders of SPEC-003 AC 35 (OGN before RAD, per the preamble's set order; `Lightning Rush`'s
+    `defaultPrintingId` = `p_lr_001`) **When** the user exports the collection **Then** the file has only
+    the columns `Quantity,Card Name` and, in this order (COLL-031/033 `printingSortKey`; the unassigned row
+    right after the `p_lr_001` printing row, COLL-012; no suffix before suffix, CARD-070),
+    `1,"Kennen, Heart of the Tempest OGN 299"`, `2,Lightning Rush RAD 001`, `3,Lightning Rush`,
+    `1,Lightning Rush RAD 001a` (no tag text anywhere). **When** that file is re-imported
+    with Replace **Then** Collection shows, in this order, the Kennen `OGN 299` entry, the `RAD 001`
+    entry ×2, one unassigned `Lightning Rush` entry ×3 (the missing-printing entry is gone; its copy is
+    now unassigned) and the `RAD 001a` entry; `deckOwnership(input, 'lightning rush').owned = 6`; `Binder page 4` is still
+    on the unassigned entry, because tags are kept by the import (COLL-057), not restored from the file.
 
 ## Out of scope
 - Importing cards (SPEC-003) and decks (SPEC-006); deck ownership visuals (SPEC-005).
@@ -582,7 +596,7 @@ catalog printing (open question 1).
   lists as separate printings (open question 1).
 - Sharing a collection or tags with other people or other browsers (no accounts in the MVP);
   "shareable" URLs work in the same browser only, because the data is local.
-- Importing tags from CSV.
+- Importing tags from CSV, and tags in the CSV export (COLL-059 withdrawn, H-045).
 
 ## Open questions / BLOCKED
 1. **BLOCKED: needs research: is a foil its own Riot API printing?** RJ wants foil as its own entry
@@ -609,4 +623,4 @@ catalog printing (open question 1).
 8. **Time zone of "today"** for ban status follows SPEC-002's open question (LEGAL-R02).
 
 ## Changelog
-Current: 0.5 (2026-11-23, H-067). Full history: [[My Collection changelog]] (archived). New entries go in the archive note.
+Current: 0.6 (2026-11-23, H-045). Full history: [[My Collection changelog]] (archived). New entries go in the archive note.

@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-003
-version: 0.6
+version: 0.7
 status: draft
 depends_on: [SPEC-001, SPEC-008]
 related: ["[[Deck Import]]", "[[My Collection]]", "[[Your Decks Ownership View]]", "[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
@@ -30,6 +30,7 @@ as_of: 2026-11-23
 - IMP-047/048: merged by `cardKey`; per-printing counts (deck code, TTS, or a text/CSV/Excel line resolved by its printing code) are kept for display only.
 - IMP-049/050: commit as Add (default) or Replace (with confirmation; v0.6: the confirmation also warns when a locked deck would go short, SPEC-008 SHARE-034).
 - IMP-053/054: browser storage behind `CollectionStore`, recording `catalogVersion`.
+- IMP-055 (v0.7, H-045): CSV export `Quantity,Card Name` only (no Tags column); one row `<qty>,<name> <SET> <NUM>` per printing, one name-only row for unassigned, missing-printing and no-code copies; export → Replace import gives the same `quantity` and `byPrinting` (AC 35).
 - IMP-058: the committed collection feeds Collection; Decks reads SPEC-007 `deckOwnership()`.
 - Part A preamble: not applicable to decks: IMP-009 and IMP-015 only (= DECK-013). Since v0.4 CSV/Excel is shared with decks.
 
@@ -270,7 +271,74 @@ These requirements apply only to the Owned Cards Import. SPEC-006 defines its ow
 |---|---|---|---|
 | IMP-053 | MUST | For the MVP, the collection is stored **locally in the user's browser**, with no account or server-side copy. Access goes through a `CollectionStore` interface so a server/account store can replace it later without changing import behavior. **Confirmed** by RJ ([[ADR-0005 MVP Product Defaults]] #1). | [[ADR-0005 MVP Product Defaults]]; [[ADR-0001 Tech Stack]] (storage behind interfaces) |
 | IMP-054 | MUST | The stored record carries `schemaVersion`, `updatedAt`, and the `catalogVersion` (SPEC-001) it was resolved against, so a later catalog/name-key change can trigger re-resolution. | design decision; [[Card Data Model]] |
-| IMP-055 | SHOULD | The user can export the stored collection as CSV that round-trips through this importer. Under the positional row rule (IMP-040, v0.4) that means a title row `Quantity,Card Name` and rows `<qty>,<name>` (names with commas quoted), **with no further columns**: any cell after the name would be joined into the name. Per-printing counts (`byPrinting`) are not round-tripped yet. *(v0.5: printing codes on a line (IMP-064…069) now make that possible, e.g. a row `2,Lightning Rush RAD 001`; whether the export uses them is open, see Open questions and H-045.)* | design decision (backup, since local storage can be cleared); RJ decision 2026-11-23 (H-043) |
+| IMP-055 | SHOULD | **Collection CSV export** (v0.7). The user can export the stored collection as a CSV file that round-trips through this importer. The file has exactly **two columns**, title row `Quantity,Card Name`, and no other columns: tags, "exclude from decks" flags and other SPEC-007 data are **not** in the file (any cell after the name would be joined into the name, IMP-040); they are expected to survive through the planned sign-in sync ([[ADR-0007 Firebase Accounts and Firestore]]). Each printing with a count ≥ 1 is written as one row `<qty>,<name> <SET> <NUM>` (its printing code inside the name cell), the card's other copies as one name-only row `<qty>,<name>`; the exact rows, code form, self-check and fallbacks are the **Collection CSV export** rules below this table. When implemented, those rules and the round-trip guarantee there are MUST. *(v0.4–v0.6: name-only rows, `byPrinting` not round-tripped.)* | design decision (backup, since local storage can be cleared); RJ decision 2026-11-23 (H-043); RJ decision 2026-11-23 (H-045) |
+
+**Collection CSV export** (v0.7; IMP-055; RJ decision 2026-11-23 (H-045)). Behavioural contract for the
+exporter; it writes only what the importer (Part A, IMP-040…042, Line grammar, IMP-064…069) reads back
+unchanged.
+
+1. **File.** UTF-8 text (a leading BOM MAY be written; IMP-010 strips it), comma delimiter, `\r\n` line
+   breaks, RFC 4180 quoting: a cell is wrapped in `"` when it contains `,`, `"`, CR or LF, and a `"` inside
+   it is doubled (IMP-042). Only the name cell can need quoting.
+2. **Title row** `Quantity,Card Name` (skipped on import, IMP-041). Every later row has exactly two cells:
+   the quantity cell (digits only, no `x`) and the name cell.
+3. **Name** = the card's canonical name, verbatim (SPEC-001 CARD-031: exports use the canonical name).
+4. **Canonical printing code** = `<SET> <NUM>`: `SET` = `Printing.setCode` as stored, upper case
+   (SPEC-001 CARD-011); one ASCII space; `NUM` = `Printing.collectorNumber` verbatim with surrounding
+   whitespace, any whitespace inside it and a leading `#` removed (e.g. `001`, `007a`, `299`, `SP1/005`).
+   No `-`, no brackets, no `/total` added. A printing has a code only when its `collector.form` is
+   `block`, `plain` or `fraction` (CARD-037 forms a–c), its `setCode` is exactly 3 letters and `NUM`
+   matches the Line grammar's `NUM` (IMP-064); form `code` (d) and other set codes have none.
+5. **Printing rows.** For each `byPrinting` entry `printingId → n` (n ≥ 1) whose `printingId` resolves in
+   the catalog and has a code (rule 4): the row is `<n>,<name> <SET> <NUM>` (name cell = name, one space,
+   code; e.g. `2,Lightning Rush RAD 001`, `1,"Kennen, Heart of the Tempest OGN 299"`).
+6. **Self-check.** Before writing a printing row the exporter MUST check it against the catalog it
+   exports with: the row converted per IMP-040 and parsed by the Line grammar and IMP-067/068 must come
+   back `resolved`, with **no issue**, the record's `cardKey` and exactly this `printingId`. This catches
+   (a) two printings that share set, collector key and suffix (only the first returned by `lookupPrinting`
+   can be named by a code, CARD-036), and (b) the **exact-name guard** (IMP-067): `nameKey` of
+   `<name> <SET> <NUM>` being another card's `cardKey` (hypothetical: card `Ion` printed as `ARC 2` next to
+   a card `Ion Arc 2`). If the check fails, the exporter tries the **code-only** row `<n>,<SET> <NUM>`
+   (IMP-066) with the same check; if that fails too, the copies go to the name-only row (rule 7) and the
+   export notice counts them ("`<n>` copies were saved without their printing.").
+7. **Name-only row.** Per card, the copies not written in a printing row are summed into **one** row
+   `<qty>,<name>`: the unassigned copies (`quantity − Σ byPrinting`, SPEC-007 COLL-002), plus the copies of
+   every **missing-printing** entry (a `printingId` not in the catalog, SPEC-007 COLL-014), plus copies that
+   failed rule 6, plus the copies of printings that resolve but have **no code** under rule 4 (CARD-037
+   form `code` (d), or a set code that is not exactly 3 letters, e.g. `PR`); the export notice counts
+   those too ("`<n>` copies were saved without their printing."), so no printing is dropped silently.
+   *Why missing printings go name-only:* their `printingId` cannot come back from a
+   catalog that no longer has it, and their remembered code (SPEC-007 COLL-075) would only produce an
+   `UNKNOWN_PRINTING` warning on every re-import (IMP-069 a) for the same result (unassigned copies), so
+   name-only keeps the quantity and imports with no issue. No row is written when this sum is 0. A
+   name-only row is checked like rule 6 (resolved, no issue, the record's `cardKey`); a canonical name
+   normally passes (exact match, IMP-025, and the exact-name guard of IMP-067 for names that look like
+   they end in a code, AC 29). A card whose name-only row would fail is still written and named in the
+   export notice ("`<card>` may not import back as written."). The rule 6 and rule 7 checks also cover
+   names the Line grammar would misread, e.g. a name starting with a standalone `X` word (`2,X Marks the
+   Spot` parses as quantity `2 X`): such a row fails its check and is handled as above; there is no
+   other format.
+8. **Quantities above 999.** A row count n > 999 (IMP-008 allows 1..999 per entry) is written as
+   ⌈n / 999⌉ rows: ⌊n / 999⌋ identical rows of 999, then one row with the rest **only when the rest is
+   greater than 0** (e.g. 1,200 → `999,Gust` and `201,Gust`; 1,998 → `999,Gust` twice, no `0,Gust` row);
+   IMP-047/048 sum them back.
+9. **Order.** Rows follow SPEC-007's default Collection order (COLL-031, `printingSortKey`), each card's
+   name-only row at its unassigned entry's position (COLL-012). Order has no effect on the import.
+10. **Left out.** Records whose `cardKey` does not resolve in the catalog (SPEC-007 COLL-015) have no
+    canonical name and are not written; the export notice names them ("`<n>` cards not in the card data
+    were left out."). A Replace import of the file removes them, and the IMP-050 confirmation lists them.
+
+**Round-trip guarantee.** Let collection C be exported with catalog K, and the file imported unedited
+with **Replace** against the same K. Then every line resolves with no issue and no review, except the
+rows of cards named in a rule 7 notice ("may not import back as written"), and the
+committed collection C′ has: the same `cardKey`s as C (minus rule 10's left-out records and any card named in a rule 7 notice); for each card,
+`C′.quantity = C.quantity`; for each `printingId` that resolves in K and passed rule 6 (on the
+`<name> <SET> <NUM>` row or on the code-only retry),
+`C′.byPrinting[printingId] = C.byPrinting[printingId]`; no other `byPrinting` keys, so the copies of
+missing-printing entries, of printings with no code (rule 4) and of printings that failed rule 6 are
+unassigned in C′. Tags, exclude flags,
+SPEC-007's printing-code memory and view state are not in the file and are not changed by the import
+(SPEC-007 COLL-057). See AC 35.
 
 ## Rationale: Add vs. Replace
 Players acquire cards over time (packs, trades), so the common action is "I got these cards, add them";
@@ -529,6 +597,23 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 
 34. **CSV rows with codes** (IMP-040, 044, 065) **Given** `owned.csv` with rows `Qty,Name`, `3,Lightning Rush,RAD 001/167`, `Lightning Rush x2`, `1,Lightning Rush,RAD,001a` **When** uploaded **Then** the text box holds `3 Lightning Rush, RAD 001/167` / `Lightning Rush x2` / `1 Lightning Rush, RAD, 001a`; line 1 resolves by code to `p_lr_001` ×3, line 2 is `Lightning Rush ×2` by name, and line 3 has `printing: null` and the name `Lightning Rush, RAD, 001a` (separate set and number cells are not a code), so it is resolved by name only: not exact, `needs-review` with `Lightning Rush` as a `low` suggestion (similarity ≈ 0.61, IMP-026).
 
+35. **CSV export round-trips** (IMP-055, Collection CSV export rules 1–10, round-trip guarantee; v0.7, H-045) **Given** F1 and a stored collection
+    `cards["lightning rush"] = {quantity: 6, byPrinting: {p_lr_001: 2, p_lr_001a: 1, p_lr_old: 1}}` (`p_lr_old` is not in the catalog: a missing-printing entry, SPEC-007 COLL-014, remembered code `RAD-002`; unassigned = 2),
+    `cards["kennen heart of the tempest"] = {quantity: 1, byPrinting: {p_kn_299: 1}}`, `cards["gust"] = {quantity: 1200, byPrinting: {}}`,
+    and the `p_lr_001` printing tagged `Trade binder` (SPEC-007), with these hypothetical orders until H-020: `setOrder` OGN = 0, RAD = 1 (CARD-071); `Lightning Rush`'s `defaultPrintingId` = `p_lr_001` (CARD-016); `Gust`'s `defaultPrintingId` = a RAD printing numbered after `001a` (e.g. RAD `050`) **When** the user exports the collection **Then** the file holds exactly these rows, in this order (rule 9: `printingSortKey`, CARD-070, so OGN before RAD and `001` before `001a`; the name-only row at `p_lr_001`, right after that printing's own row, SPEC-007 COLL-012):
+    ```
+    Quantity,Card Name
+    1,"Kennen, Heart of the Tempest OGN 299"
+    2,Lightning Rush RAD 001
+    3,Lightning Rush
+    1,Lightning Rush RAD 001a
+    999,Gust
+    201,Gust
+    ```
+    with no Tags column, the missing-printing copy summed into the name-only `Lightning Rush` row (2 unassigned + 1 missing = 3), and the Kennen name cell quoted because it contains a comma.
+    **When** that file is uploaded unedited and committed with **Replace** **Then** the text box holds `1 Kennen, Heart of the Tempest OGN 299` / `2 Lightning Rush RAD 001` / `3 Lightning Rush` / `1 Lightning Rush RAD 001a` / `999 Gust` / `201 Gust`; every line is `resolved` with no issue (lines 1, 2 and 4 with `method: "printing"`, codes `OGN 299`, `RAD 001`, `RAD 001a`; no `UNKNOWN_PRINTING`); and the collection is
+    `cards["lightning rush"] = {quantity: 6, byPrinting: {p_lr_001: 2, p_lr_001a: 1}}` (3 unassigned), `cards["kennen heart of the tempest"] = {quantity: 1, byPrinting: {p_kn_299: 1}}`, `cards["gust"] = {quantity: 1200, byPrinting: {}}`. `Trade binder` is still on `p_lr_001` (tags are kept, SPEC-007 COLL-057, not read from the file).
+
 ## Out of scope
 - Deck legality, bans, copy limits (SPEC-002). Deck lists the user wants to build: [[Deck Import]] (SPEC-006). Per-card owned/required display: [[Your Decks Ownership View]] (SPEC-005). Tags, sorting and filtering of owned cards: [[My Collection]] (SPEC-007).
 - Curated alias tables or any card data source other than the Riot API ([[ADR-0005 MVP Product Defaults]] #4).
@@ -546,7 +631,7 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 - **Resolved (H-048)** — RJ decision 2026-11-23: `x3 Name` and `Name x3` (also `X`) are accepted, IMP-020 is a MUST; `Name` alone stays `MISSING_QUANTITY`. Printing codes on a line (IMP-064…070) identify the exact printing.
 - **Needs RJ (low)** — IMP-068 policy chosen by spec-writer: two exact identifications that disagree → needs review; an unrecognized name with a found code → the code's card with a warning. RJ may prefer "always needs review".
 - **Needs research (low)** — set codes are matched as exactly 3 letters (RJ's brief). Promo set codes such as `PR` (2 letters, SPEC-001 open question 6) would not be read as codes; confirm against the live payload (H-020) which set codes the API uses.
-- **Open (H-045)** — the collection CSV export (IMP-055, SPEC-007 COLL-059) could now round-trip `byPrinting` by writing the printing code after the name (`2,Lightning Rush RAD 001`). Not decided here.
+- **Resolved (H-045)** — RJ decision 2026-11-23: the collection CSV export has no Tags column (SPEC-007 COLL-059 withdrawn; tags are expected to survive through sign-in sync, [[ADR-0007 Firebase Accounts and Firestore]]) and writes printing codes so `byPrinting` round-trips (IMP-055, Collection CSV export rules, AC 35). Spec-writer chose: code inside the name cell as `<SET> <NUM>`, missing-printing copies written name-only.
 - **Open** — separate set and collector-number cells in CSV/Excel are still not read (IMP-040, IMP-044); revisit with IMP-046 once real export files exist.
 - **Unverified** — TTS `COPY` suffix semantics; we treat each token as one copy per research (IMP-036).
 - **Resolved** — MVP storage is browser only, no accounts (IMP-053) and variants count as the same card (IMP-048, former A3): [[ADR-0005 MVP Product Defaults]].
@@ -556,4 +641,4 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 - **Open** — fuzzy thresholds (0.85 / 0.60 / 0.05 margin) are initial values; tune against real typo samples.
 
 ## Changelog
-Current: 0.6 (2026-11-23, H-067). Full history: [[Collection Import changelog]] (archived). New entries go in the archive note.
+Current: 0.7 (2026-11-23, H-045). Full history: [[Collection Import changelog]] (archived). New entries go in the archive note.
