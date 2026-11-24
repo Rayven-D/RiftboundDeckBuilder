@@ -56,6 +56,7 @@ import type {
   CloudTag,
   CollectionDoc,
   DeckDoc,
+  DeleteAllResult,
   LocksDoc,
   Ms,
   PullResult,
@@ -280,6 +281,23 @@ export function remoteCode(e: unknown): RemoteErrorCode {
 }
 
 /**
+ * SYNC-096 step 2: runs `count` deletes in order and stops at the first failure. `removedAny` is true
+ * when an earlier delete of this attempt succeeded, or when the failing one timed out (`'unconfirmed'`)
+ * and so may still land.
+ */
+export async function deleteInOrder(count: number, del: (i: number) => Promise<void>): Promise<DeleteAllResult> {
+  for (let i = 0; i < count; i++) {
+    try {
+      await del(i);
+    } catch (e) {
+      const mayHaveLanded = e instanceof RemoteError && e.code === 'unconfirmed';
+      return { remaining: count - i, removedAny: i > 0 || mayHaveLanded };
+    }
+  }
+  return 'ok';
+}
+
+/**
  * A write not acknowledged in time is `unconfirmed`, not failed: the SDK keeps it queued and may still
  * commit it, so the engine keeps its items pending and lets the next pull confirm them (SYNC-042).
  * The timer is cleared when the write settles.
@@ -424,24 +442,19 @@ export class FirestoreRemoteStore implements RemoteStore {
   }
 
   /** SYNC-096 step 2: the account document first, then every deck (tombstones included), then the state documents. */
-  async deleteAll(uid: string): Promise<'ok' | { remaining: number }> {
+  async deleteAll(uid: string): Promise<DeleteAllResult> {
     const paths: string[][] = [['users', uid]];
     try {
       const decks = await getDocs(collection(this.db, 'users', uid, 'decks'));
       for (const d of decks.docs) paths.push(['users', uid, 'decks', d.id]);
     } catch {
-      return { remaining: 4 };
+      return { remaining: 4, removedAny: false }; // the list is read before the first delete: nothing removed
     }
     for (const s of ['collection', 'tags', 'locks']) paths.push(['users', uid, 'state', s]);
-    for (let i = 0; i < paths.length; i++) {
-      try {
-        const [first, ...rest] = paths[i];
-        await withTimeout(deleteDoc(doc(this.db, first, ...rest)));
-      } catch {
-        return { remaining: paths.length - i };
-      }
-    }
-    return 'ok';
+    return deleteInOrder(paths.length, (i) => {
+      const [first, ...rest] = paths[i];
+      return withTimeout(deleteDoc(doc(this.db, first, ...rest)));
+    });
   }
 
   /** One operation per document, in push order: decks before locks (SYNC-076). */

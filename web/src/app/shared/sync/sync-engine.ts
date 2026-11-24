@@ -264,11 +264,19 @@ export class SyncEngine {
         if (r !== 'ok') return r;
       }
       await this.updateLog((l) => {
+        if (l.deletingUid === uid) return; // a retry keeps deletingRemovedAny
         l.deletingUid = uid;
+        l.deletingRemovedAny = false;
       });
       this.deletionPending = true;
       // (2) account document first, then every deck and the three state documents
       const r = await this.remote.deleteAll(uid);
+      if (r === 'ok' || r.removedAny) {
+        // Something is (or may be) gone, so Cancel deletion is no longer offered; never back to false.
+        await this.updateLog((l) => {
+          l.deletingRemovedAny = true;
+        });
+      }
       if (r !== 'ok') {
         this.deps.notify(MESSAGES.deleteIncomplete);
         return 'failed';
@@ -300,6 +308,39 @@ export class SyncEngine {
       if (this.deletionPending) this.setProblem('write', MESSAGES.deleteIncomplete);
       this.emit();
     }
+  }
+
+  /**
+   * SYNC-096: this device's own deletion of the signed-in account is unfinished. The account menu offers
+   * Try again, and Cancel deletion while `canCancel` (nothing was removed: `deletingRemovedAny` is false).
+   */
+  unfinishedDeletion(): { canCancel: boolean } | null {
+    if (!this.uid || this.stopped || !this.deletionPending) return null;
+    return { canCancel: !this.deleting && this.lastLog.deletingRemovedAny === false };
+  }
+
+  /**
+   * SYNC-096 Cancel deletion: allowed only while nothing was removed. Clears `deletingUid` and
+   * `deletingRemovedAny`, says so, and resumes normal syncing (account check, pull, push of pending items).
+   */
+  async cancelDeletion(): Promise<boolean> {
+    if (!this.unfinishedDeletion()?.canCancel) return false;
+    const uid = this.uid;
+    let cancelled = false;
+    await this.updateLog((l) => {
+      if (l.deletingUid !== uid || l.deletingRemovedAny !== false) return;
+      l.deletingUid = null;
+      delete l.deletingRemovedAny;
+      cancelled = true;
+    });
+    if (!cancelled) return false;
+    this.deletionPending = false;
+    this.accountChecked = false;
+    if (this.problem?.message === MESSAGES.deleteIncomplete) this.problem = null;
+    this.deps.notify(MESSAGES.deleteNotDone);
+    this.emit();
+    await this.syncNow();
+    return true;
   }
 
   // ---------- session ----------

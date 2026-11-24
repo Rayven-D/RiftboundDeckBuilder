@@ -11,7 +11,7 @@ Scope: uncommitted tree on `loop/H-074-spec010-followups` (HEAD 5c2292c): [[Acco
 [[ADR-0007 Firebase Accounts and Firestore]], [[Accounts and Sync changelog]].
 
 ## Result
-2026-11-24 · H-080 · FAIL · Accept, V-009, decision fidelity, supersession marking, as-built spot-check vs `web/src/app/shared/sync/` + `web/src/app/core/sync/`, buildability of H-085/H-077/H-078/H-081 · failures:
+2026-11-24 · H-080 · FAIL · Accept, V-009, decision fidelity, supersession marking, as-built spot-check vs `web/src/app/shared/sync/` + `web/src/app/core/sync/`, buildability of H-086/H-077/H-078/H-081 · failures:
 1. SYNC-081 vs SYNC-090 / AC 20: offline "Sign out anyway" is both disabled and required to clear the device → spec-writer
 2. SYNC-009 / CAT-074: Tournaments "In your decks" / "Add another copy" state while the gate is closed or the first sync runs is unspecified (legacy decks in `DeckStore`) → spec-writer
 3. [[Spec Index]] still lists SPEC-010 0.7; [[Current State]] still says "specs not updated yet" / "optional sign-in" / SPEC-010 0.7 (H-080 row asks to update Current State constraints) → spec-writer
@@ -50,7 +50,7 @@ strikes the "keeps its data" reasoning and explains why it no longer holds; deci
 out". Decision 13 records RJ's quote and a–d and lists what it supersedes. ADR-0007 original text kept. OK.
 
 ### (3) As built vs pending build; spot-checks against code
-The spec marks new work "pending build, H-081 / H-085 / H-077 / H-078" per row and per AC, and the Data contract
+The spec marks new work "pending build, H-081 / H-086 / H-077 / H-078" per row and per AC, and the Data contract
 marks `deletingRemovedAny` and `deleteAll`'s `removedAny` as PENDING BUILD. Spot-checks (all confirmed):
 - `signOut(mode: 'keep' | 'remove')`, `'remove'` → `local.clearAll()` + `emptySyncLog()` (`sync-engine.ts:225-237`); `clearLocalData` removes every prefixed key (`core/storage/local-stores.ts:328`). SYNC-091 "the build already has `signOut('remove')`" holds.
 - Built half-deleted branch signs out and keeps the data (`sync-engine.ts:594-607`). SYNC-097 "as built keeps the data" holds.
@@ -62,7 +62,7 @@ marks `deletingRemovedAny` and `deleteAll`'s `removedAny` as PENDING BUILD. Spot
 - Account menu disables Sync now / Sign out / Delete offline (`account-menu.ts:38-40`). SYNC-081 holds as built (this is the basis of failure 1).
 
 ### (4) Buildable without guessing
-- **H-085:** SYNC-096 defines `removedAny`, `deletingRemovedAny` (set false on first record, true once, never back, `'unconfirmed'` counts as removed, cleared with `deletingUid`), the menu Try again after reload, Cancel deletion effects and text; AC 43 covers each branch. OK.
+- **H-086:** SYNC-096 defines `removedAny`, `deletingRemovedAny` (set false on first record, true once, never back, `'unconfirmed'` counts as removed, cleared with `deletingUid`), the menu Try again after reload, Cancel deletion effects and text; AC 43 covers each branch. OK.
 - **H-077:** SYNC-050 gives exact counts per case ((a) 1, (c)/(e) 0 or 1 account `update()`, (f) 0, no `state`/`decks` write, no `batch`), reads ≤ 3 + 1 per document; SYNC-120 worked examples (3 reads/1 write; ≤ 16 reads/0 writes); ACs 3, 4, 36, 40 count writes. The resumed-Combine question is moot and recorded in Impacts. OK.
 - **H-078:** SYNC-012 format `web-<prod|preview>-<7–12 hex>` or UTC `YYYYMMDDTHHMMSSZ`, ≤ 40, charset; SYNC-007 five outcomes for the preview deploy; ACs 35, 42 with concrete values. OK (INFO 1).
 - **H-081:** SYNC-003, 008, 009, 048, 052, 090, 091, 097 and ACs 3, 5, 20, 25–28, 31, 36, 40, 45–48 give texts, routes and states. Two points need a guess: failures 1 and 2.
@@ -136,7 +136,7 @@ Leftover search (Sign in to add this deck, opens the sign-in/SYNC-003 dialog, le
 91 rows (82 MUST / 6 MUST NOT / 3 SHOULD), unchanged from round 1; no duplicate IDs; every referenced SYNC ID exists; 48 ACs numbered 1–48, all Given/When/Then; no AC reference above 48; wikilinks in the 5 changed notes resolve.
 
 ### Buildability
-H-085, H-077, H-078: unchanged from round 1, OK (H-078 now exact 7-character id). H-081: OK apart from failure 2.
+H-086, H-077, H-078: unchanged from round 1, OK (H-078 now exact 7-character id). H-081: OK apart from failure 2.
 
 ### Failures (for new board rows; the board was not edited)
 1. **P1 · spec-writer · decision 13 (b) still says "sign-in prompt" for Add to your decks.** Input: SPEC-010
@@ -166,7 +166,7 @@ H-085, H-077, H-078: unchanged from round 1, OK (H-078 now exact 7-character id)
 Scope: uncommitted tree (HEAD 5c2292c): [[Accounts and Sync]], [[ADR-0007 Firebase Accounts and Firestore]],
 [[Accounts and Sync changelog]], [[Spec Index]], [[Current State]].
 
-2026-11-24 · H-080 (round 3) · PASS · Accept, V-009, round-2 failures re-checked, `sessionLostUid` set/clear consistency, buildability of H-085/H-077/H-078/H-081 · failures: none
+2026-11-24 · H-080 (round 3) · PASS · Accept, V-009, round-2 failures re-checked, `sessionLostUid` set/clear consistency, buildability of H-086/H-077/H-078/H-081 · failures: none
 
 ### Round-2 failures
 - **F1 (decision 13 b): fixed.** ADR-0007 amendment bullet (b) and SPEC-010 decision 13 (b) keep RJ's text and
@@ -187,7 +187,7 @@ Scope: uncommitted tree (HEAD 5c2292c): [[Accounts and Sync]], [[ADR-0007 Fireba
   1–48, all Given/When/Then; wikilinks in the 5 changed notes resolve. No "stays open" / "keep working" leftover.
 
 ### Buildability
-H-085 (SYNC-096, AC 43), H-077 (SYNC-050 write counts, ACs 3/4/36/40), H-078 (SYNC-012 exactly 7-character id,
+H-086 (SYNC-096, AC 43), H-077 (SYNC-050 write counts, ACs 3/4/36/40), H-078 (SYNC-012 exactly 7-character id,
 SYNC-007 deploy outcomes, ACs 35/42) and H-081 (SYNC-003/008/009/048/052/081/086/090/091/097, Data contract
 `sessionLostUid`, ACs 3, 5, 20, 25–28, 31, 36, 40, 45–48) can be built without guessing.
 

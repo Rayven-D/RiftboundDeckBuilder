@@ -21,7 +21,7 @@ Newest first. New changelog entries for the spec go here.
   **Sign-out:** SYNC-090 one choice (Sign out / Cancel) with the unsynced-changes step (Sync now, Sign out
   anyway); SYNC-091 sign-out clears the device. SYNC-004 and the linked-uid / session-expected definitions
   follow. SYNC-052: Delete all local data not offered in account-required mode. **Deletion:** SYNC-096 account
-  menu Try again after reload, `deletingRemovedAny` rules (H-085), sign-out clears `deletingUid`; SYNC-097
+  menu Try again after reload, `deletingRemovedAny` rules (H-086), sign-out clears `deletingUid`; SYNC-097
   `deleted` and half-deleted branches clear the device (new half-deleted message); SYNC-098 residual risks
   rewritten. **Build id and deploy:** SYNC-012 `appVersion` = `web-<prod|preview>-<short commit>` (or UTC build
   time), ≤ 40 characters; SYNC-007 preview deploy path as outcomes (H-078); SYNC-118 note. **Other:** SYNC-003
@@ -69,7 +69,7 @@ Newest first. New changelog entries for the spec go here.
   **SYNC-084:** singular "1 change not synced yet". **SYNC-096:** email-link re-auth = sign in again (exact
   message); Google popup cancel "Your account wasn't deleted."; Try again; `deletingUid` stops all sync until the
   deletion completes; **RJ decision 12:** Cancel deletion only when the deletion removed nothing, then only Try
-  again (or Remove from this device); pending build H-085 (`deletingRemovedAny`, `deleteAll` `removedAny`).
+  again (or Remove from this device); pending build H-086 (`deletingRemovedAny`, `deleteAll` `removedAny`).
   **SYNC-097:** Auth emulator codes recorded (`auth/user-token-expired`, `auth/invalid-refresh-token`), mapping
   listed, production still `unverified`; the half-deleted sign-out clears `uploadingUid` (H-075). **SYNC-111 /
   SYNC-112:** owner-only `list`, id checks on every operation, account `createdAt` immutable, `duplicatedFrom` ≤ 36.

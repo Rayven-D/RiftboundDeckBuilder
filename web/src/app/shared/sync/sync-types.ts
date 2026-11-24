@@ -158,6 +158,12 @@ export interface StoredSyncLog {
   uploadingUid?: string | null;
   /** Account deletion of this uid started on this device and is not finished (SYNC-096): sync is stopped, Delete can be retried. */
   deletingUid?: string | null;
+  /**
+   * SYNC-096: false when `deletingUid` is first recorded; true, and never back to false, once an attempt
+   * removed (or may have removed, `'unconfirmed'`) a document. While false the account menu offers
+   * Cancel deletion. Cleared with `deletingUid`.
+   */
+  deletingRemovedAny?: boolean;
 }
 
 export interface SyncLogStore {
@@ -271,6 +277,13 @@ export interface PushChanges {
 /** Outcome per document ref: 'account' | 'collection' | 'tags' | 'locks' | 'deck:<id>' | 'delete:<id>'. */
 export type PushOutcome = Record<string, 'ok' | RemoteErrorCode>;
 
+/**
+ * SYNC-096 step 2 result. On failure, `removedAny` says whether this attempt removed (or may have
+ * removed: a delete that timed out, `'unconfirmed'`) any document. A failed deck-list read deletes
+ * nothing, so it reports `removedAny: false`.
+ */
+export type DeleteAllResult = 'ok' | { remaining: number; removedAny: boolean };
+
 export interface RemoteStore {
   /**
    * `cursors` null = full read (SYNC-045). `withAccount` adds the account `get` (SYNC-053). Throws
@@ -282,7 +295,7 @@ export interface RemoteStore {
   /** Never throws for a single document: each document's result is in the outcome (SYNC-043, SYNC-118). */
   push(uid: string, changes: PushChanges): Promise<PushOutcome>;
   /** SYNC-096 step 2: account document first, then every deck, then the three state documents. */
-  deleteAll(uid: string): Promise<'ok' | { remaining: number }>;
+  deleteAll(uid: string): Promise<DeleteAllResult>;
 }
 
 // ---- Status (SYNC-084) ----

@@ -11,6 +11,7 @@ import {
   AuthService,
   CollectionDoc,
   DeckDoc,
+  DeleteAllResult,
   LocksDoc,
   Ms,
   PullResult,
@@ -76,8 +77,12 @@ export class FakeRemote implements RemoteStore {
   pullError: RemoteErrorCode | null = null;
   /** First-sign-in tests: a batch commits only its first N writes (the adapter writes in chunks), the rest fail. */
   failBatchAfter: number | null = null;
-  /** SYNC-096 retry tests: fail deletion after this many deletes. */
+  /** SYNC-096 retry tests: fail deletion after this many deletes (once). */
   failDeleteAfter: number | null = null;
+  /** SYNC-096: the code of that failed delete; `'unconfirmed'` may have landed, so it counts as removed. */
+  failDeleteCode: RemoteErrorCode = 'unknown';
+  /** SYNC-096: the deck-list read before the first delete fails (once), so nothing is deleted. */
+  failDeckList = false;
 
   constructor(readonly db: FakeFirestore) {}
 
@@ -251,8 +256,12 @@ export class FakeRemote implements RemoteStore {
     return outcome;
   }
 
-  async deleteAll(uid: string): Promise<'ok' | { remaining: number }> {
+  async deleteAll(uid: string): Promise<DeleteAllResult> {
     this.checkUp();
+    if (this.failDeckList) {
+      this.failDeckList = false;
+      return { remaining: 4, removedAny: false };
+    }
     const base = `users/${uid}`;
     const order = [
       base,
@@ -265,7 +274,7 @@ export class FakeRemote implements RemoteStore {
     for (let i = 0; i < order.length; i++) {
       if (this.failDeleteAfter !== null && this.db.deletes >= this.failDeleteAfter) {
         this.failDeleteAfter = null;
-        return { remaining: order.length - i };
+        return { remaining: order.length - i, removedAny: i > 0 || this.failDeleteCode === 'unconfirmed' };
       }
       this.del(order[i]);
     }

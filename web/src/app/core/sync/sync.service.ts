@@ -43,6 +43,8 @@ export class SyncService {
   readonly statusLine = computed(() => statusText(this.status()));
   readonly online = signal(typeof navigator === 'undefined' ? true : navigator.onLine);
   readonly signedIn = computed(() => this.status().kind !== 'signed-out');
+  /** SYNC-096: this device's own unfinished deletion of the signed-in account (Try again, Cancel deletion). */
+  readonly deletion = signal<{ canCancel: boolean } | null>(null);
 
   private readonly engine: SyncEngine;
   private started = false;
@@ -60,7 +62,10 @@ export class SyncService {
       isOnline: () => navigator.onLine,
       confirmCombine: (q) => this.askCombine(q),
       notify: (m) => this.notify(m),
-      onStatus: (s) => this.status.set(s),
+      onStatus: (s) => {
+        this.status.set(s);
+        this.deletion.set(this.engine.unfinishedDeletion());
+      },
       withTabLock: tabLock,
       setTimer: (fn, ms) => setTimeout(fn, ms),
       clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
@@ -107,6 +112,11 @@ export class SyncService {
 
   deleteAccount(): Promise<'ok' | 'cancelled' | 'needs-sign-in' | 'failed' | 'offline'> {
     return this.engine.deleteAccount();
+  }
+
+  /** SYNC-096 Cancel deletion: only while nothing was removed; resumes normal syncing. */
+  cancelDeletion(): Promise<boolean> {
+    return this.engine.cancelDeletion();
   }
 
   /** SYNC-052: Delete all local data while signed in removes this device's copy and signs out. */

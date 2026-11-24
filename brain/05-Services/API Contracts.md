@@ -179,6 +179,17 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   Combine), `deletingUid` (this device's unfinished deletion: sync stopped, Delete retryable);
   `AuthService.reauthenticate()` may return `'needs-sign-in'` (email link); `RemoteErrorCode` adds
   `'unconfirmed'` (a write not acknowledged in 20 s: kept pending, confirmed by the next pull).
+- **Unfinished deletion and Cancel deletion (SYNC-096, H-086):** `RemoteStore.deleteAll(uid)` returns
+  `DeleteAllResult = 'ok' | { remaining: number; removedAny: boolean }`. `removedAny` is true when this
+  attempt removed a document, or when the failing delete timed out (`'unconfirmed'`, may still land); a failed
+  deck-list read (before the first delete) returns `{ remaining: 4, removedAny: false }`. Sync log
+  `deletingRemovedAny?: boolean`: false when `deletingUid` is first recorded (a retry keeps it), true once an
+  attempt reports `removedAny` or `deleteAll` returns `'ok'`, never back to false; cleared with `deletingUid`.
+  A log that has `deletingUid` without the field (older build) counts as "something removed".
+  `SyncEngine.unfinishedDeletion(): { canCancel } | null` and `cancelDeletion(): Promise<boolean>`
+  (exposed as `SyncService.deletion` and `cancelDeletion()`): Cancel is allowed only while
+  `deletingRemovedAny === false`; it clears both fields, notifies "Your account wasn't deleted." and runs a
+  normal sync (account check, pull, push).
 - **SYNC-097 Auth codes (verified on the Auth emulator, 2026-11-23):** deleted user → `reload()`
   `auth/user-token-expired`, forced refresh `auth/invalid-refresh-token`; revoked → `reload()`
   `auth/user-token-expired` (refresh still works in the emulator); disabled → `auth/user-disabled`.
@@ -196,3 +207,5 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   `ng serve` proxy); production `/api/**` returns `404` until ADR-0004 picks an API host.
 - v1.2 (2026-11-23, H-062): no endpoint change. New section "Browser stores and sync": the SPEC-010
   store, sync-log and adapter contracts in `web/`, and the additions the build needed.
+- v1.3 (2026-11-24, H-086): no endpoint change. `RemoteStore.deleteAll` reports `removedAny`; sync log
+  `deletingRemovedAny`; engine/service `unfinishedDeletion()` and `cancelDeletion()` (SYNC-096).
