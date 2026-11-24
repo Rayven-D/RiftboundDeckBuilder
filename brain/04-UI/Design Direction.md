@@ -111,3 +111,4 @@ fantasy-UI styling.
 - 2026-11-23: RJ: tournaments are a source of winning constructed decks to add as a goal, not a feature of their own. The home section is now "Winning decks": "Pick a winning deck to work towards.", button "See winning decks" (still links to Tournaments). Keep tournament copy small and goal-focused.
 - 2026-11-23: RJ: ownership text was too descriptive (the example panel already shows it) and read in the wrong order. Now follows the panel left to right: "Not yet, half colour, full colour." / "Cards start out dimmed. Collect copies and they fill with colour, until you own them all."
 - 2026-11-23: RJ: the ownership section title should say what it is for (knowing which cards finish a deck), not describe the colours. Title now "Collect the cards each deck needs."
+- 2026-11-23: RJ: ownership text now "Know what you need at a glance. Collect every copy a card needs to fill it in with colour."
