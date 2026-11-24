@@ -17,6 +17,13 @@ Newest first. New changelog entries for the spec go here.
   Agrees with SPEC-003 0.7 IMP-050/IMP-050a and SPEC-007 0.6 COLL-058/COLL-088. AC 16 Undo part rewritten
   (confirm / cancel, with manual edits, no lock → no confirmation). `lockedShortfalls` comment covers Undo.
   Summary updated. Pins: SPEC-003 0.7, SPEC-007 0.6. Still 43 requirements; 16 ACs.
+  RJ decision 2026-11-23 (H-049 follow-up): Undo warns before **and** notifies after. SHARE-034's one warning
+  string, used in every confirmation (edits, Replace, Undo), is now "'`<deck name>`' (locked) will be `<n>`
+  cards short. It stays locked." (a short deck stays locked, SHARE-033); a confirmed Undo (only) is followed
+  by the notice "'`<deck name>`' (locked) is now `<n>` cards short." (restored, now in addition to the
+  warning; the "is removed" line above no longer applies to Undo). Cancel → nothing changes, no notice.
+  Summary, `lockedShortfalls` comment, AC 9 and AC 16 (warning text; Undo notice after confirm, none after
+  cancel) updated.
 
 - 0.2 (2026-11-23, H-065/H-066/H-067, validator fixes for H-058; RJ's decisions unchanged):
   **H-065:** ACs 3, 6, 7 (first clause and the "instead" case), 8, 10, 12 now have a **When**.

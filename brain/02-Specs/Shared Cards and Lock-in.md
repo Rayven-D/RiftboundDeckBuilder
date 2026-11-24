@@ -37,7 +37,8 @@ in and runes").
 - SHARE-034 (v0.3): a Collection change that would leave a locked deck holding fewer copies warns **inside
   its confirmation, before the change** (Collection edits, the SPEC-003 IMP-050 Replace confirmation computed
   on the parsed import, and an Undo of an import); a change without a confirmation of its own asks for one
-  only then. There is no warning after the fact.
+  only then. The warning reads "… will be `<n>` cards short. It stays locked." No change warns only after the
+  fact; a confirmed Undo of an import is also followed by the notice "… is now `<n>` cards short." (RJ 2026-11-23).
 - SHARE-051 (v0.2): each deck is in exactly one ownership group: Locked (not short), Ready to build,
   Partly available or None available; an empty or runes-only deck is None available.
 - SHARE-043: card breakdown "Owned for decks X · Locked by other decks Y · Available Z · This deck needs N"
@@ -142,7 +143,7 @@ SPEC-005 owns the deck view and tiles and reads this spec's `SharedPool`. SPEC-0
 | SHARE-031 | MUST | **Holds.** For each `cardKey` k, go through the locked decks in lock order: hold(L, k) = min(need(L, k), max(0, ownedForDecks(k) − Σ hold of the locked decks before L)). So Σ holds ≤ ownedForDecks(k), and a locked deck that is not short holds exactly its need. | design decision 3; [[ADR-0006 Two Imports - Collection and Decks]] |
 | SHARE-032 | MUST | A lock **never yields copies to an unlocked deck**. Among locked decks, the earlier lock is served first; a later lock is the one that goes short. | design decisions 3, 4 |
 | SHARE-033 | MUST | A locked deck is **short** when hold(L, k) < need(L, k) for some counted k. A short deck **stays locked** (never unlocked automatically) and is flagged "Locked · `<n>` cards short" (n = number of `cardKey`s short; "1 card short" for one). It holds only the copies it really has. When copies come back (re-import, edit, tag change), holds refill in lock order with no user action and the flag disappears. | design decision 5 |
-| SHARE-034 | SHOULD | When a Collection change would lower the copies a locked deck holds, the warning is shown **before** the change, **inside the change's confirmation**, naming each affected locked deck: "'`<deck name>`' (locked) will be `<n>` cards short." ("1 card short" for one; n counts `cardKey`s, as in SHARE-033). This covers the SPEC-007 edits (− on an entry, a typed lower quantity, Remove card, turning on an exclude flag, assigning an excluded tag; COLL-088; an edit that has no confirmation of its own asks for one only when `lockedShortfalls` is not empty), an Owned Cards Import committed in **Replace** mode, whose SPEC-003 IMP-050 confirmation adds the warning computed on the parsed import (the collection as it would be after Replace; IMP-050a), and (v0.3) an **Undo** of the last import commit (IMP-052), computed on the snapshot it would restore: the warning goes inside the SPEC-007 COLL-058 Undo confirmation when manual edits followed the import; an Undo with no confirmation of its own asks for one only when `lockedShortfalls` is not empty, like the edits above. Cancelling changes nothing. An import committed in **Add** mode never lowers a hold, so it has no warning. No change shows the warning only after it has run. Computed with `lockedShortfalls(before, after)`, where `after` is the `SharedPool` for the collection as it would be after the change. | design rule; [[My Collection]] COLL-058, COLL-084, COLL-088 (confirmation pattern); [[Collection Import]] IMP-050, IMP-050a, IMP-052 |
+| SHARE-034 | SHOULD | When a Collection change would lower the copies a locked deck holds, the warning is shown **before** the change, **inside the change's confirmation**, naming each affected locked deck: "'`<deck name>`' (locked) will be `<n>` cards short. It stays locked." ("1 card short" for one; n counts `cardKey`s, as in SHARE-033; a short deck stays locked, SHARE-033). This one warning string is used in every confirmation (edits, Replace, Undo). This covers the SPEC-007 edits (− on an entry, a typed lower quantity, Remove card, turning on an exclude flag, assigning an excluded tag; COLL-088; an edit that has no confirmation of its own asks for one only when `lockedShortfalls` is not empty), an Owned Cards Import committed in **Replace** mode, whose SPEC-003 IMP-050 confirmation adds the warning computed on the parsed import (the collection as it would be after Replace; IMP-050a), and (v0.3) an **Undo** of the last import commit (IMP-052), computed on the snapshot it would restore: the warning goes inside the SPEC-007 COLL-058 Undo confirmation when manual edits followed the import; an Undo with no confirmation of its own asks for one only when `lockedShortfalls` is not empty, like the edits above. After a confirmed **Undo** (only), a notice per affected deck follows: "'`<deck name>`' (locked) is now `<n>` cards short." Cancelling changes nothing and shows no notice. An import committed in **Add** mode never lowers a hold, so it has no warning. No change shows the warning only after it has run. Computed with `lockedShortfalls(before, after)`, where `after` is the `SharedPool` for the collection as it would be after the change. | design rule; SHARE-033; [[My Collection]] COLL-058, COLL-084, COLL-088 (confirmation pattern); [[Collection Import]] IMP-050, IMP-050a, IMP-052; RJ decision 2026-11-23 (H-049 follow-up: Undo warns before and notifies after; "It stays locked.") |
 | SHARE-035 | MUST | Holds, available counts, completeness and shortfall are **computed, never stored** (only `DeckLock` is stored). | design decision 7; [[Your Decks Ownership View]] OWN-026 |
 
 ### E. Display in a deck
@@ -271,7 +272,8 @@ type LockCheck =                            // first failing check wins (SHARE-0
 //   locked decks whose total held copies (Σ hold over their cards) drop from before to after;
 //   cardsShort = the deck's number of short cardKeys in `after`. `after` is computed from the
 //   collection as it would be after the change (Collection edit, Replace import, Undo of an import:
-//   the snapshot it would restore), before it is committed (v0.3)
+//   the snapshot it would restore), before it is committed (v0.3); for an Undo the same list
+//   drives the notice shown after it is confirmed
 ```
 
 ## Acceptance criteria
@@ -325,7 +327,7 @@ card of every deck is owned in full.
    **Given** Deck 1 locked at 10:00 (needs 3) and Deck 3 (`Kennen Aggro`) locked at 11:00 (needs 2 Hextech
    Ray), `ownedForDecks = 5` **When** the user presses − twice on a Hextech Ray entry in Collection **Then**
    the confirmations of the first − (5 → 4) and the second − (4 → 3) each warn "'Kennen Aggro' (locked) will
-   be 1 card short." before the change (SHOULD; Deck 1 is never named, it keeps its 3); after both, Deck 1
+   be 1 card short. It stays locked." before the change (SHOULD; Deck 1 is never named, it keeps its 3); after both, Deck 1
    holds 3 ("3 of 3 locked in"), Deck 3 holds 0 ("0 of 2 locked in"), both stay locked, and Deck 3's badge
    reads "Locked · 1 card short". **When** the user adds 2 copies back **Then**
    Deck 3 holds 2 and the flag disappears with no other action.
@@ -366,18 +368,20 @@ card of every deck is owned in full.
     **Given** Deck 1 locked, `ownedForDecks('hextech ray') = 3`, and an Owned Cards Import whose parsed lines
     hold `2 Hextech Ray` and every other card of Deck 1 in full **When** the user commits it in Replace mode
     **Then** the IMP-050 confirmation lists the removed and changed names and adds "'Kennen Tempo' (locked)
-    will be 1 card short."; **When** the user cancels **Then** the collection and Deck 1's holds are
+    will be 1 card short. It stays locked."; **When** the user cancels **Then** the collection and Deck 1's holds are
     unchanged; **When** the user commits again and confirms **Then** Deck 1 stays locked with "Locked · 1
     card short". **When** the same lines are committed in Add mode instead **Then** no locked-deck warning
     is shown (Add never lowers a hold).
     **Given** instead `ownedForDecks = 2`, an Add import of `1 Hextech Ray` committed (3 owned), Deck 1
     locked after that commit (holds 3), and no manual edit since **When** the user presses Undo on the import
     (IMP-052) **Then** before anything changes a confirmation reads "'Kennen Tempo' (locked) will be 1 card
-    short."; **When** the user cancels **Then** 3 stay owned and Deck 1 is "3 of 3 locked in"; **When** the
-    user presses Undo again and confirms **Then** the collection is back to 2, Deck 1 is "Locked · 1 card
-    short", and no notice follows. **Given** the same, but the user also pressed + on a `Gust` entry after the
+    short. It stays locked."; **When** the user cancels **Then** 3 stay owned, Deck 1 is "3 of 3 locked in",
+    and no notice is shown; **When** the user presses Undo again and confirms **Then** the collection is back
+    to 2, Deck 1 stays locked as "Locked · 1 card short", and the notice "'Kennen Tempo' (locked) is now 1 card
+    short." is shown. **Given** the same, but the user also pressed + on a `Gust` entry after the
     import **When** the user presses Undo **Then** one confirmation both warns that the manual edits will be
-    lost (COLL-058) and reads "'Kennen Tempo' (locked) will be 1 card short.". **Given** the same import with
+    lost (COLL-058) and reads "'Kennen Tempo' (locked) will be 1 card short. It stays locked."; **When** the
+    user confirms **Then** the same notice follows. **Given** the same import with
     no deck locked and no manual edit since **When** the user presses Undo **Then** it runs at once with no
     confirmation.
 

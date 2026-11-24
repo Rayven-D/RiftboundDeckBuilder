@@ -30,6 +30,14 @@ Moved out of [[Collection Import]] on 2026-11-23 (H-039). Newest first. New chan
   SPEC-007 0.6 COLL-058/088. ACs: 14 (delimiter cases), 15a (typographic apostrophe, `.csv` for 5 MB), 27
   (line 9 `3x RAD 001 x2`), 28 (**Given**; earliest-split row); new ACs 35–40. Pin: SPEC-008 0.3. One
   requirement added (IMP-050a).
+  RJ decision 2026-11-23 (H-049 follow-up): UI messages use the straight apostrophe `'` (house style added to
+  IMP-061); IMP-010, IMP-061, the `UploadRejection` comment, AC 15a and AC 37 changed from `’` to `'` (the
+  "typographic apostrophe" note above no longer applies; `’` stays only as name-folding test input, AC 4);
+  open question resolved.
+  RJ decision 2026-11-23 (H-049 follow-up): Undo warns before **and** notifies after. IMP-050a's warning
+  string gains "It stays locked." (SHARE-033); a confirmed Undo is followed by the notice "'`<deck name>`'
+  (locked) is now `<n>` cards short." (Undo only; this restores the notice the line above says was replaced,
+  now in addition to the warning). Summary updated.
 
 - 0.6 (2026-11-23, H-067): IMP-050's Replace confirmation SHOULD add SPEC-008's locked-deck warning
   ("'`<deck name>`' (locked) will be `<n>` cards short."), computed with `lockedShortfalls()` on the parsed

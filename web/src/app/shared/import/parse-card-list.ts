@@ -1,7 +1,7 @@
 /**
  * Shared card-list parsing for both imports (SPEC-003 Part A, reused by SPEC-006).
  *
- * Every entry is a quantity plus a card part (SPEC-003 v0.5 "Line grammar"). The quantity leads
+ * Every entry is a quantity plus a card part (SPEC-003 v0.7 "Line grammar"). The quantity leads
  * (`3 Name`, `3x Name`, `3 x Name`, `x3 Name`) or trails (`Name x3`), once per line (IMP-019/020).
  * The card part is a name, a printing code (`RAD 001/167`, `OGN-007a`, `(OGN 299/298)`) at its
  * start or end, or both (IMP-064/065); a code alone is a valid entry (IMP-066). A line without a
@@ -128,7 +128,7 @@ const SECTION_ALIASES: Readonly<Record<string, DeckSection>> = {
 
 const LABEL_RE = /^#*\s*([a-z][a-z ]*?)\s*(?::\s*(.*))?$/i;
 
-// SPEC-003 v0.5 Line grammar (IMP-019, IMP-020, IMP-064, IMP-065).
+// SPEC-003 v0.7 Line grammar (IMP-019, IMP-020, IMP-064, IMP-065).
 const QTY_LEAD_RE = /^(?:(\d+)(?:\s*[xX])?|[xX](\d+))\s+(.+)$/;
 const QTY_TRAIL_RE = /\s+[xX](\d+)$/;
 const QTY_ONLY_RE = /^(?:\d+(?:\s*[xX])?|[xX]\d+)$/;
@@ -243,14 +243,14 @@ export async function readImportFile(file: File): Promise<ImportFile> {
   if (lower.endsWith('.xls')) {
     throw new ImportFileError(
       'FILE_REJECTED',
-      'Older .xls files aren’t supported. Save it as .xlsx or .csv and try again.',
+      "Older .xls files aren't supported. Save it as .xlsx or .csv and try again.",
     );
   }
   const fileType = (['txt', 'csv', 'xlsx'] as const).find((t) => lower.endsWith(`.${t}`));
   if (!fileType) {
     throw new ImportFileError(
       'FILE_REJECTED',
-      `${file.name} can’t be imported. Use a .txt, .csv or .xlsx file.`,
+      `${file.name} can't be imported. Use a .txt, .csv or .xlsx file.`,
     );
   }
   const tooLarge = `${file.name} is too large to import (${TOO_LARGE_LIMIT}).`;
@@ -292,7 +292,7 @@ export async function readImportFile(file: File): Promise<ImportFile> {
  * (IMP-041), and other rows are kept as their cells joined with `, ` so they show up as errors.
  * A row whose first cell is a section label and whose later cells hold the entry
  * (`Champion,1 Kennen` or `Champion,1,Kennen`) becomes `Champion: 1 Kennen` (label with an
- * entry, IMP-023). Interim rule from H-053 (5); IMP-040 does not cover it yet.
+ * entry, IMP-023), per IMP-040 (c).
  */
 export function rowsToText(rows: readonly (readonly unknown[])[]): string {
   const out: string[] = [];
@@ -575,7 +575,7 @@ function decodeUtf8(bytes: ArrayBuffer, fileName: string): string {
   } catch {
     throw new ImportFileError(
       'INPUT_ENCODING',
-      `${fileName} isn’t UTF-8 text. Save it as UTF-8 or .xlsx and try again.`,
+      `${fileName} isn't UTF-8 text. Save it as UTF-8 or .xlsx and try again.`,
     );
   }
 }
@@ -619,10 +619,10 @@ function isLabelOnly(cell: string): boolean {
 
 /**
  * Picks the CSV delimiter from the first non-empty line, counting only characters outside double
- * quotes. Interim rule approved by RJ (2026-11-23, H-053) until SPEC-003 IMP-042 is updated to
- * match (H-049 item 4): if `;` or tab occurs there, it wins over `,`, because commas appear in
- * card names (`2;Kennen, Heart of the Tempest`); between `;` and tab the more frequent wins
- * (tie → `;`); otherwise `,`.
+ * quotes (SPEC-003 IMP-042 interim rule, approved by RJ 2026-11-23, H-053): if `;` or tab
+ * occurs there, it wins over `,`, because commas appear in card names
+ * (`2;Kennen, Heart of the Tempest`); between `;` and tab the more frequent wins (tie → `;`);
+ * otherwise `,`.
  */
 function detectDelimiter(text: string): ',' | ';' | '\t' {
   let semicolons = 0;
