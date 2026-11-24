@@ -279,8 +279,6 @@ export interface PushChanges {
   /** One `set()` each, without merge (SYNC-018). */
   decks?: Record<string, DeckDoc>;
   hardDelete?: string[];
-  /** Write everything in one batch (first sign-in, SYNC-050; lets `existsAfter()` see the account). */
-  batch?: boolean;
 }
 
 /** Outcome per document ref: 'account' | 'collection' | 'tags' | 'locks' | 'deck:<id>' | 'delete:<id>'. */

@@ -7,6 +7,11 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: H-077 first-sign-in write budget (builder)
+- [[Accounts and Sync]] SYNC-050 on `loop/H-077-write-budget`: the first-sign-in flow now pushes the account write only (`planAccountPush`), so an expired deck tombstone or a merge repair found by the download can no longer ride along with the account `update()` (a real gap: a mutation run made the new test fail). Removed `PushChanges.batch`, `PlanOptions.batch` and its push-everything branches, the adapter's `writeBatch` chunking and `BATCH_CHUNK`, and the fake's batch path and `failBatchAfter`. The fake now logs each push (`pushLog`) and applies the SYNC-113 create rule per write in order. [[API Contracts]] v1.5.
+- Tests: AC 4 (both halves), AC 36 e/f with an older build, the tombstone case, two `push-plan` tests; AC 3/36/40/48 tightened to exact write and push logs. 344 web unit tests and 33 emulator tests green; lint and build clean. Spec text conflict for spec-writer: SYNC-113 says the `batch` split stays in the code; the data contract says it may go (it went).
+- Validator PASS round 1 ([[Validation H-077]]); filed H-097 (spec-writer: SYNC-113 `batch` text, SYNC-050 "nothing pending" qualifier); `next_id` 98. Rebased onto H-081 tip `1da257d` (SPEC-010 v0.9, no H-077 rows changed): 348 web and 33 emulator tests green, lint and build clean. Code review of the diff: no findings. H-077 done.
+
 ## 2026-11-24: H-081 account-required mode (builder)
 - Built [[Accounts and Sync]] v0.8 account-required mode on `loop/H-081-account-required`: SYNC-009 sign-in gate from the sync log (new `sessionLostUid`), panels on Collection / Decks / deck detail / Import, `SignInGate.deckControls` for Tournaments; first sign-in clears the device then downloads (no Combine, no upload); sign-out, the half-deleted branch and `deleted` clear the device; new sign-in and sign-out dialogs. Local-only mode unchanged (tested). [[API Contracts]] v1.4, [[UI Index]] row.
 - Tests: 331 web unit tests and 33 emulator tests green; lint and build clean. The first-sign-in write counts of ACs 3, 5, 36, 40, 48 pass without a separate H-077 change (the clear leaves nothing to upload); H-077's `batch` clean-up and edge cases remain.

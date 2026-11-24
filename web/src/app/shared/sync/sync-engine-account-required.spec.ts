@@ -6,7 +6,7 @@
  * page tests.
  */
 import { FakeFirestore } from './testing/fakes';
-import { Device, T0, at, card } from './testing/device';
+import { Device, T0, at, card, deckId } from './testing/device';
 import { MESSAGES } from './sync-engine';
 import { gateState } from './gate';
 import { emptySyncLog } from './sync-log';
@@ -32,6 +32,8 @@ async function reopen(d: Device, opts: { uid?: string | null; appVersion?: strin
 const firstFrameGate = (d: Device) => gateState(true, d.stores.log.peek());
 const riftKeys = (d: Device) => d.backend.keys().filter((k) => k.startsWith('rift.'));
 const stateOrDeckWrites = (db: FakeFirestore) => db.writeLog.filter(([p]) => /\/(state|decks)\//.test(p));
+/** SYNC-050: every push the first-sign-in flow sent carries the account only (no `batch`, no state, decks or deletes). */
+const pushKeys = (db: FakeFirestore) => db.pushLog.map((ch) => Object.keys(ch).sort());
 
 /** `uA` signed in on the laptop with the given cards, pushed. */
 async function accountWith(db: FakeFirestore, cards: Record<string, number>): Promise<Device> {
@@ -71,6 +73,8 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       expect(keysAtRead).toEqual([STORAGE_KEYS.syncLog]); // step 1 ran before the read
       expect(db.writeLog).toEqual([['users/uA', 'set']]);
       expect(db.writes).toBe(1);
+      expect(pushKeys(db)).toEqual([['account']]); // no batch flag, no state or decks change
+      expect(db.pushLog[0].account?.create).toBe(true);
       expect(db.reads).toBe(3);
       expect([...db.docs.keys()]).toEqual(['users/uA']);
       expect(laptop.notices).toEqual([]); // no Combine, no upload notice
@@ -126,6 +130,8 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       for (let i = 0; i < 40; i++) await phone.setCard(`card ${i}`, 1);
       db.resetCounts();
       await signIn(phone);
+      expect(db.writeLog).toEqual([]);
+      expect(db.pushLog).toEqual([]);
       expect(db.writes).toBe(0);
       expect(db.get('users/uA').createdAt).toBe(createdAt);
       expect(db.get('users/uA/state/collection')).toBeUndefined();
@@ -147,6 +153,8 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       for (let i = 0; i < 40; i++) await phone.setCard(`card ${i}`, 1);
       db.resetCounts();
       await signIn(phone);
+      expect(db.writeLog).toEqual([]);
+      expect(db.pushLog).toEqual([]);
       expect(db.writes).toBe(0);
       expect([...db.docs.entries()]).toEqual(leftovers);
       expect(phone.notices).toEqual([MESSAGES.halfDeleted]);
@@ -217,7 +225,9 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       expect(await r.stores.collection.load()).toBeNull();
       expect((await r.deckNames()).sort()).toEqual(Array.from({ length: 9 }, (_, i) => `Uploaded ${i}`).sort());
       expect(stateOrDeckWrites(db)).toEqual([]);
-      expect(db.writes).toBe(0); // same build: no account update
+      expect(db.writeLog).toEqual([]); // same build: no account update
+      expect(db.pushLog).toEqual([]);
+      expect(db.writes).toBe(0);
       expect(r.notices.some((n) => /saved to your account/.test(n))).toBe(false);
       expect((await r.log()).uploadingUid ?? null).toBeNull();
       expect([...db.docs.keys()].filter((k) => k.includes('/decks/'))).toHaveLength(9);
@@ -232,6 +242,8 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       db.resetCounts();
       await signIn(phone);
       expect(db.writeLog).toEqual([['users/uA', 'update']]);
+      expect(pushKeys(db)).toEqual([['account']]);
+      expect(db.pushLog[0].account?.create).toBe(false);
       expect(db.get('users/uA').lastClientVersion).toBe('test-2');
     });
 
@@ -245,8 +257,156 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       db.resetCounts();
       await signIn(browser, 'uNew');
       expect(db.writeLog).toEqual([['users/uNew', 'set']]);
+      expect(pushKeys(db)).toEqual([['account']]);
       expect(await browser.stores.collection.load()).toBeNull();
       expect(await browser.deckNames()).toEqual([]);
+    });
+  });
+
+  describe('SYNC-050 first-sign-in write budget (H-077)', () => {
+    /** `uA` on the laptop (build `laptopBuild`) with 350 cards, 20 tags, 10 decks and 3 locks, all pushed. */
+    async function fullAccount(laptopBuild: string): Promise<{ laptop: Device; locked: string[] }> {
+      const laptop = new Device(db, { appVersion: laptopBuild });
+      await signIn(laptop);
+      for (let i = 0; i < 350; i++) await laptop.setCard(`card ${i}`, 1 + (i % 3));
+      for (let i = 0; i < 20; i++) await laptop.addTag(`t_tag${String(i).padStart(3, '0')}`, `Tag ${i}`);
+      const decks = [];
+      for (let i = 0; i < 10; i++) decks.push(await laptop.createDeck(`Deck ${i}`, [card('card 1', 1)]));
+      for (let i = 0; i < 3; i++) await laptop.lock(decks[i].id);
+      await laptop.engine.flush();
+      laptop.now += 60_000;
+      await laptop.engine.syncNow(); // the laptop's cursors pass its own writes before the phone signs in
+      expect(laptop.engine.pendingCount()).toBe(0);
+      const paths = [...db.docs.keys()];
+      expect(paths.filter((p) => p.includes('/state/'))).toHaveLength(3);
+      expect(paths.filter((p) => p.includes('/decks/'))).toHaveLength(10);
+      expect(db.get('users/uA').lastClientVersion).toBe(laptopBuild);
+      return { laptop, locked: (await laptop.lockedIds()).sort() };
+    }
+
+    /** The phone shows the whole account and nothing is pending (SYNC-050). */
+    async function expectDownloaded(phone: Device, locked: string[]): Promise<void> {
+      expect(Object.keys((await phone.collection()).cards)).toHaveLength(350);
+      expect((await phone.tags()).tags).toHaveLength(20);
+      expect(await phone.deckNames()).toHaveLength(10);
+      expect((await phone.lockedIds()).sort()).toEqual(locked);
+      expect(phone.notices).toEqual([]); // no dialog, no notice
+      expect(phone.engine.pendingCount()).toBe(0);
+      expect((await phone.log()).pending.account).toBe(false);
+      expect(phone.engine.gate()).toBe('open');
+    }
+
+    /** The laptop's next pull receives no changed `state` or `decks` document. */
+    async function expectLaptopPullsNothing(laptop: Device): Promise<void> {
+      const results: PullResult[] = [];
+      const pull = laptop.remote.pull.bind(laptop.remote);
+      vi.spyOn(laptop.remote, 'pull').mockImplementation(async (uid, cursors, opts) => {
+        const r = await pull(uid, cursors, opts);
+        results.push(r);
+        return r;
+      });
+      laptop.now += 60_000;
+      await laptop.engine.syncNow();
+      expect(results).toHaveLength(1);
+      expect(results[0].collection ?? null).toBeNull();
+      expect(results[0].tags ?? null).toBeNull();
+      expect(results[0].locks ?? null).toBeNull();
+      expect(results[0].decks).toEqual({});
+    }
+
+    const syncedAts = () => Object.fromEntries([...db.docs.entries()].map(([p, d]) => [p, d.syncedAt]));
+
+    it('AC 4 / SYNC-048 c same build: the phone downloads 350 cards, 20 tags, 10 decks, 3 locks with 0 writes, ≤ 16 reads, nothing pending', async () => {
+      const { laptop, locked } = await fullAccount('test-1');
+      const before = syncedAts();
+      db.resetCounts();
+      const phone = new Device(db, { appVersion: 'test-1' });
+      await signIn(phone);
+
+      expect(db.writeLog).toEqual([]);
+      expect(db.writes).toBe(0);
+      expect(db.pushLog).toEqual([]); // no push at all: no batch flag, no state or decks change
+      expect(db.reads).toBeLessThanOrEqual(16);
+      await expectDownloaded(phone, locked);
+      expect(syncedAts()).toEqual(before); // no syncedAt moved
+      await expectLaptopPullsNothing(laptop);
+
+      // The first regular push afterwards writes only what the user changed.
+      db.resetCounts();
+      await phone.setCard('card 0', 3);
+      await phone.engine.flush();
+      expect(db.writeLog).toEqual([['users/uA/state/collection', 'update']]);
+      expect(Object.keys(db.pushLog.at(-1)?.collection?.cards ?? {})).toEqual(['card 0']);
+    });
+
+    it('AC 4 / SYNC-012 older build: exactly 1 write, the account update(); the laptop still pulls no changed document', async () => {
+      const { laptop, locked } = await fullAccount('test-0');
+      const before = syncedAts();
+      db.resetCounts();
+      const phone = new Device(db, { appVersion: 'test-1' });
+      await signIn(phone);
+
+      expect(db.writeLog).toEqual([['users/uA', 'update']]);
+      expect(db.writes).toBe(1);
+      expect(pushKeys(db)).toEqual([['account']]);
+      expect(db.pushLog[0].account).toMatchObject({ create: false, lastClientVersion: 'test-1' });
+      expect(db.reads).toBeLessThanOrEqual(16);
+      expect(db.get('users/uA').lastClientVersion).toBe('test-1');
+      await expectDownloaded(phone, locked);
+      const after = syncedAts();
+      delete before['users/uA'];
+      delete after['users/uA'];
+      expect(after).toEqual(before); // only the account document was written
+      await expectLaptopPullsNothing(laptop);
+    });
+
+    it('AC 36 / SYNC-048 e older build: an account without data gets exactly 1 write, the account update(); createdAt kept', async () => {
+      const createdAt = at('09:00', 1);
+      db.docs.set('users/uA', { schemaVersion: 1, createdAt, updatedAt: createdAt, syncedAt: 1, lastClientVersion: 'test-0' });
+      const phone = new Device(db, { appVersion: 'test-1' });
+      for (let i = 0; i < 40; i++) await phone.setCard(`card ${i}`, 1);
+      db.resetCounts();
+      await signIn(phone);
+      expect(db.writeLog).toEqual([['users/uA', 'update']]);
+      expect(pushKeys(db)).toEqual([['account']]);
+      expect(db.get('users/uA').createdAt).toBe(createdAt);
+      expect(await phone.stores.collection.load()).toBeNull();
+      expect(phone.engine.pendingCount()).toBe(0);
+    });
+
+    it('AC 36 / SYNC-048 f older build: leftover documents without an account still get 0 writes', async () => {
+      db.docs.set('users/uA/state/collection', {
+        schemaVersion: 1,
+        updatedAt: 1,
+        syncedAt: 1,
+        catalogVersion: 'x',
+        cards: { 'hextech ray': { q: 9, t: 1, p: {} } },
+      });
+      const phone = new Device(db, { appVersion: 'test-1' });
+      db.resetCounts();
+      await signIn(phone);
+      expect(db.writeLog).toEqual([]);
+      expect(db.pushLog).toEqual([]);
+      expect(phone.notices).toEqual([MESSAGES.halfDeleted]);
+    });
+
+    it('SYNC-050 the account update() goes alone even when the download finds a deck tombstone older than 30 days', async () => {
+      // Without the account-only push, the old tombstone's hard delete (SYNC-034) would ride along.
+      const old = T0 - 31 * 24 * 3_600_000;
+      const id = deckId(901);
+      db.docs.set('users/uA', { schemaVersion: 1, createdAt: old, updatedAt: old, syncedAt: 1, lastClientVersion: 'test-0' });
+      db.docs.set(`users/uA/decks/${id}`, { schemaVersion: 1, createdAt: old, updatedAt: old, deletedAt: old, syncedAt: 2 });
+      const phone = new Device(db, { appVersion: 'test-1' });
+      db.resetCounts();
+      await signIn(phone);
+      expect(db.writeLog).toEqual([['users/uA', 'update']]);
+      expect(pushKeys(db)).toEqual([['account']]);
+      expect((await phone.log()).uid).toBe('uA');
+
+      // The purge waits for the first regular push (SYNC-034 maintenance, not part of the first-sign-in flow).
+      db.resetCounts();
+      await phone.engine.syncNow();
+      expect(db.writeLog).toEqual([[`users/uA/decks/${id}`, 'delete']]);
     });
   });
 

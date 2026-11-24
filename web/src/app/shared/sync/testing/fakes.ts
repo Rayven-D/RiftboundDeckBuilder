@@ -37,6 +37,8 @@ export class FakeFirestore {
   deletes = 0;
   /** Every write in order, for assertions: [path, kind]. */
   readonly writeLog: [string, 'set' | 'update' | 'delete'][] = [];
+  /** Every `push()` call's changes as sent (a clone), for assertions on the payload shape (SYNC-050). */
+  readonly pushLog: PushChanges[] = [];
   serverTime: Ms = Date.UTC(2026, 10, 23, 12);
   private lastSynced = 0;
 
@@ -56,6 +58,7 @@ export class FakeFirestore {
     this.writes = 0;
     this.deletes = 0;
     this.writeLog.length = 0;
+    this.pushLog.length = 0;
   }
 }
 
@@ -75,8 +78,6 @@ export class FakeRemote implements RemoteStore {
   failRules: FailRule[] = [];
   /** Every pull and account get fails with this code. */
   pullError: RemoteErrorCode | null = null;
-  /** First-sign-in tests: a batch commits only its first N writes (the adapter writes in chunks), the rest fail. */
-  failBatchAfter: number | null = null;
   /** SYNC-096 retry tests: fail deletion after this many deletes (once). */
   failDeleteAfter: number | null = null;
   /** SYNC-096: the code of that failed delete; `'unconfirmed'` may have landed, so it counts as removed. */
@@ -129,6 +130,7 @@ export class FakeRemote implements RemoteStore {
 
   async push(uid: string, ch: PushChanges): Promise<PushOutcome> {
     this.checkUp();
+    this.db.pushLog.push(structuredClone(ch));
     const ops: { ref: string; path: string; apply: () => void; create: boolean }[] = [];
     const base = `users/${uid}`;
     const exists = (p: string) => this.db.docs.has(p);
@@ -199,7 +201,6 @@ export class FakeRemote implements RemoteStore {
     }
 
     const outcome: PushOutcome = {};
-    const accountAfter = () => exists(base) || ops.some((o) => o.ref === 'account' && ch.account?.create);
     const check = (o: (typeof ops)[number]): RemoteErrorCode | null => {
       for (const r of this.failRules) {
         if ((r.ref === '*' || r.ref === o.ref) && (!r.createsOnly || o.create)) {
@@ -207,39 +208,11 @@ export class FakeRemote implements RemoteStore {
           return r.code;
         }
       }
-      // SYNC-113: creating a state or decks document needs the account document after the write.
-      if (o.create && o.ref !== 'account' && !o.ref.startsWith('delete:') && !accountAfter()) return 'permission-denied';
+      // SYNC-113: creating a state or decks document needs the account document after the write. Writes
+      // are applied one by one in order (no batches, SYNC-050), so an account created earlier in this push counts.
+      if (o.create && o.ref !== 'account' && !o.ref.startsWith('delete:') && !exists(base)) return 'permission-denied';
       return null;
     };
-    if (ch.batch && this.failBatchAfter !== null) {
-      const n = this.failBatchAfter;
-      this.failBatchAfter = null;
-      ops.forEach((o, i) => {
-        if (i < n) {
-          o.apply();
-          outcome[o.ref] = 'ok';
-        } else outcome[o.ref] = 'unconfirmed';
-      });
-      return outcome;
-    }
-    if (ch.batch) {
-      const codes = ops.map(check);
-      const bad = codes.find((c) => c !== null);
-      if (bad) {
-        for (const o of ops) outcome[o.ref] = bad;
-        return outcome;
-      }
-      const snapshot = new Map(this.db.docs);
-      try {
-        for (const o of ops) o.apply();
-        for (const o of ops) outcome[o.ref] = 'ok';
-      } catch (e) {
-        this.db.docs.clear();
-        for (const [k, v] of snapshot) this.db.docs.set(k, v);
-        for (const o of ops) outcome[o.ref] = e instanceof RemoteError ? e.code : 'unknown';
-      }
-      return outcome;
-    }
     for (const o of ops) {
       const code = check(o);
       if (code) {

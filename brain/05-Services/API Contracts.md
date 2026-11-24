@@ -169,8 +169,9 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   and writes `syncedAt` with `serverTimestamp()`.
 - **Additions to the SPEC-010 contract** (needed to build it; listed for the spec): `RemoteStore.getAccount(uid)`
   (the 1-read account check), `pull(..., { withAccount })`, `push()` returns a per-document `PushOutcome`
-  instead of `void`; `PushChanges` carries `replace` per state document, `updatedAt`, `batch`, and the account
-  write as `{ create, createdAt, updatedAt, lastClientVersion }`; `AuthService.restore()`,
+  instead of `void`; `PushChanges` carries `replace` per state document, `updatedAt`, and the account
+  write as `{ create, createdAt, updatedAt, lastClientVersion }` (no `batch` flag since v1.5: `push()` writes
+  one document at a time, in order, account first); `AuthService.restore()`,
   `sendEmailLink(email)`, `isEmailLinkReturn()`, `needsRecentSignIn()`, `signIn(providerId, email?)`;
   `StoredSyncLog.cloudDocs` (documents known to exist, for create vs update), `pending.collectionReplace`,
   `locks[id].h` (lockedAt), `deckTombstones[id].createdAt` and `.wasPending`; after H-062 round 1 also
@@ -210,7 +211,12 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
     the account (or the SYNC-048 f half-deleted branch), link; no Combine, no upload, no `batch`. Removed:
     `EngineDeps.confirmCombine`, `CombineQuestion`, `CombineDialog`, `MESSAGES.uploaded`/`differentAccount`,
     `LocalAdapters.clearSynced` (SYNC-097 `deleted` now uses `clearAll`), `mergePulled`'s `mode` and the Combine
-    union, `liveCounts`, `cloudCounts`. `PushChanges.batch` stays in the adapter (unused by the first sign-in).
+    union, `liveCounts`, `cloudCounts`.
+  - First-sign-in writes (SYNC-050, H-077): the flow sends at most one `push()`, carrying only `account`
+    (`planAccountPush` in `push-plan.ts`): case a `create: true`; cases c / e `create: false` only when the
+    account's `lastClientVersion` differs from this build; case f nothing. Anything the download leaves to write
+    (an expired deck tombstone to purge, a merge repair) waits for the first regular push. `PushChanges.batch`,
+    `PlanOptions.batch` and the adapter's `writeBatch` chunking are removed.
   - Sign-out dialog data: `{ pending: () => number; online: Signal<boolean>; syncNow: () => Promise<void> }`; it
     closes with `true` to sign out.
 - **SYNC-097 Auth codes (verified on the Auth emulator, 2026-11-23):** deleted user → `reload()`
@@ -235,3 +241,6 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
 - v1.4 (2026-11-24, H-081): no endpoint change. Account-required mode: sync log `sessionLostUid`,
   `uploadingUid` no longer written, the gate (`gateState`, `SignInGate`, `LocalSyncLogStore.peek()`), sign-out
   without a mode, Combine and upload paths removed.
+- v1.5 (2026-11-24, H-077): no endpoint change. `PushChanges.batch` and `PlanOptions.batch` removed (the adapter
+  no longer uses `writeBatch`); new pure `planAccountPush(account)`; the first-sign-in flow pushes the account
+  write only (SYNC-050).

@@ -40,10 +40,8 @@ export interface PlanOptions {
   now: Ms;
   /** Areas not to write: newer cloud schema (SYNC-046), e.g. 'collection' or 'deck:<id>'. */
   readOnly: readonly string[];
-  /** First-sign-in account creation (SYNC-048): the account document is created in the same batch. */
+  /** Account write (SYNC-012): `update()` of `lastClientVersion` when this device's build changed. */
   account?: PushChanges['account'];
-  /** Push everything known locally, not only pending items (first sign-in upload, SYNC-048 b). */
-  batch?: boolean;
 }
 
 const rec = <T>(a: T | null | 'unreadable'): T | null => (a && a !== 'unreadable' ? a : null);
@@ -71,7 +69,6 @@ export function planPush(local: LocalSnapshot, log: StoredSyncLog, opts: PlanOpt
     plan.changes.account = opts.account;
     plan.empty = false;
   }
-  if (opts.batch) plan.changes.batch = true;
 
   // ---- Decks first: a lock is pushed only with (or after) its deck (SYNC-076) ----
   const decks = new Map((local.decks ?? []).map((d) => [d.id, d]));
@@ -110,7 +107,7 @@ export function planPush(local: LocalSnapshot, log: StoredSyncLog, opts: PlanOpt
   // ---- Collection (SYNC-013, SYNC-014) ----
   const collection = rec(local.collection);
   if (local.collection !== 'unreadable' && !ro.has('collection')) {
-    const keys = opts.batch ? Object.keys(log.cards) : pendingOf('cards');
+    const keys = pendingOf('cards');
     const replace = !!log.pending.collectionReplace || !log.cloudDocs.includes('collection');
     if (keys.length || log.pending.collectionReplace) {
       const area = planMap('collection', 'cards', log.cards, replace ? Object.keys(log.cards) : keys, MAP_CAPS.cards, now, plan, (k, e) =>
@@ -132,8 +129,8 @@ export function planPush(local: LocalSnapshot, log: StoredSyncLog, opts: PlanOpt
   // ---- Tags (SYNC-015) ----
   const tagsRec = rec(local.tags);
   if (local.tags !== 'unreadable' && !ro.has('tags')) {
-    const tagKeys = opts.batch ? Object.keys(log.tags) : pendingOf('tags');
-    const targetKeys = opts.batch ? Object.keys(log.assignments) : pendingOf('assignments');
+    const tagKeys = pendingOf('tags');
+    const targetKeys = pendingOf('assignments');
     if (tagKeys.length || targetKeys.length) {
       const replace = !log.cloudDocs.includes('tags');
       const t = planMap('tags', 'tags', log.tags, replace ? Object.keys(log.tags) : tagKeys, MAP_CAPS.tags, now, plan, (k, e) =>
@@ -168,10 +165,10 @@ export function planPush(local: LocalSnapshot, log: StoredSyncLog, opts: PlanOpt
   if (local.locks !== 'unreadable' && !ro.has('locks')) {
     const deckInCloud = (id: string) => log.cloudDocs.includes(`deck:${id}`) || (id in deckDocs && deckDocs[id].deletedAt === null);
     const replace = !log.cloudDocs.includes('locks');
-    const keys = (opts.batch || replace ? Object.keys(log.locks) : pendingOf('locks')).filter(
+    const keys = (replace ? Object.keys(log.locks) : pendingOf('locks')).filter(
       (id) => log.locks[id]?.unlocked || deckInCloud(id),
     );
-    if (keys.length && (replace ? pendingOf('locks').length > 0 || opts.batch : true)) {
+    if (keys.length && (!replace || pendingOf('locks').length > 0)) {
       const lockEntries = Object.fromEntries(
         Object.entries(log.locks).map(([k, e]) => [k, { t: e.t, deleted: e.unlocked, h: e.h }]),
       );
@@ -186,6 +183,21 @@ export function planPush(local: LocalSnapshot, log: StoredSyncLog, opts: PlanOpt
   }
 
   return plan;
+}
+
+/**
+ * The first-sign-in flow's only write (SYNC-048, SYNC-050): the account `set()` (case a) or `update()`
+ * (cases c / e when this build differs). Nothing else is sent, even if the download left an item pending
+ * or an expired deck tombstone to purge: those wait for the first regular push.
+ */
+export function planAccountPush(account: NonNullable<PushChanges['account']>): PushPlan {
+  return {
+    changes: { account },
+    items: {},
+    purged: { collection: [], tags: [], locks: [] },
+    tooLarge: [],
+    empty: false,
+  };
 }
 
 /**

@@ -1,7 +1,7 @@
 import type { StoredCollection, StoredDeckLocks, StoredTags, TagStore, UserDeck } from '../storage/records';
 import { GateState, gateState } from './gate';
 import { LocalSnapshot, MergeResult, mergePulled } from './merge';
-import { PushPlan, applyPushSuccess, planPush } from './push-plan';
+import { PushPlan, applyPushSuccess, planAccountPush, planPush } from './push-plan';
 import { reconcileCollection, reconcileDecks, reconcileLocks, reconcileTags } from './stamp';
 import { DAY_MS, cloneLog, emptySyncLog, itemRef, pendingCount } from './sync-log';
 import {
@@ -9,6 +9,7 @@ import {
   AuthService,
   Ms,
   PullResult,
+  PushChanges,
   PushOutcome,
   RemoteError,
   RemoteErrorCode,
@@ -417,13 +418,14 @@ export class SyncEngine {
     this.afterMerge(merged.result, merged.snap.local);
 
     // (a) creates the account; (c) / (e) update it only when this build differs (SYNC-012).
-    const accountChange: NonNullable<Parameters<typeof planPush>[2]['account']> | undefined = account
+    // SYNC-050: this is the flow's only write; nothing else is pushed (planAccountPush).
+    const accountChange: NonNullable<PushChanges['account']> | undefined = account
       ? account.lastClientVersion !== this.deps.appVersion
         ? { create: false, createdAt: account.createdAt, updatedAt: now, lastClientVersion: this.deps.appVersion }
         : undefined
       : { create: true, createdAt: now, updatedAt: now, lastClientVersion: this.deps.appVersion };
     if (accountChange) {
-      const pushed = await this.pushPending({ account: accountChange });
+      const pushed = await this.pushPending({ accountOnly: accountChange });
       if (this.stale(gen)) return;
       if (!pushed) return this.failFirstSync();
     }
@@ -513,21 +515,21 @@ export class SyncEngine {
   }
 
   /** Push (SYNC-043). Returns true when every planned document was written. */
-  private async pushPending(extra: { account?: Parameters<typeof planPush>[2]['account']; batch?: boolean } = {}): Promise<boolean> {
+  private async pushPending(extra: { accountOnly?: NonNullable<PushChanges['account']> } = {}): Promise<boolean> {
     if (this.deletionPending) return false;
     const uid = this.uid!;
     const gen = this.generation;
     const now = this.deps.now();
-    const plan = await this.deps.queue.run(async () => {
-      const snap = await this.snapshot();
-      const log = snap.log;
-      const account =
-        extra.account ??
-        (log.pending.account
-          ? { create: false, createdAt: 0, updatedAt: now, lastClientVersion: this.deps.appVersion }
-          : undefined);
-      return planPush(snap.local, log, { now, readOnly: [...this.readOnlyAreas], account, batch: extra.batch });
-    });
+    const plan = extra.accountOnly
+      ? planAccountPush(extra.accountOnly)
+      : await this.deps.queue.run(async () => {
+          const snap = await this.snapshot();
+          const log = snap.log;
+          const account = log.pending.account
+            ? { create: false, createdAt: 0, updatedAt: now, lastClientVersion: this.deps.appVersion }
+            : undefined;
+          return planPush(snap.local, log, { now, readOnly: [...this.readOnlyAreas], account });
+        });
     this.scheduleUndoWindow();
     if (plan.tooLarge.length) this.setProblem('too-large', MESSAGES.tooLarge);
     if (plan.empty) {

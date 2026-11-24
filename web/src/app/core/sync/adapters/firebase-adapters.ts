@@ -30,7 +30,6 @@ import {
   FieldPath,
   Firestore,
   Timestamp,
-  WriteBatch,
   collection,
   connectFirestoreEmulator,
   deleteDoc,
@@ -44,7 +43,6 @@ import {
   setDoc,
   updateDoc,
   where,
-  writeBatch,
 } from 'firebase/firestore';
 import type {
   AccountCheck,
@@ -82,8 +80,6 @@ export interface FirebaseWebConfig {
 const EMAIL_KEY = 'rift.emailForSignIn';
 /** Firestore keeps unacknowledged writes queued while offline; a write this slow counts as offline (SYNC-080). */
 const WRITE_TIMEOUT_MS = 20_000;
-/** Writes per first-sign-in batch (SYNC-050, SYNC-113 rule-lookup limit). */
-const BATCH_CHUNK = 10;
 /** Firebase asks for a recent sign-in before deleting a user (SYNC-096 step 1). */
 const RECENT_SIGN_IN_MS = 5 * 60_000;
 
@@ -410,26 +406,8 @@ export class FirestoreRemoteStore implements RemoteStore {
   async push(uid: string, ch: PushChanges): Promise<PushOutcome> {
     const ops = this.ops(uid, ch);
     const outcome: PushOutcome = {};
-    if (ch.batch) {
-      // SYNC-050: first sign-in in batches; the first one creates the account document, so the
-      // existsAfter() of every create sees it (SYNC-113). Batches are kept small because Firestore
-      // limits rule lookups per batched request (the exact count is `unverified`, SYNC-113). A failed
-      // batch fails its documents and every later one; the flow re-runs and links only when all succeed.
-      for (let i = 0; i < ops.length; i += BATCH_CHUNK) {
-        const chunk = ops.slice(i, i + BATCH_CHUNK);
-        const batch = writeBatch(this.db);
-        for (const op of chunk) op.batch(batch);
-        try {
-          await withTimeout(batch.commit());
-          for (const op of chunk) outcome[op.ref] = 'ok';
-        } catch (e) {
-          const c = remoteCode(e);
-          for (const op of ops.slice(i)) outcome[op.ref] = c;
-          break;
-        }
-      }
-      return outcome;
-    }
+    // One write per document, in order (no batches since H-077, SYNC-050): an account creation goes
+    // first, so a later create in the same push already sees it through existsAfter() (SYNC-113).
     for (const op of ops) {
       try {
         await withTimeout(op.run());
@@ -458,17 +436,17 @@ export class FirestoreRemoteStore implements RemoteStore {
   }
 
   /** One operation per document, in push order: decks before locks (SYNC-076). */
-  private ops(uid: string, ch: PushChanges): { ref: string; run: () => Promise<void>; batch: (b: WriteBatch) => void }[] {
-    const ops: { ref: string; run: () => Promise<void>; batch: (b: WriteBatch) => void }[] = [];
+  private ops(uid: string, ch: PushChanges): { ref: string; run: () => Promise<void> }[] {
+    const ops: { ref: string; run: () => Promise<void> }[] = [];
     const meta = (updatedAt: Ms) => ({ schemaVersion: 1, updatedAt: toTs(updatedAt), syncedAt: serverTimestamp() });
     const set = (ref: string, path: string[], data: DocumentData) => {
       const r = doc(this.db, path[0], ...path.slice(1));
-      ops.push({ ref, run: () => setDoc(r, data), batch: (b) => void b.set(r, data) });
+      ops.push({ ref, run: () => setDoc(r, data) });
     };
     const update = (ref: string, path: string[], pairs: unknown[]) => {
       const r = doc(this.db, path[0], ...path.slice(1));
       const [field, value, ...more] = pairs as [FieldPath, unknown, ...unknown[]];
-      ops.push({ ref, run: () => updateDoc(r, field, value, ...more), batch: (b) => void b.update(r, field, value, ...more) });
+      ops.push({ ref, run: () => updateDoc(r, field, value, ...more) });
     };
     const mapWrite = (
       ref: string,
@@ -504,7 +482,7 @@ export class FirestoreRemoteStore implements RemoteStore {
     for (const [id, d] of Object.entries(ch.decks ?? {})) set(`deck:${id}`, ['users', uid, 'decks', id], writeDeck(d));
     for (const id of ch.hardDelete ?? []) {
       const r = doc(this.db, 'users', uid, 'decks', id);
-      ops.push({ ref: `delete:${id}`, run: () => deleteDoc(r), batch: (b) => void b.delete(r) });
+      ops.push({ ref: `delete:${id}`, run: () => deleteDoc(r) });
     }
     if (ch.collection) {
       const c = ch.collection;
