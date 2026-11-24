@@ -116,3 +116,4 @@ fantasy-UI styling.
 - 2026-11-23: RJ picked: phones swipe through the Legend cards (C), tablet and desktop show a grid (B) using more width. The Winning decks section is now full width (copy on top, panel below): 8 cards across from 64rem, 4 across from 52rem, a swipe row below 52rem. Options removed from `/styleguide`.
 - 2026-11-23: RJ: Winning decks keeps the same flow as Ownership (panel on the left of the text, two columns), with full uncropped Legend cards scaled down, 4 across in two rows; phones swipe. The full-width and cropped versions were tried and dropped.
 - 2026-11-23: RJ: the Winning decks panel must not be taller than the Ownership panel. Full cards are now scaled to fit 8 across in one row; event name and date sit on one line; the panel column matches Ownership's width (both about 598 × 305 px at 1280px).
+- 2026-11-23: RJ: ownership text now "Collect every copy you need of a card to fill it with color."
