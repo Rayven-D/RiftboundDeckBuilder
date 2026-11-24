@@ -5,6 +5,7 @@
 import { FakeFirestore } from './testing/fakes';
 import { Device, T0 } from './testing/device';
 import { MESSAGES } from './sync-engine';
+import { statusText } from './status-text';
 import type { RemoteErrorCode } from './sync-types';
 
 async function signedInLaptop(db: FakeFirestore): Promise<Device> {
@@ -182,5 +183,44 @@ describe('SyncEngine unfinished deletion and Cancel deletion (SPEC-010 SYNC-096,
     expect(d.engine.unfinishedDeletion()).toBeNull();
     expect(await d.engine.cancelDeletion()).toBe(false);
     expect(d.notices).not.toContain(MESSAGES.deleteNotDone);
+  });
+
+  it('SYNC-084 / SYNC-096 / AC 54 offline with 3 pending changes, the unfinished deletion outranks Offline: the exact Error text, no count', async () => {
+    const d = await signedInLaptop(db);
+    d.remote.offline = true; // the next push fails offline
+    await d.setCard('hextech ray', 2);
+    await d.setCard('lightning rush', 1);
+    await d.setCard('mystic shot', 1);
+    await d.advance(2500);
+    expect(d.engine.status()).toMatchObject({ kind: 'offline' });
+    expect(d.engine.pendingCount()).toBe(3);
+
+    d.remote.offline = false;
+    failDeleteAt(d, 0);
+    expect(await d.engine.deleteAccount()).toBe('failed');
+    d.online = false; // the connection drops afterwards
+    for (const s of [d.engine.status(), d.status]) {
+      expect(s).toMatchObject({ kind: 'error', message: MESSAGES.deleteIncomplete, pendingCount: 3 });
+      expect(statusText(s)).toBe("Some data couldn't be deleted. Try again.");
+    }
+  });
+
+  it('SYNC-084 / SYNC-096 / AC 54 paused (quota) with pending changes, the unfinished deletion outranks Paused', async () => {
+    const d = await signedInLaptop(db);
+    d.remote.quota = true;
+    await d.setCard('hextech ray', 2);
+    await d.advance(2500);
+    expect(d.engine.status()).toMatchObject({ kind: 'paused' });
+
+    d.remote.quota = false;
+    failDeleteAt(d, 0);
+    expect(await d.engine.deleteAccount()).toBe('failed');
+    expect(d.status).toMatchObject({ kind: 'error', message: MESSAGES.deleteIncomplete, pendingCount: 1 });
+    expect(statusText(d.status)).toBe("Some data couldn't be deleted. Try again.");
+
+    // Cancel deletion: the deletion no longer outranks anything, and the count is back while it syncs
+    expect(await d.engine.cancelDeletion()).toBe(true);
+    await d.settle();
+    expect(d.engine.status().kind).not.toBe('error');
   });
 });

@@ -15,6 +15,15 @@ describe('statusText (SPEC-010 SYNC-084, SYNC-090)', () => {
     expect(statusText({ kind: 'error', message: MESSAGES.writeFailed, pendingCount: 0 })).toBe(MESSAGES.writeFailed);
   });
 
+  it('SYNC-084 / AC 54 during an unfinished deletion the Error status has no pending count; other errors keep it', () => {
+    expect(statusText({ kind: 'error', message: MESSAGES.deleteIncomplete, pendingCount: 3 })).toBe(
+      "Some data couldn't be deleted. Try again.",
+    );
+    expect(statusText({ kind: 'error', message: MESSAGES.writeFailed, pendingCount: 3 })).toBe(
+      `${MESSAGES.writeFailed} · 3 changes not synced yet`,
+    );
+  });
+
   it('SYNC-090 the sign-out warning counts unsynced changes (AC 20)', () => {
     expect(unsyncedWarning(1)).toBe("1 change hasn't synced yet. It'll be lost if you sign out now.");
     expect(unsyncedWarning(3)).toBe("3 changes haven't synced yet. They'll be lost if you sign out now.");

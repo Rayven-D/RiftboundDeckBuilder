@@ -216,6 +216,11 @@ export interface AuthService {
   sendEmailLink(email: string): Promise<void>;
   /** True when the current URL is an email sign-in link waiting to be completed. */
   isEmailLinkReturn(): boolean;
+  /**
+   * SYNC-003 / SYNC-100 (H-141): the signed-in user's address exactly as Auth reports it on this device, for the
+   * account menu's "Signed in as {email}"; null when there is none. Read at render time, never stored anywhere.
+   */
+  currentEmail(): string | null;
   signOut(): Promise<void>;
   /** SYNC-096 step 1. */
   needsRecentSignIn(): boolean;

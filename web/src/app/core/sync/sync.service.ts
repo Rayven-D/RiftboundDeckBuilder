@@ -134,6 +134,14 @@ export class SyncService {
     return this.engine.pendingCount();
   }
 
+  /**
+   * SYNC-003 / SYNC-100 (H-141): the signed-in address for the account menu's identity line, read from Auth on
+   * every call (the menu template calls it as it renders). Not a signal and never stored.
+   */
+  currentEmail(): string | null {
+    return this.engine.currentEmail();
+  }
+
   signInWithGoogle(): Promise<unknown> {
     return this.engine.signIn('google');
   }

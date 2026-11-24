@@ -134,6 +134,11 @@ export class FirebaseAuthService implements AuthService {
     return this.auth.currentUser?.uid ?? null;
   }
 
+  /** SYNC-003 (H-141): read from Auth each time; never copied anywhere (SYNC-100). */
+  currentEmail(): string | null {
+    return this.auth.currentUser?.email ?? null;
+  }
+
   async restore(): Promise<string | null> {
     await this.auth.authStateReady();
     return this.currentUid();

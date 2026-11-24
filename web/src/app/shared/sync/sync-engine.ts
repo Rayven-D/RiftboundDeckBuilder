@@ -124,6 +124,15 @@ export class SyncEngine {
     return this.uid;
   }
 
+  /**
+   * SYNC-003 / SYNC-100 (H-141): the signed-in user's address, read from Auth on every call for the account
+   * menu's identity line. Never kept here, in a store, the sync log, the cloud or a log.
+   */
+  currentEmail(): string | null {
+    if (!this.uid || this.stopped) return null;
+    return this.auth?.currentEmail() ?? null;
+  }
+
   isReadOnly(area: string): boolean {
     return this.readOnlyAreas.has(area);
   }
@@ -135,6 +144,11 @@ export class SyncEngine {
   status(): SyncStatus {
     const pending = pendingCount(this.lastLog);
     if (!this.uid || this.stopped) return { kind: 'signed-out' };
+    // SYNC-096 / SYNC-084: this device's unfinished deletion outranks Offline and Paused (no carve-out); the
+    // status text drops the pending count for it (statusText).
+    if (this.deletionPending && this.problem?.message === MESSAGES.deleteIncomplete) {
+      return { kind: 'error', message: MESSAGES.deleteIncomplete, pendingCount: pending };
+    }
     if (this.offline) return { kind: 'offline', pendingCount: pending };
     if (this.paused) return { kind: 'paused', pendingCount: pending };
     if (this.problem) return { kind: 'error', message: this.problem.message, pendingCount: pending };

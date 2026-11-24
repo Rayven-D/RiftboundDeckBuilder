@@ -61,6 +61,14 @@ html {
     )
   );
 
+  /* H-110: menu dividers are the app's hairline. Material's menu default is --mat-sys-surface-variant (a teal
+     tint), not outline-variant; --mat-sys-surface-variant itself is left alone (other components use it). */
+  @include mat.menu-overrides(
+    (
+      divider-color: var(--color-border),
+    )
+  );
+
   /* Buttons use our accent and text colours, not Material's generated tones. */
   @include mat.button-overrides(
     (

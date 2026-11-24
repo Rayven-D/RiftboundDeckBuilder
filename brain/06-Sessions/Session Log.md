@@ -257,3 +257,15 @@ Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 - Validator: all three PASS ([[Validation H-140 H-125 H-108]]); 593 web / 34 rules tests; filed H-146 (spec-writer: "disabled" = `disabledInteractive`; confirm-dialog strings). `next_id` 147.
 - Code review of the diff (orchestrated session): no findings to fix. Rows moved to Done; [[Current State]] updated.
 
+## 2026-11-24: ui-engineer brief for H-141 / H-142 / H-110 (account menu)
+- Wrote [[Brief H-141 H-142 H-110]] (no app run, no code): identity line, deletion-state menu, groups and dividers, divider colour root cause (`--mat-menu-divider-color` defaults to `surface-variant`; fix with `mat.menu-overrides((divider-color: var(--color-border)))` in `html`). Linked from [[UI Index]].
+
+## 2026-11-24: builder H-141 / H-142 / H-110 (account menu identity, deletion state, groups)
+- Built from [[Brief H-141 H-142 H-110]] on `loop/H-141-account-menu` (not committed): `AuthService.currentEmail()` (Firebase adapter, `FakeAuth.email`), `SyncEngine`/`SyncService.currentEmail()` read on every render; "Signed in as {email}" first line, `aria-describedby` = identity + status; deletion state hides Sync now, menu retry "Try deleting again" (notice keeps "Try again"), `statusText()` drops the count for the deletion Error; error status gets the icon + `--color-danger`; 3 fixed dividers, offline line under the status; `mat.menu-overrides((divider-color: var(--color-border)))` in `styles.scss`.
+- Contracts: [[API Contracts]] "Account menu identity and deletion state". Tests: ACs 43 (relabelled), 53, 54, H-110 layouts. lint and build clean.
+- Review fixes: `.menu-text` weight 400; `SyncEngine.status()` ranks the unfinished deletion above Offline and Paused (engine tests for both); AC 53 test now reopens the menu after Auth's address changes.
+
+## 2026-11-24: H-141 / H-142 / H-110 validated and committed (`loop/H-141-account-menu`)
+- ui-engineer Playwright check while really signed in (Firebase Auth + Firestore emulators, project `demo-rift-builder`, email-link code read from the emulator) at 1440/375, dark/light, keyboard: one fix (text lines weight 400), rechecked in the browser.
+- Code review: offline or paused during an unfinished deletion showed the Offline status with a count; fixed in `SyncEngine.status()` (deletion outranks both), with engine tests. No spec row needed.
+- Validator: all three PASS ([[Validation H-141 H-142 H-110]]); 605 web / 34 rules tests. No new board IDs; `next_id` stays 147. Rows moved to Done; [[Current State]] updated.

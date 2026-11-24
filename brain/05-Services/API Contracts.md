@@ -243,6 +243,15 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   (exposed as `SyncService.deletion` and `cancelDeletion()`): Cancel is allowed only while
   `deletingRemovedAny === false`; it clears both fields, notifies "Your account wasn't deleted." and runs a
   normal sync (account check, pull, push).
+- **Account menu identity and deletion state (SYNC-003, SYNC-084, SYNC-096, SYNC-100; H-141, H-142):**
+  `AuthService.currentEmail(): string | null` (the signed-in user's address as Auth reports it; Firebase
+  adapter: `auth.currentUser?.email ?? null`), exposed as `SyncEngine.currentEmail()` (null while signed out
+  or stopped) and `SyncService.currentEmail()`. Read on every call (the menu template calls it as it renders);
+  never cached, stored, synced or logged. `SyncEngine.status()` order: signed-out, then this device's
+  unfinished deletion (Error "Some data couldn't be deleted. Try again.", above Offline and Paused: SYNC-084
+  and SYNC-096 have no offline carve-out), then offline, paused, other errors, syncing, synced.
+  `statusText()` drops the pending count for that deletion Error; other statuses keep it.
+  `SyncStatus.pendingCount` still carries the real count.
 - **Account-required mode (SYNC-008/009/048/086/090/091/097, H-081):** the sync engine runs only when
   `signInEnabled` is true, so everything below applies to that mode; with `signInEnabled: false` nothing here
   runs (no gate, no clearing).

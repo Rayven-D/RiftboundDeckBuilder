@@ -294,6 +294,8 @@ export class FakeAuth implements AuthService {
   signOuts = 0;
   deletedUser = false;
   emailLinksSent: string[] = [];
+  /** What `currentEmail()` reports (SYNC-003, H-141); null = Auth has no address for the user. */
+  email: string | null = null;
   /** Order of calls, for SYNC-096 ordering checks. */
   readonly calls: string[] = [];
 
@@ -318,6 +320,9 @@ export class FakeAuth implements AuthService {
   }
   isEmailLinkReturn(): boolean {
     return false;
+  }
+  currentEmail(): string | null {
+    return this.uid ? this.email : null;
   }
   async signOut(): Promise<void> {
     this.signOuts++;

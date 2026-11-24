@@ -11,6 +11,7 @@ import { enabledProviders } from '../../shared/sync/sync-types';
 import type { StoredSyncLog } from '../../shared/sync/sync-types';
 import { emptySyncLog } from '../../shared/sync/sync-log';
 import { FakeAuth, FakeFirestore, FakeRemote } from '../../shared/sync/testing/fakes';
+import { AppStores } from '../storage/app-stores';
 import { STORAGE_KEYS } from '../storage/local-stores';
 
 const text = (el: Element) => (el.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -308,6 +309,8 @@ describe('AccountMenu delete outcomes (SPEC-010 SYNC-096)', () => {
             signedIn: () => true,
             online: () => true,
             statusLine: () => '',
+            status: () => ({ kind: 'synced', at: 0, pendingCount: 0 }),
+            currentEmail: () => null,
             deletion: () => null,
             deleteAccount: async () => {
               calls++;
@@ -345,8 +348,13 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
     await fixture.whenStable();
   }
 
-  function stubbed(deletion: { canCancel: boolean } | null, online = true): string[] {
+  function stubbed(deletion: { canCancel: boolean } | null, online = true, email: string | null = null): string[] {
     const calls: string[] = [];
+    // A deletion is the Error status online or offline: the engine ranks it above Offline and Paused
+    // (sync-engine-cancel-deletion.spec.ts, SYNC-084 / SYNC-096 / AC 54).
+    const status = deletion
+      ? { kind: 'error', message: "Some data couldn't be deleted. Try again.", pendingCount: 0 }
+      : { kind: online ? 'synced' : 'offline', at: 0, pendingCount: 0 };
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
@@ -357,7 +365,9 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
             start: () => undefined,
             signedIn: () => true,
             online: () => online,
-            statusLine: () => "Some data couldn't be deleted. Try again.",
+            statusLine: () => (deletion ? "Some data couldn't be deleted. Try again." : 'Synced · 9:41 AM'),
+            status: () => status,
+            currentEmail: () => email,
             deletion: signal(deletion),
             pendingCount: () => 0,
             deleteAccount: async () => (calls.push('deleteAccount'), 'ok'),
@@ -369,44 +379,42 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
     return calls;
   }
 
-  async function menuFor(deletion: { canCancel: boolean } | null, online = true) {
-    const calls = stubbed(deletion, online);
+  async function menuFor(deletion: { canCancel: boolean } | null, online = true, email: string | null = null) {
+    const calls = stubbed(deletion, online, email);
     const fixture = TestBed.createComponent(AccountMenu);
     await fixture.whenStable();
     await openMenu(fixture);
     return { fixture, calls };
   }
 
-  it('AC 43 with nothing removed the menu shows the Error status, Try again and Cancel deletion', async () => {
+  it('AC 43 with nothing removed the menu shows the Error status, Try deleting again and Cancel deletion', async () => {
     await menuFor({ canCancel: true });
     expect(overlayText()).toContain("Some data couldn't be deleted. Try again.");
-    expect(menuButtons().map(text)).toEqual(['Try again', 'Cancel deletion', 'Sync now', 'Sign out', 'Delete account and data']);
+    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Cancel deletion', 'Sign out', 'Delete account and data']);
   });
 
-  it('AC 43 once something was removed only Try again is offered, and Sign out stays available', async () => {
+  it('AC 43 once something was removed only Try deleting again is offered, and Sign out stays available', async () => {
     await menuFor({ canCancel: false });
-    expect(menuButtons().map(text)).toEqual(['Try again', 'Sync now', 'Sign out', 'Delete account and data']);
+    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Sign out', 'Delete account and data']);
     expect(menuButton('Sign out')!.disabled).toBe(false);
   });
 
-  it('SYNC-096 without an unfinished deletion the menu offers neither Try again nor Cancel deletion', async () => {
+  it('SYNC-096 without an unfinished deletion the menu offers neither Try deleting again nor Cancel deletion', async () => {
     await menuFor(null);
     expect(menuButtons().map(text)).toEqual(['Sync now', 'Sign out', 'Delete account and data']);
   });
 
-  it('H-102: one divider directly precedes Delete account and data, which carries the danger class', async () => {
+  it('H-102: a divider directly precedes Delete account and data, which carries the danger class', async () => {
     await menuFor({ canCancel: true });
-    const panel = document.querySelector('.mat-mdc-menu-panel')!;
-    expect(panel.querySelectorAll('mat-divider')).toHaveLength(1);
     const del = menuButton('Delete account and data')!;
     expect(del.classList.contains('danger')).toBe(true);
     expect(del.previousElementSibling?.tagName.toLowerCase()).toBe('mat-divider');
     expect(menuButtons().filter((b) => b.classList.contains('danger')).map(text)).toEqual(['Delete account and data']);
   });
 
-  it('SYNC-096 the menu Try again reruns the deletion without the confirmation dialog', async () => {
+  it('SYNC-096 AC 43 the menu Try deleting again reruns the deletion without the confirmation dialog', async () => {
     const { fixture, calls } = await menuFor({ canCancel: true });
-    menuButton('Try again')!.click();
+    menuButton('Try deleting again')!.click();
     await fixture.whenStable();
     expect(calls).toEqual(['deleteAccount']);
     expect(document.querySelector('mat-dialog-container')).toBeNull();
@@ -422,9 +430,9 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
     expect(dismiss).toHaveBeenCalled();
   });
 
-  it('SYNC-081 offline the menu Try again is disabled (a deletion needs a connection)', async () => {
+  it('SYNC-081 offline the menu Try deleting again is disabled (a deletion needs a connection)', async () => {
     await menuFor({ canCancel: true }, false);
-    expect(menuButton('Try again')!.disabled).toBe(true);
+    expect(menuButton('Try deleting again')!.disabled).toBe(true);
     expect(overlayText()).toContain("You're offline.");
   });
 
@@ -476,7 +484,7 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
     await fixture.whenStable();
     expect(db.reads).toBe(0); // no pull while the deletion is unfinished
     await openMenu(fixture);
-    expect(menuButtons().map(text).slice(0, 2)).toEqual(['Try again', 'Cancel deletion']);
+    expect(menuButtons().map(text).slice(0, 2)).toEqual(['Try deleting again', 'Cancel deletion']);
     expect(overlayText()).toContain("Some data couldn't be deleted. Try again.");
 
     menuButton('Cancel deletion')!.click();
@@ -488,5 +496,316 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
     expect(saved.deletingRemovedAny).toBeUndefined();
     expect(db.reads).toBeGreaterThan(0); // the account check and pull ran again
     localStorage.clear();
+  });
+});
+
+describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-003, SYNC-084, SYNC-096, SYNC-100)', () => {
+  afterEach(() => {
+    document.querySelectorAll('.cdk-overlay-container').forEach((el) => (el.innerHTML = ''));
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  const panel = () => document.querySelector<HTMLElement>('.mat-mdc-menu-content')!;
+  const menuButtons = () => Array.from(panel().querySelectorAll<HTMLButtonElement>('button'));
+  const menuButton = (label: string) => menuButtons().find((b) => text(b) === label);
+  /** The panel's element children, as 'divider', 'item:<label>' or 'text:<words>'. */
+  const layout = () =>
+    Array.from(panel().children).map((el) => {
+      const tag = el.tagName.toLowerCase();
+      if (tag === 'mat-divider') return 'divider';
+      return tag === 'button' ? `item:${text(el)}` : `text:${text(el)}`;
+    });
+
+  const trigger = (fixture: ComponentFixture<AccountMenu>) =>
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find((b) => text(b) === 'Account')!;
+
+  /** Opens the menu (or leaves it open), then renders. */
+  async function openMenu(fixture: ComponentFixture<AccountMenu>): Promise<void> {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    if (trigger(fixture).getAttribute('aria-expanded') !== 'true') trigger(fixture).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+  }
+
+  /** The real SyncService and engine over the fakes, with captured notices and console output. */
+  function realService(auth: FakeAuth, db: FakeFirestore) {
+    const notices: [string, string | undefined][] = [];
+    const consoleOut: string[] = [];
+    for (const m of ['log', 'info', 'warn', 'error', 'debug'] as const) {
+      vi.spyOn(console, m).mockImplementation((...args: unknown[]) => {
+        consoleOut.push(args.map((a) => (typeof a === 'string' ? a : String(JSON.stringify(a)))).join(' '));
+      });
+    }
+    TestBed.configureTestingModule({
+      imports: [AccountMenu],
+      providers: [
+        { provide: SIGN_IN_ENABLED, useValue: true },
+        { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote: new FakeRemote(db) }) },
+        {
+          provide: MatSnackBar,
+          useValue: {
+            open: (m: string, a?: string) => (notices.push([m, a]), { onAction: () => ({ subscribe: () => undefined }) }),
+            dismiss: () => undefined,
+          },
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(AccountMenu);
+    return { fixture, sync: TestBed.inject(SyncService), notices, consoleOut };
+  }
+
+  const allLocalStorage = () =>
+    Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)!)
+      .map((k) => `${k}=${localStorage.getItem(k)}`)
+      .join('\n');
+
+  const accountDoc = { schemaVersion: 1, createdAt: 1, updatedAt: 1, syncedAt: 1, lastClientVersion: 'x' };
+
+  it('AC 53 SYNC-003 the first line reads "Signed in as {email}" above the status, as text; SYNC-100 the address is written nowhere', async () => {
+    localStorage.clear();
+    const db = new FakeFirestore();
+    const auth = new FakeAuth();
+    auth.email = 'rj@example.com';
+    auth.nextSignIn = 'uA';
+    const { fixture, sync, consoleOut } = realService(auth, db);
+    await fixture.whenStable();
+    await sync.signInWithGoogle(); // the fake ignores the provider: a sign-in, then the first sync
+    await vi.waitFor(() => expect(sync.status().kind).toBe('synced'));
+    await sync.syncNow();
+    await openMenu(fixture);
+
+    const first = panel().firstElementChild as HTMLElement;
+    expect(first.tagName.toLowerCase()).toBe('p');
+    expect(text(first)).toBe('Signed in as rj@example.com');
+    expect(first.hasAttribute('tabindex')).toBe(false);
+    expect(first.hasAttribute('role')).toBe(false);
+    expect(first.classList.contains('mat-mdc-menu-item')).toBe(false);
+    const status = first.nextElementSibling as HTMLElement;
+    expect(status.getAttribute('role')).toBe('status');
+    expect(text(status)).toMatch(/^Synced · /);
+    // Brief H-141 decision 3: opening the menu reads who is signed in, then the status.
+    expect(document.querySelector('.mat-mdc-menu-panel')!.getAttribute('aria-describedby')).toBe(`${first.id} ${status.id}`);
+
+    // SYNC-100: not in any local store (the sync log included), the cloud documents, the pushes or the console.
+    const address = 'rj@example.com';
+    expect(db.docs.size).toBeGreaterThan(0);
+    expect(localStorage.getItem(STORAGE_KEYS.syncLog)).not.toBeNull();
+    expect(allLocalStorage()).not.toContain(address);
+    expect(JSON.stringify(Array.from(db.docs.entries()))).not.toContain(address);
+    expect(JSON.stringify(db.pushLog)).not.toContain(address);
+    expect(JSON.stringify(db.writeLog)).not.toContain(address);
+    expect(consoleOut.join('\n')).not.toContain(address);
+  });
+
+  it('AC 53 SYNC-003 the menu shows the address Auth reports when it is opened: a changed or removed address shows on reopening', async () => {
+    const auth = new FakeAuth();
+    auth.email = 'rj@example.com';
+    const { fixture, sync } = realService(auth, new FakeFirestore());
+    await fixture.whenStable();
+    await sync.signInWithGoogle();
+    await vi.waitFor(() => expect(sync.status().kind).toBe('synced'));
+    await openMenu(fixture);
+    expect(text(panel().firstElementChild!)).toBe('Signed in as rj@example.com');
+
+    const close = async () => {
+      document.querySelector<HTMLElement>('.cdk-overlay-backdrop')?.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      await vi.waitFor(() => expect(trigger(fixture).getAttribute('aria-expanded')).not.toBe('true'));
+    };
+    await close();
+    auth.email = 'other@example.com'; // Auth now reports another address; nothing in the app was told
+    await openMenu(fixture);
+    expect(text(panel().firstElementChild!)).toBe('Signed in as other@example.com');
+
+    await close();
+    auth.email = null;
+    await openMenu(fixture);
+    expect(text(panel())).not.toContain('Signed in as');
+    expect(panel().firstElementChild!.getAttribute('role')).toBe('status');
+  });
+
+  it('AC 53 when Auth reports no address there is no "Signed in as" line and the menu starts with the status', async () => {
+    const auth = new FakeAuth();
+    auth.email = null;
+    const { fixture, sync } = realService(auth, new FakeFirestore());
+    await fixture.whenStable();
+    await sync.signInWithGoogle();
+    await vi.waitFor(() => expect(sync.status().kind).toBe('synced'));
+    await openMenu(fixture);
+    expect(text(panel())).not.toContain('Signed in as');
+    const first = panel().firstElementChild as HTMLElement;
+    expect(first.getAttribute('role')).toBe('status');
+    expect(document.querySelector('.mat-mdc-menu-panel')!.getAttribute('aria-describedby')).toBe(first.id);
+  });
+
+  it('AC 54 3 pending and an unfinished deletion: exact status, no Sync now, notice action Try again; Cancel deletion brings Sync now back and pushes the 3', async () => {
+    const db = new FakeFirestore();
+    db.docs.set('users/uA', { ...accountDoc });
+    const auth = new FakeAuth();
+    auth.uid = 'uA';
+    const now = Date.now();
+    const log: StoredSyncLog = {
+      ...emptySyncLog(),
+      uid: 'uA',
+      sessionExpected: true,
+      lastFullSyncAt: now,
+      lastSyncAt: now,
+      cursors: { state: 1, decks: 1 },
+      deletingUid: 'uA',
+      deletingRemovedAny: false,
+    };
+    localStorage.setItem(STORAGE_KEYS.syncLog, JSON.stringify(log));
+    const { fixture, sync, notices } = realService(auth, db);
+    await vi.waitFor(() => expect(sync.deletion()).toEqual({ canCancel: true }));
+    // 3 card edits, kept pending while the deletion is unfinished
+    await TestBed.inject(AppStores).stores.collection.save({
+      schemaVersion: 1,
+      updatedAt: new Date().toISOString(),
+      catalogVersion: '0.2+2026-11-20T18:04:00Z',
+      cards: {
+        'hextech ray': { quantity: 3, byPrinting: {} },
+        'lightning rush': { quantity: 1, byPrinting: {} },
+        'mystic shot': { quantity: 2, byPrinting: {} },
+      },
+    });
+    await vi.waitFor(() => expect(sync.pendingCount()).toBe(3));
+    await new Promise((r) => setTimeout(r, 2100)); // past the push debounce: still nothing pushed
+    expect(db.pushLog).toHaveLength(0);
+    await openMenu(fixture);
+
+    const status = panel().querySelector('[role="status"]')!;
+    expect(text(status)).toBe("Some data couldn't be deleted. Try again.");
+    expect(text(panel())).not.toContain('not synced yet');
+    expect(status.classList.contains('error')).toBe(true);
+    expect(status.querySelector('app-icon')?.getAttribute('aria-hidden')).toBe('true');
+    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Cancel deletion', 'Sign out', 'Delete account and data']);
+    expect(menuButton('Sync now')).toBeUndefined();
+
+    // Try deleting again fails again (nothing removed): the failure notice's action still reads "Try again".
+    const deleteAll = vi.spyOn(FakeRemote.prototype, 'deleteAll').mockResolvedValue({ remaining: 4, removedAny: false });
+    menuButton('Try deleting again')!.click();
+    await vi.waitFor(() => expect(notices.some(([, a]) => a === 'Try again')).toBe(true));
+    expect(notices.find(([, a]) => a === 'Try again')![0]).toBe("Some data couldn't be deleted. Try again.");
+    deleteAll.mockRestore();
+    await vi.waitFor(() => expect(sync.deletion()).toEqual({ canCancel: true }));
+
+    await openMenu(fixture);
+    expect(menuButton('Sync now')).toBeUndefined();
+    menuButton('Cancel deletion')!.click();
+    await vi.waitFor(() => expect(sync.status().kind).toBe('synced'));
+    expect(sync.deletion()).toBeNull();
+    expect(notices.map(([m]) => m)).toContain("Your account wasn't deleted.");
+    await vi.waitFor(() => expect(sync.pendingCount()).toBe(0));
+    expect(Object.keys(db.get('users/uA/state/collection').cards).sort()).toEqual(['hextech ray', 'lightning rush', 'mystic shot']);
+    await openMenu(fixture);
+    expect(menuButtons().map(text)).toEqual(['Sync now', 'Sign out', 'Delete account and data']);
+  });
+
+  /** H-110: exactly 3 dividers, none first, last or next to another. */
+  const expectCleanDividers = (l: string[]) => {
+    expect(l.filter((x) => x === 'divider')).toHaveLength(3);
+    expect(l[0]).not.toBe('divider');
+    expect(l[l.length - 1]).not.toBe('divider');
+    l.forEach((x, i) => {
+      if (x === 'divider') expect(l[i + 1]).not.toBe('divider');
+    });
+  };
+
+  async function stubMenu(opts: { deletion: { canCancel: boolean } | null; online: boolean; email: string | null }) {
+    // A deletion is the Error status even offline, as the engine reports it (sync-engine-cancel-deletion.spec.ts).
+    const status = opts.deletion
+      ? { kind: 'error', message: "Some data couldn't be deleted. Try again.", pendingCount: 3 }
+      : opts.online
+        ? { kind: 'synced', at: 0, pendingCount: 0 }
+        : { kind: 'offline', pendingCount: 0 };
+    const line = opts.deletion
+      ? "Some data couldn't be deleted. Try again."
+      : opts.online
+        ? 'Synced · 9:41 AM'
+        : 'Offline · changes are saved on this device';
+    TestBed.configureTestingModule({
+      imports: [AccountMenu],
+      providers: [
+        {
+          provide: SyncService,
+          useValue: {
+            enabled: true,
+            start: () => undefined,
+            signedIn: () => true,
+            online: () => opts.online,
+            status: () => status,
+            statusLine: () => line,
+            currentEmail: () => opts.email,
+            deletion: () => opts.deletion,
+            pendingCount: () => 0,
+          },
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(AccountMenu);
+    await fixture.whenStable();
+    await openMenu(fixture);
+    return layout();
+  }
+
+  it('H-110 normal: [identity, status] / [Sync now] / [Sign out] / [Delete], 3 dividers, none leading, trailing or doubled', async () => {
+    const l = await stubMenu({ deletion: null, online: true, email: 'rj@example.com' });
+    expect(l).toEqual([
+      'text:Signed in as rj@example.com',
+      'text:Synced · 9:41 AM',
+      'divider',
+      'item:Sync now',
+      'divider',
+      'item:Sign out',
+      'divider',
+      'item:Delete account and data',
+    ]);
+    expectCleanDividers(l);
+  });
+
+  it('H-110 / AC 54 deletion: [status] / [Try deleting again, Cancel deletion] / [Sign out] / [Delete], no empty group', async () => {
+    const l = await stubMenu({ deletion: { canCancel: true }, online: true, email: null });
+    expect(l).toEqual([
+      "text:Some data couldn't be deleted. Try again.",
+      'divider',
+      'item:Try deleting again',
+      'item:Cancel deletion',
+      'divider',
+      'item:Sign out',
+      'divider',
+      'item:Delete account and data',
+    ]);
+    expectCleanDividers(l);
+  });
+
+  it('H-110 deletion with nothing to cancel keeps one divider each side of Try deleting again', async () => {
+    const l = await stubMenu({ deletion: { canCancel: false }, online: true, email: 'rj@example.com' });
+    expect(l.slice(2, 5)).toEqual(['divider', 'item:Try deleting again', 'divider']);
+    expectCleanDividers(l);
+  });
+
+  it("H-110 / SYNC-081 offline: You're offline. is right under the status, above the first divider; nothing after Delete", async () => {
+    const l = await stubMenu({ deletion: null, online: false, email: 'rj@example.com' });
+    expect(l).toEqual([
+      'text:Signed in as rj@example.com',
+      'text:Offline · changes are saved on this device',
+      "text:You're offline.",
+      'divider',
+      'item:Sync now',
+      'divider',
+      'item:Sign out',
+      'divider',
+      'item:Delete account and data',
+    ]);
+    expectCleanDividers(l);
+  });
+
+  it('H-110 offline during a deletion keeps the same clean grouping', async () => {
+    const l = await stubMenu({ deletion: { canCancel: true }, online: false, email: null });
+    expect(l[1]).toBe("text:You're offline.");
+    expectCleanDividers(l);
   });
 });
