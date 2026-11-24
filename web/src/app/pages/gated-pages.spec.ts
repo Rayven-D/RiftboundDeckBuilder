@@ -26,6 +26,13 @@ const GATED: [string, string][] = [
   ['/decks/0b7c0000-0000-4000-8000-000000000001', GATE_HEADINGS.decks],
   ['/import', GATE_HEADINGS.import],
 ];
+/** The page title each gated URL keeps above its panel (RJ decision 14). */
+const GATED_HEADERS: [string, string][] = [
+  ['/collection', 'Collection'],
+  ['/decks', 'Decks'],
+  ['/decks/0b7c0000-0000-4000-8000-000000000001', 'Deck detail'],
+  ['/import', 'Import'],
+];
 
 /** Legacy local data (saved in local-only mode): a collection, a deck, and the stamps local-only mode writes. */
 function storeLegacyData(): void {
@@ -85,11 +92,27 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-008, SYNC-009)', () => {
       expect(TestBed.inject(Router).url).toBe(url);
       expect(text(el.querySelector('app-sign-in-panel h2'))).toBe(heading);
       expect(text(el)).toContain(GATE_TEXT.signedOut);
-      expect(GATE_TEXT.signedOut).toBe('You need a free account to import cards and decks. Tournaments are open to everyone.');
+      expect(GATE_TEXT.signedOut).toBe('You need a free account to import cards or decks.'); // RJ decision 14
+      expect(text(el.querySelector('app-sign-in-panel p'))).toBe(GATE_TEXT.signedOut); // no other sentence
       expect(buttons(el)).toEqual(['Sign in']);
       expect(el.querySelector('app-empty-state, .import-options')).toBeNull();
       expect(adapterLoads).toBe(0); // no firebase chunk (SYNC-002)
     });
+
+    it.each(GATED_HEADERS)(
+      'SYNC-009 / AC 46 signed out, %s keeps its page header "%s" (title and description) above the sign-in panel',
+      async (url, title) => {
+        setup(true);
+        const { el } = await open(url);
+        const header = el.querySelector('header.page-header');
+        const panel = el.querySelector('app-sign-in-panel');
+        expect(text(header?.querySelector('h1'))).toBe(title);
+        expect(text(header?.querySelector('.page-lede'))).not.toBe('');
+        expect(panel).not.toBeNull();
+        expect(header!.compareDocumentPosition(panel!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(header!.contains(panel)).toBe(false);
+      },
+    );
 
     it('SYNC-009 / AC 46 / AC 48 legacy local data is never shown while signed out', async () => {
       storeLegacyData();

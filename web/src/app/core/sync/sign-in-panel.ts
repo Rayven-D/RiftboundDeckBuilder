@@ -12,7 +12,7 @@ export const GATE_HEADINGS: Record<GatedPage, string> = {
 };
 
 export const GATE_TEXT = {
-  signedOut: 'You need a free account to import cards and decks. Tournaments are open to everyone.',
+  signedOut: 'You need a free account to import cards or decks.',
   sessionLost: "You've been signed out. Sign in again to see them.",
   firstSync: 'Getting your collection and decks from your account…',
   firstSyncFailed: "Couldn't get your collection and decks. Check your connection and try again.",

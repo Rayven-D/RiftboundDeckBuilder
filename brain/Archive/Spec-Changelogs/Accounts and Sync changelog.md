@@ -9,6 +9,12 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.9 (2026-11-24, H-093, RJ decision 14): SYNC-009: a gated page keeps its page header (title and
+  description); only the content below it is replaced by the sign-in panel. Signed-out panel text is exactly
+  "You need a free account to import cards or decks." (was "...cards and decks. Tournaments are open to
+  everyone."); text pending build H-094, header as built. AC 46 checks both. Summary key rules line and the
+  Decisions section (new decision 14) follow. Requirement and AC counts unchanged.
+
 - 0.8 (2026-11-24, H-080: account required to import, RJ decision 13; ADR-0007 amendment `proposed`):
   **Modes:** new SYNC-008: `signInEnabled: false` = local-only mode, unchanged; `true` = account-required mode.
   SYNC-001 rewritten by mode. **Gates:** new SYNC-009: Decks, deck detail, Collection, Import and "Add to your
