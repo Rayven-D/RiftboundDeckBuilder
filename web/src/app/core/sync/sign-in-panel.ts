@@ -42,7 +42,7 @@ export const GATE_TEXT = {
         <section class="gate" [attr.aria-labelledby]="headingId">
           <h2 [id]="headingId">{{ heading() }}</h2>
           <p>{{ gate.state() === 'session-lost' ? text.sessionLost : text.signedOut }}</p>
-          <button matButton="filled" type="button" aria-haspopup="dialog" (click)="gate.signIn()">Sign in</button>
+          <button matButton="filled" type="button" aria-haspopup="dialog" (click)="signIn($event)">Sign in</button>
         </section>
       }
     }
@@ -72,6 +72,11 @@ export class SignInPanel {
   protected readonly text = GATE_TEXT;
   protected readonly heading = computed(() => GATE_HEADINGS[this.page()]);
   protected readonly headingId = `gate-heading-${nextId++}`;
+
+  /** H-125: the button is passed on, so focus returns to it when the Sign in dialog closes. */
+  protected signIn(e: Event): void {
+    this.gate.signIn(e.currentTarget as HTMLElement);
+  }
 }
 
 let nextId = 0;

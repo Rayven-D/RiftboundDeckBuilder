@@ -183,6 +183,11 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-008, SYNC-009)', () => {
         "Sign in to import your cards and decks. They're saved to your account, so you'll see them on any device you sign in on.",
       );
       expect(adapterLoads).toBe(0);
+      // Close before teardown: since H-125 the dialog restores focus to the panel's Sign in, and doing that
+      // after the test's injector is gone would start a ripple on a destroyed injector (NG0205).
+      Array.from(dialog.querySelectorAll('button')).find((b) => text(b) === 'Close')!.click();
+      await vi.waitFor(() => expect(document.querySelector('mat-dialog-container')).toBeNull());
+      expect(document.activeElement).toBe(el.querySelector('app-sign-in-panel button'));
     });
 
     it('SYNC-009 a deep link /import?type=deck keeps its URL while closed and opens the deck import once the gate opens', async () => {

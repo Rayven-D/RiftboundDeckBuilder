@@ -24,6 +24,7 @@ Owner: **builder** with RJ. Record agreed screens and design decisions here.
 | 2026-11-24 | [[Brief H-101]] | Brief for finding #2: phone snack bars sit above the tab bar (bottom margin = bar + `--tabbar-border` + safe area + `--space-2`), overlay pane click-through via `:has()`, plain CSS in `styles.scss`; two Playwright passes |
 | 2026-11-24 | [[Brief H-102]] | Brief for finding #3: filled danger button (`--color-danger` fill, new `--color-danger-contrast` label: 7.65 dark / 7.07 light), neutral disabled, scoped `mat.button-overrides` on `.mat-mdc-button-base.danger`; one divider + danger label on the account menu item; styleguide Buttons section |
 | 2026-11-24 | [[Brief H-104 H-106 H-124]] | Brief for findings #4, #5, #21: sign-in dialog leads with the email field (launch), all provider buttons outlined (Send link the only fill), custom send-failure line (icon + `--color-danger`, aria-invalid/describedby, focus to field, no alert), "Sending…" with `disabledInteractive`, phone stack at 40rem with full-width Send link, no dialog scrollbar |
+| 2026-11-24 | [[Brief H-140 H-125 H-108]] | Brief for findings #6, #7, #22: sent state (address in bold, focus to the sent line, persistent status regions, Send again keeps focus with `disabledInteractive`, text buttons in content, stacked at 40rem), focus restore via an explicit trigger plus a body fallback, Material confirm dialog for the other-device link |
 
 ## Design decisions
 See [[Design Direction]]: candidate visual directions awaiting RJ's choice, and the decisions taken in the H-009 scaffold.

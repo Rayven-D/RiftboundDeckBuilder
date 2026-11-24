@@ -21,7 +21,7 @@ import { SyncService } from './sync.service';
   template: `
     @if (sync.enabled) {
       @if (!sync.signedIn()) {
-        <button matButton="outlined" type="button" aria-haspopup="dialog" (click)="openSignIn()">Sign in</button>
+        <button matButton="outlined" type="button" aria-haspopup="dialog" (click)="openSignIn($event)">Sign in</button>
       } @else {
         <button matButton="outlined" type="button" [matMenuTriggerFor]="menu" aria-label="Account and sync">
           Account
@@ -69,8 +69,9 @@ export class AccountMenu {
     this.sync.start();
   }
 
-  protected openSignIn(): Promise<void> {
-    return this.sync.openSignIn();
+  /** H-125: the header button is passed on, so focus returns to it when the dialog closes. */
+  protected openSignIn(e: Event): Promise<void> {
+    return this.sync.openSignIn(e.currentTarget as HTMLElement);
   }
 
   /** SYNC-090: the dialog stays open during Sync now; Sign out (or Sign out anyway) clears this device. */

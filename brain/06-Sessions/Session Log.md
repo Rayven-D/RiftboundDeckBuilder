@@ -242,3 +242,18 @@ Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 - Done: H-015 (SPEC-001/002 v0.2), H-016 (SPEC-004 v0.2), H-017, H-018, H-019, H-025, H-026, H-031 (SPEC-007 v0.1).
 - FAIL: H-030 SPEC-006 Deck Import contradicts SPEC-004 on Add to Your decks (source shape, default name, duplicates) and uses old field names. WIP kept on its branch.
 - Stopped at gate H-036 (RJ decisions). The services scaffold H-008 is now unblocked.
+
+## 2026-11-24: ui-engineer brief H-140 / H-125 / H-108
+- Wrote [[Brief H-140 H-125 H-108]] (linked from [[UI Index]]): sign-in sent state, focus restore on close, Material confirm dialog for a link opened on another device. Spec wording unchanged. One new string: the H-108 title "Finish signing in".
+- No code and no Playwright. The acceptance pass runs after the build.
+
+## 2026-11-24: builder H-140 / H-125 / H-108 (branch `loop/H-140-signin-sent-state`, not committed)
+- Built from [[Brief H-140 H-125 H-108]] and [[Accounts and Sync]] v0.10 SYNC-006: the sign-in dialog's sent state (Send again, Use a different email, failure under it), focus restore to the Sign in trigger (header and gate panel) with a `#main` fallback, and `ConfirmEmailDialog` replacing the native prompt for a link opened on another device.
+- Tests: `sign-in-sent-state.spec.ts` (AC 51, AC 1), `sign-in-focus-confirm.spec.ts` (H-125, H-108, AC 39), layout and source guards in `sign-in-dialog-layout.spec.ts`. Two older specs now close the dialog before teardown (focus restore after teardown raised NG0205).
+- Contract note added to [[API Contracts]] (`openSignIn(trigger?)`, `SignInGate.signIn(trigger?)`, `ConfirmEmailDialog`). Waiting for the ui-engineer Playwright pass and validator.
+
+## 2026-11-24: H-140 / H-125 / H-108 validated and committed (`loop/H-140-signin-sent-state`)
+- ui-engineer Playwright check at 1440/375, dark/light, keyboard: satisfied after three fixes (confirm dialog 28rem wide, focus to document start after a mouse Cancel, Send again min-width 6rem). Screens outside the repo (notes folder `h140-screens`).
+- Validator: all three PASS ([[Validation H-140 H-125 H-108]]); 593 web / 34 rules tests; filed H-146 (spec-writer: "disabled" = `disabledInteractive`; confirm-dialog strings). `next_id` 147.
+- Code review of the diff (orchestrated session): no findings to fix. Rows moved to Done; [[Current State]] updated.
+

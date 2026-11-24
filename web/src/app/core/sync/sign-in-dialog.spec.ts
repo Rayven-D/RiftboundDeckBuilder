@@ -113,6 +113,10 @@ describe('Sign-in dialog layout and Send link (SPEC-010 v0.10 SYNC-006)', () => 
       // MatDialog traps focus once its enter animation (a timer) is done.
       await vi.waitFor(() => expect(document.activeElement).toBe(input), { timeout: 2000 });
       expect(adapterLoads).toBe(0); // SYNC-002: opening the dialog loads nothing
+      // Close before teardown: since H-125 the dialog restores focus to the header button, and doing that
+      // after the test's injector is gone would start a ripple on a destroyed injector (NG0205).
+      button(pane, 'Close')!.click();
+      await vi.waitFor(() => expect(document.activeElement).toBe(button(fixture.nativeElement, 'Sign in')), { timeout: 2000 });
       localStorage.clear();
     });
 
@@ -304,7 +308,9 @@ describe('Sign-in dialog layout and Send link (SPEC-010 v0.10 SYNC-006)', () => 
       await flush();
       await fixture.whenStable();
       expect(text(el)).not.toContain(SEND_LINK_FAILED);
-      expect(text(el)).toContain('Check your email for a sign-in link.'); // today's sent line (H-140 replaces it)
+      expect(text(el.querySelector('.sent-line')!)).toBe(
+        'We sent a sign-in link to rj@example.com. Open it on this device to finish signing in.',
+      ); // the AC 51 sent state
     });
   });
 });

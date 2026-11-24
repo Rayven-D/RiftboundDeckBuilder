@@ -255,8 +255,15 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
     mode. `LocalSyncLogStore.peek()` reads the log synchronously so the gate is right at the first frame.
     `SyncEngine.gate()` adds the session's runtime state. Angular: `SignInGate` (`core/sync/sign-in-gate.ts`):
     `state`, `open`, `deckControls` (Tournaments Add to your decks / In your decks / Add another copy render only
-    while true), `offerDeleteLocalData` (SYNC-052: true only in local-only mode), `signIn()`, `retry()`; kept
-    current by `SyncService`. Gated pages render `<app-sign-in-panel page="collection|decks|import">` instead of
+    while true), `offerDeleteLocalData` (SYNC-052: true only in local-only mode), `signIn(trigger?: HTMLElement)`,
+    `retry()`; kept current by `SyncService`. **H-125:** `SyncService.openSignIn(trigger?: HTMLElement)`: the header
+    and panel Sign in pass their button; the dialog opens with `restoreFocus: trigger ?? true`, and after close
+    `refocusAfterDialog(trigger)` (exported from `sync.service.ts`) puts focus on the trigger, or `#main` when the
+    trigger is gone, only if focus ended on `<body>`. **H-108:** an email link opened with no stored address
+    (`rift.emailForSignIn`) opens `ConfirmEmailDialog` (`sync-dialogs.ts`), which closes with the trimmed address
+    or `undefined` (Cancel, Escape, backdrop: no sign-in, no message); no native browser prompt. It opens at
+    `width: '28rem'`, and after close `focusDocumentStart()` (exported from `sync.service.ts`) focuses `<body>`
+    with a temporary `tabindex="-1"` if focus was left on `<body>`, so one Tab reaches Skip to content. Gated pages render `<app-sign-in-panel page="collection|decks|import">` instead of
     their content.
   - `SyncEngine.signOut(): Promise<'ok' | 'offline'>` (no mode): clears every local store and the sync log;
     refused offline. `SyncService.deleteLocalData()` removed. First sign-in: clear, full read, download or create

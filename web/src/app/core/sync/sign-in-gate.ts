@@ -5,8 +5,8 @@ import { SIGN_IN_ENABLED } from './sign-in-flag';
 
 /** What the sync side provides to the gate (registered by `SyncService` when sign-in is enabled). */
 export interface GateActions {
-  /** Opens the SYNC-003 Sign in dialog. */
-  signIn(): void;
+  /** Opens the SYNC-003 Sign in dialog; `trigger` gets focus back when it closes (H-125). */
+  signIn(trigger?: HTMLElement): void;
   /** Reruns the first-sign-in flow (SYNC-009 Try again, as Sync now). */
   retry(): void;
 }
@@ -46,8 +46,8 @@ export class SignInGate {
     this.actions = actions;
   }
 
-  signIn(): void {
-    this.actions?.signIn();
+  signIn(trigger?: HTMLElement): void {
+    this.actions?.signIn(trigger);
   }
 
   retry(): void {

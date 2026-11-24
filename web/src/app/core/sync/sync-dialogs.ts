@@ -52,6 +52,10 @@ let signInDialogSeq = 0;
  */
 export const SEND_LINK_FAILED = "Couldn't send the link. Check the address and your connection, then try again.";
 
+/** SYNC-006 sent state (v0.10, H-140): the sentence after the address, and the spam hint. */
+export const SENT_TAIL = 'Open it on this device to finish signing in.';
+export const SPAM_HINT = "Didn't get it? Check your spam folder.";
+
 /**
  * SYNC-003 / SYNC-006 (v0.10, brain/04-UI/Brief H-104 H-106 H-124.md). (a) Email link as the only provider:
  * no provider button, the email form shows at once and `autoFocus: 'first-tabbable'` puts focus in the field.
@@ -96,7 +100,37 @@ export const SEND_LINK_FAILED = "Couldn't send the link. Check the address and y
       }
       @if (showEmail()) {
         @if (sent()) {
-          <p role="status">Check your email for a sign-in link.</p>
+          <!-- H-140 (SYNC-006 sent state): one block in the order you act on it. The sent line takes focus
+               after Send link (the focused button is gone with the form); role="status" announces the
+               "new" line after Send again, which keeps focus. -->
+          <div class="sent">
+            <p #sentLine class="sent-line" role="status" tabindex="-1">
+              We sent a {{ resent() ? 'new ' : '' }}sign-in link to <strong>{{ email() }}</strong>. {{ sentTail }}
+            </p>
+            <p class="note">{{ spamHint }}</p>
+            <div class="sent-actions">
+              <button
+                matButton
+                type="button"
+                class="resend"
+                [disabled]="sending()"
+                disabledInteractive
+                [attr.aria-describedby]="error() ? errorId : null"
+                (click)="sendAgain()"
+              >
+                {{ sending() ? 'Sending…' : 'Send again' }}
+              </button>
+              <button matButton type="button" [disabled]="sending()" disabledInteractive (click)="useDifferentEmail()">
+                Use a different email
+              </button>
+            </div>
+            <!-- Persistent live region: a Send again failure is announced once, politely (no field to mark). -->
+            <div role="status">
+              @if (error(); as err) {
+                <p class="error" [id]="errorId"><app-icon name="error" />{{ err }}</p>
+              }
+            </div>
+          </div>
         } @else {
           <!-- novalidate: Send link uses disabledInteractive, so the browser's own validation bubble must not
                pop on a click or Enter; canSend() and the dialog's own text are the only feedback. -->
@@ -154,11 +188,27 @@ export const SEND_LINK_FAILED = "Couldn't send the link. Check the address and y
     }
     .error app-icon { flex: none; }
     .note { color: var(--color-text-muted); }
+    /* H-140 sent state. */
+    .sent-line { outline: none; } /* focused by script only (not a control); the H-139 ring is for controls */
+    .sent-line strong { font-weight: 600; overflow-wrap: anywhere; }
+    /* Text buttons pulled left by their 12px padding so the labels line up with the paragraphs. */
+    .sent-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      margin-inline-start: calc(-1 * var(--space-3));
+      padding-bottom: var(--space-1); /* the last button's focus ring stays clear of the scroll edge */
+    }
+    /* Sending… is shorter than Send again: a min-width keeps the width, start-aligned so the label stays put. */
+    .resend { min-width: 6rem; justify-content: flex-start; }
+    .sent .error { margin: var(--space-2) 0 0; }
     /* H-124: phones get a full-width field with a full-width Send link below it. */
     @media (max-width: 40rem) {
       .email { flex-direction: column; align-items: stretch; gap: var(--space-3); }
       .email mat-form-field { flex: none; }
       .error { margin: 0; }
+      /* H-140: two labels plus the gap don't fit in 280px; stacked, the 48px touch targets give the spacing. */
+      .sent-actions { flex-direction: column; align-items: flex-start; gap: 0; }
     }
   `,
 })
@@ -182,10 +232,15 @@ export class SignInDialog {
   protected readonly email = signal('');
   protected readonly sending = signal(false);
   protected readonly sent = signal(false);
+  /** H-140: a Send again succeeded, so the line says "a new sign-in link". Reset by Use a different email. */
+  protected readonly resent = signal(false);
+  protected readonly sentTail = SENT_TAIL;
+  protected readonly spamHint = SPAM_HINT;
   protected readonly error = signal<string | null>(null);
   protected readonly canSend = computed(() => this.data.online && this.email().includes('@') && !this.sending());
   private readonly emailInput = viewChild<ElementRef<HTMLInputElement>>('emailInput');
   private readonly matInput = viewChild(MatInput);
+  private readonly sentLine = viewChild<ElementRef<HTMLElement>>('sentLine');
 
   constructor() {
     inject(DestroyRef).onDestroy(() => (this.destroyed = true));
@@ -210,7 +265,10 @@ export class SignInDialog {
     try {
       await this.data.sendEmailLink(this.email());
       if (this.destroyed) return;
+      // SYNC-006: the form is replaced by the sent state. From the form it is always the plain line.
+      this.resent.set(false);
       this.sent.set(true);
+      this.focusSentLine();
     } catch {
       if (this.destroyed) return; // closed while sending: no view left to mark or focus
       // SYNC-005 v0.10: a failed send is not a failed sign-in. Focus goes to the field, which reads as invalid
@@ -222,6 +280,43 @@ export class SignInDialog {
     }
   }
 
+  /**
+   * H-140 Send again: a new link to the same address, no cooldown. Both actions are disabled (but stay
+   * focusable, disabledInteractive) while it runs, so focus stays on Send again. A failure keeps the sent
+   * state and shows the send-failure line under the actions.
+   */
+  protected async sendAgain(): Promise<void> {
+    if (this.sending()) return; // disabledInteractive keeps the button focusable, so guard here too
+    this.sending.set(true);
+    this.setError(null);
+    try {
+      await this.data.sendEmailLink(this.email());
+      if (this.destroyed) return;
+      this.resent.set(true);
+    } catch {
+      if (this.destroyed) return;
+      this.setError(SEND_LINK_FAILED);
+    } finally {
+      if (!this.destroyed) this.sending.set(false);
+    }
+  }
+
+  /**
+   * H-140 Use a different email: back to the form with the last address in the field and focus in it. The
+   * stored address is untouched here: the adapter replaces it only when a new Send link succeeds.
+   */
+  protected useDifferentEmail(): void {
+    if (this.sending()) return;
+    this.sent.set(false);
+    this.resent.set(false);
+    this.setError(null);
+    this.focusEmail();
+  }
+
+  private focusSentLine(): void {
+    afterNextRender(() => this.sentLine()?.nativeElement.focus(), { injector: this.injector });
+  }
+
   private setError(message: string | null): void {
     this.error.set(message);
     this.matInput()?.updateErrorState(); // no NgControl, so MatInput only re-reads the matcher when asked
@@ -230,6 +325,60 @@ export class SignInDialog {
   private focusEmail(): void {
     if (this.destroyed) return;
     afterNextRender(() => this.emailInput()?.nativeElement.focus(), { injector: this.injector });
+  }
+}
+
+/** SYNC-006: asked when an email sign-in link is opened on a device with no stored address. */
+export const CONFIRM_EMAIL_TEXT = 'Confirm your email address to finish signing in.';
+
+let confirmEmailSeq = 0;
+
+/**
+ * H-108 (brain/04-UI/Brief H-140 H-125 H-108.md decisions 12-14): the other-device confirm, replacing the
+ * browser's native prompt dialog. The sign-in dialog's style, smaller: one Email address field, Cancel and
+ * Finish sign-in.
+ * Closes with the trimmed address; Cancel, Escape and the backdrop close with undefined, which the service
+ * treats as a cancelled sign-in (SYNC-005: no sign-in, no message).
+ */
+@Component({
+  selector: 'app-confirm-email-dialog',
+  imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, MatFormField, MatLabel, MatInput],
+  template: `
+    <h2 mat-dialog-title>Finish signing in</h2>
+    <mat-dialog-content>
+      <p>{{ text }}</p>
+      <!-- novalidate: canFinish() is the only check. Enter submits through the form's default button
+           (Finish sign-in, linked by the form attribute), so with no '@' it does nothing. -->
+      <form [id]="formId" novalidate (submit)="finish($event)">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" hideRequiredMarker class="field">
+          <mat-label>Email address</mat-label>
+          <input matInput type="email" autocomplete="email" required (input)="onEmail($event)" />
+        </mat-form-field>
+      </form>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button matButton type="button" mat-dialog-close>Cancel</button>
+      <button matButton="filled" type="submit" [attr.form]="formId" [disabled]="!canFinish()">Finish sign-in</button>
+    </mat-dialog-actions>
+  `,
+  styles: `
+    .field { width: 100%; }
+  `,
+})
+export class ConfirmEmailDialog {
+  private readonly ref = inject(MatDialogRef<ConfirmEmailDialog, string>);
+  protected readonly text = CONFIRM_EMAIL_TEXT;
+  protected readonly formId = `confirm-email-${++confirmEmailSeq}`;
+  protected readonly email = signal('');
+  protected readonly canFinish = computed(() => this.email().includes('@'));
+
+  protected onEmail(e: Event): void {
+    this.email.set((e.target as HTMLInputElement).value.trim());
+  }
+
+  protected finish(e: Event): void {
+    e.preventDefault();
+    if (this.canFinish()) this.ref.close(this.email());
   }
 }
 

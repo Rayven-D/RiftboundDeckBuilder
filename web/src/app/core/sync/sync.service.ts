@@ -10,7 +10,7 @@ import type { AuthService, RemoteStore, SyncStatus } from '../../shared/sync/syn
 import { AppStores } from '../storage/app-stores';
 import { SignInGate } from './sign-in-gate';
 import { AUTH_PROVIDERS, SIGN_IN_ENABLED } from './sign-in-flag';
-import { SignInDialog, SignInDialogData } from './sync-dialogs';
+import { ConfirmEmailDialog, SignInDialog, SignInDialogData } from './sync-dialogs';
 
 export { SIGN_IN_ENABLED };
 
@@ -25,6 +25,36 @@ export const SYNC_ADAPTERS = new InjectionToken<AdapterLoader>('SYNC_ADAPTERS', 
   factory: () => () =>
     import('./adapters/firebase-adapters').then((m) => m.createFirebaseAdapters(environment.firebase, environment.authProviders)),
 });
+
+/** Where the Firebase adapter keeps the address between Send link and opening the link (SYNC-006). */
+const EMAIL_FOR_SIGN_IN = 'rift.emailForSignIn';
+
+/**
+ * H-125 fallback after the Sign in dialog closed: Material restores focus to the trigger it was given, but if
+ * focus still ended on <body> (or nowhere), put it on the trigger, or on #main when the trigger is gone (a
+ * panel that re-rendered). Focus already on a real element is never moved.
+ */
+export function refocusAfterDialog(trigger: HTMLElement | undefined, doc: Document = document): void {
+  const active = doc.activeElement;
+  if (active && active !== doc.body) return;
+  if (trigger?.isConnected) trigger.focus();
+  else doc.getElementById('main')?.focus();
+}
+
+/**
+ * H-108 fallback after the start-up confirm dialog: a mouse Cancel leaves focus on <body> with the browser's Tab
+ * starting point after the removed overlay, so the first Tab would leave the page. Focusing <body> (with a
+ * tabindex removed again on blur) moves the starting point to the top, so one Tab reaches Skip to content.
+ * Focus already on a real element is never moved.
+ */
+export function focusDocumentStart(doc: Document = document): void {
+  const body = doc.body;
+  if (doc.activeElement && doc.activeElement !== body) return;
+  if (body.hasAttribute('tabindex')) return body.focus();
+  body.setAttribute('tabindex', '-1');
+  body.addEventListener('blur', () => body.removeAttribute('tabindex'), { once: true });
+  body.focus();
+}
 
 /** Email link return: Firebase appends `mode=signIn` and `oobCode` to the continue URL. */
 export function isEmailLinkUrl(href: string): boolean {
@@ -53,6 +83,8 @@ export class SyncService {
   private readonly engine: SyncEngine;
   private started = false;
   private hiddenAt: number | null = null;
+  /** The app is being torn down (MatDialog closes its dialogs then): no focus is moved. */
+  private destroyed = false;
 
   constructor() {
     const stores = this.app.stores;
@@ -78,8 +110,11 @@ export class SyncService {
       () => this.engine.scheduleChange(),
       (area) => this.engine.isReadOnly(area),
     );
-    this.gate.connect({ signIn: () => void this.openSignIn(), retry: () => void this.syncNow() });
-    inject(DestroyRef).onDestroy(() => this.removeListeners());
+    this.gate.connect({ signIn: (trigger) => void this.openSignIn(trigger), retry: () => void this.syncNow() });
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.removeListeners();
+    });
   }
 
   /** App start-up. With the flag off nothing happens, so `firebase` is never loaded (SYNC-007, SYNC-002). */
@@ -118,16 +153,18 @@ export class SyncService {
 
   /**
    * SYNC-003 Sign in dialog (header and the SYNC-009 panels). Opening it loads nothing (SYNC-002); Send link
-   * or Continue with Google does.
+   * or Continue with Google does. `trigger` is the Sign in button that opened it (H-125): focus returns to it
+   * on close, also when the browser didn't focus it on click (Safari) or focus was lost inside the dialog.
    */
-  async openSignIn(): Promise<void> {
+  async openSignIn(trigger?: HTMLElement): Promise<void> {
     const data: SignInDialogData = {
       online: this.online(),
       providers: enabledProviders(this.providers),
       sendEmailLink: (e) => this.sendEmailLink(e),
     };
-    const ref = this.dialog.open(SignInDialog, { data, autoFocus: 'first-tabbable' });
+    const ref = this.dialog.open(SignInDialog, { data, autoFocus: 'first-tabbable', restoreFocus: trigger ?? true });
     const choice = await firstValueFrom(ref.afterClosed());
+    if (!this.destroyed) refocusAfterDialog(trigger);
     if (choice === 'google' && this.providers.includes('google')) await this.signInWithGoogle();
   }
 
@@ -140,12 +177,31 @@ export class SyncService {
     return this.engine.cancelDeletion();
   }
 
+  /**
+   * SYNC-006 email link return. On the device that sent it the stored address completes the sign-in with no
+   * question; elsewhere the H-108 dialog asks for it. No address (Cancel, Escape, backdrop) is a cancelled
+   * sign-in: nothing happens and no message shows (SYNC-005). A failed link shows the engine's SYNC-005 text.
+   */
   private async completeEmailLink(): Promise<void> {
-    // The address is kept on the device that asked for the link; opened elsewhere, ask for it.
-    const email =
-      localStorage.getItem('rift.emailForSignIn') ?? prompt('Confirm your email address to finish signing in.') ?? undefined;
+    const email = localStorage.getItem(EMAIL_FOR_SIGN_IN) ?? (await this.confirmEmail());
     if (!email) return;
     await this.engine.signIn('email-link', email);
+  }
+
+  /**
+   * H-108: no trigger at start-up, so focus goes back to the start of the document and the next Tab reaches
+   * Skip to content. Width: 28rem fits a long address; on phones Material's panel max-width
+   * (100vw - 32px under 600px) keeps it the Sign in dialog's width.
+   */
+  private async confirmEmail(): Promise<string | undefined> {
+    const ref = this.dialog.open<ConfirmEmailDialog, unknown, string>(ConfirmEmailDialog, {
+      autoFocus: 'first-tabbable',
+      restoreFocus: false,
+      width: '28rem',
+    });
+    const email = await firstValueFrom(ref.afterClosed());
+    if (!this.destroyed) focusDocumentStart();
+    return email;
   }
 
   private notify(message: string): void {

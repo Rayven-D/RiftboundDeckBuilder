@@ -4,8 +4,8 @@
 // styles in sync-dialogs.ts and the global stylesheet. The real widths and the no-scrollbar check are
 // for the ui-engineer Playwright pass at 375 and 1440.
 /// <reference types="node" />
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 // ng test runs from web/, so the paths are relative to the package root.
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
@@ -78,5 +78,54 @@ describe('H-124 sign-in dialog phone layout', () => {
   it('H-106: the sign-in email form has novalidate, so the browser never shows its own validation bubble', () => {
     const src = read('src/app/core/sync/sync-dialogs.ts');
     expect(src).toMatch(/<form class="email" novalidate \(submit\)="send\(\$event\)">/);
+  });
+});
+
+describe('H-140 sign-in dialog sent state layout (brain/04-UI/Brief H-140 H-125 H-108.md decisions 2, 8, 10)', () => {
+  it('H-140: the actions sit in content as a start-aligned row pulled left by the text button padding, with room below for the focus ring', () => {
+    const actions = rule(signInStyles(), '.sent-actions');
+    expect(actions).toContain('display: flex');
+    expect(actions).toContain('flex-wrap: wrap');
+    expect(actions).toContain('margin-inline-start: calc(-1 * var(--space-3))');
+    expect(actions).toContain('padding-bottom: var(--space-1)');
+  });
+
+  it('H-140: at max-width 40rem the two actions are stacked and start-aligned', () => {
+    const actions = rule(phoneBlock(signInStyles()), '.sent-actions');
+    expect(actions).toContain('flex-direction: column');
+    expect(actions).toContain('align-items: flex-start');
+    expect(actions).toContain('gap: 0');
+  });
+
+  it('H-140: the address is emphasised and wraps anywhere; the script-focused sent line has no ring; the H-124 form rules are unchanged', () => {
+    const css = signInStyles();
+    expect(rule(css, '.sent-line strong')).toContain('overflow-wrap: anywhere');
+    expect(rule(css, '.sent-line strong')).toContain('font-weight: 600');
+    expect(rule(css, '.sent-line')).toContain('outline: none');
+    expect(rule(css, '.email')).toBe(
+      'display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-bottom: var(--space-1);',
+    );
+    expect(rule(phoneBlock(css), '.email')).toBe('flex-direction: column; align-items: stretch; gap: var(--space-3);');
+  });
+});
+
+/** Every .ts and .html file under web/src. */
+function sourceFiles(dir = resolve(process.cwd(), 'src')): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
+    const p = join(dir, d.name);
+    if (d.isDirectory()) return sourceFiles(p);
+    return /\.(ts|html)$/.test(d.name) ? [p] : [];
+  });
+}
+
+describe('H-140 / H-108 removed strings and calls in web/src', () => {
+  it('H-140: the pre-H-140 sent line is gone from web/src', () => {
+    const old = 'Check your email for a ' + 'sign-in link.';
+    expect(sourceFiles().filter((f) => readFileSync(f, 'utf8').includes(old))).toEqual([]);
+  });
+
+  it('H-108: no native browser prompt call is left in web/src', () => {
+    const call = new RegExp('\\bprompt' + '\\s*\\(');
+    expect(sourceFiles().filter((f) => call.test(readFileSync(f, 'utf8')))).toEqual([]);
   });
 });
