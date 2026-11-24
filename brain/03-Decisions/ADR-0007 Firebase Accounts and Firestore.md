@@ -32,6 +32,18 @@ Option 1 (RJ, 2026-11-23): stay on Firebase.
 - **Accounts stay optional:** browser storage remains the default; signing in syncs it to the
   account.
 
+## Data shape (proposed 2026-11-23, input to H-061)
+Detail and sizing are in [[Firestore Data Shape]]. In short:
+- `users/{uid}` (account doc), `users/{uid}/state/collection` (the whole collection in one document, a per-card map),
+  `users/{uid}/state/tags`, `users/{uid}/state/locks`, and `users/{uid}/decks/{deckId}` (one document per deck).
+  This replaces the `collection/…` / `tags/…` sketch above.
+- Every document has `schemaVersion`, `updatedAt` (client clock, used by "latest change wins") and `syncedAt`
+  (server time, so reopening only fetches what changed). Cards, tags and decks carry their own timestamps and
+  30-day tombstones.
+- Indexing is off for everything except `syncedAt`.
+- Size: ≈ 95 KB for a realistic user and ≈ 640 KB for a heavy one. The Spark free tier supports about 1,300 daily active
+  signed-in users and about 7,000 stored accounts at a 90/10 mix.
+
 ## Consequences
 - Supersedes the "no accounts" constraint for signed-in users; anonymous use stays as it is.
 - The `firebase` client package is added to `web/` when sync is built (lazy-loaded on sign-in),
