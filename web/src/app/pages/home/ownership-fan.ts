@@ -20,7 +20,7 @@ import type { FanCard } from './home-page';
   host: {
     role: 'img',
     'aria-label':
-      'Three cards showing ownership: one missing, one with 1 of 3 copies owned, one fully owned',
+      'Three cards showing ownership: one missing, one with 1 of 3 copies available, one fully available',
     '[class.fan--deal]': 'deal()',
   },
   template: `

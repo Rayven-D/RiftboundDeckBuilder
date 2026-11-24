@@ -80,7 +80,7 @@ describe('ImportDialog dropped files', () => {
     drop(f, new File(['x'], 'old.xls'));
     await settle(f);
     expect(textarea(f).value).toBe('2 Void Gate');
-    expect(alert(f)).toContain('Older .xls files aren’t supported.');
+    expect(alert(f)).toContain("Older .xls files aren't supported.");
   });
 
   it('loads a file handed over in the dialog data (dropped on the Import page)', async () => {
@@ -116,7 +116,7 @@ describe('ImportDialog upload state', () => {
     type(f, '2 Void Gate');
     await pick(f, new File(['x'], 'old.xls'));
     expect(textarea(f).value).toBe('2 Void Gate');
-    expect(alert(f)).toContain('Older .xls files aren’t supported.');
+    expect(alert(f)).toContain("Older .xls files aren't supported.");
     expect(hint(f)).not.toContain('Loaded');
     type(f, '2 Void Gate\n1 Gust');
     expect(alert(f)).toBeUndefined();

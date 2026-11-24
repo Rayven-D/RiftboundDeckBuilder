@@ -44,7 +44,7 @@ interface SampleCard {
         source="1st, Regional Championship: Europe · Nov 6, 2026 – Nov 8, 2026"
       />
       <p class="summary">
-        21 of 40 copies owned for decks · 9 of 18 cards fully owned · Not fully checked
+        21 of 40 copies available · 9 of 18 cards fully available · Not fully checked
       </p>
       <div class="actions">
         <button matButton="filled">

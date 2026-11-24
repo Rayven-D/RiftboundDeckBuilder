@@ -3,7 +3,7 @@ import { Icon } from '../icon';
 import { OWNERSHIP_ICON, OwnershipState } from './ownership';
 
 /**
- * Ownership chip ("1 of 3 owned"): accent-filled when fully owned, outlined otherwise.
+ * Ownership chip ("1 of 3 available"): accent-filled when fully available, outlined otherwise.
  * Always text + icon, never color alone (SPEC-005 OWN-033).
  */
 @Component({

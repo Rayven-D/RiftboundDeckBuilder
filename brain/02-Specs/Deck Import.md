@@ -3,7 +3,7 @@ tags: [spec]
 id: SPEC-006
 version: 0.6
 status: draft
-depends_on: [SPEC-001, SPEC-002, SPEC-003, SPEC-004]
+depends_on: [SPEC-001, SPEC-002, SPEC-003, SPEC-004, SPEC-008]
 consumers: [SPEC-005, SPEC-008]
 research: ["[[Collection Import Formats]]", "[[Deck Construction Rules]]", "[[Ban List]]", "[[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]]", "[[2026-11 RC Europe - 2 - Sonecon - Riven]]"]
 decisions: ["[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
@@ -35,7 +35,7 @@ as_of: 2026-11-23
   Undo and Duplicate give unlocked decks. Locks live in SPEC-008's `DeckLockStore`, not in `UserDeck`.
 
 **Shared types:** `UserDeck` · `DeckCard` (`cardKey`, name, qty) · `DeckSource` = `UserDeckSource | TournamentDeckSource` · `DeckZone` (= SPEC-002 `Zone`) · `DeckImportResult` · `ZoneQuestion` · `DeckStore`.
-**Depends on:** [[Card Data Model]], [[Deck Legality]], [[Collection Import]], [[Tournament Deck Catalog]]. **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
+**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3, [[Collection Import]] v0.8, [[Tournament Deck Catalog]] v0.5, [[Shared Cards and Lock-in]] v0.3 (lock rules for DECK-080/082…084). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
 **BLOCKED (needs research):**
 - Whether Piltover deck codes encode Legend, champion, runes and battlefields (DECK-039).
 - API type strings and champion/signature fields (via SPEC-001), so inference mostly asks zone questions.
@@ -537,4 +537,4 @@ shown in the display format (`Nov 23, 2026`).
   and the label "Not fully checked".
 
 ## Changelog
-Current: 0.6 (2026-11-23, H-058). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.
+Current: 0.6 (2026-11-23, H-058; H-067 and H-050 dependency pins, no requirement change). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.

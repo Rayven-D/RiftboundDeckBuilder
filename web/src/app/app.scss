@@ -170,6 +170,12 @@
     display: none;
   }
 
+  /* The account control (when sign-in is enabled) stays in the header, at the right edge. Its host
+     is display: contents, so the wordmark does the pushing. */
+  .wordmark {
+    margin-right: auto;
+  }
+
   .tab-bar {
     position: fixed;
     inset: auto 0 0;
