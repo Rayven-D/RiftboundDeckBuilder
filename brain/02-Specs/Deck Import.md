@@ -1,10 +1,10 @@
 ---
 tags: [spec]
 id: SPEC-006
-version: 0.5
+version: 0.6
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-003, SPEC-004]
-consumers: [SPEC-005]
+consumers: [SPEC-005, SPEC-008]
 research: ["[[Collection Import Formats]]", "[[Deck Construction Rules]]", "[[Ban List]]", "[[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]]", "[[2026-11 RC Europe - 2 - Sonecon - Riven]]"]
 decisions: ["[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
 board: H-030
@@ -31,9 +31,11 @@ as_of: 2026-11-23
 - DECK-055: the verdict is not stored; it is computed as of today.
 - DECK-061/062/064: `TournamentDeckSource` defined here; default name `<Legend>: <pilot> (<placing>, <event>)` ≤ 80; "In your decks" / "Add another copy".
 - DECK-090/096: browser `DeckStore`; deck entries by `cardKey` only (no printing, ownership or tags).
+- DECK-080/082/083/084 (v0.6): a **locked** deck (SPEC-008) can't change cards; Delete releases the lock;
+  Undo and Duplicate give unlocked decks. Locks live in SPEC-008's `DeckLockStore`, not in `UserDeck`.
 
 **Shared types:** `UserDeck` · `DeckCard` (`cardKey`, name, qty) · `DeckSource` = `UserDeckSource | TournamentDeckSource` · `DeckZone` (= SPEC-002 `Zone`) · `DeckImportResult` · `ZoneQuestion` · `DeckStore`.
-**Depends on:** [[Card Data Model]], [[Deck Legality]], [[Collection Import]], [[Tournament Deck Catalog]]. **Consumers:** [[Your Decks Ownership View]]; [[Tournament Deck Catalog]] (Add path).
+**Depends on:** [[Card Data Model]], [[Deck Legality]], [[Collection Import]], [[Tournament Deck Catalog]]. **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
 **BLOCKED (needs research):**
 - Whether Piltover deck codes encode Legend, champion, runes and battlefields (DECK-039).
 - API type strings and champion/signature fields (via SPEC-001), so inference mostly asks zone questions.
@@ -190,11 +192,11 @@ information about a deck the user wants to build, so it never blocks (DECK-050).
 ### I. Managing decks
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| DECK-080 | MUST | **Edit**: in a deck editor the user can add a card (catalog search, exact + fuzzy as in DECK-040), change a quantity (1–999), move an entry between zones, and remove an entry. Legality re-runs (DECK-054); saving never requires legality. | board H-030 |
+| DECK-080 | MUST | **Edit**: in a deck editor the user can add a card (catalog search, exact + fuzzy as in DECK-040), change a quantity (1–999), move an entry between zones, and remove an entry. Legality re-runs (DECK-054); saving never requires legality. While the deck is **locked in** (SPEC-008), these card changes are disabled with "Unlock this deck to change its cards" (SHARE-025); DECK-081 stays available. | board H-030; [[Shared Cards and Lock-in]] SHARE-025 |
 | DECK-081 | MUST | **Rename** and edit source and notes, with the limits of section G. | board H-030 |
-| DECK-082 | MUST | **Delete** asks for confirmation naming the deck ("Delete 'Kennen, Heart of the Tempest'? This can't be undone.") and removes it from the store. The collection is untouched. | design rule |
-| DECK-083 | SHOULD | After a delete, offer **Undo** for 10 seconds (restores the identical record, same `id` and timestamps). | design rule |
-| DECK-084 | MUST | **Duplicate** creates a new deck with a new `id`, name `<name> (copy)` (trimmed to 80), identical zones, metadata and `source`, new `createdAt`/`updatedAt`, and `duplicatedFrom = <original id>`. | board H-030 |
+| DECK-082 | MUST | **Delete** asks for confirmation naming the deck ("Delete 'Kennen, Heart of the Tempest'? This can't be undone.") and removes it from the store. The collection is untouched. Deleting a locked deck also removes its lock, and the confirmation adds "Its locked cards will count toward your other decks again." (SPEC-008 SHARE-024). | design rule; [[Shared Cards and Lock-in]] SHARE-024 |
+| DECK-083 | SHOULD | After a delete, offer **Undo** for 10 seconds (restores the identical record, same `id` and timestamps). The restored deck is **unlocked** (SHARE-024). | design rule; [[Shared Cards and Lock-in]] SHARE-024 |
+| DECK-084 | MUST | **Duplicate** creates a new deck with a new `id`, name `<name> (copy)` (trimmed to 80), identical zones, metadata and `source`, new `createdAt`/`updatedAt`, and `duplicatedFrom = <original id>`. The copy is unlocked (SHARE-026). | board H-030; [[Shared Cards and Lock-in]] SHARE-026 |
 | DECK-085 | MUST | **Export** a deck as Riot-style text: labels `Legend:`, `Champion:`, `Main Deck:`, `Battlefields:`, `Rune Pool:`, `Sideboard:` in that order, one blank line between sections, `<qty> <canonical name>` lines in stored order, empty zones omitted, `\n` line endings. Copy to clipboard and download `.txt` (`<name>.txt`, unsafe file-name characters replaced by `_`). | [[Collection Import Formats]] fact 1 (Riot layout); board H-030 |
 | DECK-086 | MUST | Export round-trips: importing the exported text produces the same zones and quantities with every line `method: 'section'` and no zone questions. | design rule |
 | DECK-087 | MAY | Export all decks as a JSON backup (`UserDeck[]` with `schemaVersion`) and restore it, since browser storage can be cleared. | design rule; [[Collection Import]] IMP-055 (same reason) |
@@ -535,4 +537,4 @@ shown in the display format (`Nov 23, 2026`).
   and the label "Not fully checked".
 
 ## Changelog
-Current: 0.5 (2026-11-23, H-048). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.
+Current: 0.6 (2026-11-23, H-058). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.

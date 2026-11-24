@@ -77,3 +77,10 @@ Note: RJ's row-layout answer said "per card name + expand", but his detailed ans
 - **Button and status copy stays sentence-style** with lower-case "your decks": "Add to your decks", "In your decks", "Added to your decks", "Not counted in your decks", "… will no longer count in your decks". "Add another copy" is unchanged. Where text names the screen itself, it says "Decks" or "Collection".
 - Note names stay as they are so links keep working: [[Your Decks Ownership View]] (SPEC-005) and [[My Collection]] (SPEC-007).
 
+## Shared cards, lock in and runes (RJ, 2026-11-23, H-058)
+- **Shared cards:** every deck shows when a card is also used by other decks, which decks, and how many each needs.
+- **Lock in:** when a deck is complete the user can lock it. Its cards don't count toward other decks until it is unlocked or deleted. Example: 3 Hextech Ray owned, two decks need 3, deck 1 locked → deck 2 shows 0 of 3 available (with 4 owned, 1 of 3). Clicking the card shows which decks locked it and how many each holds.
+- **Scope:** every physical section counts: Legend, Chosen Champion, Main Deck, Sideboard and Battlefields, one pool per card name across all printings ([[Physical Copies Across Decks]]). Unlocked decks don't reserve copies from each other.
+- **Runes are ignored:** the user is assumed to have the runes. They never count as missing, never block completion or lock in, and are not needed in the Collection.
+- Defaults chosen by Claude in [[Shared Cards and Lock-in]] (RJ may change them): when locked decks together need more than the user owns, the **earliest lock is served first**; a lock never gives copies to an unlocked deck; a locked deck that falls short **stays locked and is flagged short**; a locked deck's cards can't be edited until it is unlocked; Undo after a delete restores the deck **unlocked**.
+
