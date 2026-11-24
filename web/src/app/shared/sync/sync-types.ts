@@ -168,9 +168,23 @@ export interface SyncLogStore {
 // ---- Adapters (SYNC-130) ----
 export type AccountCheck = 'ok' | 'deleted' | 'signed-out' | 'offline';
 
+export type AuthProviderId = 'email-link' | 'google';
+
 export interface AuthProviderInfo {
-  id: 'google' | 'email-link';
+  id: AuthProviderId;
   label: string;
+}
+
+/** SYNC-006 button labels. */
+export const PROVIDER_LABELS: Readonly<Record<AuthProviderId, string>> = {
+  'email-link': 'Sign in with an email link',
+  google: 'Continue with Google',
+};
+
+/** SYNC-006: the configured providers, known ids only, no duplicates, in configured order. */
+export function enabledProviders(configured: readonly string[]): AuthProviderInfo[] {
+  const ids = [...new Set(configured)].filter((id): id is AuthProviderId => id in PROVIDER_LABELS);
+  return ids.map((id) => ({ id, label: PROVIDER_LABELS[id] }));
 }
 
 export interface AuthService {

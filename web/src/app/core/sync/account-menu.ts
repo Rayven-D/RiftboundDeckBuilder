@@ -14,6 +14,8 @@ import {
   SignOutDialogData,
 } from './sync-dialogs';
 import { SyncService } from './sync.service';
+import { AUTH_PROVIDERS } from './sign-in-flag';
+import { enabledProviders } from '../../shared/sync/sync-types';
 
 /**
  * Header account control (SYNC-003): "Sign in" when signed out; an account menu with the sync status
@@ -54,6 +56,7 @@ export class AccountMenu {
   protected readonly sync = inject(SyncService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly providers = inject(AUTH_PROVIDERS);
   protected readonly offline = MESSAGES.offline;
 
   constructor() {
@@ -63,9 +66,14 @@ export class AccountMenu {
   }
 
   protected async openSignIn(): Promise<void> {
-    const data: SignInDialogData = { online: this.sync.online(), sendEmailLink: (e) => this.sync.sendEmailLink(e) };
+    const data: SignInDialogData = {
+      online: this.sync.online(),
+      providers: enabledProviders(this.providers),
+      sendEmailLink: (e) => this.sync.sendEmailLink(e),
+    };
     const ref = this.dialog.open(SignInDialog, { data, autoFocus: 'first-tabbable' });
-    if ((await firstValueFrom(ref.afterClosed())) === 'google') await this.sync.signInWithGoogle();
+    const choice = await firstValueFrom(ref.afterClosed());
+    if (choice === 'google' && this.providers.includes('google')) await this.sync.signInWithGoogle();
   }
 
   protected async openSignOut(): Promise<void> {

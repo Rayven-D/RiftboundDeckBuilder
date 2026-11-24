@@ -6,6 +6,7 @@
 import {
   AccountCheck,
   AccountDoc,
+  AuthProviderId,
   AuthProviderInfo,
   AuthService,
   CollectionDoc,
@@ -20,6 +21,7 @@ import {
   RemoteStore,
   StoredSyncLog,
   TagsDoc,
+  enabledProviders,
 } from '../sync-types';
 
 // Test documents are loosely typed so specs can read any field.
@@ -319,11 +321,9 @@ export class FakeAuth implements AuthService {
   async restore(): Promise<string | null> {
     return this.uid;
   }
+  enabled: AuthProviderId[] = ['email-link'];
   providers(): AuthProviderInfo[] {
-    return [
-      { id: 'google', label: 'Continue with Google' },
-      { id: 'email-link', label: 'Sign in with an email link' },
-    ];
+    return enabledProviders(this.enabled);
   }
   async signIn(): Promise<{ uid: string } | 'cancelled'> {
     if (this.nextSignIn === 'cancelled') return 'cancelled';

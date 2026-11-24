@@ -48,6 +48,7 @@ import {
 } from 'firebase/firestore';
 import type {
   AccountCheck,
+  AuthProviderId,
   AccountDoc,
   AuthProviderInfo,
   AuthService,
@@ -65,7 +66,7 @@ import type {
   StoredSyncLog,
   TagsDoc,
 } from '../../../shared/sync/sync-types';
-import { RemoteError, isTagTombstone } from '../../../shared/sync/sync-types';
+import { PROVIDER_LABELS, RemoteError, enabledProviders, isTagTombstone } from '../../../shared/sync/sync-types';
 
 export interface FirebaseWebConfig {
   apiKey: string;
@@ -85,7 +86,10 @@ const BATCH_CHUNK = 10;
 /** Firebase asks for a recent sign-in before deleting a user (SYNC-096 step 1). */
 const RECENT_SIGN_IN_MS = 5 * 60_000;
 
-export function createFirebaseAdapters(config: FirebaseWebConfig): { auth: AuthService; remote: RemoteStore } {
+export function createFirebaseAdapters(
+  config: FirebaseWebConfig,
+  providers: readonly AuthProviderId[],
+): { auth: AuthService; remote: RemoteStore } {
   const app = initializeApp({
     apiKey: config.apiKey,
     authDomain: config.authDomain,
@@ -102,7 +106,7 @@ export function createFirebaseAdapters(config: FirebaseWebConfig): { auth: AuthS
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
     connectFirestoreEmulator(db, '127.0.0.1', 8080);
   }
-  return { auth: new FirebaseAuthService(auth), remote: new FirestoreRemoteStore(db) };
+  return { auth: new FirebaseAuthService(auth, providers), remote: new FirestoreRemoteStore(db) };
 }
 
 // ---------------- Auth ----------------
@@ -119,7 +123,15 @@ export function mapAccountError(c: string): AccountCheck {
 }
 
 export class FirebaseAuthService implements AuthService {
-  constructor(private readonly auth: Auth) {}
+  /** `enabled`: the configured providers (SYNC-006); a provider not listed is never offered or used. */
+  constructor(
+    private readonly auth: Auth,
+    private readonly enabled: readonly AuthProviderId[] = ['email-link'],
+  ) {}
+
+  private isEnabled(id: AuthProviderId): boolean {
+    return this.enabled.includes(id);
+  }
 
   currentUid(): string | null {
     return this.auth.currentUser?.uid ?? null;
@@ -131,13 +143,14 @@ export class FirebaseAuthService implements AuthService {
   }
 
   providers(): AuthProviderInfo[] {
-    return [
-      { id: 'google', label: 'Continue with Google' },
-      { id: 'email-link', label: 'Sign in with an email link' },
-    ];
+    return enabledProviders(this.enabled);
   }
 
   async signIn(providerId: string, email?: string): Promise<{ uid: string } | 'cancelled'> {
+    if (!(providerId in PROVIDER_LABELS) || !this.isEnabled(providerId as AuthProviderId)) {
+      // SYNC-006: a provider that is not enabled never opens a popup or calls Firebase.
+      throw new Error(`Sign-in provider ${providerId} is not enabled`);
+    }
     if (providerId === 'google') {
       try {
         const r = await signInWithPopup(this.auth, new GoogleAuthProvider());
@@ -186,14 +199,16 @@ export class FirebaseAuthService implements AuthService {
   }
 
   /**
-   * SYNC-096 step 1. Google re-authenticates in a popup. An email-link account cannot re-authenticate
-   * inside this dialog (it needs a new link), so it returns 'cancelled' and the UI asks the user to
-   * sign in again first.
+   * SYNC-096 step 1. Google re-authenticates in a popup, only while Google is an enabled provider and
+   * the user has a Google identity. Otherwise (email link) the user cannot re-authenticate inside this
+   * dialog (it needs a new link): 'needs-sign-in', and the UI asks them to sign in again first.
    */
   async reauthenticate(): Promise<'ok' | 'cancelled' | 'needs-sign-in'> {
     const user = this.auth.currentUser;
     if (!user) return 'needs-sign-in';
-    if (!user.providerData.some((p) => p.providerId === 'google.com')) return 'needs-sign-in';
+    if (!this.isEnabled('google') || !user.providerData.some((p) => p.providerId === 'google.com')) {
+      return 'needs-sign-in';
+    }
     try {
       await reauthenticateWithPopup(user, new GoogleAuthProvider());
       return 'ok';

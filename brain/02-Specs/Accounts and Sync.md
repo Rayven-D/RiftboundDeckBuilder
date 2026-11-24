@@ -1,7 +1,7 @@
 ---
 tags: [spec, accounts, sync, firestore]
 id: SPEC-010
-version: 0.5
+version: 0.6
 status: draft
 depends_on: [SPEC-003, SPEC-005, SPEC-006, SPEC-007, SPEC-008, SPEC-009]
 research: ["[[Firestore Data Shape]]", "[[Card Data & Images]]"]
@@ -124,10 +124,10 @@ this spec only decides where their records also live and which version wins.
 |---|---|---|---|
 | SYNC-001 | MUST | **Accounts are optional.** Signed out, every feature of SPEC-003…009 works fully from browser storage. No feature, page or action requires sign-in. | [[ADR-0007 Firebase Accounts and Firestore]] "Accounts stay optional" |
 | SYNC-002 | MUST | Unless a session is expected (SYNC-004), the app **does not load** the `firebase` package and makes **no request** to any Firebase Auth or Firestore endpoint, whether or not a linked uid is stored. The package is loaded on demand when the user chooses Sign in, or at start-up when `sessionExpected` is true. | [[ADR-0007 Firebase Accounts and Firestore]] consequences (lazy-loaded on sign-in) |
-| SYNC-003 | MUST | A **Sign in** action is in the app header and in Settings. It opens a dialog: "Sign in to keep your collection and decks in sync across your devices. You don't need an account: without one, everything stays on this device." followed by one button per enabled sign-in provider (H-063) and a link to the privacy notice (SYNC-101). Signed in, the header shows an account menu with the sync status (SYNC-084), **Sync now**, **Sign out** (SYNC-090) and a link to Settings, where **Delete account and data** lives (SYNC-095). | [[ADR-0007 Firebase Accounts and Firestore]]; design rule |
+| SYNC-003 | MUST | A **Sign in** action is in the app header and in Settings. It opens a dialog: "Sign in to keep your collection and decks in sync across your devices. You don't need an account: without one, everything stays on this device." followed by one button per enabled sign-in provider (`authProviders`, SYNC-006) and a link to the privacy notice (SYNC-101). Signed in, the header shows an account menu with the sync status (SYNC-084), **Sync now**, **Sign out** (SYNC-090) and a link to Settings, where **Delete account and data** lives (SYNC-095). | [[ADR-0007 Firebase Accounts and Firestore]]; design rule |
 | SYNC-004 | MUST | A successful sign-in sets `sessionExpected = true`. **Every** sign-out (Keep or Remove, SYNC-091), Cancel of the Combine dialog (SYNC-049), account deletion (SYNC-096, SYNC-097) and the half-deleted sign-out (SYNC-097) sets it to false. While it is true the app restores the session at start-up (loading `firebase`) and syncs. The **linked uid** is written only when a first sync completes (SYNC-048) and is cleared only by "Remove", account deletion and the half-deleted sign-out. If the tab closes after sign-in but before the first sync completed, the next start-up restores the session and runs the first-sign-in flow again (SYNC-048). | design rule |
 | SYNC-005 | MUST | A failed or cancelled sign-in changes no local data and shows "Sign-in didn't complete. Your data on this device is unchanged." (cancelled by the user: no message). | design rule |
-| SYNC-006 | MUST | The sign-in providers are **Google** and **email link** (RJ decision 1; enabled in the console by RJ, H-063). The SYNC-003 dialog shows one button for each, "Continue with Google" and "Sign in with an email link"; the email-link button asks for an email address and says "Check your email for a sign-in link." The rest of this spec does not depend on the provider. | RJ 2026-11-23 (decision 1); [[ADR-0007 Firebase Accounts and Firestore]] consequences; board H-063 |
+| SYNC-006 | MUST | **Providers.** Two providers are specified: **email link** and **Google**. At launch only **email link** is on (RJ decision 1, 2026-11-23; it is the only provider RJ enabled in the console, H-063). The enabled providers come from build configuration: environment `authProviders`, default `['email-link']`. The SYNC-003 dialog shows a button for each enabled provider and no others: "Sign in with an email link" (asks for an email address, then says "Check your email for a sign-in link.") and, only when `'google'` is in `authProviders`, "Continue with Google". Turning Google on later needs only `authProviders: ['email-link', 'google']` plus enabling the provider in the Firebase console, with no spec change. The rest of this spec does not depend on the provider. | RJ 2026-11-23 (decision 1); [[ADR-0007 Firebase Accounts and Firestore]] consequences; board H-063 |
 | SYNC-007 | MUST | **Sign-in is gated by a build flag** `signInEnabled` (build configuration, default `false`). While false, no Sign in action is shown anywhere and SYNC-002 holds for every user. It may be `true` in local builds and preview channels for RJ's testing; it is set `true` for the production build only after the privacy notice (SYNC-101) is approved by RJ. **This is obscurity, not access control:** preview-channel URLs are public to anyone who has the link, so anyone who finds one can sign in there; RJ shares preview links only privately and lets them expire. | [[ADR-0007 Firebase Accounts and Firestore]] consequences ("a privacy policy"); design rule |
 
 ### B. Cloud layout and documents
@@ -215,7 +215,7 @@ this spec only decides where their records also live and which version wins.
 | SYNC-091 | MUST | Both choices set `sessionExpected = false`, so the next start-up loads no Firebase (SYNC-002). **Keep a copy:** local stores stay as they are and become signed-out data (later changes are stamped and pending, SYNC-031); the linked uid stays in the sync log so signing in again with the same account resumes normally (no Combine dialog), and a different account gets the Combine dialog with the "different account" line (SYNC-049). **Remove:** every local store (collection, tags, decks, locks, printing codes, view state, import Undo snapshot, sync log) is cleared and the app returns to the empty signed-out state. | design rule; [[My Collection]] COLL-074 |
 | SYNC-092 | MUST | Signing out ends the Firebase session in this browser; no Firestore request is made afterwards until the next sign-in. | design rule |
 | SYNC-095 | MUST | **Delete account and data** (Settings) shows: "Delete your Rift Builder account? This deletes your account and the collection, tags, decks and locks saved in it, including the copy on this device and on every other device that syncs it. This can't be undone." The user types `delete` to enable **Delete account** (Cancel always available). There is **no** option to keep a copy (RJ decision 7). | RJ 2026-11-23 (decision 7); [[ADR-0007 Firebase Accounts and Firestore]] consequences ("delete my account and data" option) |
-| SYNC-096 | MUST | **Deletion order:** (1) if the sign-in provider needs a recent sign-in to delete the account, ask for it first, before anything is deleted; (2) delete `users/{uid}` **first** (the marker other devices check, SYNC-053), then every document under `users/{uid}/decks` (tombstones included) and the three `state` documents; (3) delete the Firebase Auth user; (4) clear every local store on this device, as for SYNC-091 "Remove" (collection, tags, decks, locks, printing codes, view state, import Undo snapshot, sync log), so `sessionExpected` is false and no linked uid remains; (5) show "Your account and its data were deleted." If any step fails, stop, say what is left ("Some data couldn't be deleted. Try again."), and allow a retry that continues from where it stopped (a missing account document is not an error for the deleting device); the Auth user is deleted only after every document is gone. | [[ADR-0007 Firebase Accounts and Firestore]]; [[Firestore Data Shape]] ("Delete account and data: N + 4 deletes") |
+| SYNC-096 | MUST | **Deletion order:** (1) if the sign-in provider needs a recent sign-in to delete the account, get it first, before anything is deleted. With **email link** (the launch provider) the user must sign in again with a fresh link: the app shows "To delete your account, sign out, sign in again, then choose Delete account and data within 5 minutes." and deletes nothing. A **Google** popup re-authentication (`AuthService.reauthenticate()`) applies only when Google is enabled (SYNC-006) and the user signed in with it; (2) delete `users/{uid}` **first** (the marker other devices check, SYNC-053), then every document under `users/{uid}/decks` (tombstones included) and the three `state` documents; (3) delete the Firebase Auth user; (4) clear every local store on this device, as for SYNC-091 "Remove" (collection, tags, decks, locks, printing codes, view state, import Undo snapshot, sync log), so `sessionExpected` is false and no linked uid remains; (5) show "Your account and its data were deleted." If any step fails, stop, say what is left ("Some data couldn't be deleted. Try again."), and allow a retry that continues from where it stopped (a missing account document is not an error for the deleting device); the Auth user is deleted only after every document is gone. | [[ADR-0007 Firebase Accounts and Firestore]]; [[Firestore Data Shape]] ("Delete account and data: N + 4 deletes") |
 | SYNC-097 | MUST | **Deleted account on another device.** The signals are: the account document is missing on a device whose linked uid is this uid (SYNC-053), an `update()` fails with not-found, a create is denied and the repeated account check finds the account document missing (SYNC-053), or the session cannot be restored. On any of them the device stops writing and calls `AuthService.checkAccount()`, which returns `ok`, `deleted` (the provider reports that the user no longer exists), `signed-out`, or `offline`. **`deleted`:** it removes the synced local data, clears the linked uid, sets `sessionExpected = false`, and shows "This account was deleted. Its data has been removed from this device." (RJ decision 8.) **`ok` with the account document missing** (a deletion in progress or one that stopped half-way): it writes nothing, **signs out** (RJ decision 11): `sessionExpected = false`, linked uid cleared, pending items dropped from the sync log, and keeps this device's data as signed-out data (as "Keep a copy", RJ decision 6). It shows "This account is being deleted, so you've been signed out. Your collection and decks are still on this device." Leftover cloud documents are never imported or changed; the deleting device's retry (SYNC-096) removes them. **`signed-out`:** SYNC-086. **`offline`:** retry on the next SYNC-040 trigger. Which provider error means `deleted` is mapped inside the `AuthService` adapter and must be confirmed against the Auth emulator in H-062 (`unverified`); any unclear result counts as `signed-out` (local data kept). | design decision 8; design rule |
 | SYNC-098 | MUST | After deletion, no document remains under `users/{uid}`, and a device that still holds a valid session cannot recreate one: it never writes before the account check (SYNC-053), and the rules refuse to create a `state` or `decks` document unless the account document exists after the write (SYNC-113). A later sign-in with the same provider identity is a new, empty account. **Residual risks** (reported, not prevented): a device in the middle of its own first-sign-in flow when the deletion runs could recreate an account; a device signed out by the half-deleted branch (SYNC-097) keeps its local copy, so if the deletion later completes, that copy stays on that device as signed-out data until the user removes it (COLL-074); and while a deletion stays half-finished, every sign-in to that account signs out again (SYNC-048 f) until the device that started the deletion retries it. | design rule |
 
@@ -346,10 +346,11 @@ interface SyncLogStore { load(): Promise<StoredSyncLog | null>; save(s: StoredSy
 // ---- Adapters (SYNC-130) ----
 interface AuthService {
   currentUid(): string | null;
-  providers(): { id: string; label: string }[];               // enabled per H-063
+  providers(): { id: 'email-link' | 'google'; label: string }[]; // from build config authProviders, default ['email-link'] (SYNC-006)
   signIn(providerId: string): Promise<{ uid: string } | 'cancelled'>;
   signOut(): Promise<void>;
-  reauthenticate(): Promise<'ok' | 'cancelled'>;              // SYNC-096 step 1
+  reauthenticate(): Promise<'ok' | 'cancelled' | 'needs-sign-in'>; // SYNC-096 step 1; Google popup only when enabled,
+                                                              // email link → 'needs-sign-in' (sign out, sign in again)
   checkAccount(): Promise<'ok' | 'deleted' | 'signed-out' | 'offline'>; // SYNC-097; unclear → 'signed-out'
   deleteUser(): Promise<'ok' | 'needs-recent-sign-in'>;
 }
@@ -387,8 +388,9 @@ Unless stated: user RJ has uid `uA`; a second user has uid `uB`; devices are "la
    **Given** a fresh browser with no linked uid **When** the user imports 40 cards, imports a deck and locks
    it **Then** everything works, the network log shows no request to Firebase Auth or Firestore, and no
    `firebase` chunk was loaded. **When** the user clicks Sign in (build with `signInEnabled: true`) **Then** the
-   chunk loads and the dialog shows the SYNC-003 text with exactly two buttons, "Continue with Google" and "Sign
-   in with an email link" (SYNC-006).
+   chunk loads and the dialog shows the SYNC-003 text with exactly one button per provider in `authProviders`:
+   with the default config (`['email-link']`) only "Sign in with an email link"; with `['email-link', 'google']`
+   also "Continue with Google" (SYNC-006).
 2. **Stamping while signed out** (SYNC-031, SYNC-032)
    **Given** signed out, `hextech ray` quantity 2 with stamp `t = 1000` **When** the user presses + at a clock
    of `900` (clock behind) **Then** the stamp is `1001` and `hextech ray` is pending; **When** the user removes
@@ -598,7 +600,10 @@ Unless stated: user RJ has uid `uA`; a second user has uid `uB`; devices are "la
 38. **Delete account removes this device's copy** (SYNC-095, SYNC-096)
     **Given** signed in as `uA` **When** RJ opens Delete account and data **Then** the dialog has no keep-a-copy
     option and Delete account stays disabled until he types `delete`; **When** he confirms **Then** after the cloud
-    deletion every local store and the sync log on this device are empty and the app is signed out.
+    deletion every local store and the sync log on this device are empty and the app is signed out. **Given**
+    instead RJ signed in with an email link more than 5 minutes ago (default config, email link only) **When** he
+    confirms **Then** nothing is deleted, the app shows "To delete your account, sign out, sign in again, then
+    choose Delete account and data within 5 minutes.", and no Google popup is offered.
 
 ## Out of scope
 - Sharing decks or collections with other users, public profiles, friends.
@@ -628,7 +633,11 @@ Unless stated: user RJ has uid `uA`; a second user has uid `uB`; devices are "la
 
 ## Decisions (RJ, 2026-11-23)
 RJ's answers to the 11 open questions of v0.1–v0.4, quoted, and where they apply.
-1. **Sign-in providers:** "Email Link and Google". Google and email link (SYNC-006). RJ enables them (H-063).
+1. **Sign-in providers:** "Email Link and Google", then (2026-11-23) "i did email. update the specs to work in
+   google later but stick with email for now". Email link only at launch, the only provider RJ enabled (H-063).
+   Google stays specified but off until RJ adds `'google'` to `authProviders` and enables it in the console
+   (SYNC-006). With email link, re-authentication before account deletion means signing in again with a fresh
+   link (SYNC-096).
 2. **Merge that leaves a locked deck short:** "locked and flagged". The deck stays locked and is flagged, with a notice (SYNC-074).
 3. **Deck edited on another device while locked:** "keep the lock with new cards. however, all deck statuses
    should be synced on the user so they're the same through every device they log in from". Keep the lock with
@@ -657,4 +666,4 @@ None for RJ. Research: SYNC-101 privacy-notice content (H-069). Unverified techn
 researcher: the `existsAfter()` billing and limits (SYNC-113), and the provider error that means `deleted` (SYNC-097).
 
 ## Changelog
-Current: 0.5 (2026-11-23, RJ's answers to the open questions applied). Full history: [[Accounts and Sync changelog]] (archived). New entries go in the archive note.
+Current: 0.6 (2026-11-23, email link only at launch; Google behind `authProviders`). Full history: [[Accounts and Sync changelog]] (archived). New entries go in the archive note.

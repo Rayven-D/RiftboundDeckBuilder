@@ -9,6 +9,16 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.6 (2026-11-23, RJ: "i did email. update the specs to work in google later but stick with email for now"):
+  SYNC-006 and RJ decision 1: email link is the only launch provider; Google stays specified but off; enabled
+  providers come from build config `authProviders` (default `['email-link']`), so adding `'google'` needs only
+  the config change plus enabling it in the console. SYNC-003 points to it. SYNC-096 step 1: with email link,
+  re-authentication means signing in again with a fresh link ("To delete your account, sign out, sign in again,
+  then choose Delete account and data within 5 minutes."), nothing deleted; the Google popup applies only when
+  Google is enabled. `AuthService.providers()` / `reauthenticate()` comments updated (`'needs-sign-in'`). AC 1
+  shows exactly the enabled providers (default: only "Sign in with an email link"); AC 38 adds the stale
+  email-link case. Still 89 requirements (81 MUST, 3 SHOULD, 5 MUST NOT); 38 ACs.
+
 - 0.5 (2026-11-23, RJ's answers to the 11 open questions): "Open questions for RJ" replaced by **Decisions
   (RJ, 2026-11-23)**, quoting each answer. SYNC-006: providers Google and email link ("Continue with Google",
   "Sign in with an email link"). SYNC-071/072/074/049/090 cite RJ decisions 4/3/2/5/6 (defaults confirmed). New

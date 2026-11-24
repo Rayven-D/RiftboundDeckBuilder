@@ -3,6 +3,8 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { AccountMenu } from './account-menu';
 import { CombineDialog, DeleteAccountDialog, SignInDialog, SignOutDialog } from './sync-dialogs';
 import { SIGN_IN_ENABLED, SYNC_ADAPTERS, SyncService, isEmailLinkUrl } from './sync.service';
+import { environment } from '../../../environments/environment';
+import { enabledProviders } from '../../shared/sync/sync-types';
 
 const text = (el: Element) => (el.textContent ?? '').replace(/\s+/g, ' ').trim();
 const buttons = (root: HTMLElement) => Array.from(root.querySelectorAll('button')).map(text);
@@ -45,21 +47,40 @@ describe('Sign-in UI (SPEC-010)', () => {
     expect(adapterLoads).toBe(0);
   });
 
-  it('SYNC-003 / SYNC-006 the sign-in dialog has the SYNC-003 text and exactly the two provider buttons', async () => {
+  const openSignInDialog = async (providers: readonly ('email-link' | 'google')[]) => {
     TestBed.configureTestingModule({
       imports: [SignInDialog],
       providers: [
-        { provide: MAT_DIALOG_DATA, useValue: { online: true, sendEmailLink: async () => undefined } },
+        {
+          provide: MAT_DIALOG_DATA,
+          useValue: { online: true, providers: enabledProviders(providers), sendEmailLink: async () => undefined },
+        },
         { provide: MatDialogRef, useValue: { close: () => undefined } },
       ],
     });
     const fixture = TestBed.createComponent(SignInDialog);
     await fixture.whenStable();
-    const el = fixture.nativeElement as HTMLElement;
+    return fixture.nativeElement as HTMLElement;
+  };
+
+  it('SYNC-003 / SYNC-006 with the default config the sign-in dialog offers exactly the email link', async () => {
+    const el = await openSignInDialog(environment.authProviders);
+    expect(environment.authProviders).toEqual(['email-link']);
     expect(text(el)).toContain(
       "Sign in to keep your collection and decks in sync across your devices. You don't need an account: without one, everything stays on this device.",
     );
-    expect(buttons(el).filter((b) => b !== 'Close')).toEqual(['Continue with Google', 'Sign in with an email link']);
+    expect(buttons(el).filter((b) => b !== 'Close')).toEqual(['Sign in with an email link']);
+    expect(text(el)).not.toContain('Google');
+  });
+
+  it("SYNC-006 with authProviders ['email-link', 'google'] the dialog shows both, in configured order", async () => {
+    const el = await openSignInDialog(['email-link', 'google']);
+    expect(buttons(el).filter((b) => b !== 'Close')).toEqual(['Sign in with an email link', 'Continue with Google']);
+  });
+
+  it('SYNC-006 enabledProviders keeps known ids only, once each, in order', () => {
+    expect(enabledProviders(['google', 'email-link', 'google', 'apple']).map((p) => p.id)).toEqual(['google', 'email-link']);
+    expect(enabledProviders([])).toEqual([]);
   });
 
   it('SYNC-049 the Combine dialog shows both sides’ counts, the different-account line, and only Combine and Cancel', async () => {

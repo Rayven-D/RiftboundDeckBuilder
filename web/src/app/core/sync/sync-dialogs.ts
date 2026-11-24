@@ -11,6 +11,7 @@ import {
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import type { CombineQuestion } from '../../shared/sync/sync-engine';
+import type { AuthProviderInfo } from '../../shared/sync/sync-types';
 import { MESSAGES } from '../../shared/sync/sync-engine';
 import { unsyncedWarning } from '../../shared/sync/status-text';
 
@@ -21,10 +22,12 @@ import { unsyncedWarning } from '../../shared/sync/status-text';
 
 export interface SignInDialogData {
   online: boolean;
+  /** SYNC-006: enabled providers, in button order (build config `authProviders`). */
+  providers: AuthProviderInfo[];
   sendEmailLink: (email: string) => Promise<void>;
 }
 
-/** SYNC-003 / SYNC-006: closes with 'google' to start the Google popup, or nothing. */
+/** SYNC-003 / SYNC-006: one button per enabled provider; closes with 'google' to start the Google popup, or nothing. */
 @Component({
   selector: 'app-sign-in-dialog',
   imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, MatFormField, MatLabel, MatInput],
@@ -39,12 +42,27 @@ export interface SignInDialogData {
         <p class="note" role="status">{{ offline }}</p>
       }
       <div class="providers">
-        <button matButton="filled" type="button" [disabled]="!data.online" [mat-dialog-close]="'google'">
-          Continue with Google
-        </button>
-        <button matButton="outlined" type="button" [disabled]="!data.online" (click)="showEmail.set(true)">
-          Sign in with an email link
-        </button>
+        @for (p of data.providers; track p.id; let first = $first) {
+          @if (p.id === 'google') {
+            <button
+              [matButton]="first ? 'filled' : 'outlined'"
+              type="button"
+              [disabled]="!data.online"
+              [mat-dialog-close]="'google'"
+            >
+              {{ p.label }}
+            </button>
+          } @else {
+            <button
+              [matButton]="first ? 'filled' : 'outlined'"
+              type="button"
+              [disabled]="!data.online"
+              (click)="showEmail.set(true)"
+            >
+              {{ p.label }}
+            </button>
+          }
+        }
       </div>
       @if (showEmail()) {
         @if (sent()) {

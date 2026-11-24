@@ -21,7 +21,7 @@ export type AdapterLoader = () => Promise<{ auth: AuthService; remote: RemoteSto
 export const SYNC_ADAPTERS = new InjectionToken<AdapterLoader>('SYNC_ADAPTERS', {
   providedIn: 'root',
   factory: () => () =>
-    import('./adapters/firebase-adapters').then((m) => m.createFirebaseAdapters(environment.firebase)),
+    import('./adapters/firebase-adapters').then((m) => m.createFirebaseAdapters(environment.firebase, environment.authProviders)),
 });
 
 /** Email link return: Firebase appends `mode=signIn` and `oobCode` to the continue URL. */

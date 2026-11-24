@@ -6,6 +6,8 @@ export const environment = {
   apiBaseUrl: '/api',
   signInEnabled: true,
   appVersion: 'web-0.0.0-preview',
+  /** SYNC-006: as environment.ts (email link only until Google is enabled in the console). */
+  authProviders: ['email-link'] as ('email-link' | 'google')[],
   firebase: {
     apiKey: 'AIzaSyDR1geWEP0jhSLW4pmbBcWDQsLjj-Vtnw8', // same web app config as environment.ts
     authDomain: 'riftbound-deckbuilder.firebaseapp.com',

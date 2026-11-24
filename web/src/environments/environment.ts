@@ -10,6 +10,11 @@ export const environment = {
   signInEnabled: false,
   /** Written to `users/{uid}.lastClientVersion` (SYNC-012, ≤ 40 characters). */
   appVersion: 'web-0.0.0',
+  /**
+   * SPEC-010 SYNC-006: sign-in providers shown and allowed, in button order. Only the email link is
+   * enabled in Firebase Auth (RJ, 2026-11-23); add 'google' here once it is enabled in the console.
+   */
+  authProviders: ['email-link'] as ('email-link' | 'google')[],
   firebase: {
     // H-063: RJ fills in the web app config from the Firebase console (Project settings → Your apps).
     apiKey: 'AIzaSyDR1geWEP0jhSLW4pmbBcWDQsLjj-Vtnw8',
