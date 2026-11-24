@@ -9,6 +9,45 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.8 (2026-11-24, H-080: account required to import, RJ decision 13; ADR-0007 amendment `proposed`):
+  **Modes:** new SYNC-008: `signInEnabled: false` = local-only mode, unchanged; `true` = account-required mode.
+  SYNC-001 rewritten by mode. **Gates:** new SYNC-009: Decks, deck detail, Collection, Import and "Add to your
+  decks" show a sign-in panel when signed out; Home, Tournaments, `/styleguide` and the privacy notice are public;
+  the gate is read from the sync log (open offline and during a lost session); "Getting…" state during the first
+  sync. **First sign-in:** SYNC-048 clears every local store and the sync log, then full read, then download;
+  cases (b) upload and (d) Combine removed; (f) clears; an interrupted flow starts over; `uploadingUid` no longer
+  written. SYNC-049 becomes MUST NOT (no Combine). SYNC-050: at most 1 write (account create, or one account
+  `update()` for a new build), no `state` / `decks` writes, no `batch` (H-077). SYNC-064: Combine union removed.
+  **Sign-out:** SYNC-090 one choice (Sign out / Cancel) with the unsynced-changes step (Sync now, Sign out
+  anyway); SYNC-091 sign-out clears the device. SYNC-004 and the linked-uid / session-expected definitions
+  follow. SYNC-052: Delete all local data not offered in account-required mode. **Deletion:** SYNC-096 account
+  menu Try again after reload, `deletingRemovedAny` rules (H-076), sign-out clears `deletingUid`; SYNC-097
+  `deleted` and half-deleted branches clear the device (new half-deleted message); SYNC-098 residual risks
+  rewritten. **Build id and deploy:** SYNC-012 `appVersion` = `web-<prod|preview>-<short commit>` (or UTC build
+  time), ≤ 40 characters; SYNC-007 preview deploy path as outcomes (H-078); SYNC-118 note. **Other:** SYNC-003
+  dialog text and legacy-data warning; SYNC-031/032/033 by mode and clearing is not deletion; SYNC-041, 074, 075
+  drop Combine; SYNC-080 offline cache in account-required mode; SYNC-086 gate stays open, different uid clears;
+  SYNC-101 notice facts; SYNC-113, SYNC-120 first-sign-in cost; SYNC-125. **ACs:** 1, 2, 3, 4, 5, 13, 20, 21,
+  25, 26, 27, 28, 31, 35, 36, 40, 42, 43 rewritten; new 45–48 (local-only unchanged, gates, gate at start-up
+  and offline, switching production). Decisions 5, 6 and part of 11 superseded by new decision 13. Impacts list
+  for SPEC-003/004/005/006/007/008, H-071, H-075, H-077, Home copy, Current State, Firestore Data Shape.
+  **Round 2 (same version, [[Validation H-080]] and RJ's follow-ups, decision 13 e–h):** (e) ADR-0007 amendment
+  accepted. (f) SYNC-009 gate also needs the session not lost; SYNC-086 closes the gate during a lost session
+  (data kept until sign-in; same uid resumes, different uid clears); SYNC-031 note; ACs 27, 47. (g) SYNC-003
+  legacy-data warning dropped (clearing stays, silent); ACs 3, 48. (h) SYNC-009: while the gate is not open,
+  Tournaments shows no Add to your decks / In your decks / Add another copy and the CAT-074 check reads no local
+  store (replaces "opens the sign-in dialog"); SYNC-002 wording; AC 46; SPEC-004 and SPEC-006 impact lines.
+  Validator failure 1: SYNC-081 and SYNC-090 say sign-out is disabled offline (as built), including Sign out
+  anyway and Sync now in the dialog; AC 20. SYNC-012: short commit id is exactly 7 characters. Open questions:
+  two unconfirmed defaults (sign out during an unfinished deletion; no offline sign-out).
+  **Round 3 (same version, [[Validation H-080]] round 2):** decision 13 (b) and ADR-0007 amendment bullet (b)
+  keep RJ's text and mark its "Add to your decks shows a sign-in prompt" part as replaced by (h). New sync-log
+  field `sessionLostUid` (pending build, H-081): set when SYNC-086 detects a lost session; cleared by a
+  successful sign-in, a restore of the linked uid that passes the account check, and every log clear. SYNC-009:
+  the gate is closed while it equals the linked uid, so a reload never shows the cards; the undetected-loss
+  window is stated (cards shown until the check finishes, edits allowed and kept pending). SYNC-030, SYNC-031
+  ("no user change after the loss is detected"), SYNC-086, Data contract, ACs 27 and 47.
+
 - 0.7 (2026-11-23, H-074: the spec documents the H-062 build, [[Validation H-062]] rounds 1–3; RJ decision 12):
   **Data contract:** `RemoteStore.getAccount`, `pull(..., { withAccount })`, `push()` returns a per-document
   `PushOutcome`; `PushChanges` with `account { create, createdAt, updatedAt, lastClientVersion }`, `replace` and
