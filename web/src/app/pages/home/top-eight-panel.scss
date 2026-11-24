@@ -45,7 +45,27 @@
 .event-chevron {
   font-size: 20px;
   color: var(--color-text-muted);
-  transition: transform 120ms ease;
+  transition: transform var(--dur-med) var(--ease-out);
+}
+
+/*
+ * Smooth open / close where the browser supports animating details content to its auto height
+ * (::details-content + interpolate-size); elsewhere it opens natively, at once.
+ */
+.event {
+  interpolate-size: allow-keywords;
+
+  &::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition:
+      block-size var(--dur-med) var(--ease-out),
+      content-visibility var(--dur-med) allow-discrete;
+  }
+
+  &[open]::details-content {
+    block-size: auto;
+  }
 }
 
 .event[open] .event-chevron {
@@ -70,6 +90,9 @@
 .art-wrap {
   position: relative;
   display: block;
+  /* Frame for the hover zoom (styles.scss .zoom-art): the art scales inside it. */
+  overflow: hidden;
+  border-radius: var(--radius-sm);
 }
 
 .legend-art {
@@ -81,6 +104,7 @@
 
 .placing {
   position: absolute;
+  z-index: 1;
   top: 2px;
   left: 2px;
   padding: 0 var(--space-1);

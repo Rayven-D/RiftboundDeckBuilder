@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1
+version: 1.6
 ---
 # API Contracts
 
@@ -148,6 +148,96 @@ Notes for the UI:
 - Data files behind the API: `data/cards.json` (`CardSnapshot`) and `data/cards.report.json`
   (`IngestionReport`), written by `npm run ingest:cards`.
 
+## Browser-side shared types (deck ownership engine, H-059)
+**Not an endpoint.** These run in the browser only (OWN-093): nothing here is sent to or served by
+`services/`. The engine lives in `web/src/app/core/decks/` (barrel `index.ts`, shapes in `types.ts`)
+because its only consumer is the browser, `services/` isn't hosted (ADR-0004) and `web/` can't import
+from `services/`. It is pure: no Angular, no storage, no network, no clock. Shapes follow the specs'
+data contracts: [[Shared Cards and Lock-in]] v0.2, [[Runes Assumed Owned]] v0.2,
+[[Your Decks Ownership View]] v0.4, plus the parts of SPEC-001/002/003/006/007 they read.
+
+| Group | Types |
+|---|---|
+| SPEC-008 | `DeckLock`, `StoredDeckLocks`, `DeckLockStore`, `SharedPoolInput`, `SharedPool`, `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck` (`LockFailure`), `LockedShortfall` |
+| SPEC-005 | `CollectionOwnership`, `DeckOwnershipView`, `ZoneSection`, `OwnershipCard`, `OwnedPrintingRow`, `MissingLine`, `CardBan`, `DeckTileSummary` (`OwnershipFilter`) |
+| Read from other specs | SPEC-006 `UserDeck`, `DeckCard`, `DeckZone`, `DeckSource`; SPEC-007 `DeckOwnershipInput`, `DeckOwnership`, `CollectionCatalogView`, `StoredTags`, `Tag`, `StoredPrintingCodes`; SPEC-003 `StoredCollection`; SPEC-002 `BanListFile`, `BanStatus`; SPEC-001 `PlayableCard`, `Printing`, `CardSet` (subset: no `collector` / `extra`) |
+
+```ts
+isRuneEntry(zone: DeckZone, card: PlayableCard | null): boolean                    // RUNE-001
+computeSharedPool(input: SharedPoolInput): SharedPool                              // SHARE-070
+availability(pool: SharedPool, deckId: string, cardKey: CardKey): CardAvailability // SHARE-010/011/015
+canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boolean): LockCheck     // SHARE-020; null = ownership unavailable
+lockedShortfalls(before: SharedPool, after: SharedPool): LockedShortfall[]         // SHARE-034
+computeDeckOwnership(deck, ownership: CollectionOwnership, catalog | null, banData | null, today): DeckOwnershipView // OWN-025
+summarizeDeck(deck, view, legality: { verdict; asOf } | null, format: { id; name } | null): DeckTileSummary
+// text helpers: lockCheckMessage(), cardsShortText(), sharedIndicator(), shortfallWarning(), shortfallNotice()
+// minimal stand-ins until SPEC-007 / SPEC-002 are built in web/: deckOwnership(input, cardKey) (COLL-081),
+//   cachedDeckOwnership() (OWN-083, per input object), banStatus(data, cardKey, format, region, asOf) (LEGAL-B10)
+```
+Notes for the UI:
+- Stored-record shapes (`UserDeck`, `StoredCollection`, `StoredTags` schema 3, `DeckLock`, …) are defined once,
+  in `web/src/app/shared/storage/records.ts`; `core/decks/types.ts` re-exports them. In code `TagTarget` is
+  `string` (the spec's `p:` / `u:` pattern is not enforced by type) and `FormatId` is `'standard'`.
+- Treat every input as an immutable snapshot. **H-060 must create a new `DeckOwnershipInput` object
+  on every change** to the collection, tags, printing codes or catalog. `cachedDeckOwnership`
+  reuses results per input object (WeakMap identity), so mutating an input in place would show
+  stale counts.
+- Treat `BanListFile` as an immutable snapshot too: `banStatus` builds its banned/upcoming lookup
+  once per (file object, format, region, asOf) (OWN-080), so load a new object when the ban data
+  changes.
+- Rune detection (RUNE-001) in `computeDeckOwnership` uses `ownership.input.catalog` when ownership
+  is ok, the same catalog as `computeSharedPool`. Deck entries must be DECK-096-valid (`qty` 1..999).
+- Compute one `SharedPool` per input change and pass it to every deck view and tile (SHARE-071).
+- Lock order (SHARE-030) is a total order: parsed `lockedAt` ascending with unparseable values
+  after every parseable one, then the raw `lockedAt` string, then `deckId`.
+- `canLock(null, …)`: with ownership unavailable the pool is `null`, and the pool is the engine's
+  only lock source, so `already-locked` can't be detected (a locked deck gets `read-only` or
+  `ownership-unavailable`). **The caller must check the lock store itself** and show Unlock, not a
+  disabled Lock in, for a locked deck.
+- With ownership unavailable (OWN-062/063), all **pending a spec-writer decision** (H-076): `OwnershipCard.label` is `''` (no count labels); `DeckOwnershipView.lock` is `null`, so
+  `DeckTileSummary.lockBadge` is `null` (no lock badge, even for a locked deck);
+  `DeckTileSummary.ownershipLine` is "Ownership unavailable" (wording pending spec); and
+  `DeckTileSummary.ownershipFilter` is `'none'`.
+
+## Browser stores and sync (SPEC-010, H-062)
+Not an HTTP API: the browser talks to Firestore directly ([[ADR-0007 Firebase Accounts and Firestore]]).
+Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source of truth:
+`web/src/app/shared/storage/records.ts` (store records) and `web/src/app/shared/sync/sync-types.ts`
+(documents, `StoredSyncLog`, `AuthService`, `RemoteStore`, `SyncStatus`).
+- **Stores features use** (`AppStores.stores`, `web/src/app/core/storage/`): `collection`, `tags`, `decks`,
+  `locks` implement the SPEC-003/006/007/008 interfaces unchanged and stamp every save in the sync log
+  (SYNC-031), signed in or not. Storage: `localStorage`, keys `rift.*` (one key per deck,
+  `rift.deck.<id>`). Unreadable or newer records throw `UnreadableRecordError` and are never overwritten.
+- **Behaviour callers must know:** `DeckStore.create/update` make `updatedAt` monotonic
+  (`max(now, previous + 1 ms)`, SYNC-031), so read the deck back with `get()` after saving.
+  `DeckStore.create(record)` of a deck deleted less than 10 s ago is the Undo and cancels the pending
+  tombstone (SYNC-035). `CollectionStore.save(c, { replace: true, snapshotPrevious: true })` marks an
+  Owned Cards Import in Replace mode (one `set()`, SYNC-014) and keeps the Undo snapshot (IMP-052).
+  Saves to an area whose cloud document is newer throw `ReadOnlyAreaError` (SYNC-046 message).
+  `TagStore.load()` migrates long tag ids to `t_` + 6 base-62 (`schemaVersion: 3`, SYNC-016).
+- **Engine form of documents:** every Firestore `Timestamp` is milliseconds inside the engine; the adapter
+  (`web/src/app/core/sync/adapters/firebase-adapters.ts`, the only Firebase import, lazy-loaded) converts
+  and writes `syncedAt` with `serverTimestamp()`.
+- **Additions to the SPEC-010 contract** (needed to build it; listed for the spec): `RemoteStore.getAccount(uid)`
+  (the 1-read account check), `pull(..., { withAccount })`, `push()` returns a per-document `PushOutcome`
+  instead of `void`; `PushChanges` carries `replace` per state document, `updatedAt`, `batch`, and the account
+  write as `{ create, createdAt, updatedAt, lastClientVersion }`; `AuthService.restore()`,
+  `sendEmailLink(email)`, `isEmailLinkReturn()`, `needsRecentSignIn()`, `signIn(providerId, email?)`;
+  `StoredSyncLog.cloudDocs` (documents known to exist, for create vs update), `pending.collectionReplace`,
+  `locks[id].h` (lockedAt), `deckTombstones[id].createdAt` and `.wasPending`; after H-062 round 1 also
+  `deckCreated` (deck createdAt for tombstones), `lastBuild` (this device's build: SYNC-118 retry and the
+  once-per-build account update), `uploadingUid` (an interrupted first-sign-in upload resumes without
+  Combine), `deletingUid` (this device's unfinished deletion: sync stopped, Delete retryable);
+  `AuthService.reauthenticate()` may return `'needs-sign-in'` (email link); `RemoteErrorCode` adds
+  `'unconfirmed'` (a write not acknowledged in 20 s: kept pending, confirmed by the next pull).
+- **SYNC-097 Auth codes (verified on the Auth emulator, 2026-11-23):** deleted user → `reload()`
+  `auth/user-token-expired`, forced refresh `auth/invalid-refresh-token`; revoked → `reload()`
+  `auth/user-token-expired` (refresh still works in the emulator); disabled → `auth/user-disabled`.
+  `checkAccount()` forces a refresh first; `auth/invalid-refresh-token` / `auth/user-not-found` → `deleted`.
+- **Rules and indexes:** `firestore.rules` (owner only, known paths, field validation, `existsAfter()` on
+  creates) and `firestore.indexes.json` (every field but `syncedAt` exempt). Not deployed: deploy with
+  `firebase deploy --only firestore` before sign-in ships (SYNC-117).
+
 ## Changelog
 - v0: created
 - v1 (2026-11-23, H-008): first endpoints: `GET /api/health`, `GET /api/sets`, `GET /api/cards`
@@ -155,3 +245,15 @@ Notes for the UI:
   wrappers over the SPEC-001 v0.2 types; CORS for `http://localhost:4200` in development only.
 - v1.1 (2026-11-23, H-055): no endpoint change. Base URL is `/api` in dev and prod (dev via the
   `ng serve` proxy); production `/api/**` returns `404` until ADR-0004 picks an API host.
+- v1.2 (2026-11-23, H-059): no endpoint change. Added "Browser-side shared types": the pure deck
+  ownership engine in `web/src/app/core/decks/` (SPEC-005 v0.4, SPEC-008 v0.2, SPEC-009 v0.2).
+- v1.3 (2026-11-23, H-059 review): no endpoint change. Engine notes: SHARE-030 total lock order,
+  `canLock(null, …)` caller duty, new `DeckOwnershipInput` per change (H-060), and the
+  ownership-unavailable view values pending spec.
+- v1.4 (2026-11-23, H-059 review 2): no endpoint change and no shape change. `banStatus` memoizes
+  its lookup per `BanListFile` object (OWN-080); rune detection in the view uses the pool's
+  catalog; entries rely on DECK-096 validation.
+- v1.5 (2026-11-23, H-062; numbered v1.2 on its branch): no endpoint change. New section "Browser stores and sync": the SPEC-010
+  store, sync-log and adapter contracts in `web/`, and the additions the build needed.
+- v1.6 (2026-11-24, H-058 family merge): no endpoint change. The engine's stored-record types now come
+  from `shared/storage/records.ts` (one source; `StoredTags` schema 3); ownership-unavailable values → H-076.

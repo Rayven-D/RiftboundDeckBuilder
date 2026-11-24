@@ -1,28 +1,35 @@
 <a class="skip-link" href="#main" (click)="skipToMain($event)">Skip to content</a>
 
-<header class="site-header">
-  <a class="wordmark" routerLink="/">Rift Builder</a>
-  <nav class="site-nav" aria-label="Main">
-    <ul>
-      @for (item of nav; track item.path) {
-        <li>
-          <a [routerLink]="item.path" routerLinkActive="active" ariaCurrentWhenActive="page">{{
-            item.label
-          }}</a>
-        </li>
+<header class="site-header" [class.scrolled]="scrolled()">
+  <div class="header-row">
+    <a class="wordmark" routerLink="/">Rift Builder</a>
+    <nav class="site-nav" aria-label="Main">
+      <ul>
+        @for (item of nav; track item.path) {
+          <li>
+            <a [routerLink]="item.path" routerLinkActive="active" ariaCurrentWhenActive="page">{{
+              item.label
+            }}</a>
+          </li>
+        }
+      </ul>
+    </nav>
+    @if (signInEnabled) {
+      @defer (on immediate) {
+        <app-account-menu />
       }
-    </ul>
-  </nav>
-  <a
-    class="import-action"
-    matButton="filled"
-    routerLink="/import"
-    routerLinkActive="active"
-    ariaCurrentWhenActive="page"
-  >
-    <app-icon matButtonIcon name="upload" />
-    Import
-  </a>
+    }
+    <a
+      class="import-action"
+      matButton="filled"
+      routerLink="/import"
+      routerLinkActive="active"
+      ariaCurrentWhenActive="page"
+    >
+      <app-icon matButtonIcon name="upload" />
+      Import
+    </a>
+  </div>
 </header>
 
 <main #main id="main" class="site-main" tabindex="-1">
@@ -35,3 +42,23 @@
     Riot Games. Riot Games does not endorse or sponsor this project.
   </p>
 </footer>
+
+<!-- Phones only (below 40rem): the tabs and Import as a fixed bottom bar. Hidden (display: none)
+     on wider screens, so only one "Main" navigation is ever exposed. -->
+<nav class="tab-bar" aria-label="Main">
+  <ul>
+    @for (item of tabs; track item.path) {
+      <li>
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          ariaCurrentWhenActive="page"
+          [class.tab--action]="item.action"
+        >
+          <span class="tab-icon"><app-icon [name]="item.icon" /></span>
+          <span class="tab-label">{{ item.label }}</span>
+        </a>
+      </li>
+    }
+  </ul>
+</nav>

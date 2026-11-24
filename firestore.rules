@@ -1,25 +1,149 @@
 rules_version = '2';
 
 // ===============================================================
-// Rift Builder: Firestore security rules (prototype, locked down)
+// Rift Builder: Firestore security rules (SPEC-010 Accounts and Sync, SYNC-110…119)
 // ===============================================================
 //
-// Assumed data model: none yet.
+// Data model (SPEC-010 SYNC-010…018, brain/05-Services/Firestore Data Shape.md):
+//   users/{uid}                    account document (the "account exists" marker)
+//   users/{uid}/state/collection   { catalogVersion, cards: map }
+//   users/{uid}/state/tags         { tags: map, assignments: map }
+//   users/{uid}/state/locks        { locks: map }
+//   users/{uid}/decks/{deckId}     one UserDeck, or a deck tombstone
+// Every document: schemaVersion (int 1), updatedAt (timestamp, client clock),
+// syncedAt (== request.time, i.e. serverTimestamp()).
 //
-// The app does not read or write Firestore yet. Collections and decks
-// still live in browser storage (ADR-0006). The planned per-user layout
-// (users/{uid}/collection/..., users/{uid}/decks/...) and its sync rules
-// get specced first (see the Handoff Board); owner-only rules with field
-// validation are written from that spec.
+// Owner only (SYNC-110), known paths only (SYNC-111), per-document field validation
+// on create and update (SYNC-112). Map entries are checked by the client (SYNC-047).
+// The only lookup is existsAfter() on creating a state or deck document (SYNC-113),
+// so documents can be created only in an account whose account document exists
+// (or is created in the same batch). Updates and deletes use no lookup.
 //
-// Until then every read and write is denied. The Firebase Admin SDK
-// (server or CI) is not affected by these rules.
+// A new FormatId or DeckSourceFormat value needs a rules update in the same change.
+// Deploy with `firebase deploy --only firestore` before the sign-in UI ships (SYNC-117).
+// Rules tests: `cd web; npm run test:rules` (Firestore emulator).
 // ===============================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
     }
+
+    // schemaVersion, updatedAt and syncedAt on every document (SYNC-011, SYNC-112).
+    function validMeta(d) {
+      return d.schemaVersion is int && d.schemaVersion == 1
+        && d.updatedAt is timestamp
+        && d.syncedAt == request.time;
+    }
+
+    function exactKeys(d, required, optional) {
+      return d.keys().hasAll(required) && d.keys().hasOnly(required.concat(optional));
+    }
+
+    function shortString(v, max) {
+      return v is string && v.size() <= max;
+    }
+
+    function accountExistsAfter(uid) {
+      return existsAfter(/databases/$(database)/documents/users/$(uid));
+    }
+
+    // ---- account: users/{uid} (SYNC-012) ----
+    function validAccount(d) {
+      return exactKeys(d, ['schemaVersion', 'createdAt', 'updatedAt', 'syncedAt', 'lastClientVersion'], [])
+        && validMeta(d)
+        && d.createdAt is timestamp
+        && shortString(d.lastClientVersion, 40);
+    }
+
+    // ---- state documents (SYNC-013, SYNC-015, SYNC-017; caps: design decision 7) ----
+    function validState(name, d) {
+      return validMeta(d) && (
+        (name == 'collection'
+          && exactKeys(d, ['schemaVersion', 'updatedAt', 'syncedAt', 'catalogVersion', 'cards'], [])
+          && shortString(d.catalogVersion, 100)
+          && d.cards is map && d.cards.size() <= 6000)
+        || (name == 'tags'
+          && exactKeys(d, ['schemaVersion', 'updatedAt', 'syncedAt', 'tags', 'assignments'], [])
+          && d.tags is map && d.tags.size() <= 400
+          && d.assignments is map && d.assignments.size() <= 6000)
+        || (name == 'locks'
+          && exactKeys(d, ['schemaVersion', 'updatedAt', 'syncedAt', 'locks'], [])
+          && d.locks is map && d.locks.size() <= 400)
+      );
+    }
+
+    // ---- decks (SYNC-018; DECK-070…073, DECK-084, DECK-092) ----
+    function cardList(v) {
+      return v is list && v.size() <= 150;
+    }
+
+    function cardSlot(v) {
+      return v == null || v is map;
+    }
+
+    function validLiveDeck(d) {
+      return exactKeys(d,
+          ['schemaVersion', 'updatedAt', 'syncedAt', 'deletedAt', 'createdAt', 'name', 'format', 'source',
+           'sourceFormat', 'notes', 'catalogVersion', 'legend', 'champion', 'main', 'sideboard', 'runes',
+           'battlefields'],
+          ['duplicatedFrom', 'importRemovedLines'])
+        && d.deletedAt == null
+        && d.createdAt is timestamp
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 80
+        && d.format in ['standard']
+        && d.source is map
+        && d.sourceFormat in ['riot-text', 'plain-text', 'piltover-code', 'tts', 'csv', 'tournament', 'manual']
+        && shortString(d.notes, 4000)
+        && shortString(d.catalogVersion, 100)
+        && cardSlot(d.legend) && cardSlot(d.champion)
+        && cardList(d.main) && cardList(d.sideboard) && cardList(d.runes) && cardList(d.battlefields)
+        && (!('duplicatedFrom' in d) || shortString(d.duplicatedFrom, 36))
+        && (!('importRemovedLines' in d) || d.importRemovedLines is list);
+    }
+
+    function validDeckTombstone(d) {
+      return exactKeys(d, ['schemaVersion', 'createdAt', 'updatedAt', 'deletedAt', 'syncedAt'], [])
+        && d.createdAt is timestamp
+        && d.deletedAt is timestamp
+        && d.updatedAt == d.deletedAt;
+    }
+
+    function validDeck(d) {
+      return validMeta(d) && (validLiveDeck(d) || validDeckTombstone(d));
+    }
+
+    match /users/{uid} {
+      allow get, delete: if isOwner(uid);
+      allow create: if isOwner(uid) && validAccount(request.resource.data);
+      // SYNC-012: updated, never replaced: createdAt keeps its first value.
+      allow update: if isOwner(uid) && validAccount(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      match /state/{name} {
+        // A list query cannot name the document, so it is owner-only; writes keep the
+        // collection to the three known documents.
+        allow list: if isOwner(uid);
+        allow get, delete: if isOwner(uid) && name in ['collection', 'tags', 'locks'];
+        allow create: if isOwner(uid) && validState(name, request.resource.data) && accountExistsAfter(uid);
+        allow update: if isOwner(uid) && validState(name, request.resource.data);
+      }
+
+      match /decks/{deckId} {
+        allow list: if isOwner(uid);
+        allow get, delete: if isOwner(uid)
+          && deckId.matches('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$');
+        allow create: if isOwner(uid)
+          && deckId.matches('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+          && validDeck(request.resource.data) && accountExistsAfter(uid);
+        allow update: if isOwner(uid)
+          && deckId.matches('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+          && validDeck(request.resource.data);
+      }
+    }
+
+    // Every other path is denied (no rule matches).
   }
 }

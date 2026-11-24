@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-009
-version: 0.1
+version: 0.2
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-005, SPEC-006, SPEC-007, SPEC-008]
 research: ["[[Physical Copies Across Decks]]", "[[Deck Construction Rules]]"]
@@ -24,13 +24,14 @@ shared or locked counting, and are not needed in the Collection.
 - RUNE-002/003: rune entries are always full colour and never in the missing list, the copy-missing text or
   the SPEC-005 summary counts.
 - RUNE-004/005: they never affect completeness, lock in, shared indicators or holds (SPEC-008).
-- RUNE-006: the Rune Pool section is still shown, tiles labelled "Assumed owned", with the note "Runes
+- RUNE-006: the Runes section is still shown, tiles labelled "Assumed owned", with the note "Runes
   aren't tracked. Rift Builder assumes you have the runes this deck needs."
 - RUNE-008: Collection never asks for runes; imported runes are listed but never read by Decks.
 - RUNE-009: legality (SPEC-002 LEGAL-008/009) is unchanged.
 
-**Depends on:** [[Card Data Model]], [[Deck Legality]], [[Your Decks Ownership View]], [[Deck Import]],
-[[My Collection]], [[Shared Cards and Lock-in]]. **Consumers:** SPEC-005, SPEC-008.
+**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3, [[Your Decks Ownership View]] v0.4,
+[[Deck Import]] v0.6, [[My Collection]] v0.7, [[Shared Cards and Lock-in]] v0.3. **Consumers:** SPEC-005,
+SPEC-007, SPEC-008.
 **Known simplification (not a requirement):** domain split and possible non-basic runes in later sets (see
 Open questions).
 
@@ -52,7 +53,7 @@ incomplete for users who never import their runes. RJ decided to ignore them.
 | RUNE-003 | MUST | Rune entries **never count as missing**: they are not in the SPEC-005 missing list (OWN-051), the "Copy missing list" text has no `Rune Pool:` section (OWN-052, OWN-053), and they are left out of the deck summary counts R, A, C and F (OWN-050) and the section owned counts. | [[ADR-0006 Two Imports - Collection and Decks]] |
 | RUNE-004 | MUST | Rune entries **never block completeness or lock in** (SPEC-008 SHARE-014, SHARE-020), whether or not the user owns any runes. | [[ADR-0006 Two Imports - Collection and Decks]] |
 | RUNE-005 | MUST | Rune entries **never take part in shared or locked counting** (SPEC-008 SHARE-001): no need, no hold, no "Also in N other decks" indicator, no breakdown, and they never appear in another deck's "Other decks using this card" list. | [[ADR-0006 Two Imports - Collection and Decks]] |
-| RUNE-006 | MUST | **Display.** The Rune Pool section stays in its SPEC-005 place (OWN-011) with the heading "Runes · `<n>` cards · not tracked" and the note "Runes aren't tracked. Rift Builder assumes you have the runes this deck needs." Each rune tile shows its card info and ban status like any card (OWN-014, OWN-015) and the label **"Assumed owned"** instead of "`<a>` of `<q>` …", with an info icon distinct from the owned check icon (so "assumed" is not shown as "owned"). Accessible name e.g. "Chaos Rune, Runes, 9 copies, assumed owned". | design rule; [[Your Decks Ownership View]] OWN-011, OWN-014, OWN-015, OWN-033 |
+| RUNE-006 | MUST | **Display.** The Runes section stays in its SPEC-005 place (OWN-011) with the heading "Runes · `<n>` cards · not tracked" and the note "Runes aren't tracked. Rift Builder assumes you have the runes this deck needs." Each rune tile shows its card info and ban status like any card (OWN-014, OWN-015) and the label **"Assumed owned"** instead of "`<a>` of `<q>` …", with an info icon distinct from the owned check icon (so "assumed" is not shown as "owned"). Accessible name e.g. "Chaos Rune, Runes, 9 copies, assumed owned". | design rule; [[Your Decks Ownership View]] OWN-011, OWN-014, OWN-015, OWN-033 |
 | RUNE-007 | MAY | A rune tile's details MAY show the copies the user has in Collection ("You have 6 in your collection") as information only; nothing counts. | design rule |
 | RUNE-008 | MUST | **Collection doesn't need runes.** Collection and Owned Cards Import never ask for runes or warn that runes are missing. Runes the user does import are listed, tagged and edited like any card (SPEC-007), but their counts and tags never affect Decks. | [[ADR-0006 Two Imports - Collection and Decks]] ("not required in the Collection") |
 | RUNE-009 | MUST | **Legality is unchanged.** SPEC-002 still checks the Rune Deck (LEGAL-008 exactly 12 runes, LEGAL-009 domain identity) and LEGAL-015 still flags a rune in `main`. This spec only changes ownership. | [[Deck Legality]] LEGAL-008, LEGAL-009, LEGAL-015; [[Deck Construction Rules]] #7 |
@@ -78,17 +79,22 @@ import type { PlayableCard } from './card-data-model';  // SPEC-001
    labelled "Assumed owned"; the summary reads "0 of 54 copies available" and "0 of 30 cards fully
    available"; the missing list has 54 copies and no Runes group; "Copy missing list" has no `Rune Pool:` line.
 2. **All but runes owned** (RUNE-004)
-   **Given** `KENNEN_1` and a collection with every counted card in full and no runes **Then** the summary
-   reads "54 of 54 copies available", "All cards available" shows for the missing list, and Lock in is enabled.
+   **Given** `KENNEN_1` and a collection with every counted card in full and no runes **When** the deck view
+   opens **Then** the summary reads "54 of 54 copies available", "All cards available" shows for the missing
+   list, and Lock in is enabled.
 3. **Runes are never shared** (RUNE-005)
-   **Given** two decks with `Chaos Rune` in their Runes, and one of them locked **Then** neither Chaos Rune
-   tile shows "Also in 1 other deck", and neither deck's breakdowns list the other for Chaos Rune.
+   **Given** two decks with `Chaos Rune` in their Runes, and one of them locked **When** either deck's view
+   opens **Then** neither Chaos Rune tile shows "Also in 1 other deck", and neither deck's breakdowns list the
+   other for Chaos Rune.
 4. **Rune in the wrong zone** (RUNE-001, RUNE-009)
-   **Given** a deck with `Chaos Rune` ×1 in Main and a catalog where it has `category: 'rune'` **Then** its
-   tile is "Assumed owned", it is not in the missing list, and SPEC-002 LEGAL-015 still reports it.
+   **Given** a deck with `Chaos Rune` ×1 in Main and a catalog where it has `category: 'rune'` **When** the
+   deck view opens **Then** its tile is "Assumed owned", it is not in the missing list, and SPEC-002
+   LEGAL-015 still reports it.
 5. **Imported runes are listed, not used** (RUNE-008)
-   **Given** the user imported `6 Fury Rune` **Then** Collection lists it like any card; no deck's counts
-   change; and Collection shows no "missing runes" warning when the user has no runes.
+   **Given** a deck that needs `Fury Rune` ×6 and an empty collection **When** the user imports `6 Fury Rune`
+   with Owned Cards Import and then opens Collection and the deck **Then** Collection lists it like any card,
+   and the deck's counts are the same as before the import. **Given** a collection with no runes **When**
+   Collection opens **Then** it shows no "missing runes" warning.
 
 ## Out of scope
 - Tracking rune counts or domains per deck.
@@ -102,4 +108,4 @@ import type { PlayableCard } from './card-data-model';  // SPEC-001
    appear, RJ decides whether they should be tracked; until then RUNE-001 treats every rune alike.
 
 ## Changelog
-Current: 0.1 (2026-11-23, H-058). Full history: [[Runes Assumed Owned changelog]] (archived). New entries go in the archive note.
+Current: 0.2 (2026-11-23, H-065/H-067). Full history: [[Runes Assumed Owned changelog]] (archived). New entries go in the archive note.

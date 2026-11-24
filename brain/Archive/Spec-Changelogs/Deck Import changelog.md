@@ -9,6 +9,10 @@ superseded_by: "[[Deck Import]]"
 
 Moved out of [[Deck Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.6, metadata only (2026-11-23, H-050): the Summary "Depends on" line pins [[Tournament Deck Catalog]] v0.5 (was v0.4; SPEC-004 0.5 only versions the H-044 lower-case "your" strings). No requirement or AC changed, so no version bump.
+
+- 0.6, metadata only (2026-11-23, H-067): `depends_on` and the Summary "Depends on" line add SPEC-008 0.2 (DECK-080/082…084 cite SHARE requirements) and pin the other dependencies (SPEC-001 0.3, SPEC-002 0.3, SPEC-003 0.6, SPEC-004 0.4). No requirement or AC changed, so no version bump.
+
 - 0.6 (2026-11-23, H-058): lock in ([[Shared Cards and Lock-in]], ADR-0006 "Shared cards, lock in and runes"). DECK-080: card changes disabled while a deck is locked (SHARE-025); DECK-082: deleting a locked deck releases its lock, confirmation text added (SHARE-024); DECK-083: Undo restores the deck unlocked; DECK-084: a duplicate is unlocked (SHARE-026). Summary and consumers (SPEC-008) updated. `UserDeck` unchanged (locks in SPEC-008's `DeckLockStore`). No requirement added or removed.
 - 0.5 (2026-11-23, H-048): RJ decision 2026-11-23 (H-048). DECK-010 reuses SPEC-003 IMP-064…070 and the Line grammar; DECK-014 updated (name = card part without quantity and code; leading or trailing quantity); new DECK-015 (printing codes on deck lines resolve the `cardKey` only; which code issues block Save); DECK-041 clarified (warnings on resolved lines don't block); DECK-096 names text-line codes; AC 23 added; Summary and Open questions updated.
 - 0.4 (2026-11-23, H-043): RJ import decisions. DECK-001 uses the shared paste-or-upload dialog (`.txt`/`.csv`/`.xlsx`, every line needs a quantity); DECK-010/013 reuse CSV/Excel (only IMP-009, IMP-015 excepted); DECK-011 accepts `csv`, `FORMAT_NOT_FOR_DECKS` removed; DECK-014 re-joined CSV names; DECK-020 label spacing and aliases (`MainDeck`, `RunePool`, `RuneDeck`); DECK-076 / `DeckSourceFormat` include `csv`; AC 16 rewritten, AC 16a added; Out of scope updated.

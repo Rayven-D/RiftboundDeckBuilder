@@ -9,6 +9,33 @@ superseded_by: "[[My Collection]]"
 
 Moved out of [[My Collection]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.7 (2026-11-23, H-049 item 19; numbered 0.6 on its branch, renumbered at merge because H-045 is 0.6): Undo of an import warns **before** it runs, like every other change:
+  COLL-088 puts SPEC-008's "'`<deck name>`' (locked) will be `<n>` cards short." inside the COLL-058 undo
+  confirmation when manual edits followed the import, and otherwise asks for a confirmation only when a
+  locked deck would go short (computed on the snapshot the undo would restore). The v0.5 notice "… is now
+  `<n>` cards short." after Undo is removed. COLL-058 points to COLL-088 for the warning (its own MUST text is
+  unchanged). Agrees with SPEC-008 0.3 SHARE-034 and SPEC-003 0.8 IMP-050/IMP-050a. Summary updated. Pins:
+  SPEC-003 0.8, SPEC-008 0.3 (Depends line, data contract). 80 requirements (COLL-059 withdrawn in 0.6).
+  RJ decision 2026-11-23 (H-049 follow-up): Undo warns before **and** notifies after. COLL-088's warning
+  string gains "It stays locked." (SPEC-008 SHARE-033/034); a confirmed Undo of an import is followed by the
+  notice "'`<deck name>`' (locked) is now `<n>` cards short." (restored, now in addition to the warning; the
+  "is removed" line above no longer applies). Cancel shows no notice. Summary updated; COLL-058 unchanged.
+
+- 0.6 (2026-11-23, H-045): RJ decision 2026-11-23 (H-045). COLL-059 (Tags column in the collection CSV
+  export) **withdrawn**: under SPEC-003's positional row rule the extra column broke the round trip; the
+  export is `Quantity,Card Name` only, tags and exclude flags are not in the CSV backup (expected to survive
+  through sign-in sync, ADR-0007), and per-printing counts round-trip per SPEC-003 0.7 IMP-055 (missing-printing
+  copies come back unassigned). New AC 24 (rows and entries in COLL-012/031/033 order). Out of scope notes tags in the export. Summary "Depends on" and the
+  data contract pin SPEC-003 v0.7. 80 requirements (62 MUST, 14 SHOULD, 4 MAY).
+
+- 0.5 (2026-11-23, H-067): COLL-088 agrees with SPEC-008 0.2 SHARE-034 and SPEC-003 0.6 IMP-050: the
+  locked-deck warning is shown before the edit inside its confirmation (an edit without one, e.g. − or a
+  typed quantity, asks for one only when a locked deck would go short; Cancel changes nothing); a Replace
+  import warns inside the IMP-050 confirmation (was: a notice after commit); Undo of an import gives the
+  notice "… is now `<n>` cards short.". Typed lower quantity (COLL-053) added to the list. `depends_on` and
+  Summary "Depends on" add SPEC-008 0.2 and SPEC-009 0.2, with versions; data contract pin SPEC-003 v0.2 →
+  v0.6. Still 81 requirements.
+
 - 0.4 (2026-11-23): H-058. Shared cards, lock in and runes (ADR-0006 "Shared cards, lock in and runes"). New COLL-086 (per-printing Collection, one per-name `ownedForDecks` pool that SPEC-008 builds on; excluded copies never available; locks never change Collection data), COLL-087 (runes never needed, SPEC-009 RUNE-008), COLL-088 SHOULD (warn when an edit makes a locked deck short, SHARE-034). Summary, research list and consumers (SPEC-008) updated. This version also carries the H-044 lower-case strings already in the text ("Not counted in your decks" in COLL-083, "… will no longer count in your decks" in COLL-084, AC 22), which H-050 asked to version. 81 requirements (62 MUST, 15 SHOULD, 4 MAY).
 - 0.3 (2026-11-23): H-039. Data contract: new `CollectionCatalogView`; `DeckOwnershipInput` carries the catalog view (COLL-081) and `CollectionQueryInput` carries the catalog view, ban data (`BanListFile | null`) and `today` (COLL-068), instead of only `catalogVersion`; COLL-068/081 name their input types. Removed stale open questions 2 (IMP-058, fixed in SPEC-003 v0.2) and 5 (date format, fixed in SPEC-004/006); renumbered. Summary block added; changelog moved to this archive note.
 - 0.2 (2026-11-23): H-034. Applies RJ's gate H-036 answers (ADR-0006 #3, #4, #6, #7) and the H-031

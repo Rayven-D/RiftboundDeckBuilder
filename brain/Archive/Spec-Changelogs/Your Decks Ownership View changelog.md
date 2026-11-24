@@ -9,6 +9,17 @@ superseded_by: "[[Your Decks Ownership View]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.4.1 (2026-11-23, H-059 validation): OWN-033 says the card-total suffix ("· `<a>` of `<n>` in this deck")
+  goes on every counted tile of a card with more than one counted entry (several zones, or two entries in one
+  zone); AC 4's Main tile corrected to "2 of 2 available · 2 of 3 in this deck". No behaviour change.
+
+- 0.4 (2026-11-23, H-065/H-066/H-067): AC 17 has a **When**. OWN-050: an empty or runes-only deck (R = 0)
+  reads "No cards to count" and is "None available"; OWN-006 and `DeckTileSummary.ownershipFilter` /
+  `ownershipLine` follow SPEC-008 0.2 SHARE-051 (exactly one group per deck, first match: locked → R = 0 none
+  → ready → A = 0 none → partial). Design decision 7 moved after 6 (numbers unchanged). Open question 6
+  marks SPEC-008's open questions 1 and 2 as resolved by RJ (defaults accepted, no force lock). Pins: SPEC-007
+  0.5, SPEC-008 0.2, SPEC-009 0.2. Tile labels unchanged from 0.3.
+
 - **0.3 (2026-11-23, H-058):** shared cards, lock in and runes (RJ, ADR-0006 "Shared cards, lock in and
   runes"; [[Shared Cards and Lock-in]] SPEC-008, [[Runes Assumed Owned]] SPEC-009). Pool is SPEC-008
   `available(D, k)` (ownedForDecks minus other decks' locks) instead of `ownedForDecks` (Summary,
