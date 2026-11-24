@@ -12,11 +12,13 @@ async function signIn(d: Device, uid = 'uA'): Promise<void> {
   await d.settle();
 }
 
+/** v0.8: the first sign-in clears the device, so the account's data is added after signing in, then pushed. */
 async function seedLaptop(db: FakeFirestore, now = T0): Promise<Device> {
   const laptop = new Device(db, { now });
+  await signIn(laptop);
   await laptop.setCard('hextech ray', 3);
   await laptop.setCard('lightning rush', 2);
-  await signIn(laptop);
+  await laptop.engine.flush();
   return laptop;
 }
 
@@ -38,15 +40,6 @@ describe('SyncEngine (SPEC-010)', () => {
       expect(d.adaptersLoaded).toBe(0);
       expect(db.reads + db.writes).toBe(0);
       expect(d.status.kind).toBe('signed-out');
-    });
-
-    it('SYNC-002 a stored linked uid alone does not load Firebase (sessionExpected false)', async () => {
-      const laptop = await seedLaptop(db);
-      await laptop.engine.signOut('keep');
-      const again = laptop.reload();
-      await again.engine.start();
-      expect(again.adaptersLoaded).toBe(0);
-      expect((await again.log()).uid).toBe('uA');
     });
 
     it('SYNC-002 Sign in loads the adapters on demand', async () => {
@@ -76,36 +69,7 @@ describe('SyncEngine (SPEC-010)', () => {
     });
   });
 
-  describe('AC 3 / AC 4: first sign-in (SYNC-048, SYNC-050, SYNC-120)', () => {
-    it('SYNC-048 b uploads everything into an empty account in one batch of 4 + N writes, with the notice', async () => {
-      const laptop = new Device(db);
-      for (let i = 0; i < 350; i++) await laptop.setCard(`card ${i}`, 1 + (i % 3));
-      const tagIds: string[] = [];
-      for (let i = 0; i < 20; i++) {
-        const id = `t_tag${String(i).padStart(3, '0')}`;
-        tagIds.push(id);
-        await laptop.addTag(id, `Tag ${i}`);
-      }
-      await laptop.assign('u:card 1', [tagIds[0]]);
-      const decks = [];
-      for (let i = 0; i < 10; i++) decks.push(await laptop.createDeck(`Deck ${i}`, [card('card 1', 1)]));
-      for (let i = 0; i < 3; i++) await laptop.lock(decks[i].id);
-      db.resetCounts();
-      await signIn(laptop);
-      expect(laptop.questions).toHaveLength(0);
-      expect(db.reads).toBeLessThanOrEqual(16);
-      expect(db.writes).toBe(14);
-      expect(db.get('users/uA')).toBeDefined();
-      for (const s of ['collection', 'tags', 'locks']) expect(db.get(`users/uA/state/${s}`)).toBeDefined();
-      expect([...db.docs.keys()].filter((k) => k.startsWith('users/uA/decks/'))).toHaveLength(10);
-      expect(laptop.notices).toContain(MESSAGES.uploaded);
-      const log = await laptop.log();
-      expect(log.uid).toBe('uA');
-      expect(log.lastFullSyncAt).not.toBeNull();
-      expect(laptop.engine.pendingCount()).toBe(0);
-      expect(laptop.status.kind).toBe('synced');
-    });
-
+  describe('AC 4: first sign-in downloads (SYNC-048, SYNC-050, SYNC-120)', () => {
     it('SYNC-048 c a second, empty device downloads everything without a question', async () => {
       const laptop = await seedLaptop(db);
       const deck = await laptop.createDeck('Kennen Tempo', [card('hextech ray', 3)]);
@@ -113,7 +77,6 @@ describe('SyncEngine (SPEC-010)', () => {
       await laptop.engine.syncNow();
       const phone = new Device(db);
       await signIn(phone);
-      expect(phone.questions).toHaveLength(0);
       expect(await phone.quantity('hextech ray')).toBe(3);
       expect(await phone.deckNames()).toEqual(['Kennen Tempo']);
       expect(await phone.lockedIds()).toEqual([deck.id]);
@@ -126,124 +89,6 @@ describe('SyncEngine (SPEC-010)', () => {
       expect([...db.docs.keys()]).toEqual(['users/uA']);
     });
 
-    it('SYNC-048 e: an existing account without data keeps its createdAt and gets no set() (AC 36)', async () => {
-      const createdAt = at('09:00', 1);
-      db.docs.set('users/uA', { schemaVersion: 1, createdAt, updatedAt: createdAt, syncedAt: 1, lastClientVersion: 'test-1' });
-      const phone = new Device(db);
-      for (let i = 0; i < 40; i++) await phone.setCard(`card ${i}`, 1);
-      await signIn(phone);
-      expect(phone.questions).toHaveLength(0);
-      expect(db.get('users/uA')!['createdAt']).toBe(createdAt);
-      expect(db.writeLog.filter(([p]) => p === 'users/uA')).toEqual([]);
-      expect(Object.keys((db.get('users/uA/state/collection') as { cards: object }).cards)).toHaveLength(40);
-    });
-
-    it('SYNC-048 f: no account document but leftover state documents → nothing imported, nothing written, signed out (AC 36)', async () => {
-      db.docs.set('users/uA/state/collection', {
-        schemaVersion: 1,
-        updatedAt: 1,
-        syncedAt: 1,
-        catalogVersion: 'x',
-        cards: { 'hextech ray': { q: 9, t: 1, p: {} } },
-      });
-      const phone = new Device(db);
-      await phone.setCard('lightning rush', 2);
-      db.resetCounts();
-      await signIn(phone);
-      expect(db.writes).toBe(0);
-      expect(await phone.quantity('hextech ray')).toBe(0);
-      expect(await phone.quantity('lightning rush')).toBe(2);
-      expect(phone.notices).toContain(MESSAGES.halfDeleted);
-      const log = await phone.log();
-      expect(log.sessionExpected).toBe(false);
-      expect(log.uid).toBeNull();
-    });
-
-    it('SYNC-004 / SYNC-048 a tab closed before the first sync completed runs the first-sign-in flow again', async () => {
-      const laptop = new Device(db);
-      await laptop.setCard('hextech ray', 3);
-      laptop.remote.failRules.push({ ref: '*', code: 'offline', once: true });
-      await signIn(laptop);
-      let log = await laptop.log();
-      expect(log.sessionExpected).toBe(true);
-      expect(log.uid).toBeNull();
-      const again = laptop.reload();
-      again.auth.uid = 'uA';
-      await again.engine.start();
-      await again.settle();
-      log = await again.log();
-      expect(log.uid).toBe('uA');
-      expect(db.get('users/uA/state/collection')).toBeDefined();
-    });
-  });
-
-  describe('AC 5 / AC 25: Combine and Cancel (SYNC-049, SYNC-064)', () => {
-    async function setup() {
-      const laptop = new Device(db, { now: at('09:00') });
-      await laptop.setCard('hextech ray', 3);
-      await laptop.addTag('t_Coll01', 'Collector');
-      await laptop.assign('p:OGN-001a', ['t_Coll01']);
-      await laptop.createDeck('Kennen Tempo');
-      await signIn(laptop);
-      const phone = new Device(db, { now: at('10:00') });
-      await phone.setCard('hextech ray', 1);
-      await phone.addTag('t_Trad01', 'Trade Binder');
-      await phone.assign('p:OGN-001a', ['t_Trad01']);
-      await phone.createDeck('Draft A');
-      return { laptop, phone };
-    }
-
-    it('SYNC-049 Combine: latest card wins, assignment union (cloud first) is pushed, both decks exist, summary shown', async () => {
-      const { laptop, phone } = await setup();
-      phone.now = at('10:30');
-      await signIn(phone);
-      expect(phone.questions).toEqual([
-        { device: { cards: 1, decks: 1, tags: 1 }, account: { cards: 1, decks: 1, tags: 1 }, differentAccount: false },
-      ]);
-      expect(await phone.quantity('hextech ray')).toBe(1);
-      expect((await phone.tags()).assignments['p:OGN-001a']).toEqual(['t_Coll01', 't_Trad01']);
-      expect(await phone.deckNames()).toEqual(['Draft A', 'Kennen Tempo']);
-      expect(phone.notices).toContain('Combined. You now have 1 cards, 2 decks and 2 tags.');
-      const cloudA = (db.get('users/uA/state/tags') as { assignments: Record<string, { a: string[]; t: number }> }).assignments['p:OGN-001a'];
-      expect(cloudA.a).toEqual(['t_Coll01', 't_Trad01']);
-      expect(cloudA.t).toBeGreaterThan(at('09:00'));
-      laptop.now = at('11:00');
-      await laptop.engine.syncNow();
-      expect((await laptop.tags()).assignments['p:OGN-001a']).toEqual(['t_Coll01', 't_Trad01']);
-    });
-
-    it('SYNC-049 Cancel signs out and changes neither side; signing in again asks again (AC 25)', async () => {
-      const { phone } = await setup();
-      phone.combineAnswer = 'cancel';
-      const before = new Map(db.docs);
-      db.resetCounts();
-      await signIn(phone);
-      expect(db.writes).toBe(0);
-      expect(new Map(db.docs)).toEqual(before);
-      let log = await phone.log();
-      expect(log).toMatchObject({ uid: null, lastFullSyncAt: null, sessionExpected: false });
-      expect(phone.engine.signedInUid).toBeNull();
-      await signIn(phone);
-      expect(phone.questions).toHaveLength(2);
-      expect(await phone.quantity('hextech ray')).toBe(1);
-      expect(await phone.deckNames()).toEqual(['Draft A']);
-      log = await phone.log();
-      expect(log.sessionExpected).toBe(false);
-    });
-
-    it('SYNC-064 the union is capped at 20 ids with the summary line', async () => {
-      const laptop = new Device(db, { now: at('09:00') });
-      const ids = (p: string, n: number) => Array.from({ length: n }, (_, i) => `t_${p}${String(i).padStart(5, '0')}`);
-      for (const id of ids('L', 15)) await laptop.addTag(id, id);
-      await laptop.assign('u:hextech ray', ids('L', 15));
-      await signIn(laptop);
-      const phone = new Device(db, { now: at('10:00') });
-      for (const id of ids('P', 10)) await phone.addTag(id, id);
-      await phone.assign('u:hextech ray', ids('P', 10));
-      await signIn(phone);
-      expect((await phone.tags()).assignments['u:hextech ray']).toHaveLength(20);
-      expect(phone.notices).toContain('1 entries had more than 20 tags; some tags were not added.');
-    });
   });
 
   describe('AC 6: latest change wins per card, convergence (SYNC-060, SYNC-042, SYNC-043)', () => {
@@ -516,11 +361,16 @@ describe('SyncEngine (SPEC-010)', () => {
   describe('AC 14: same tag label on two devices (SYNC-065)', () => {
     it('SYNC-065 keeps the earlier tag, moves the other one’s assignments and tombstones it on both devices', async () => {
       const laptop = new Device(db, { now: at('09:00') });
+      await signIn(laptop);
       await laptop.addTag('t_a1B2c3', 'Trade Binder');
       await laptop.assign('p:OGN-001a', ['t_a1B2c3']);
-      await signIn(laptop);
+      await laptop.engine.flush();
       const phone = new Device(db, { now: at('09:30') });
       await signIn(phone);
+      // the laptop changes the tags document again, so the phone's next pull returns it and merges
+      laptop.now = at('09:45');
+      await laptop.assign('p:OGN-003a', ['t_a1B2c3']);
+      await laptop.engine.flush();
       phone.remote.offline = true;
       phone.now = at('10:00');
       const t = await phone.tags();
@@ -652,44 +502,6 @@ describe('SyncEngine (SPEC-010)', () => {
     });
   });
 
-  describe('AC 20 / AC 26 / AC 31: sign-out (SYNC-090, SYNC-091, SYNC-052)', () => {
-    it('SYNC-091 Keep a copy: data stays; same account resumes without Combine; another account sees the different-account line', async () => {
-      const laptop = await seedLaptop(db);
-      await laptop.engine.signOut('keep');
-      expect(await laptop.quantity('hextech ray')).toBe(3);
-      expect(laptop.engine.signedInUid).toBeNull();
-      await laptop.setCard('hextech ray', 4);
-      await signIn(laptop, 'uA');
-      expect(laptop.questions).toHaveLength(0);
-      expect((db.get('users/uA/state/collection') as { cards: Record<string, { q: number }> }).cards['hextech ray'].q).toBe(4);
-      await laptop.engine.signOut('keep');
-      // uB has data of its own
-      const other = new Device(db);
-      await other.setCard('lightning rush', 1);
-      await signIn(other, 'uB');
-      laptop.combineAnswer = 'cancel';
-      await signIn(laptop, 'uB');
-      expect(laptop.questions.at(-1)?.differentAccount).toBe(true);
-    });
-
-    it('SYNC-091 Remove clears every local store and the sync log', async () => {
-      const laptop = await seedLaptop(db);
-      await laptop.engine.signOut('remove');
-      expect(laptop.backend.keys().filter((k) => k.startsWith('rift.'))).toEqual([]);
-      expect(db.get('users/uA/state/collection')).toBeDefined();
-    });
-
-    it('SYNC-002 / SYNC-086 Keep a copy, then reload: no Firebase, no session-lost message (AC 26)', async () => {
-      const laptop = await seedLaptop(db);
-      await laptop.engine.signOut('keep');
-      const reopened = laptop.reload();
-      await reopened.engine.start();
-      expect(reopened.adaptersLoaded).toBe(0);
-      expect(reopened.notices).not.toContain(MESSAGES.sessionLost);
-      expect(await reopened.quantity('hextech ray')).toBe(3);
-    });
-  });
-
   describe('AC 21 / AC 38: delete account (SYNC-095, SYNC-096, SYNC-097)', () => {
     it('SYNC-096 deletes the account document first, then decks and state, then the Auth user, then this device', async () => {
       const laptop = await seedLaptop(db);
@@ -765,7 +577,6 @@ describe('SyncEngine (SPEC-010)', () => {
       expect(reopened.engine.pendingCount()).toBe(2);
       expect((await reopened.log()).sessionExpected).toBe(true);
       await signIn(reopened);
-      expect(reopened.questions).toHaveLength(0);
       expect(reopened.engine.pendingCount()).toBe(0);
     });
 
@@ -799,28 +610,6 @@ describe('SyncEngine (SPEC-010)', () => {
       await laptop.advance(2500);
       expect(laptop.auth.calls).toContain('checkAccount');
       expect([...db.docs.keys()]).toEqual([]);
-    });
-
-    it('SYNC-097 half-deleted (ok, account document gone): sign out, keep data, write nothing (AC 28)', async () => {
-      const laptop = await seedLaptop(db);
-      const tablet = new Device(db);
-      await signIn(tablet);
-      db.docs.delete('users/uA');
-      const reopened = tablet.reload();
-      reopened.auth.uid = 'uA';
-      reopened.auth.account = 'ok';
-      const leftovers = new Map(db.docs);
-      db.resetCounts();
-      await reopened.engine.start();
-      await reopened.settle();
-      expect(db.writes).toBe(0);
-      expect(new Map(db.docs)).toEqual(leftovers);
-      expect(reopened.notices).toContain(MESSAGES.halfDeleted);
-      expect(await reopened.quantity('hextech ray')).toBe(3);
-      const log = await reopened.log();
-      expect(log).toMatchObject({ sessionExpected: false, uid: null });
-      expect(log.pending.cards).toEqual([]);
-      void laptop;
     });
   });
 

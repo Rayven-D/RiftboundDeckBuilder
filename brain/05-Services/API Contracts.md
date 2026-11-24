@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.8
+version: 1.12
 ---
 # API Contracts
 
@@ -221,16 +221,56 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   and writes `syncedAt` with `serverTimestamp()`.
 - **Additions to the SPEC-010 contract** (needed to build it; listed for the spec): `RemoteStore.getAccount(uid)`
   (the 1-read account check), `pull(..., { withAccount })`, `push()` returns a per-document `PushOutcome`
-  instead of `void`; `PushChanges` carries `replace` per state document, `updatedAt`, `batch`, and the account
-  write as `{ create, createdAt, updatedAt, lastClientVersion }`; `AuthService.restore()`,
+  instead of `void`; `PushChanges` carries `replace` per state document, `updatedAt`, and the account
+  write as `{ create, createdAt, updatedAt, lastClientVersion }` (no `batch` flag since v1.5: `push()` writes
+  one document at a time, in order, account first); `AuthService.restore()`,
   `sendEmailLink(email)`, `isEmailLinkReturn()`, `needsRecentSignIn()`, `signIn(providerId, email?)`;
   `StoredSyncLog.cloudDocs` (documents known to exist, for create vs update), `pending.collectionReplace`,
   `locks[id].h` (lockedAt), `deckTombstones[id].createdAt` and `.wasPending`; after H-062 round 1 also
   `deckCreated` (deck createdAt for tombstones), `lastBuild` (this device's build: SYNC-118 retry and the
-  once-per-build account update), `uploadingUid` (an interrupted first-sign-in upload resumes without
-  Combine), `deletingUid` (this device's unfinished deletion: sync stopped, Delete retryable);
+  once-per-build account update), `uploadingUid` (v0.7 only: no longer written since H-081, an old value is
+  ignored and dropped by the first-sign-in clear), `deletingUid` (this device's unfinished deletion: sync stopped, Delete retryable);
   `AuthService.reauthenticate()` may return `'needs-sign-in'` (email link); `RemoteErrorCode` adds
   `'unconfirmed'` (a write not acknowledged in 20 s: kept pending, confirmed by the next pull).
+- **Unfinished deletion and Cancel deletion (SYNC-096, H-127):** `RemoteStore.deleteAll(uid)` returns
+  `DeleteAllResult = 'ok' | { remaining: number; removedAny: boolean }`. `removedAny` is true when this
+  attempt removed a document, or when the failing delete timed out (`'unconfirmed'`, may still land); a failed
+  deck-list read (before the first delete) returns `{ remaining: 4, removedAny: false }`. Sync log
+  `deletingRemovedAny?: boolean`: false when `deletingUid` is first recorded (a retry keeps it), true once an
+  attempt reports `removedAny` or `deleteAll` returns `'ok'`, never back to false; cleared with `deletingUid`.
+  A log that has `deletingUid` without the field (older build) counts as "something removed".
+  `SyncEngine.unfinishedDeletion(): { canCancel } | null` and `cancelDeletion(): Promise<boolean>`
+  (exposed as `SyncService.deletion` and `cancelDeletion()`): Cancel is allowed only while
+  `deletingRemovedAny === false`; it clears both fields, notifies "Your account wasn't deleted." and runs a
+  normal sync (account check, pull, push).
+- **Account-required mode (SYNC-008/009/048/086/090/091/097, H-081):** the sync engine runs only when
+  `signInEnabled` is true, so everything below applies to that mode; with `signInEnabled: false` nothing here
+  runs (no gate, no clearing).
+  - Sync log `sessionLostUid?: string | null`: set to the linked uid when a lost session is detected (SYNC-086);
+    cleared by a successful sign-in with that uid, by a start-up whose restore returns the linked uid and passes
+    the account check, and by every log clear (`emptySyncLog()` writes `sessionLostUid: null` and no longer writes
+    `uploadingUid`).
+  - Gate (pure, `web/src/app/shared/sync/gate.ts`): `gateState(signInEnabled, log, { firstSyncFailed?, sessionLost? })`
+    → `'open' | 'signed-out' | 'session-lost' | 'first-sync' | 'first-sync-failed'`; always `'open'` in local-only
+    mode. `LocalSyncLogStore.peek()` reads the log synchronously so the gate is right at the first frame.
+    `SyncEngine.gate()` adds the session's runtime state. Angular: `SignInGate` (`core/sync/sign-in-gate.ts`):
+    `state`, `open`, `deckControls` (Tournaments Add to your decks / In your decks / Add another copy render only
+    while true), `offerDeleteLocalData` (SYNC-052: true only in local-only mode), `signIn()`, `retry()`; kept
+    current by `SyncService`. Gated pages render `<app-sign-in-panel page="collection|decks|import">` instead of
+    their content.
+  - `SyncEngine.signOut(): Promise<'ok' | 'offline'>` (no mode): clears every local store and the sync log;
+    refused offline. `SyncService.deleteLocalData()` removed. First sign-in: clear, full read, download or create
+    the account (or the SYNC-048 f half-deleted branch), link; no Combine, no upload, no `batch`. Removed:
+    `EngineDeps.confirmCombine`, `CombineQuestion`, `CombineDialog`, `MESSAGES.uploaded`/`differentAccount`,
+    `LocalAdapters.clearSynced` (SYNC-097 `deleted` now uses `clearAll`), `mergePulled`'s `mode` and the Combine
+    union, `liveCounts`, `cloudCounts`.
+  - First-sign-in writes (SYNC-050, H-077): the flow sends at most one `push()`, carrying only `account`
+    (`planAccountPush` in `push-plan.ts`): case a `create: true`; cases c / e `create: false` only when the
+    account's `lastClientVersion` differs from this build; case f nothing. Anything the download leaves to write
+    (an expired deck tombstone to purge, a merge repair) waits for the first regular push. `PushChanges.batch`,
+    `PlanOptions.batch` and the adapter's `writeBatch` chunking are removed.
+  - Sign-out dialog data: `{ pending: () => number; online: Signal<boolean>; syncNow: () => Promise<void> }`; it
+    closes with `true` to sign out.
 - **SYNC-097 Auth codes (verified on the Auth emulator, 2026-11-23):** deleted user → `reload()`
   `auth/user-token-expired`, forced refresh `auth/invalid-refresh-token`; revoked → `reload()`
   `auth/user-token-expired` (refresh still works in the emulator); disabled → `auth/user-disabled`.
@@ -265,6 +305,33 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
 - **Dev only:** `localStorage['rift.dev.sample'] = 'large'` makes `CardData` return a generated
   5,000-entry catalog (`sample-data.ts`), set by the `/styleguide` sample loader.
 
+## Builds and deploys (SPEC-010 SYNC-007, SYNC-012, H-078)
+- **`appVersion` per build (SYNC-012).** `web/scripts/build.mjs` computes it and passes it to `ng build` as the
+  define `APP_VERSION` (nothing is written into the source tree). Format `web-<prod|preview>-<id>`: `<id>` is
+  the first 7 characters of the full commit id, lowercased (`git rev-parse HEAD`, else `GITHUB_SHA`), or the
+  UTC build time `YYYYMMDDTHHMMSSZ` when neither gives a full id. ≤ 40 characters of `[0-9A-Za-z._+-]`; the
+  script fails the build rather than ship anything else. Pure logic: `web/scripts/app-version.mjs`
+  (`appVersion`, `resolveCommitId`, `formatBuildTime`, `ngBuildArgs`). `environment.ts` and
+  `environment.preview.ts` read `APP_VERSION`; a bare `ng build` without the define falls back to `web-dev`.
+  The dev server keeps `web-dev` (`environment.development.ts`); unit tests inject their own value.
+  The id is the commit checked out: uncommitted changes do not change it.
+- **Builds** (from `web/`): `npm run build` = production (`signInEnabled: false`, `web-prod-…`, output
+  `web/dist/web`); `npm run build:preview` = `ng build --configuration preview` (`signInEnabled: true`,
+  `web-preview-…`, output `web/dist/web-preview`).
+- **Production deploys (unchanged):** `firebase deploy --only hosting` and the GitHub Actions deploy of `main`
+  run the `firebase.json` predeploy `npm --prefix web run build` and upload `web/dist/web/browser`.
+- **Preview deploy (SYNC-007), the only supported way to put sign-in on a URL:**
+  `npm run deploy:preview -- <channel> [expires]` from `web/` (e.g. `npm run deploy:preview -- sync-test`).
+  It runs `firebase hosting:channel:deploy <channel> --config firebase.preview.json [--expires <expires>]` from
+  the repo root. `firebase.preview.json` has the same hosting rules as `firebase.json`, but its predeploy is
+  `node web/scripts/build.mjs preview --channel-deploy` and its `public` is `web/dist/web-preview/browser`, so
+  the uploaded folder is the preview build and no production build runs in between. `<channel>`: required,
+  1–36 lowercase letters, digits or inner hyphens, never `live`. `[expires]`: e.g. `12h`, `3d`, `2w`, at most
+  30 days; without it Firebase's default (7 days) applies. The preview predeploy refuses to build unless
+  `deploy:preview` started it (env `RIFT_PREVIEW_CHANNEL`), so `firebase deploy --config firebase.preview.json`
+  cannot put a preview build on `live`. **Preview URLs are public to anyone who has the link:** share them
+  privately and let them expire.
+
 ## Changelog
 - v0: created
 - v1 (2026-11-23, H-008): first endpoints: `GET /api/health`, `GET /api/sets`, `GET /api/cards`
@@ -291,3 +358,13 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   flag on `OwnershipCard` and `CardSummary` are removed; `COUNTED_ZONES` includes `runes`;
   `countedEntries(deck)` no longer takes a catalog; `canLock` returns `no-cards` only for a deck with no
   entries ("Lock in needs at least one card").
+- v1.9 (2026-11-24, H-127; numbered v1.3 on its branch, then v1.7): no endpoint change. `RemoteStore.deleteAll` reports `removedAny`; sync log
+  `deletingRemovedAny`; engine/service `unfinishedDeletion()` and `cancelDeletion()` (SYNC-096).
+- v1.10 (2026-11-24, H-081; numbered v1.4 on its branch, then v1.8): no endpoint change. Account-required mode: sync log `sessionLostUid`,
+  `uploadingUid` no longer written, the gate (`gateState`, `SignInGate`, `LocalSyncLogStore.peek()`), sign-out
+  without a mode, Combine and upload paths removed.
+- v1.11 (2026-11-24, H-077; numbered v1.5 on its branch, then v1.9): no endpoint change. `PushChanges.batch` and `PlanOptions.batch` removed (the adapter
+  no longer uses `writeBatch`); new pure `planAccountPush(account)`; the first-sign-in flow pushes the account
+  write only (SYNC-050).
+- v1.12 (2026-11-24, H-078; numbered v1.6 on its branch, then v1.10): no endpoint change. New section "Builds and deploys": per-build `appVersion`
+  (SYNC-012) and the preview deploy command `npm run deploy:preview -- <channel> [expires]` (SYNC-007).

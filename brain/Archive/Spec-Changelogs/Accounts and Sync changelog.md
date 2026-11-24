@@ -9,6 +9,80 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.9 (2026-11-24, H-134, RJ decision 14): SYNC-009: a gated page keeps its page header (title and
+  description); only the content below it is replaced by the sign-in panel. Signed-out panel text is exactly
+  "You need a free account to import cards or decks." (was "...cards and decks. Tournaments are open to
+  everyone."); text pending build H-135, header as built. AC 46 checks both. Summary key rules line and the
+  Decisions section (new decision 14) follow. Requirement and AC counts unchanged.
+
+- 0.8 (2026-11-24, H-080: account required to import, RJ decision 13; ADR-0007 amendment `proposed`):
+  **Modes:** new SYNC-008: `signInEnabled: false` = local-only mode, unchanged; `true` = account-required mode.
+  SYNC-001 rewritten by mode. **Gates:** new SYNC-009: Decks, deck detail, Collection, Import and "Add to your
+  decks" show a sign-in panel when signed out; Home, Tournaments, `/styleguide` and the privacy notice are public;
+  the gate is read from the sync log (open offline and during a lost session); "Getting…" state during the first
+  sync. **First sign-in:** SYNC-048 clears every local store and the sync log, then full read, then download;
+  cases (b) upload and (d) Combine removed; (f) clears; an interrupted flow starts over; `uploadingUid` no longer
+  written. SYNC-049 becomes MUST NOT (no Combine). SYNC-050: at most 1 write (account create, or one account
+  `update()` for a new build), no `state` / `decks` writes, no `batch` (H-077). SYNC-064: Combine union removed.
+  **Sign-out:** SYNC-090 one choice (Sign out / Cancel) with the unsynced-changes step (Sync now, Sign out
+  anyway); SYNC-091 sign-out clears the device. SYNC-004 and the linked-uid / session-expected definitions
+  follow. SYNC-052: Delete all local data not offered in account-required mode. **Deletion:** SYNC-096 account
+  menu Try again after reload, `deletingRemovedAny` rules (H-127), sign-out clears `deletingUid`; SYNC-097
+  `deleted` and half-deleted branches clear the device (new half-deleted message); SYNC-098 residual risks
+  rewritten. **Build id and deploy:** SYNC-012 `appVersion` = `web-<prod|preview>-<short commit>` (or UTC build
+  time), ≤ 40 characters; SYNC-007 preview deploy path as outcomes (H-078); SYNC-118 note. **Other:** SYNC-003
+  dialog text and legacy-data warning; SYNC-031/032/033 by mode and clearing is not deletion; SYNC-041, 074, 075
+  drop Combine; SYNC-080 offline cache in account-required mode; SYNC-086 gate stays open, different uid clears;
+  SYNC-101 notice facts; SYNC-113, SYNC-120 first-sign-in cost; SYNC-125. **ACs:** 1, 2, 3, 4, 5, 13, 20, 21,
+  25, 26, 27, 28, 31, 35, 36, 40, 42, 43 rewritten; new 45–48 (local-only unchanged, gates, gate at start-up
+  and offline, switching production). Decisions 5, 6 and part of 11 superseded by new decision 13. Impacts list
+  for SPEC-003/004/005/006/007/008, H-071, H-075, H-077, Home copy, Current State, Firestore Data Shape.
+  **Round 2 (same version, [[Validation H-080]] and RJ's follow-ups, decision 13 e–h):** (e) ADR-0007 amendment
+  accepted. (f) SYNC-009 gate also needs the session not lost; SYNC-086 closes the gate during a lost session
+  (data kept until sign-in; same uid resumes, different uid clears); SYNC-031 note; ACs 27, 47. (g) SYNC-003
+  legacy-data warning dropped (clearing stays, silent); ACs 3, 48. (h) SYNC-009: while the gate is not open,
+  Tournaments shows no Add to your decks / In your decks / Add another copy and the CAT-074 check reads no local
+  store (replaces "opens the sign-in dialog"); SYNC-002 wording; AC 46; SPEC-004 and SPEC-006 impact lines.
+  Validator failure 1: SYNC-081 and SYNC-090 say sign-out is disabled offline (as built), including Sign out
+  anyway and Sync now in the dialog; AC 20. SYNC-012: short commit id is exactly 7 characters. Open questions:
+  two unconfirmed defaults (sign out during an unfinished deletion; no offline sign-out).
+  **Round 3 (same version, [[Validation H-080]] round 2):** decision 13 (b) and ADR-0007 amendment bullet (b)
+  keep RJ's text and mark its "Add to your decks shows a sign-in prompt" part as replaced by (h). New sync-log
+  field `sessionLostUid` (pending build, H-081): set when SYNC-086 detects a lost session; cleared by a
+  successful sign-in, a restore of the linked uid that passes the account check, and every log clear. SYNC-009:
+  the gate is closed while it equals the linked uid, so a reload never shows the cards; the undetected-loss
+  window is stated (cards shown until the check finishes, edits allowed and kept pending). SYNC-030, SYNC-031
+  ("no user change after the loss is detected"), SYNC-086, Data contract, ACs 27 and 47.
+
+- 0.7 (2026-11-23, H-074: the spec documents the H-062 build, [[Validation H-062]] rounds 1–3; RJ decision 12):
+  **Data contract:** `RemoteStore.getAccount`, `pull(..., { withAccount })`, `push()` returns a per-document
+  `PushOutcome`; `PushChanges` with `account { create, createdAt, updatedAt, lastClientVersion }`, `replace` and
+  `updatedAt` per state document, `purgeTags`/`purgeAssignments`, `batch`; `AuthService.restore`, `signIn(id,
+  email?)`, `sendEmailLink`, `isEmailLinkReturn`, `needsRecentSignIn`, `reauthenticate` → `'ok' | 'cancelled' |
+  'needs-sign-in'`; `RemoteErrorCode` incl. `'unconfirmed'`; `StoredSyncLog` fields `cloudDocs`,
+  `pending.collectionReplace`, `locks[id].h`, `deckTombstones[id].createdAt` / `.wasPending`, `deckCreated`,
+  `lastBuild`, `uploadingUid`, `deletingUid`; `SyncStatus` carries `pendingCount`. SYNC-030 lists the new log
+  fields. **SYNC-002:** three load triggers (starting a sign-in, an expected session, an email sign-in link in
+  the URL); opening the dialog loads nothing (AC 1 updated). **SYNC-006:** email-link flow as built; a link opened
+  on another device asks "Confirm your email address to finish signing in." **SYNC-003:** interim placement:
+  Delete account and data in the account menu until Settings exists. **SYNC-007:** preview vs production builds;
+  `firebase.json` predeploy rebuilds production, so no deploy path ships the preview build (gap; AC 35 updated).
+  **SYNC-012 / SYNC-118:** "build changed" is device-local (`lastBuild`); the account is updated at most once per
+  build change and only if `lastClientVersion` differs; `appVersion` is a fixed string today. **SYNC-048 /
+  SYNC-050 / SYNC-113:** first-sign-in writes in batches of at most 10, account creation first; this device's own
+  partial upload (`uploadingUid`) resumes as case (b). **SYNC-053:** create detection via `cloudDocs`.
+  **SYNC-080:** an `'unconfirmed'` write (20 s) stays pending and is checked by a pull about 60 s later.
+  **SYNC-084:** singular "1 change not synced yet". **SYNC-096:** email-link re-auth = sign in again (exact
+  message); Google popup cancel "Your account wasn't deleted."; Try again; `deletingUid` stops all sync until the
+  deletion completes; **RJ decision 12:** Cancel deletion only when the deletion removed nothing, then only Try
+  again (or Remove from this device); pending build H-127 (`deletingRemovedAny`, `deleteAll` `removedAny`).
+  **SYNC-097:** Auth emulator codes recorded (`auth/user-token-expired`, `auth/invalid-refresh-token`), mapping
+  listed, production still `unverified`; the half-deleted sign-out clears `uploadingUid` (H-075). **SYNC-111 /
+  SYNC-112:** owner-only `list`, id checks on every operation, account `createdAt` immutable, `duplicatedFrom` ≤ 36.
+  **SYNC-114:** Java 21 for `npm run test:rules` (Android Studio JBR via `JAVA_HOME`). New ACs 39–44 (email-link
+  return, resumed upload, unconfirmed write, device-local build, unfinished deletion and Cancel deletion, Auth
+  codes); ACs 1, 3, 22, 29, 35 updated. Still 89 requirements (81 MUST, 3 SHOULD, 5 MUST NOT); 44 ACs.
+
 - 0.6 (2026-11-23, RJ: "i did email. update the specs to work in google later but stick with email for now"):
   SYNC-006 and RJ decision 1: email link is the only launch provider; Google stays specified but off; enabled
   providers come from build config `authProviders` (default `['email-link']`), so adding `'google'` needs only

@@ -1,6 +1,12 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { SignInGate } from '../../core/sync/sign-in-gate';
 import { EmptyState } from '../../shared/empty-state';
 
+/**
+ * Tournaments is public (SYNC-009). Its deck controls (SPEC-004 CAT-070 Add to your decks, CAT-074 In your
+ * decks / Add another copy) are not built yet; when they are, they render only while `gate.deckControls()`
+ * is true, and the CAT-074 "already added" check reads the local stores only then.
+ */
 @Component({
   selector: 'app-tournaments-page',
   imports: [EmptyState],
@@ -12,4 +18,6 @@ import { EmptyState } from '../../shared/empty-state';
     <app-empty-state heading="No tournaments loaded yet" message="Tournament results will appear here once the catalog is connected." />
   `,
 })
-export class TournamentsPage {}
+export class TournamentsPage {
+  protected readonly gate = inject(SignInGate);
+}

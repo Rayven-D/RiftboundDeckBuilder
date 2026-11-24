@@ -16,8 +16,8 @@ describe('statusText (SPEC-010 SYNC-084, SYNC-090)', () => {
   });
 
   it('SYNC-090 the sign-out warning counts unsynced changes (AC 20)', () => {
-    expect(unsyncedWarning(1)).toBe("1 change hasn't synced yet. They'll be lost if you remove this device's copy.");
-    expect(unsyncedWarning(3)).toBe("3 changes haven't synced yet. They'll be lost if you remove this device's copy.");
+    expect(unsyncedWarning(1)).toBe("1 change hasn't synced yet. It'll be lost if you sign out now.");
+    expect(unsyncedWarning(3)).toBe("3 changes haven't synced yet. They'll be lost if you sign out now.");
     expect(unsyncedWarning(0)).toBeNull();
   });
 });

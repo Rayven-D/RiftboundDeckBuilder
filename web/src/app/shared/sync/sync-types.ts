@@ -19,7 +19,7 @@ import type {
 
 export type Ms = number;
 
-/** Every document type is at `schemaVersion: 1` in SPEC-010 v0.5 (SYNC-011). */
+/** Every document type is at `schemaVersion: 1` (SPEC-010 SYNC-011). */
 export const KNOWN_DOC_SCHEMA = 1;
 
 // ---- Firestore documents (SYNC-010..018), engine form ----
@@ -154,10 +154,25 @@ export interface StoredSyncLog {
   deckCreated?: Record<string, Ms>;
   /** This device's app build when it last synced: a change retries rejected items (SYNC-118) and updates the account once (SYNC-012). */
   lastBuild?: string | null;
-  /** First-sign-in upload into this uid started and may be partly written (SYNC-048): a retry resumes it without asking. */
+  /**
+   * v0.7 only: an interrupted first-sign-in upload. v0.8 never writes it (the first sign-in never uploads,
+   * SYNC-048); a value left by an older build is ignored and dropped by the first-sign-in clear (SYNC-030).
+   */
   uploadingUid?: string | null;
   /** Account deletion of this uid started on this device and is not finished (SYNC-096): sync is stopped, Delete can be retried. */
   deletingUid?: string | null;
+  /**
+   * SYNC-096: false when `deletingUid` is first recorded; true, and never back to false, once an attempt
+   * removed (or may have removed, `'unconfirmed'`) a document. While false the account menu offers
+   * Cancel deletion. Cleared with `deletingUid`.
+   */
+  deletingRemovedAny?: boolean;
+  /**
+   * SYNC-086 / SYNC-009: the linked uid when a lost session was detected. While it equals `uid` the sign-in
+   * gate is closed, also at start-up. Cleared by a successful sign-in, by a restore of the linked uid that
+   * passes the account check, and by every clear of the log.
+   */
+  sessionLostUid?: string | null;
 }
 
 export interface SyncLogStore {
@@ -264,12 +279,17 @@ export interface PushChanges {
   /** One `set()` each, without merge (SYNC-018). */
   decks?: Record<string, DeckDoc>;
   hardDelete?: string[];
-  /** Write everything in one batch (first sign-in, SYNC-050; lets `existsAfter()` see the account). */
-  batch?: boolean;
 }
 
 /** Outcome per document ref: 'account' | 'collection' | 'tags' | 'locks' | 'deck:<id>' | 'delete:<id>'. */
 export type PushOutcome = Record<string, 'ok' | RemoteErrorCode>;
+
+/**
+ * SYNC-096 step 2 result. On failure, `removedAny` says whether this attempt removed (or may have
+ * removed: a delete that timed out, `'unconfirmed'`) any document. A failed deck-list read deletes
+ * nothing, so it reports `removedAny: false`.
+ */
+export type DeleteAllResult = 'ok' | { remaining: number; removedAny: boolean };
 
 export interface RemoteStore {
   /**
@@ -282,7 +302,7 @@ export interface RemoteStore {
   /** Never throws for a single document: each document's result is in the outcome (SYNC-043, SYNC-118). */
   push(uid: string, changes: PushChanges): Promise<PushOutcome>;
   /** SYNC-096 step 2: account document first, then every deck, then the three state documents. */
-  deleteAll(uid: string): Promise<'ok' | { remaining: number }>;
+  deleteAll(uid: string): Promise<DeleteAllResult>;
 }
 
 // ---- Status (SYNC-084) ----

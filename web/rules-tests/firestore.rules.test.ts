@@ -174,6 +174,12 @@ describe('SYNC-112 field validation', () => {
     await assertFails(setDoc(ref(a, `users/uA/decks/${DECK}`), liveDeck({ deletedAt: T })));
   });
 
+  it('SYNC-112 a deck whose duplicatedFrom has 37 characters is denied; 36 is allowed (AC 22)', async () => {
+    const a = db('uA');
+    await assertFails(setDoc(ref(a, `users/uA/decks/${DECK}`), liveDeck({ duplicatedFrom: 'x'.repeat(37) })));
+    await assertSucceeds(setDoc(ref(a, `users/uA/decks/${DECK}`), liveDeck({ duplicatedFrom: 'x'.repeat(36) })));
+  });
+
   it('SYNC-112 deck limits: 151 main entries, a 0- or 81-character name, an unknown format are denied', async () => {
     const a = db('uA');
     await assertFails(setDoc(ref(a, `users/uA/decks/${DECK}`), liveDeck({ main: Array.from({ length: 151 }, (_, i) => card(i)) })));

@@ -1,7 +1,6 @@
 /**
  * SPEC-010 engine tests for the H-062 round-1 fixes: per-device build (SYNC-118 / SYNC-012), account
- * deletion that stops part-way (SYNC-096 / SYNC-098), interrupted first sign-in (SYNC-048), unconfirmed
- * writes (SYNC-042), and denied reads with a valid session (SYNC-118).
+ * deletion that stops part-way (SYNC-096 / SYNC-098), unconfirmed writes (SYNC-042), and denied reads with a valid session (SYNC-118).
  */
 import { FakeFirestore } from './testing/fakes';
 import { Device, T0 } from './testing/device';
@@ -122,54 +121,6 @@ describe('SyncEngine round 2 (SPEC-010)', () => {
       expect(again.auth.deletedUser).toBe(true);
       expect(again.backend.keys().filter((k) => k.startsWith('rift.'))).toEqual([]);
       expect(again.engine.pendingCount()).toBe(0);
-    });
-  });
-
-  describe('SYNC-048 interrupted first sign-in', () => {
-    it('SYNC-048 a retry of this device’s own partly written upload resumes without the Combine dialog', async () => {
-      const d = new Device(db);
-      for (let i = 0; i < 3; i++) await d.setCard(`card ${i}`, 1);
-      for (let i = 0; i < 20; i++) await d.createDeck(`Deck ${i}`);
-      d.remote.failBatchAfter = 10; // account + 9 decks land, the rest is unconfirmed
-      await signIn(d);
-      expect(db.get('users/uA')).toBeDefined();
-      expect((await d.log()).uid).toBeNull();
-      expect((await d.log()).uploadingUid).toBe('uA');
-
-      const again = await reopen(d);
-      expect(again.questions).toEqual([]);
-      expect([...db.docs.keys()].filter((k) => k.includes('/decks/'))).toHaveLength(20);
-      expect(Object.keys(db.get('users/uA/state/collection').cards)).toHaveLength(3);
-      const log = await again.log();
-      expect(log.uid).toBe('uA');
-      expect(log.uploadingUid).toBeNull();
-      expect(again.notices).toContain(MESSAGES.uploaded);
-    });
-
-    it('SYNC-048 the same retry also happens in the running session (scheduled after an unconfirmed batch)', async () => {
-      const d = new Device(db);
-      await d.setCard('hextech ray', 2);
-      for (let i = 0; i < 12; i++) await d.createDeck(`Deck ${i}`);
-      d.remote.failBatchAfter = 5;
-      await signIn(d);
-      await d.advance(61_000);
-      expect(d.questions).toEqual([]);
-      expect((await d.log()).uid).toBe('uA');
-      expect([...db.docs.keys()].filter((k) => k.includes('/decks/'))).toHaveLength(12);
-    });
-
-    it('SYNC-049 a different device with data still gets the Combine dialog', async () => {
-      const laptop = new Device(db);
-      await laptop.setCard('hextech ray', 3);
-      laptop.remote.failBatchAfter = 1;
-      await signIn(laptop);
-      laptop.remote.failBatchAfter = null;
-      await laptop.advance(61_000);
-      const phone = new Device(db);
-      await phone.setCard('lightning rush', 1);
-      phone.combineAnswer = 'cancel';
-      await signIn(phone);
-      expect(phone.questions).toHaveLength(1);
     });
   });
 

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, Signal, computed, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import {
   MAT_DIALOG_DATA,
@@ -10,14 +10,13 @@ import {
 } from '@angular/material/dialog';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
-import type { CombineQuestion } from '../../shared/sync/sync-engine';
 import type { AuthProviderInfo } from '../../shared/sync/sync-types';
 import { MESSAGES } from '../../shared/sync/sync-engine';
 import { unsyncedWarning } from '../../shared/sync/status-text';
 
 /**
- * SPEC-010 dialogs: sign in (SYNC-003, SYNC-006), Combine (SYNC-049), sign out (SYNC-090), delete
- * account (SYNC-095). Small Angular Material dialogs in the style of the import dialog.
+ * SPEC-010 dialogs: sign in (SYNC-003, SYNC-006), sign out (SYNC-090), delete account (SYNC-095). There is
+ * no Combine dialog (SYNC-049, v0.8). Small Angular Material dialogs in the style of the import dialog.
  */
 
 export interface SignInDialogData {
@@ -27,6 +26,10 @@ export interface SignInDialogData {
   sendEmailLink: (email: string) => Promise<void>;
 }
 
+/** SYNC-003 (v0.8): no warning about legacy local data; the first sign-in clears it silently (SYNC-048). */
+export const SIGN_IN_INTRO =
+  "Sign in to import your cards and decks. They're saved to your account, so you'll see them on any device you sign in on.";
+
 /** SYNC-003 / SYNC-006: one button per enabled provider; closes with 'google' to start the Google popup, or nothing. */
 @Component({
   selector: 'app-sign-in-dialog',
@@ -34,10 +37,7 @@ export interface SignInDialogData {
   template: `
     <h2 mat-dialog-title>Sign in</h2>
     <mat-dialog-content>
-      <p>
-        Sign in to keep your collection and decks in sync across your devices. You don't need an account:
-        without one, everything stays on this device.
-      </p>
+      <p>{{ intro }}</p>
       @if (!data.online) {
         <p class="note" role="status">{{ offline }}</p>
       }
@@ -96,6 +96,7 @@ export interface SignInDialogData {
 })
 export class SignInDialog {
   protected readonly data = inject<SignInDialogData>(MAT_DIALOG_DATA);
+  protected readonly intro = SIGN_IN_INTRO;
   protected readonly offline = MESSAGES.offline;
   protected readonly showEmail = signal(false);
   protected readonly email = signal('');
@@ -122,67 +123,73 @@ export class SignInDialog {
   }
 }
 
-/** SYNC-049: Combine (primary) and Cancel, and no other choice (RJ decision 5). */
-@Component({
-  selector: 'app-combine-dialog',
-  imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton],
-  template: `
-    <h2 mat-dialog-title>Combine your data?</h2>
-    <mat-dialog-content>
-      <p>
-        This device and your account both have data. Combine them? You'll have the newest version of each
-        card count, tag and deck.
-      </p>
-      <p>
-        This device: {{ q.device.cards }} cards, {{ q.device.decks }} decks, {{ q.device.tags }} tags. Account:
-        {{ q.account.cards }} cards, {{ q.account.decks }} decks, {{ q.account.tags }} tags.
-      </p>
-      @if (q.differentAccount) {
-        <p>{{ differentAccount }}</p>
-      }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button matButton type="button" [mat-dialog-close]="'cancel'">Cancel</button>
-      <button matButton="filled" type="button" [mat-dialog-close]="'combine'">Combine</button>
-    </mat-dialog-actions>
-  `,
-})
-export class CombineDialog {
-  protected readonly q = inject<CombineQuestion>(MAT_DIALOG_DATA);
-  protected readonly differentAccount = MESSAGES.differentAccount;
-}
-
 export interface SignOutDialogData {
-  pending: number;
-  online: boolean;
+  /** Pending (and rejected) changes right now (SYNC-084, SYNC-118). */
+  pending: () => number;
+  /** Live connection state (SYNC-081): the dialog reacts when it drops or returns. */
+  online: Signal<boolean>;
+  /** Sync now with the dialog open (SYNC-040, SYNC-043). */
+  syncNow: () => Promise<void>;
 }
-export type SignOutChoice = 'keep' | 'remove' | 'sync';
 
-/** SYNC-090: Keep a copy on this device is the primary button (RJ decision 6). */
+export const SIGN_OUT_TEXT =
+  'Your collection and decks stay in your account and are removed from this device. Sign in again to get them back.';
+
+/**
+ * SYNC-090 (v0.8): one choice, Sign out, which clears this device (SYNC-091); no Keep a copy. With unsynced
+ * changes it first warns, with Sync now (primary), Sign out anyway and Cancel. Offline (SYNC-081) every button
+ * that syncs or signs out is disabled and only Cancel works. Closes with `true` to sign out.
+ */
 @Component({
   selector: 'app-sign-out-dialog',
   imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton],
   template: `
     <h2 mat-dialog-title>Sign out?</h2>
     <mat-dialog-content>
-      <p>Your collection and decks stay in your account.</p>
-      @if (warning) {
-        <p role="alert">{{ warning }}</p>
+      @if (warning(); as w) {
+        <p role="alert">{{ w }}</p>
+      } @else {
+        <p>{{ text }}</p>
+      }
+      @if (!data.online()) {
+        <p class="note" role="status">{{ offline }}</p>
       }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button matButton type="button" mat-dialog-close>Cancel</button>
-      @if (warning) {
-        <button matButton type="button" [disabled]="!data.online" [mat-dialog-close]="'sync'">Sync now</button>
+      @if (warning()) {
+        <button matButton="outlined" type="button" [disabled]="disabled()" [mat-dialog-close]="true">Sign out anyway</button>
+        <button matButton="filled" type="button" [disabled]="disabled()" (click)="syncNow()">Sync now</button>
+      } @else {
+        <button matButton="filled" type="button" [disabled]="disabled()" [mat-dialog-close]="true">Sign out</button>
       }
-      <button matButton="outlined" type="button" [mat-dialog-close]="'remove'">Remove from this device</button>
-      <button matButton="filled" type="button" [mat-dialog-close]="'keep'" cdkFocusInitial>Keep a copy on this device</button>
     </mat-dialog-actions>
+  `,
+  styles: `
+    .note { color: var(--color-text-muted); }
   `,
 })
 export class SignOutDialog {
   protected readonly data = inject<SignOutDialogData>(MAT_DIALOG_DATA);
-  protected readonly warning = unsyncedWarning(this.data.pending);
+  protected readonly text = SIGN_OUT_TEXT;
+  protected readonly offline = MESSAGES.offline;
+  private readonly pending = signal(this.data.pending());
+  protected readonly syncing = signal(false);
+  protected readonly warning = computed(() => unsyncedWarning(this.pending()));
+  protected readonly disabled = computed(() => !this.data.online() || this.syncing());
+
+  /** Runs a sync with the dialog open, then shows the plain question or the warning with the new count. */
+  protected async syncNow(): Promise<void> {
+    this.syncing.set(true);
+    try {
+      await this.data.syncNow();
+    } catch {
+      // The engine reports sync failures itself (status line, notices); the dialog only re-reads the count.
+    } finally {
+      this.pending.set(this.data.pending());
+      this.syncing.set(false);
+    }
+  }
 }
 
 /** SYNC-095: type `delete` to enable Delete account; no keep-a-copy option (RJ decision 7). */

@@ -1,6 +1,6 @@
 import type { StoredCollection, StoredTags, UserDeck } from '../storage/records';
 import type { LocalSnapshot } from './merge';
-import { MAP_CAPS, applyPushSuccess, planPush } from './push-plan';
+import { MAP_CAPS, applyPushSuccess, planAccountPush, planPush } from './push-plan';
 import { DAY_MS, emptySyncLog, hashCard } from './sync-log';
 
 const NOW = Date.UTC(2026, 11, 2);
@@ -163,5 +163,32 @@ describe('planPush (SPEC-010 SYNC-043)', () => {
     expect(applyPushSuccess(changed, plan, { collection: 'ok' }).pending.cards).toEqual(['a']);
     expect(applyPushSuccess(log, plan, { collection: 'ok' }).pending.cards).toEqual([]);
     expect(applyPushSuccess(log, plan, { collection: 'permission-denied' }).pending.cards).toEqual(['a']);
+  });
+  it('SYNC-050 planAccountPush sends the account only; on success the account is no longer pending and nothing else changes', () => {
+    const account = { create: false, createdAt: 1, updatedAt: NOW, lastClientVersion: 'web-0.2.0' };
+    const plan = planAccountPush(account);
+    expect(plan.changes).toEqual({ account });
+    expect(plan.empty).toBe(false);
+    const log = emptySyncLog();
+    log.pending.account = true;
+    log.cards['a'] = { t: 1, deleted: false, h: 'x' };
+    log.pending.cards = ['a'];
+    const after = applyPushSuccess(log, plan, { account: 'ok' });
+    expect(after.pending.account).toBe(false);
+    expect(after.pending.cards).toEqual(['a']);
+    expect(after.cloudDocs).toEqual([]);
+  });
+
+  it('SYNC-050 / SYNC-013 planPush sends pending items only: known but settled cards are not re-sent', () => {
+    const log = emptySyncLog();
+    log.cloudDocs = ['collection'];
+    log.cards['a'] = { t: 1, deleted: false, h: 'x' };
+    log.cards['b'] = { t: 2, deleted: false, h: 'y' };
+    log.pending.cards = ['b'];
+    const c = coll({ a: { quantity: 1, byPrinting: {} }, b: { quantity: 2, byPrinting: {} } });
+    const plan = planPush(snap({ collection: c }), log, { now: NOW, readOnly: [] });
+    expect(Object.keys(plan.changes)).toEqual(['collection']);
+    expect(Object.keys(plan.changes.collection?.cards ?? {})).toEqual(['b']);
+    expect(planPush(snap({ collection: c }), { ...log, pending: { ...log.pending, cards: [] } }, { now: NOW, readOnly: [] }).empty).toBe(true);
   });
 });

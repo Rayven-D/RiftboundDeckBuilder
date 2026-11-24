@@ -2,6 +2,7 @@
 tags: [adr, hosting, data]
 status: accepted
 date: 2026-11-23
+amendment: "2026-11-24 account required to import: accepted by RJ 2026-11-24 (H-080)"
 ---
 # ADR-0007: Firebase for Accounts and Saved Data (Firestore)
 
@@ -53,3 +54,47 @@ Detail and sizing are in [[Firestore Data Shape]]. In short:
 - The point-in-time recovery and delete protection of the database are off (defaults); turn on
   delete protection before real users arrive.
 - Card data hosting (static snapshot built in CI vs. an API function) is still open in ADR-0004.
+
+## Amendment 2026-11-24: account required to import
+**Status: accepted** (RJ, 2026-11-24, in chat; board H-080). The text above stays as the record of the
+2026-11-23 decision. Where they differ, this amendment wins.
+
+**RJ's decision** (2026-11-24, in chat): "You NEED an account to import your cards and import decks. You do NOT
+need an account to view the tournaments rankings". His answers to the follow-up questions:
+- (a) Sign-out clears this device's collection, tags, decks and locks. They come back from the account on the
+  next sign-in. There is no "Keep a copy", so there is never signed-out data and no Combine dialog.
+- (b) Signed out, a visitor sees Home and Tournaments only. Decks, Collection, Import and Tournaments' "Add to
+  your decks" show a sign-in prompt instead. **The "Add to your decks shows a sign-in prompt" part is replaced**
+  by RJ's follow-up of 2026-11-24: "a signed out visitor shouldn't see 'Add to your decks' in the tournaments".
+  Signed out, Tournaments shows no Add to your decks control (SPEC-010 SYNC-009, decision 13 h).
+- (c) Production keeps today's no-account imports (browser storage) until sign-in is turned on in production,
+  after RJ approves the privacy notice (H-069). The switch happens with the build flag `signInEnabled: true`.
+- (d) Cards and decks saved in a browser without an account are ignored and cleared on first sign-in. They are
+  not imported into the account.
+
+**What changes.** The decision bullet "Accounts stay optional: browser storage remains the default; signing in
+syncs it to the account" is replaced, in two modes chosen by the build flag:
+- `signInEnabled: false` (**local-only mode**, production today): no accounts. Everything is stored in the
+  browser, exactly as before this ADR.
+- `signInEnabled: true` (**account-required mode**): importing cards or decks needs an account. The browser
+  stores are a cache of the account: they still work offline, but they hold only the signed-in account's data.
+  Home and Tournaments are public and need no account.
+
+**Consequences**
+- The Consequences line "anonymous use stays as it is" now holds only in local-only mode. In account-required
+  mode an anonymous visitor can read Home and Tournaments and nothing else.
+- [[ADR-0005 MVP Product Defaults]] #1 (MVP storage is browser only) holds only in local-only mode.
+- Sign-out and account deletion clear the device. The first sign-in on a device clears it too, then downloads
+  the account. No browser data is ever uploaded into an account at sign-in, so the first-sign-in flow writes at
+  most one document (the account document). Combine, "Keep a copy" and the resume of an interrupted upload go
+  away ([[Accounts and Sync]] v0.8).
+- Data saved in a browser without an account is cleared at the first sign-in, with no warning. RJ (2026-11-24):
+  "this wont be an issue as no one has done that and no releases has been made".
+- Signed out (and while a session is lost), Tournaments shows no "Add to your decks" controls (RJ 2026-11-24).
+- Turning on `signInEnabled` in production is now a product switch, not only a feature flag: it changes who can
+  import. It still waits for RJ's approval of the privacy notice (SPEC-010 SYNC-007, SYNC-101).
+- Fewer cloud writes: the first sign-in never uploads, so the Firestore cost of a first sign-in drops to the
+  reads of the download plus at most one write.
+- Specs to update: [[Accounts and Sync]] (v0.8), and the storage lines of [[Collection Import]],
+  [[Deck Import]], [[My Collection]], [[Shared Cards and Lock-in]], [[Tournament Deck Catalog]] ("Add to your
+  decks"). The list is in SPEC-010 "Impacts on other specs".
