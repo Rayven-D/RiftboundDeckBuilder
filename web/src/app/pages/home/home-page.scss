@@ -126,7 +126,11 @@
   }
 }
 
-/* Panel on the left, copy on the right (copy goes first again on phones). */
+/* Panel on the left, copy on the right (copy goes first again on phones); same panel width. */
+.feature--flip {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+}
+
 .feature--flip .feature-copy {
   order: 2;
 }

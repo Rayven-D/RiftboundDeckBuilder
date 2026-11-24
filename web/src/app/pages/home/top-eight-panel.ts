@@ -42,7 +42,7 @@ function exampleTop8(offset: number): readonly ExamplePlacing[] {
 /**
  * Home page "Winning decks" example (RJ, 2026-11-23): events as the top level, each expanding to its
  * Top 8 with the Legend card, player and Legend name. Phones swipe through a
- * row of Legend cards; tablets and desktops show a 4-across grid. Invented example data,
+ * row of Legend cards; tablets and desktops show all 8 across, scaled down. Invented example data,
  * placings only (CAT-011), no stats (ADR-0003). Uses native details/summary for expand/collapse.
  */
 @Component({
