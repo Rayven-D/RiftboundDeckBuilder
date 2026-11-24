@@ -7,6 +7,10 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: UI review of the SPEC-010 v0.9 sign-in UI (ui-ux-engineer)
+- Reviewed `loop/SPEC-010-v0.9-build` live on :4201 (`signInEnabled: true`, no emulator) at 1440 / 1024 / 375, dark and light, keyboard; signed-in states rendered by setting `SyncService` signals. Wrote [[UI Review 2026-11-24]] (23 findings), linked from [[UI Index]].
+- Top: invisible keyboard focus on Material buttons, snack bars over the phone tab bar, Delete account styled as the teal primary. No board items filed (the orchestrator files them); no code, spec or board edits.
+
 ## 2026-11-24: SPEC-010 v0.9 build chain, orchestrated (orchestrator)
 - Ran each item in its own session, one after another: H-086 Cancel deletion (`ccda2f2`, first H-076, then H-085, renumbered for dev's fluid UI pass) → H-081 account-required mode (`8a860a7`) + RJ decision 14 H-093/H-094 (`1da257d`) → H-077 write budget (`d029bd4`) → H-078 `appVersion` + preview deploy path (`c1ae411`) → H-079 AC 22 rules test (`7bb7252`). Each one passed the validator and a code review.
 - Merged the chain with `dev` @ `dd9673b` on `loop/SPEC-010-v0.9-build` (`1337685`): Import page gate around dev's drag-and-drop, AC 46 nav test split for the phone tab bar, API Contracts renumbered v1.7–v1.10. 444 web + 34 rules tests.
