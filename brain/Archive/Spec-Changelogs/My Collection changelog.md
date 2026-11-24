@@ -9,6 +9,14 @@ superseded_by: "[[My Collection]]"
 
 Moved out of [[My Collection]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.6 (2026-11-23, H-049 item 19): Undo of an import warns **before** it runs, like every other change:
+  COLL-088 puts SPEC-008's "'`<deck name>`' (locked) will be `<n>` cards short." inside the COLL-058 undo
+  confirmation when manual edits followed the import, and otherwise asks for a confirmation only when a
+  locked deck would go short (computed on the snapshot the undo would restore). The v0.5 notice "… is now
+  `<n>` cards short." after Undo is removed. COLL-058 points to COLL-088 for the warning (its own MUST text is
+  unchanged). Agrees with SPEC-008 0.3 SHARE-034 and SPEC-003 0.7 IMP-050/IMP-050a. Summary updated. Pins:
+  SPEC-003 0.7, SPEC-008 0.3 (Depends line, data contract). Still 81 requirements.
+
 - 0.5 (2026-11-23, H-067): COLL-088 agrees with SPEC-008 0.2 SHARE-034 and SPEC-003 0.6 IMP-050: the
   locked-deck warning is shown before the edit inside its confirmation (an edit without one, e.g. − or a
   typed quantity, asks for one only when a locked deck would go short; Cancel changes nothing); a Replace

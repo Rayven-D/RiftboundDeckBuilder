@@ -37,12 +37,12 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 |---|---|---|
 | SPEC-001 [[Card Data Model]] | 0.3 | nullable attrs, `cardKey`, `printingSortKey`, `catalogVersion`, `defaultPrintingId` |
 | SPEC-002 [[Deck Legality]] | 0.3 | 4 ban waves as data, `banStatus()`, display rules LEGAL-R08 |
-| SPEC-003 [[Collection Import]] | 0.6 | owned cards; Part A = shared parsers; quantity required (any side), printing codes, .xlsx; Replace confirmation warns about locked decks |
+| SPEC-003 [[Collection Import]] | 0.7 | owned cards; Part A = shared parsers; quantity required (any side), printing codes, .xlsx; upload rejections and `;`/tab delimiter as built; Replace and Undo confirmations warn about locked decks |
 | SPEC-004 [[Tournament Deck Catalog]] | 0.4 | Top 8, Add to your decks |
 | SPEC-005 [[Your Decks Ownership View]] | 0.4 | full / darkened / partial fill of **available** copies, Riot section order, ban labels |
 | SPEC-006 [[Deck Import]] | 0.6 | community decks; CSV / Excel too; shared tournament source; locked decks can't change cards |
-| SPEC-007 [[My Collection]] | 0.5 | per-printing, tags, `deckOwnership()` |
-| SPEC-008 [[Shared Cards and Lock-in]] | 0.2 | one per-name pool across decks; lock in a complete deck (H-058 PASS 2026-11-23; build: H-059 engine → H-060 Decks UI) |
+| SPEC-007 [[My Collection]] | 0.6 | per-printing, tags, `deckOwnership()` |
+| SPEC-008 [[Shared Cards and Lock-in]] | 0.3 | one per-name pool across decks; lock in a complete deck (H-058 PASS 2026-11-23; build: H-059 engine → H-060 Decks UI) |
 | SPEC-009 [[Runes Assumed Owned]] | 0.2 | runes never missing, never shared or locked |
 
 ## Waiting on RJ

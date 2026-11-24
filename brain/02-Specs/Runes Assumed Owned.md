@@ -30,7 +30,7 @@ shared or locked counting, and are not needed in the Collection.
 - RUNE-009: legality (SPEC-002 LEGAL-008/009) is unchanged.
 
 **Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3, [[Your Decks Ownership View]] v0.4,
-[[Deck Import]] v0.6, [[My Collection]] v0.5, [[Shared Cards and Lock-in]] v0.2. **Consumers:** SPEC-005,
+[[Deck Import]] v0.6, [[My Collection]] v0.6, [[Shared Cards and Lock-in]] v0.3. **Consumers:** SPEC-005,
 SPEC-007, SPEC-008.
 **Known simplification (not a requirement):** domain split and possible non-basic runes in later sets (see
 Open questions).

@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-007
-version: 0.5
+version: 0.6
 status: draft
 depends_on: ["SPEC-001", "SPEC-002", "SPEC-003", "SPEC-008", "SPEC-009"]
 research: ["[[Sets]]", "[[Card Data & Images]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]", "[[Ban List]]", "[[Collection Import Formats]]"]
@@ -27,10 +27,10 @@ as_of: 2026-11-23
 - COLL-060/061: the query is remembered per browser and mirrored in the URL.
 - COLL-070: browser-only stores (`CollectionStore`, `TagStore`, `PrintingCodeStore`, view state).
 - COLL-080/081: "exclude from decks" tag flag; `deckOwnership(input, cardKey)` → `owned`, `ownedForDecks`, `ownedExcluded`, per-entry breakdown.
-- COLL-086…088 (v0.4): one per-name pool for decks: `ownedForDecks` sums every printing of a name, and SPEC-008 subtracts locked decks from it (Collection itself is unchanged by locks); runes are never needed (SPEC-009); changes that make a locked deck short warn first, inside their confirmation (v0.5: also inside the SPEC-003 Replace confirmation; Undo of an import gives a notice).
+- COLL-086…088 (v0.4): one per-name pool for decks: `ownedForDecks` sums every printing of a name, and SPEC-008 subtracts locked decks from it (Collection itself is unchanged by locks); runes are never needed (SPEC-009); changes that make a locked deck short warn first, inside their confirmation (v0.5: also inside the SPEC-003 Replace confirmation; v0.6: also inside the Undo of an import, which asks for a confirmation only then unless COLL-058 already gives one).
 
 **Shared types:** `DeckOwnership` / `DeckOwnershipInput` (read by SPEC-005, SPEC-008) · `CollectionCatalogView` (catalog view read by the pure functions) · `Tag`, `TagTarget`, `StoredTags` · `CollectionEntry`, `EntryBan` · `CollectionQuery`, `CollectionQueryInput`.
-**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3, [[Collection Import]] v0.6, [[Shared Cards and Lock-in]] v0.2 (`lockedShortfalls()`, SHARE-034), [[Runes Assumed Owned]] v0.2 (RUNE-008). **Consumers:** [[Your Decks Ownership View]], [[Shared Cards and Lock-in]].
+**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3, [[Collection Import]] v0.7, [[Shared Cards and Lock-in]] v0.3 (`lockedShortfalls()`, SHARE-034), [[Runes Assumed Owned]] v0.2 (RUNE-008). **Consumers:** [[Your Decks Ownership View]], [[Shared Cards and Lock-in]].
 **BLOCKED (needs research):**
 - Whether a foil is its own Riot API printing (COLL-011/016/020).
 - Rarity order (COLL-034); domain list (CARD-025); variant representation (CARD-040/041); API set order (CARD-071).
@@ -210,7 +210,7 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 | COLL-055 | SHOULD | **Add card** manually: search the catalog by name (COLL-040 matching against all catalog cards), pick a card and optionally a printing, choose a quantity; it is added as with an SPEC-003 Add import (unassigned if no printing chosen). | design rule |
 | COLL-056 | MUST | Manual edits are saved through the same `CollectionStore` as imports, update `updatedAt`, and keep `catalogVersion`. They do not create a SPEC-003 import record. | [[Collection Import]] IMP-053, IMP-054 |
 | COLL-057 | MUST | Interaction with SPEC-003 commits: **Add** increases `quantity` and per-printing counts as in IMP-049; **Replace** sets the collection to exactly the imported set. In both modes **tags are untouched**: they stay attached by `printingId` (and by `cardKey` for unassigned copies), so a printing present after the import keeps its tags, and printings no longer owned keep dormant tags (COLL-029). A Replace confirmation (IMP-050) also states "Tags are kept". | [[Collection Import]] IMP-049, IMP-050; design rule (decision 5) |
-| COLL-058 | MUST | Undoing the last import (IMP-052) restores quantities only. If manual edits were made after that import, the undo confirmation warns that those edits will be lost. Tags are not affected by undo. | [[Collection Import]] IMP-052; design rule |
+| COLL-058 | MUST | Undoing the last import (IMP-052) restores quantities only. If manual edits were made after that import, the undo confirmation warns that those edits will be lost. Tags are not affected by undo. *(v0.6)* Where an undo also gets SPEC-008's locked-deck warning, that is COLL-088 (SHOULD): it goes inside this same confirmation. | [[Collection Import]] IMP-052, IMP-050a; design rule |
 | COLL-059 | SHOULD | The collection CSV export (IMP-055) includes a `Tags` column: on a printing line, the tags of that `printingId`; on a name-only line for unassigned copies, the unassigned tags (tags joined with `; `, labels containing `;` quoted). Import ignores that column unless a later SPEC-003 version defines tag import. | [[Collection Import]] IMP-055; design rule |
 
 ### G. View state and URL
@@ -251,12 +251,12 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 | COLL-085 | SHOULD | The summary (COLL-010) shows "N copies excluded from decks" when N > 0. | design rule |
 | COLL-086 | MUST | **Per-printing Collection, per-name pool for decks.** Collection stays per printing (COLL-011) and tags stay on printings (COLL-020), but decks see one number per card name: `ownedForDecks(cardKey)` sums every non-excluded printing, unassigned and missing-printing entry of that `cardKey` (COLL-081). SPEC-008 builds its cross-deck pool on that number and subtracts copies held by locked decks; the exclude-from-decks tag applies first, so an excluded copy is never available to any deck, locked or not (SHARE-004). Locks never change quantities, entries or tags here. | [[Physical Copies Across Decks]] facts 2, 14; [[Shared Cards and Lock-in]] SHARE-002, SHARE-004; [[ADR-0006 Two Imports - Collection and Decks]] "Shared cards, lock in and runes" |
 | COLL-087 | MUST | **Runes are never needed.** Collection never asks for runes or warns that runes are missing; runes the user imports are listed, tagged and edited like any card, but never affect Decks (SPEC-009 RUNE-008). | [[Runes Assumed Owned]] RUNE-008 |
-| COLL-088 | SHOULD | When an edit would lower what a **locked deck** holds (− on an entry, a typed lower quantity (COLL-053), Remove card, turning on an exclude flag, assigning an excluded tag), SPEC-008's warning "'`<deck name>`' (locked) will be `<n>` cards short." is shown **before** the edit, inside its confirmation (COLL-084, COLL-054); an edit with no confirmation of its own (−, typed quantity, tag assignment, Remove card with Undo) asks for one only in that case, and Cancel leaves everything unchanged. A **Replace** Owned Cards Import shows the same warning inside its SPEC-003 IMP-050 confirmation, computed on the parsed import; **Undo** of an import commit (IMP-052) shows "'`<deck name>`' (locked) is now `<n>` cards short." as a notice after it runs (SHARE-034). | [[Shared Cards and Lock-in]] SHARE-034; [[Collection Import]] IMP-050, IMP-052 |
+| COLL-088 | SHOULD | When an edit would lower what a **locked deck** holds (− on an entry, a typed lower quantity (COLL-053), Remove card, turning on an exclude flag, assigning an excluded tag), SPEC-008's warning "'`<deck name>`' (locked) will be `<n>` cards short." is shown **before** the edit, inside its confirmation (COLL-084, COLL-054); an edit with no confirmation of its own (−, typed quantity, tag assignment, Remove card with Undo) asks for one only in that case, and Cancel leaves everything unchanged. A **Replace** Owned Cards Import shows the same warning inside its SPEC-003 IMP-050 confirmation, computed on the parsed import; an **Undo** of an import commit (IMP-052), computed on the snapshot it would restore, shows it inside the COLL-058 undo confirmation when manual edits followed the import, and otherwise asks for a confirmation only in that case, like the edits above (v0.6; SHARE-034, IMP-050a). No change shows the warning only after it has run. | [[Shared Cards and Lock-in]] SHARE-034; [[Collection Import]] IMP-050, IMP-050a, IMP-052 |
 
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { CardKey, PrintingId, PrintingCode, StoredCollection, CollectionStore } from './collection-import'; // SPEC-003 v0.6
+import type { CardKey, PrintingId, PrintingCode, StoredCollection, CollectionStore } from './collection-import'; // SPEC-003 v0.7
 import type { CardCategory, VariantKind, CardSet, PlayableCard, Printing } from './card-data-model';  // SPEC-001
 import type { BanStatus, BanListFile } from './deck-legality';       // SPEC-002, LEGAL-B10
 type IsoDate = string;             // YYYY-MM-DD (display per COLL-017: 'Nov 23, 2026')
@@ -609,4 +609,4 @@ catalog printing (open question 1).
 8. **Time zone of "today"** for ban status follows SPEC-002's open question (LEGAL-R02).
 
 ## Changelog
-Current: 0.5 (2026-11-23, H-067). Full history: [[My Collection changelog]] (archived). New entries go in the archive note.
+Current: 0.6 (2026-11-23, H-049). Full history: [[My Collection changelog]] (archived). New entries go in the archive note.

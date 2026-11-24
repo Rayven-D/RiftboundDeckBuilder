@@ -38,7 +38,7 @@ as_of: 2026-11-23
   `DeckLockState` (SPEC-008), `isRuneEntry()` (SPEC-009). Defines `computeDeckOwnership()` →
   `DeckOwnershipView`, `OwnershipCard`, `DeckTileSummary`. Excluding tag names come from
   `DeckOwnershipInput.tags` (SPEC-007 `TagStore`).
-- **Depends on:** SPEC-001 v0.3, SPEC-002 v0.3, SPEC-004 v0.4, SPEC-006 v0.6, SPEC-007 v0.5, SPEC-008 v0.2,
+- **Depends on:** SPEC-001 v0.3, SPEC-002 v0.3, SPEC-004 v0.4, SPEC-006 v0.6, SPEC-007 v0.6, SPEC-008 v0.3,
   SPEC-009 v0.2. Nothing is stored by this spec; everything is computed on display.
 - **Blocked / open:** foil as its own printing (SPEC-007 open question 1, H-020); card image aspect
   ratio and battlefield orientation in the API (OWN-081). Unknown card = 0 owned is a Claude default RJ
@@ -221,8 +221,8 @@ card fields are SPEC-001 ([[Card Data Model]]).
 import type { UserDeck, DeckCard, DeckZone, DeckSource } from './deck-import';   // SPEC-006 v0.6
 import type {
   DeckOwnership, DeckOwnershipInput, CollectionCatalogView, StoredTags, Tag, TagId,
-} from './my-collection';                                                       // SPEC-007 v0.5, COLL-081
-import type { SharedPool, CardUse, DeckLockState } from './shared-cards';     // SPEC-008 v0.2
+} from './my-collection';                                                       // SPEC-007 v0.6, COLL-081
+import type { SharedPool, CardUse, DeckLockState } from './shared-cards';     // SPEC-008 v0.3
 // isRuneEntry(zone, card) from SPEC-009 v0.2 (RUNE-001)
 import type { BanStatus, BanListFile, LegalityResult, FormatDef } from './deck-legality'; // SPEC-002 v0.3
 import type { PlayableCard, Printing, CardCategory } from './card-data-model';   // SPEC-001 v0.3
