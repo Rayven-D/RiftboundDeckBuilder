@@ -18,15 +18,15 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
   (SPEC-008/009). Available cards are in full colour,
   missing ones darkened, partly owned ones filled left to right (1 of 3 → ⅓). Ban status is shown on
   every card.
-- **Tournaments:** recent events, Top 8 with published placings. No meta statistics, ever (ADR-0003).
+- **Tournaments:** recent events, Top 8 with published placings. Its job is a source of winning constructed decks to add as a goal (RJ, 2026-11-23), not a feature of its own. No meta statistics, ever (ADR-0003).
 - **Constraints:** free, browser storage by default (optional sign-in and sync planned, ADR-0007), Riot API is
   the only card data source, no Riot logos, key server-side only, Riot data only (no curated alias or date tables).
 
 ## Built
 | Area | State |
 |---|---|
-| `web/` | Direction A applied (H-024, see [[Design Direction]]): Rift Builder name and favicon, blue accent, Archivo headlines, 4/6/8px corners, Angular Material. **Home page** at `/` (ownership fan, step tiles, example panels). **Import** page: Collection / Deck cards open a paste-or-upload dialog (text, CSV, Excel) with the shared parser (quantity on either side, printing codes like `RAD 001/167`, one upload path, size / encoding checks). Skip link focuses main; card art alt = card name. `/api` in dev and prod (dev proxy to services :3000). Shared card art / tile / chip / deck heading; `/styleguide`. Decks, Collection, Tournaments and Deck detail pages are still placeholders. Lint, build and 156 tests green. |
-| Git / deploy | Work lands on `loop/<ID>` branches → `dev`; RJ asked for `dev` → `main` pushes directly (no PR). `main` at `0b7e668` deployed by GitHub Actions to https://riftbound-deckbuilder.web.app on 2026-11-23. `dev` has `d907298` (Firestore config, ADR-0007) not yet pushed. |
+| `web/` | Direction A applied (H-024, see [[Design Direction]]): Rift Builder name and favicon, blue accent, Archivo headlines, 4/6/8px corners, Angular Material. **Home page** at `/` (headline "Know what you own. Own what you need.", ownership fan, step tiles, Ownership and Winning decks example panels; Winning decks = events expanding to Top 8 Legend cards, 8 across on desktop, swipe on phones; American spelling). **Import** page: Collection / Deck cards open a paste-or-upload dialog (text, CSV, Excel) with the shared parser (quantity on either side, printing codes like `RAD 001/167`, one upload path, size / encoding checks). Skip link focuses main; card art alt = card name. `/api` in dev and prod (dev proxy to services :3000). Shared card art / tile / chip / deck heading; `/styleguide`. Decks, Collection, Tournaments and Deck detail pages are still placeholders. Lint, build and 157 tests green. |
+| Git / deploy | Work lands on `loop/<ID>` or `claude/*` branches → `dev`; RJ asked for `dev` → `main` pushes directly (no PR). 2026-11-23: `dev` pushed at `af8806a` (home page copy + Winning decks, plus the earlier Firestore / SPEC-008/009 / H-030 WIP commits); `main` at `e8a4ae2` (merge of `dev`), deployed by GitHub Actions to https://riftbound-deckbuilder.web.app, then redeployed locally with `riot.txt` (H-056). Preview channel `home-copy` (expires 2026-11-30) was used for phone review. |
 | Firebase | Project `riftbound-deckbuilder`, Spark (free). Hosting serves the SPA. **Firestore** `(default)`, Standard, `us-south1`, created 2026-11-23, rules deny all (ADR-0007); deploy rules with `firebase deploy --only firestore`. Auth providers not enabled yet (H-063). The `!/api{,/**}` hosting rule only excludes `/api/` on real Hosting (`/api/health` still gets the SPA); harmless until an API exists. Data shape and free-tier sizing: [[Firestore Data Shape]] (input to H-061). |
 | In progress | The Collection page still needs building. Invented fixture cards are committed (`data/samples/fixture/`, `web/public/fixture-cards/`; `npm run ingest:fixture`). `data/raw/` holds the fixture, not a live payload. |
 | `services/` | TypeScript API (no runtime deps): card ingest pipeline from the Riot API, `/api/health`, `/api/sets`, `/api/cards`. Tested on the fixture only. Not hosted: proposed to ship card data as a static snapshot built in CI instead of a server (ADR-0004 still open). |
@@ -48,7 +48,7 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 ## Waiting on RJ
 - **Push rule:** CLAUDE.md and ADR-0002 say agents never push; RJ has asked for pushes (and `dev` → `main` merges) case by case. Update them if that should be the standing rule.
 - **H-063:** enable Firebase Auth sign-in providers; decide Firestore delete protection.
-- **H-056:** angular.json analytics id; `riot.txt` is uncommitted, so it isn't on the live site.
+- **H-056:** angular.json analytics id; `riot.txt` is still uncommitted (RJ unsure whether it should be in the repo). It is live only because of a local `firebase deploy --only hosting` on 2026-11-23; **every GitHub Actions deploy of `main` removes it again** until it is committed or the workflow adds it.
 - **H-020:** fetch the live Riot payload (or `cd services; npm install; npm run ingest:cards`). This unblocks most open card questions.
 - **H-042:** recreate the weekly research refresh as a scheduled task inside the Claude project (the old one was deleted; there is no automatic refresh until then).
 - **H-011:** apply for the production key once there's a demo ([[Riot App Application]]).

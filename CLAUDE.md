@@ -25,12 +25,12 @@ write when you learn.**
 |---|---|---|
 | `riftbound-researcher` | Rules, ban lists, meta, tournament results, card data & image sources | `brain/01-Research/` |
 | `spec-writer` | Turns research into precise, testable specs | `brain/02-Specs/` |
-| `service-builder` | Backend services & data pipeline, built from specs | `services/`, `brain/05-Services/` |
-| `ui-builder` | Front end, built collaboratively with RJ | `web/`, `brain/04-UI/` |
+| `builder` | All code, built from specs: UI (with RJ), browser business logic, services & data pipeline | `web/`, `services/`, `data/`, `brain/04-UI/`, `brain/05-Services/` |
 | `validator` | Verifies every item; routes failures back | `brain/07-Loop/`, Handoff Board |
 
-Flow: **researcher → spec-writer → service-builder → ui-builder**, with RJ in the loop on UI
-and on every ADR. Any agent can post a request to the Handoff Board.
+Flow: **researcher → spec-writer → builder**, with RJ in the loop on UI and on every ADR.
+Only `builder` changes code. `spec-writer` writes specs only, and when a spec change needs
+code it files a `builder` item on the Handoff Board. Any agent can post a request to the Handoff Board.
 
 ## The closed loop
 
