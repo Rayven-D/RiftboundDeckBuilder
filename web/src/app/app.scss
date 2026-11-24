@@ -6,6 +6,7 @@
 
 .skip-link {
   position: absolute;
+  z-index: 30;
   left: var(--space-2);
   top: -100px;
   padding: var(--space-2) var(--space-3);
@@ -17,14 +18,36 @@
   }
 }
 
+/* ---- Header (RJ, 2026-11-24): sticky, translucent slate; the border appears once scrolled ---- */
 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid transparent;
+  background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+  backdrop-filter: blur(12px) saturate(1.2);
+  transition:
+    border-color var(--dur-med) var(--ease-out),
+    background-color var(--dur-med) var(--ease-out);
+  /* Stays still during route transitions (styles.scss). */
+  view-transition-name: site-header;
+
+  &.scrolled {
+    border-bottom-color: var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 86%, transparent);
+  }
+}
+
+/* Same width and side padding as <main>: the wordmark lines up with the page's left edge and
+   Import with its right edge at every width. */
+.header-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3) var(--space-5);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  max-width: var(--content-max-width);
+  min-height: var(--header-height);
+  margin: 0 auto;
+  padding: 0 var(--content-gutter);
 }
 
 .wordmark {
@@ -44,7 +67,6 @@
 
 .site-nav ul {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-1);
   margin: 0;
   padding: 0;
@@ -52,13 +74,19 @@
 }
 
 .site-nav a {
-  display: block;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   padding: var(--space-2) var(--space-3);
   /* Rounded top only, so the active tab's 2px underline stays straight (RJ, 2026-11-23). */
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   border-bottom: 2px solid transparent;
   color: var(--color-text-muted);
   text-decoration: none;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 
   &:hover {
     color: var(--color-text);
@@ -72,45 +100,13 @@
   }
 }
 
-/* Phones: wordmark and Import on one row, the tabs on a scrollable row below. */
-@media (max-width: 40rem) {
-  .site-header {
-    gap: var(--space-2) var(--space-3);
-    padding-bottom: 0;
-  }
-
-  .wordmark {
-    font-size: var(--font-size-md);
-  }
-
-  .import-action {
-    margin-left: auto;
-  }
-
-  .site-nav {
-    order: 3;
-    flex-basis: 100%;
-    margin-right: 0;
-    overflow-x: auto;
-  }
-
-  .site-nav ul {
-    flex-wrap: nowrap;
-  }
-
-  .site-nav a {
-    white-space: nowrap;
-  }
-}
-
 /* Raised primary action: the accent fill plus a lift, so it reads above the flat tabs. */
 .import-action {
-  --mat-button-filled-container-height: 40px;
+  --mat-button-filled-container-height: 44px;
 
   box-shadow:
     0 1px 2px rgb(0 0 0 / 30%),
     0 3px 8px rgb(0 0 0 / 25%);
-  transition: box-shadow 120ms ease;
 
   &:hover {
     --mat-button-filled-container-color: var(--color-accent-hover);
@@ -130,7 +126,8 @@
   width: 100%;
   max-width: var(--content-max-width);
   margin: 0 auto;
-  padding: var(--space-5) var(--space-4);
+  padding: var(--space-5) var(--content-gutter);
+  view-transition-name: main;
 
   &:focus {
     outline: none;
@@ -150,4 +147,136 @@
 .legal {
   max-width: 100ch;
   margin: 0 auto;
+}
+
+/* ---- Phone bottom tab bar (RJ, 2026-11-24) ---- */
+.tab-bar {
+  display: none;
+}
+
+@media (max-width: 40rem) {
+  /* The footer (and so the page) ends above the fixed bar. */
+  :host {
+    padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+  }
+
+  .wordmark {
+    font-size: var(--font-size-md);
+  }
+
+  /* Tabs and Import move to the bottom bar; the header keeps just the wordmark. */
+  .site-nav,
+  .import-action {
+    display: none;
+  }
+
+  /* The account control (when sign-in is enabled) stays in the header, at the right edge. Its host
+     is display: contents, so the wordmark does the pushing. */
+  .wordmark {
+    margin-right: auto;
+  }
+
+  .tab-bar {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 20;
+    display: block;
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+    backdrop-filter: blur(12px) saturate(1.2);
+    view-transition-name: tab-bar;
+
+    ul {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    a {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      min-height: var(--tabbar-height);
+      padding: var(--space-1) 2px;
+      color: var(--color-text-muted);
+      text-decoration: none;
+      transition: color var(--dur-fast) var(--ease-out);
+      -webkit-tap-highlight-color: transparent;
+
+      /* Active marker: a short accent bar on the top edge, plus the accent color (and aria-current). */
+      &::before {
+        content: '';
+        position: absolute;
+        top: -1px;
+        left: 50%;
+        width: 2rem;
+        height: 2px;
+        margin-left: -1rem;
+        border-radius: 0 0 2px 2px;
+        background: var(--color-accent);
+        opacity: 0;
+        transform: scaleX(0.4);
+        transition:
+          opacity var(--dur-med) var(--ease-out),
+          transform var(--dur-med) var(--ease-out);
+      }
+
+      &.active {
+        color: var(--color-accent-text);
+
+        &::before {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      &:focus-visible {
+        outline-offset: -4px;
+      }
+    }
+  }
+
+  .tab-icon {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 1.75rem;
+    border-radius: var(--radius-md);
+    font-size: 22px;
+    transition:
+      background-color var(--dur-fast) var(--ease-out),
+      transform 90ms var(--ease-out);
+  }
+
+  a:active .tab-icon {
+    transform: scale(0.94);
+  }
+
+  .tab-label {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Import keeps the accent fill, so it still reads as the main action. */
+  .tab--action {
+    .tab-icon {
+      background: var(--color-accent);
+      color: var(--color-accent-contrast);
+    }
+
+    .tab-label {
+      color: var(--color-accent-text);
+    }
+  }
 }

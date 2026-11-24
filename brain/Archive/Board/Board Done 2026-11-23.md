@@ -8,6 +8,11 @@ reason: finished board items
 
 | ID | Owner | Request | Result |
 |---|---|---|---|
+| H-055 | service-builder | `/api` routing in dev and on Hosting | PASS: dev `apiBaseUrl` `/api` + `proxy.conf.json` (`ng serve` on :4321 → `GET /api/health` 200 JSON from services); `firebase.json` SPA rewrite `!/api{,/**}` (superstatic with the real config + dist: `/`, `/decks/abc`, `/import`, `/apix` → index.html; `/api`, `/api/`, `/api/health` → 404); prod API host plan in [[API Contracts]] (pending ADR-0004); not deployed |
+| H-054 | ui-builder | Skip link, card-art alt | PASS: skip link cancels navigation and focuses `<main>` on `/import` (test); `alt` defaults to the card name, `decorative` gives `alt=""` (tile, home fan) (tests) |
+| H-053 | ui-builder | Import upload path fixes | PASS: interim delimiter rule (RJ), multi-line cells flattened, `.txt` 1 MB / CSV+xlsx 5 MB, label-in-own-cell rows, dead paths removed; all tested through `readImportFile` (probe agrees); spec follow-ups → H-049 (4), (9)–(14) |
+| H-046 | ui-builder | Parser conformance with SPEC-003 | PASS: `2.5`/`x2.5`/`.5` → BAD_QUANTITY, 2,000-char row limit, raw ≤ 120, INPUT_ENCODING, catalog-free summary + format + upload (probe + tests); follow-ups → H-049 (15)–(18) |
+| H-048 | spec-writer → ui-builder | `x3 Name` / `Name x3` and printing codes on a line | PASS (parser part): SPEC-003/006 v0.5, Line grammar; probe on the real parser matches ACs 27, 28, 29 (parse part), 30–34 and DECK AC 23 parse part; V-008 web (lint, build, 105 tests); V-009 ok except AC 28 lacks **Given**; resolution IMP-066…070 → H-057; spec follow-ups (6)–(8) → H-049 |
 | H-007 | spec-writer | SPEC-005 Your Decks Ownership View | PASS v0.1: 63 reqs, zone allocation main first, fill left to right, exclude-from-decks tags; follow-ups H-040 |
 | H-039 | spec-writer | Spec summaries + clean-ups | PASS: Summary blocks on all specs, changelogs archived, versions 0.3/0.4 |
 | H-030 | spec-writer | SPEC-006 Deck Import | PASS v0.2 (retry 1): one shared tournament source with SPEC-004, H-036 naming and duplicates |

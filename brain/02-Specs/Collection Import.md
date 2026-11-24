@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-003
-version: 0.6
+version: 0.8
 status: draft
 depends_on: [SPEC-001, SPEC-008]
 related: ["[[Deck Import]]", "[[My Collection]]", "[[Your Decks Ownership View]]", "[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
@@ -16,11 +16,11 @@ as_of: 2026-11-23
 **Purpose:** Owned Cards Import: parse → preview → commit a list of cards the user owns into the browser collection. Part A (shared parsing) is reused by [[Deck Import]]; Part B is collection-only.
 
 **Key requirements**
-- IMP-001/062: paste or upload `.txt`, `.csv` or `.xlsx` in one dialog; an upload is written into the editable text box and parsed by the same line rule.
+- IMP-001/062: paste or upload `.txt`, `.csv` or `.xlsx` in one dialog; an upload is written into the editable text box and parsed by the same line rule. v0.8: IMP-061 lists every rejected upload (other file types, size, encoding, no lines) with its message; a rejected upload leaves the text box unchanged.
 - IMP-019/020 (v0.5): quantity as `3 Name`, `3x Name`, `3 x Name`, `x3 Name` or `Name x3` (`x` or `X`), once per line.
 - IMP-021: every line needs a quantity; a name-only line is error `MISSING_QUANTITY` (no "assume 1").
 - IMP-064…070 (v0.5): a line may carry a printing code (`RAD 001/167`, `OGN-007a`, `(OGN 299/298)`) at the start or end of the name; it is resolved by CARD-036 `lookupPrinting` and identifies the exact printing. Code-only lines (`3 RAD 001/167`) are accepted. Code and name disagree → `PRINTING_NAME_MISMATCH`; code not found → name fallback with `UNKNOWN_PRINTING`.
-- IMP-040/043: CSV/Excel rows are one cell `3x Name` or a quantity cell then the name; a first row of column titles is skipped.
+- IMP-040/043: CSV/Excel rows are one cell `3x Name` or a quantity cell then the name (v0.8: or a section label cell then the entry); a first row of column titles is skipped. IMP-042 (v0.8): `;` or tab outside quotes on the first line beats `,`.
 - IMP-016/017: section labels match case-insensitively with or without spaces (`Main Deck` / `MainDeck`).
 - IMP-002: parsing has no side effects; only an explicit commit writes.
 - IMP-003/056/063: one bad line never aborts; lines with problems are listed and left out; Continue needs one valid entry.
@@ -28,13 +28,14 @@ as_of: 2026-11-23
 - IMP-025/027: exact `nameKey` match resolves; fuzzy suggestions are never applied automatically.
 - IMP-029: shared-prefix names (e.g. `Kennen`) are `AMBIGUOUS_NAME`; IMP-059: no alias table.
 - IMP-047/048: merged by `cardKey`; per-printing counts (deck code, TTS, or a text/CSV/Excel line resolved by its printing code) are kept for display only.
-- IMP-049/050: commit as Add (default) or Replace (with confirmation; v0.6: the confirmation also warns when a locked deck would go short, SPEC-008 SHARE-034).
+- IMP-049/050: commit as Add (default) or Replace (with confirmation). IMP-050a (v0.8, split out of IMP-050): when a Replace or an Undo would leave a locked deck short, the warning ("… will be `<n>` cards short. It stays locked.") is shown inside the confirmation before the change; an Undo without one asks for one only then, and a confirmed Undo is followed by the notice "… is now `<n>` cards short." (SPEC-008 SHARE-034; RJ 2026-11-23).
 - IMP-053/054: browser storage behind `CollectionStore`, recording `catalogVersion`.
+- IMP-055 (v0.7, H-045): CSV export `Quantity,Card Name` only (no Tags column); one row `<qty>,<name> <SET> <NUM>` per printing, one name-only row for unassigned, missing-printing and no-code copies; export → Replace import gives the same `quantity` and `byPrinting` (AC 35).
 - IMP-058: the committed collection feeds Collection; Decks reads SPEC-007 `deckOwnership()`.
 - Part A preamble: not applicable to decks: IMP-009 and IMP-015 only (= DECK-013). Since v0.4 CSV/Excel is shared with decks.
 
 **Shared types:** `CardKey`, `PrintingId`, `PrintingCode` (keys) · `ImportResult` / `ParsedLine` / `PrintingHint` / `ImportIssue` / `UploadInfo` (parser output, reused by SPEC-006) · `SourceFormat` · `StoredCollection` (`cardKey` → quantity + `byPrinting`) · `CollectionStore`.
-**Depends on:** [[Card Data Model]] v0.3; [[Shared Cards and Lock-in]] v0.2 (IMP-050 locked-deck warning only). **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
+**Depends on:** [[Card Data Model]] v0.3; [[Shared Cards and Lock-in]] v0.3 (IMP-050a locked-deck warning only). **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
 **BLOCKED (needs research):**
 - Piltover deck-code set indexes beyond SFD and what `ARC` is (IMP-032); variant letters a/s/b (IMP-033).
 - Real deck codes with known contents for fixtures (AC 16).
@@ -109,22 +110,22 @@ Part A is **shared parsing, reused by SPEC-006**, except these requirements, whi
 #### General parsing flow *(shared parsing, reused by SPEC-006)*
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| IMP-001 | MUST | Accept input either as pasted text or as an uploaded file: `.txt` (read as text), `.csv` (IMP-042), or `.xlsx` (Excel; the **first sheet** only). Upload limits and rejected files: IMP-061. How an upload reaches the parser: IMP-062. | [[Product Vision]] core loop step 1; RJ decision 2026-11-23 (H-043) (`.xlsx`) |
+| IMP-001 | MUST | Accept input either as pasted text or as an uploaded file: `.txt` (read as text), `.csv` (IMP-042), or `.xlsx` (Excel; the **first sheet** only), recognised by the file name's extension (any case). Any other file type is rejected (IMP-061). Upload limits and rejected files: IMP-061. How an upload reaches the parser: IMP-062. | [[Product Vision]] core loop step 1; RJ decision 2026-11-23 (H-043) (`.xlsx`) |
 | IMP-002 | MUST | Parsing produces an `ImportResult` (see Data contract) and has no side effects: it MUST NOT modify any stored data. Only an explicit user **commit** writes (owned cards: IMP-049; decks: SPEC-006). | design decision |
 | IMP-003 | MUST | Imports are tolerant: one bad line never aborts the import. Every unparseable or unresolved entry is reported with its location; all other entries remain importable. | design decision |
 | IMP-005 | MUST | Raw import text and files MUST NOT be sent to any third party. Resolution runs only against our own card catalog. | [[Riot Developer Rules]] #7 |
-| IMP-061 | MUST | **Uploads.** A file larger than **5 MiB** is rejected before reading: "`<file>` is too large to import (limit: 5 MB)." An `.xls` file (old Excel) is rejected: "Older .xls files aren't supported. Save it as .xlsx or .csv and try again." An `.xlsx` that cannot be read gives "Couldn't read `<file>`. Save it as .xlsx or .csv and try again." A rejected file leaves the text box unchanged. The 1 MiB / 10,000-line limit (IMP-006) then applies to the text the upload produces. | RJ decision 2026-11-23 (H-043) |
-| IMP-062 | MUST | **One paste-or-upload dialog per import** (Owned Cards Import, Deck Import). An uploaded file is converted into text lines (`.txt` as-is; `.csv`/`.xlsx` rows per IMP-040) and **written into the dialog's text box**, replacing its content, so the user can edit it; the loaded file name is shown. Pasted, typed and uploaded input is then parsed by the **same line rule** (IMP-019, IMP-021), re-parsed on every edit. | RJ decision 2026-11-23 (H-043) |
+| IMP-061 | MUST | **Uploads.** An upload is checked in this order; the first failing check rejects it (v0.8): (1) the name ends `.xls` (old Excel, any case) → `FILE_REJECTED` "Older .xls files aren't supported. Save it as .xlsx or .csv and try again."; (2) the name does not end `.txt`, `.csv` or `.xlsx` (any case) → `FILE_REJECTED` "`<file>` can't be imported. Use a .txt, .csv or .xlsx file."; (3) a `.txt` larger than **1 MiB** (plus 3 bytes for a UTF-8 BOM) is rejected **before reading** with the IMP-006 limit: `INPUT_TOO_LARGE` "`<file>` is too large to import (limit: 1 MB or 10,000 lines)."; (4) a `.csv` or `.xlsx` larger than **5 MiB** is rejected before reading: `INPUT_TOO_LARGE` "`<file>` is too large to import (limit: 5 MB)."; (5) an `.xlsx` that cannot be read → `FILE_REJECTED` "Couldn't read `<file>`. Save it as .xlsx or .csv and try again."; a `.txt` or `.csv` that is not valid UTF-8 → `INPUT_ENCODING` (IMP-010); (6) the text the upload converts into (IMP-062) exceeds IMP-006 (1 MiB or 10,000 lines) → `INPUT_TOO_LARGE` "`<file>` is too large to import (limit: 1 MB or 10,000 lines).", so the text box is never filled with text that can't be imported; (7) that text has no non-blank character (an empty file, or only a title row and empty rows) → `FILE_REJECTED` "`<file>` has no lines to import." The message is shown next to the upload control (`UploadRejection`, Data contract); it is not an `ImportIssue`, because the file never reaches the parser. A rejected file leaves the text box, and the upload it holds (IMP-062), unchanged. **House style:** every user-facing message in this spec uses the straight apostrophe `'` ("aren't", "can't", "isn't", "Couldn't"), never the typographic `’`. | RJ decision 2026-11-23 (H-043); H-053 (checks (2), (3), (6), (7) as built in `parse-card-list.ts`); RJ decision 2026-11-23 (H-049 follow-up: straight apostrophe) |
+| IMP-062 | MUST | **One paste-or-upload dialog per import** (Owned Cards Import, Deck Import). An uploaded file is converted into text lines (`.txt` as-is; `.csv`/`.xlsx` rows per IMP-040) and **written into the dialog's text box**, replacing its content, so the user can edit it; the loaded file name is shown. Pasted, typed and uploaded input is then parsed by the **same line rule** (IMP-019, IMP-021), re-parsed on every edit. **Upload kept or dropped (v0.8):** the upload (its file name, the `csv` format of IMP-011 and the row limit of IMP-007) stays with the text box while the user edits it, because edits are fixes to the uploaded lines; it is **dropped** when the text box is emptied (nothing but whitespace is left) or when a paste or drop replaces the **whole** content; a new upload replaces it, and a rejected upload changes nothing (IMP-061). | RJ decision 2026-11-23 (H-043); H-046/H-053 (kept/dropped rule as built in `import-dialog.ts`) |
 | IMP-063 | MUST | **Problems and Continue.** The dialog shows the total copies and the number of valid entry lines, and lists every line with a problem (line number, message, raw text): the first **50** issues are shown, then "+N more". Lines with problems are **left out** of the import ("Lines with problems are left out of the import."). **Continue** requires at least one valid entry; otherwise it shows "Add at least one line with a number and a card name first." Continue hands the parse result to the next step and saves nothing (IMP-002). | RJ decision 2026-11-23 (H-043) |
 
 #### Input limits *(shared parsing, reused by SPEC-006)*
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| IMP-006 | MUST | Reject input larger than **1 MiB** (UTF-8 bytes) or with more than **10,000 lines** with a single input-level error `INPUT_TOO_LARGE`; nothing is parsed. | design decision. A full collection, one line per printing in the Riot API catalog (SPEC-001), fits easily: the community count is roughly 1,451 printings incl. promos ([[Card Data & Images]] #13, approximate, excludes RAD), i.e. well under 10,000 lines. |
-| IMP-007 | MUST | A text line longer than **500 characters** is reported as error `LINE_TOO_LONG` and skipped. A CSV/Excel row whose non-empty cells joined with `, ` exceed **2,000 characters** is reported as `LINE_TOO_LONG` (raw excerpt 120 chars) and skipped. | design decision |
-| IMP-008 | MUST | Quantity per entry must be an integer **1..999**. `0` → warning `ZERO_QUANTITY`, entry skipped. Negative, non-integer, or >999 → error `BAD_QUANTITY`. | design decision |
+| IMP-006 | MUST | Reject input larger than **1 MiB** (UTF-8 bytes) or with more than **10,000 lines** with a single input-level error `INPUT_TOO_LARGE` ("This is too large to import (limit: 1 MB or 10,000 lines)."); nothing is parsed. An upload over this limit is rejected before it reaches the text box, with the file name in the message (IMP-061 (3), (6)). | design decision. A full collection, one line per printing in the Riot API catalog (SPEC-001), fits easily: the community count is roughly 1,451 printings incl. promos ([[Card Data & Images]] #13, approximate, excludes RAD), i.e. well under 10,000 lines. |
+| IMP-007 | MUST | A text-box line longer than **500 characters** is error `LINE_TOO_LONG` ("Line is longer than 500 characters.") and skipped. While the text box holds a `.csv` or `.xlsx` upload (IMP-062), every line has the **2,000-character** row limit instead ("Row is longer than 2,000 characters."). Length is measured on the line **as it is in the text box**, i.e. the converted line (`1 Name`, IMP-040), not on the original cells (they no longer exist after conversion). Raw excerpt max 120 chars (IMP-056). *(v0.8: was "cells joined with `, `".)* | design decision; H-046 (as built) |
+| IMP-008 | MUST | Quantity per entry must be an integer **1..999**. `0` → warning `ZERO_QUANTITY` ("Quantity is 0, so this line is skipped."), entry skipped. Negative, non-integer, or >999 → error `BAD_QUANTITY` ("Quantity must be a whole number from 1 to 999."). **Non-integer** (v0.8) = digits with a decimal point or a decimal comma **followed by at least one digit**, in any IMP-020 form (Line grammar `DEC_LEAD`, `DEC_TRAIL`): `2.5 Gust`, `.5 Gust`, `2,5 Gust`, `2.5x Gust`, `x2.5 Gust`, `Gust x2.5`, and a CSV row `2,5;Gust` (→ `2,5, Gust`). A number followed by a `.` or `,` with **no digit after it** is not a quantity: `2. Gust` has no quantity in any IMP-020 form, so it is `MISSING_QUANTITY` (IMP-021). | design decision; H-046 (as built) |
 | IMP-009 | SHOULD | After merging, a count above **9,999** for one `cardKey` is capped with error `TOTAL_TOO_LARGE`. | design decision |
-| IMP-010 | MUST | Input is decoded as UTF-8; a leading BOM is stripped; `\r\n`, `\r` and `\n` are all line breaks. Invalid UTF-8 → `INPUT_ENCODING` error. | design decision |
+| IMP-010 | MUST | Input is decoded as UTF-8; a leading BOM is stripped; `\r\n`, `\r` and `\n` are all line breaks. An uploaded `.txt` or `.csv` that is not valid UTF-8 **rejects the upload** (IMP-061): `INPUT_ENCODING` "`<file>` isn't UTF-8 text. Save it as UTF-8 or .xlsx and try again.", and the text box is unchanged. Pasted or typed text is already text, so it never has an encoding error. *(v0.8: was an input-level `INPUT_ENCODING` issue.)* | design decision; H-046 (as built) |
 
 #### Format auto-detection *(shared parsing, reused by SPEC-006)*
 | ID | Level | Requirement | Source |
@@ -146,7 +147,7 @@ Part A is **shared parsing, reused by SPEC-006**, except these requirements, whi
 | IMP-021 | MUST | **Every entry needs a quantity.** A line with a card part but no quantity in any IMP-020 form (e.g. `Lightning Rush`, `RAD 001/167`) is error `MISSING_QUANTITY` ("Start the line with a number, like "1 Card name" or "1x Card name".") and is left out; no quantity is assumed. A line that is only a quantity (`3`, `3x`, `3 x`, `x3`, `X3`) is error `MISSING_NAME` ("Add the card name after the number."). A quantity with only a printing code is **not** `MISSING_NAME`; it is a code-only entry (IMP-066). *(Replaces v0.3's "assume 1 with warning `QUANTITY_ASSUMED`".)* | RJ decision 2026-11-23 (H-043); RJ decision 2026-11-23 (H-048) (`Name` alone stays `MISSING_QUANTITY`) |
 | IMP-022 | MUST | Ignore blank lines (Piltover Archive text separates groups by blank lines) and comment lines starting with `//` or `#` that are not section labels. | [[Collection Import Formats]] (Piltover Archive text) |
 | IMP-023 | MUST | If a label line also carries an entry after the colon (`Champion: 1 Kennen, Storm of Shuriken`), the label takes effect and the remainder is parsed as an entry under it (IMP-019, IMP-021). | RJ decision 2026-11-23 (H-043) (raised from MAY); Play Network export layout is **unconfirmed** |
-| IMP-024 | MUST | Lines that are neither label, comment, blank, nor a valid entry produce an error with the line number and raw text: `BAD_QUANTITY` if the line starts with a negative number (IMP-008) or carries two quantities (IMP-020), `MISSING_NAME` if it is only a quantity, otherwise `MISSING_QUANTITY` (IMP-021). *(v0.4: replaces the catch-all `UNPARSEABLE_LINE`, which no longer occurs.)* | design decision; RJ decision 2026-11-23 (H-043) |
+| IMP-024 | MUST | Lines that are neither label, comment, blank, nor a valid entry produce an error with the line number and raw text: `BAD_QUANTITY` if the line starts with a negative number (IMP-008), has a non-integer quantity (IMP-008, v0.8) or carries two quantities (IMP-020), `MISSING_NAME` if it is only a quantity, otherwise `MISSING_QUANTITY` (IMP-021). *(v0.4: replaces the catch-all `UNPARSEABLE_LINE`, which no longer occurs.)* | design decision; RJ decision 2026-11-23 (H-043) |
 
 **Line grammar** (v0.5; IMP-019, IMP-020, IMP-064, IMP-065). Applied to a trimmed line that is not blank, a
 comment or a label-only line (IMP-016, IMP-022); for a label line with an entry (IMP-023), to the part after
@@ -159,6 +160,10 @@ QTY_LEAD   = ^(\d+)(?:\s*[xX])?\s+(.+)$          3 Name · 3x Name · 3 x Name �
 QTY_TRAIL  = \s+[xX](\d+)$                       Name x3
 QTY_ONLY   = ^\d+(?:\s*[xX])?$ | ^[xX]\d+$       3 · 3x · 3 x · x3          → MISSING_NAME
 NEG_LEAD   = ^-\d                                 -1 Gust                    → BAD_QUANTITY
+DEC_LEAD   = ^(?:\d*[.,]\d+(?:\s*[xX])?|[xX]\d*[.,]\d+)(?=[\s,]|$)            (v0.8, IMP-008)
+                                                  2.5 Gust · .5 Gust · 2,5 Gust · 2,5, Gust · x2.5 Gust → BAD_QUANTITY
+DEC_TRAIL  = \s[xX]\d*[.,]\d+$                    Gust x2.5 (step 7)         → BAD_QUANTITY
+QTY_SECOND = (?:^|\s)[xX](?:\d+|\d*[.,]\d+)$      x2 · Name x2 · Name x2.5 (step 5; v0.8)
 
 SET        = [A-Za-z]{3}                          RAD · ogn
 NUM        = [A-Za-z]+\d*\s*/\s*\d+[A-Za-z*]*     block      SP1/005 · sp1 / 5
@@ -170,13 +175,13 @@ SEP        = \s+-\s+ | \s*,\s* | \s+              between name and code; next to
 ```
 
 Steps, in order:
-1. If the line matches `QTY_ONLY` → `MISSING_NAME`; if it matches `NEG_LEAD` → `BAD_QUANTITY`. Stop.
+1. If the line matches `QTY_ONLY` → `MISSING_NAME`; if it matches `NEG_LEAD` or `DEC_LEAD` (v0.8) → `BAD_QUANTITY`. Stop.
 2. **Leading quantity.** If the line matches `QTY_LEAD` → quantity = the digits, *body* = the rest. Otherwise *body* = the whole line and there is no quantity yet.
-3. **Trailing parts.** Repeat at most twice: if there is no quantity yet and *body* ends with `QTY_TRAIL`, take it as the quantity and cut it off; otherwise, if there is no code yet and *body* is `CODE_PART` or ends with `SEP` + `CODE_PART`, take that code and cut it (and the separator) off; otherwise stop. So `Name x3`, `Name x3 CODE`, `Name CODE x3` and `CODE x3` all work.
+3. **Trailing parts.** Repeat at most twice: if there is no quantity yet and *body* ends with `QTY_TRAIL`, take it as the quantity and cut it off; otherwise, if there is no code yet and *body* is `CODE_PART` or ends with `SEP` + `CODE_PART`, take that code and cut it (and the separator) off; otherwise stop. So `Name x3`, `Name x3 CODE`, `Name CODE x3` and `CODE x3` all work. *(v0.8)* When more than one `SEP` + `CODE_PART` split fits the end of *body*, the one that **starts earliest** wins, i.e. the **longest** code (and at that start, `SEP` is tried as ` - `, then `,`, then spaces): in the hypothetical `1 Lightning Rush ABC DEF1/005` both `ABC DEF1/005` (set `ABC`, block number `DEF1/005`) and `DEF1/005` (set `DEF`, fraction `1/005`) fit, and the code is `ABC DEF1/005` with name `Lightning Rush`.
 4. **Leading code.** If there is no code yet and *body* is `CODE_PART` or starts with `CODE_PART` + `SEP`, take that code and cut it (and the separator) off.
-5. **Two quantities.** If a quantity came from step 2 and the remaining *body* still ends with `QTY_TRAIL` → `BAD_QUANTITY` ("Give the number of copies once per line."). Stop.
+5. **Two quantities.** If a quantity came from step 2 and the remaining *body* **ends with, or is,** `[xX]` + a number (`QTY_SECOND`; v0.8, was "ends with `QTY_TRAIL`", which needs whitespace before the `x`) → `BAD_QUANTITY` ("Give the number of copies once per line."). Stop. So `3x RAD 001 x2`, whose body is `x2` once the leading code is cut in step 4, is `BAD_QUANTITY`, not an entry named `x2`.
 6. **Name** = the remaining *body*, trimmed; a dangling `-` or `,` left at the cut is removed with the whitespace around it. The name may be empty when there is a code.
-7. **Outcome.** No quantity → `MISSING_QUANTITY`. Quantity, empty name, no code → `MISSING_NAME`. Quantity with a name and/or a code → one entry; the value rules of IMP-008 apply.
+7. **Outcome.** No quantity → `BAD_QUANTITY` if *body* ends with `DEC_TRAIL` (v0.8, `Gust x2.5`), otherwise `MISSING_QUANTITY`. Quantity, empty name, no code → `MISSING_NAME`. Quantity with a name and/or a code → one entry; the value rules of IMP-008 apply.
 
 A code is only ever taken whole at the very start or the very end of the card part (after a trailing
 quantity is removed), so it is always bounded by the line edge, a separator or a bracket. A second code-like
@@ -231,9 +236,9 @@ CSV and Excel rows are **positional**, not mapped by column header (RJ decision 
 
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| IMP-040 | MUST | **Row rule.** Cell values are trimmed; trailing empty cells are dropped; an all-empty row is ignored. A row is either (a) **one cell** holding a whole line (`3x Lightning Rush`, or a section label such as `Main Deck:`, IMP-016), kept as that line; or (b) a **quantity cell** (Definitions) **followed by the name**: the row becomes `<quantity cell> <name>`, where the name is every later non-empty cell joined with `, ` (unquoted names with commas are split by the delimiter, so `1,Kennen,Heart of the Tempest` becomes `1 Kennen, Heart of the Tempest`). Any other row (e.g. name first, quantity last) is kept as its non-empty cells joined with `, ` and so fails the line rule (`MISSING_QUANTITY`, IMP-021). Excel cells are read as text (numbers as digits; dates as `YYYY-MM-DD`). **v0.5:** the converted line is parsed by the full Line grammar, so the quantity forms of IMP-020 and the printing codes of IMP-064…069 work in rows too: a one-cell row `Lightning Rush x3` or `3 RAD 001/167 Lightning Rush`, or a row `3,Lightning Rush,RAD 001/167` (→ `3 Lightning Rush, RAD 001/167`, code after a comma separator, IMP-065). A set code and a collector number in **two separate cells** (`3,Lightning Rush,RAD,001/167` → `3 Lightning Rush, RAD, 001/167`) are not a code, because a comma is not a separator inside `CODE`; that line is resolved by its whole name (see IMP-044). | RJ decision 2026-11-23 (H-043); RJ decision 2026-11-23 (H-048) (same rules for rows) |
+| IMP-040 | MUST | **Row rule.** Cell values are trimmed; trailing empty cells are dropped; an all-empty row is ignored. A row is either (a) **one cell** holding a whole line (`3x Lightning Rush`, or a section label such as `Main Deck:`, IMP-016), kept as that line; or (b) a **quantity cell** (Definitions) **followed by the name**: the row becomes `<quantity cell> <name>`, where the name is every later non-empty cell joined with `, ` (unquoted names with commas are split by the delimiter, so `1,Kennen,Heart of the Tempest` becomes `1 Kennen, Heart of the Tempest`); or (c) *(v0.8)* a **section label cell** (a cell that is a label line on its own, IMP-016, e.g. `Champion`, `Main Deck:`, `## Runes`) **followed by** more non-empty cells: the row becomes `<label>: <rest>`, where the label loses a trailing colon and `<rest>` is the later non-empty cells converted by this same rule (rule (b) when they start with a quantity cell, else joined with `, `), so the line is a label with an entry (IMP-023): `Champion,1 Kennen` → `Champion: 1 Kennen`, `Main Deck,3,Gust` → `Main Deck: 3 Gust`, `Main Deck:,3,Gust` → `Main Deck: 3 Gust`. Rule (b) is checked before rule (c). Any other row (e.g. name first, quantity last) is kept as its non-empty cells joined with `, ` and so fails the line rule (`MISSING_QUANTITY`, IMP-021). Excel cells are read as text (numbers as digits; dates as `YYYY-MM-DD`). **v0.5:** the converted line is parsed by the full Line grammar, so the quantity forms of IMP-020 and the printing codes of IMP-064…069 work in rows too: a one-cell row `Lightning Rush x3` or `3 RAD 001/167 Lightning Rush`, or a row `3,Lightning Rush,RAD 001/167` (→ `3 Lightning Rush, RAD 001/167`, code after a comma separator, IMP-065). A set code and a collector number in **two separate cells** (`3,Lightning Rush,RAD,001/167` → `3 Lightning Rush, RAD, 001/167`) are not a code, because a comma is not a separator inside `CODE`; that line is resolved by its whole name (see IMP-044). | RJ decision 2026-11-23 (H-043); RJ decision 2026-11-23 (H-048) (same rules for rows); H-053 (rule (c), as built) |
 | IMP-041 | MUST | **Column titles.** Only the **first non-empty row** can be a title row. It is skipped when at least one cell (trimmed, case-insensitive) is exactly one of `qty`, `quantity`, `count`, `amount`, `copies`, `#`, `x`, `name`, `card`, `card name`, `cardname`, **and** no cell starts with a digit. Otherwise it is parsed as a data row. *(v0.4: replaces the v0.3 name-column mapping and `CSV_NO_NAME_COLUMN`; there is no column picker.)* | RJ decision 2026-11-23 (H-043) |
-| IMP-042 | MUST | Parse RFC 4180 CSV: double-quoted fields may contain the delimiter and line breaks (e.g. `"Kennen, Storm of Shuriken"`), `""` escapes a quote. The delimiter is whichever of `,` `;` `\t` occurs most on the **first line** (ties → comma). A leading BOM is stripped (IMP-010). | design decision; names contain commas ([[Collection Import Formats]] table) |
+| IMP-042 | MUST | Parse RFC 4180 CSV: double-quoted fields may contain the delimiter and line breaks (e.g. `"Kennen, Storm of Shuriken"`), `""` escapes a quote. **Delimiter** (v0.8, RJ's interim rule): look at the **first non-empty line** and count only characters **outside double quotes** (a quoted field's line breaks are inside the quotes, so they don't end the line). If `;` or a tab occurs there, it beats `,`, because card names contain commas (`2;Kennen, Heart of the Tempest` is `;`-delimited); between `;` and tab the more frequent wins (tie → `;`); otherwise the delimiter is `,`. *(Replaces v0.6's "whichever of `,` `;` `\t` occurs most on the first line, ties → comma", which counted the commas inside names.)* A leading BOM is stripped (IMP-010). | design decision; names contain commas ([[Collection Import Formats]] table); RJ decision 2026-11-23 (H-053) (interim delimiter rule) |
 | IMP-043 | MUST | **Every row needs a quantity** (IMP-021): a row with only a name, or a name with an empty quantity cell, is `MISSING_QUANTITY` and left out. Quantity values follow IMP-008 (`0` → `ZERO_QUANTITY` warning; negative, non-integer or > 999 → `BAD_QUANTITY`). *(Replaces v0.3's "missing quantity column → 1" and `QUANTITY_ASSUMED`.)* | RJ decision 2026-11-23 (H-043) |
 | IMP-044 | — | **Withdrawn in v0.4.** v0.3 preferred set + collector-number columns over the name (`NAME_PRINTING_MISMATCH`). Under the positional row rule (IMP-040) extra cells after the name are part of the name, so set/number columns are not read. Printing-level CSV import may return as a new requirement once RJ wants it. *(v0.5: a printing code written in one cell, in the name cell or a cell after it, is read by IMP-064…069; separate set and number columns still are not.)* | RJ decision 2026-11-23 (H-043) |
 | IMP-045 | MUST | Error locations for CSV/Excel uploads are the **line number in the text box** after conversion (IMP-062: a skipped title row and empty rows produce no line), with the converted line as raw text. A quantity cell with an empty name is `MISSING_NAME` (IMP-021). *(v0.4: no `column` location; `EMPTY_NAME` replaced by `MISSING_NAME`.)* | design decision; RJ decision 2026-11-23 (H-043) |
@@ -243,7 +248,7 @@ CSV and Excel rows are **positional**, not mapped by column header (RJ decision 
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | IMP-056 | MUST | Each issue carries: severity (`error` / `warning` / `info`), a stable `code`, a human message, and a location (`line`, plus `token` for TTS/deck code), and the raw text excerpt (max 120 chars). Line numbers are 1-based physical lines of the text being parsed: the pasted text, or the text box content an upload was converted into (IMP-045, IMP-062). Input-level issues have no line. | task brief |
-| IMP-057 | MUST | The result includes a summary: lines read, entries parsed, resolved exact, needs review, errors, distinct names, total copies. | design decision |
+| IMP-057 | MUST | The result includes a summary: lines read, entries parsed, resolved exact, needs review, errors, distinct names, total copies. *(v0.8)* **Parsing alone** (no catalog, IMP-066) gives `format`, `formatReason`, `upload`, the issues of the line rule and the catalog-free summary: `linesRead` (lines of the parsed text; a final empty line after a trailing line break is not counted), `entriesParsed`, `errors` (issues with severity `error`, input-level ones included), `distinctNames` (distinct `nameKey`s of the entries; a code-only entry counts by its set code + collector number without whitespace, upper-cased) and `totalCopies`. `resolvedExact`, `needsReview` and `catalogVersion` exist only once the lines are resolved against the catalog (IMP-025…030, IMP-067…069; H-057). | design decision; H-046 (catalog-free part as built) |
 
 ### Part B: Collection-specific (Owned Cards Import only)
 These requirements apply only to the Owned Cards Import. SPEC-006 defines its own behaviour for these concerns.
@@ -252,7 +257,7 @@ These requirements apply only to the Owned Cards Import. SPEC-006 defines its ow
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | IMP-004 | MUST | Owned-card import MUST NOT check deck legality or bans. A banned card (e.g. `Nocturne, Horrifying`, banned as of 2026-11-23) is imported like any other owned card. Legality (format `standard`) is SPEC-002's concern. | [[Deck Construction Rules]], [[Ban List]] |
-| IMP-058 | MUST | The committed collection is the single source of ownership for [[My Collection]] (SPEC-007) and for the ownership view in [[Your Decks Ownership View]] (SPEC-005). Total owned is looked up by `cardKey` (`cards[cardKey].quantity`, 0 if absent). **Decks does not read this total directly:** it uses SPEC-007's `deckOwnership(cardKey)` (COLL-081), which leaves out printings carrying an "exclude from decks" tag (ADR-0006, H-036). | [[ADR-0006 Two Imports - Collection and Decks]]; [[ADR-0005 MVP Product Defaults]] #2; [[Card Data Model]] CARD-013 |
+| IMP-058 | MUST | The committed collection is the single source of ownership for [[My Collection]] (SPEC-007) and for the ownership view in [[Your Decks Ownership View]] (SPEC-005). Total owned is looked up by `cardKey` (`cards[cardKey].quantity`, 0 if absent). **Decks does not read this total directly:** it uses SPEC-007's `deckOwnership(input, cardKey)` (COLL-081), which leaves out printings carrying an "exclude from decks" tag (ADR-0006, H-036). | [[ADR-0006 Two Imports - Collection and Decks]]; [[ADR-0005 MVP Product Defaults]] #2; [[Card Data Model]] CARD-013 |
 | IMP-060 | MUST | This flow starts from the **Owned Cards Import** option card on `/import` ("List of cards and their quantity you own"). The **Deck Import** option card starts SPEC-006 and never writes to the collection. | [[Design Direction]] RJ feedback 2026-11-23; [[ADR-0006 Two Imports - Collection and Decks]] |
 
 #### Merging, variants, commit
@@ -261,7 +266,8 @@ These requirements apply only to the Owned Cards Import. SPEC-006 defines its ow
 | IMP-047 | MUST | All resolved entries are merged by **`cardKey`**: owned count = sum of quantities across lines, sections, tokens, and rows. Each merged card lists the source line numbers that contributed. | task brief; [[Deck Construction Rules]] fact 5; [[Card Data Model]] CARD-013 |
 | IMP-048 | MUST | Variants and printings (alt-art, Showcase, signature, foil, and overnumbered, i.e. `variant.kind === 'overnumbered'`) that share a name count toward the **same `cardKey`**. When the source identified the printing (deck code, TTS, or since v0.5 a text, CSV or Excel line whose printing code resolved, IMP-067/068), the per-printing count (by `printingId`) is also kept; it is for display in [[My Collection]] only and never affects ownership. A line resolved **by name** (no code, the exact-name guard, a code not found per IMP-069, or the user picking the name's card in IMP-068 (b)) has no `printingId`; its copies are unassigned (SPEC-007 COLL-002). A user pick of the code's card in IMP-068 (b), or of a card in an `AMBIGUOUS_PRINTING` review, keeps that printing. Owned counts are still per **`cardKey`** (IMP-047). **Confirmed** by RJ ([[ADR-0005 MVP Product Defaults]] #2). | [[Deck Construction Rules]] fact 5; [[ADR-0005 MVP Product Defaults]]; [[Card Data Model]] CARD-013, CARD-043; RJ decision 2026-11-23 (H-048) |
 | IMP-049 | MUST | Commit requires an explicit choice of mode: **Add** (owned += imported, per `cardKey` and per printing) or **Replace** (the collection becomes exactly the imported set). Default selection is **Add**. | design decision (see Rationale) |
-| IMP-050 | MUST | **Replace** shows a confirmation stating how many cards and names will be removed or changed before it executes. When the replaced collection would leave a **locked deck** holding fewer copies, the same confirmation SHOULD add SPEC-008's warning per affected deck, "'`<deck name>`' (locked) will be `<n>` cards short.", computed with `lockedShortfalls(before, after)` on the parsed import before anything is written (SHARE-034). Cancel writes nothing. **Add** never lowers a hold and has no such warning. After an **Undo** of a commit (IMP-052) that lowers a hold, a notice reads "'`<deck name>`' (locked) is now `<n>` cards short." | design decision; [[Shared Cards and Lock-in]] SHARE-034 |
+| IMP-050 | MUST | **Replace** shows a confirmation stating how many cards and names will be removed or changed before it executes. Cancel writes nothing. *(v0.8: the locked-deck warning moved to IMP-050a.)* | design decision |
+| IMP-050a | SHOULD | **Locked-deck warning before the change** (v0.8; SPEC-008 SHARE-034, SPEC-007 COLL-088). When a commit or an Undo would leave a **locked deck** holding fewer copies, `lockedShortfalls(before, after)` is computed **before anything is written**, and the change's confirmation adds SPEC-008's warning per affected deck: "'`<deck name>`' (locked) will be `<n>` cards short. It stays locked." ("1 card short" for one; a short deck stays locked, SPEC-008 SHARE-033). (a) **Replace**: inside the IMP-050 confirmation; `after` = the collection as the parsed import would make it. (b) **Undo** of the last commit (IMP-052): `after` = the snapshot it would restore; the warning goes inside the Undo confirmation that SPEC-007 COLL-058 gives when manual edits followed the import; an Undo with no confirmation of its own asks for one **only** when the list is not empty. After a confirmed Undo, a notice per affected deck follows: "'`<deck name>`' (locked) is now `<n>` cards short." (Undo only; RJ decision 2026-11-23). Cancel changes nothing and shows no notice. **Add** never lowers a hold and has no such warning. | [[Shared Cards and Lock-in]] SHARE-033, SHARE-034; [[My Collection]] COLL-058, COLL-088; RJ decision 2026-11-23 (H-049 follow-up: Undo warns before and notifies after) |
 | IMP-051 | SHOULD | The preview shows the resulting diff per name (before → after) for the selected mode. | design decision |
 | IMP-052 | SHOULD | Keep the previous collection snapshot so the last commit can be undone once. | design decision |
 
@@ -270,7 +276,74 @@ These requirements apply only to the Owned Cards Import. SPEC-006 defines its ow
 |---|---|---|---|
 | IMP-053 | MUST | For the MVP, the collection is stored **locally in the user's browser**, with no account or server-side copy. Access goes through a `CollectionStore` interface so a server/account store can replace it later without changing import behavior. **Confirmed** by RJ ([[ADR-0005 MVP Product Defaults]] #1). | [[ADR-0005 MVP Product Defaults]]; [[ADR-0001 Tech Stack]] (storage behind interfaces) |
 | IMP-054 | MUST | The stored record carries `schemaVersion`, `updatedAt`, and the `catalogVersion` (SPEC-001) it was resolved against, so a later catalog/name-key change can trigger re-resolution. | design decision; [[Card Data Model]] |
-| IMP-055 | SHOULD | The user can export the stored collection as CSV that round-trips through this importer. Under the positional row rule (IMP-040, v0.4) that means a title row `Quantity,Card Name` and rows `<qty>,<name>` (names with commas quoted), **with no further columns**: any cell after the name would be joined into the name. Per-printing counts (`byPrinting`) are not round-tripped yet. *(v0.5: printing codes on a line (IMP-064…069) now make that possible, e.g. a row `2,Lightning Rush RAD 001`; whether the export uses them is open, see Open questions and H-045.)* | design decision (backup, since local storage can be cleared); RJ decision 2026-11-23 (H-043) |
+| IMP-055 | SHOULD | **Collection CSV export** (v0.7). The user can export the stored collection as a CSV file that round-trips through this importer. The file has exactly **two columns**, title row `Quantity,Card Name`, and no other columns: tags, "exclude from decks" flags and other SPEC-007 data are **not** in the file (any cell after the name would be joined into the name, IMP-040); they are expected to survive through the planned sign-in sync ([[ADR-0007 Firebase Accounts and Firestore]]). Each printing with a count ≥ 1 is written as one row `<qty>,<name> <SET> <NUM>` (its printing code inside the name cell), the card's other copies as one name-only row `<qty>,<name>`; the exact rows, code form, self-check and fallbacks are the **Collection CSV export** rules below this table. When implemented, those rules and the round-trip guarantee there are MUST. *(v0.4–v0.6: name-only rows, `byPrinting` not round-tripped.)* | design decision (backup, since local storage can be cleared); RJ decision 2026-11-23 (H-043); RJ decision 2026-11-23 (H-045) |
+
+**Collection CSV export** (v0.7; IMP-055; RJ decision 2026-11-23 (H-045)). Behavioural contract for the
+exporter; it writes only what the importer (Part A, IMP-040…042, Line grammar, IMP-064…069) reads back
+unchanged.
+
+1. **File.** UTF-8 text (a leading BOM MAY be written; IMP-010 strips it), comma delimiter, `\r\n` line
+   breaks, RFC 4180 quoting: a cell is wrapped in `"` when it contains `,`, `"`, CR or LF, and a `"` inside
+   it is doubled (IMP-042). Only the name cell can need quoting.
+2. **Title row** `Quantity,Card Name` (skipped on import, IMP-041). Every later row has exactly two cells:
+   the quantity cell (digits only, no `x`) and the name cell.
+3. **Name** = the card's canonical name, verbatim (SPEC-001 CARD-031: exports use the canonical name).
+4. **Canonical printing code** = `<SET> <NUM>`: `SET` = `Printing.setCode` as stored, upper case
+   (SPEC-001 CARD-011); one ASCII space; `NUM` = `Printing.collectorNumber` verbatim with surrounding
+   whitespace, any whitespace inside it and a leading `#` removed (e.g. `001`, `007a`, `299`, `SP1/005`).
+   No `-`, no brackets, no `/total` added. A printing has a code only when its `collector.form` is
+   `block`, `plain` or `fraction` (CARD-037 forms a–c), its `setCode` is exactly 3 letters and `NUM`
+   matches the Line grammar's `NUM` (IMP-064); form `code` (d) and other set codes have none.
+5. **Printing rows.** For each `byPrinting` entry `printingId → n` (n ≥ 1) whose `printingId` resolves in
+   the catalog and has a code (rule 4): the row is `<n>,<name> <SET> <NUM>` (name cell = name, one space,
+   code; e.g. `2,Lightning Rush RAD 001`, `1,"Kennen, Heart of the Tempest OGN 299"`).
+6. **Self-check.** Before writing a printing row the exporter MUST check it against the catalog it
+   exports with: the row converted per IMP-040 and parsed by the Line grammar and IMP-067/068 must come
+   back `resolved`, with **no issue**, the record's `cardKey` and exactly this `printingId`. This catches
+   (a) two printings that share set, collector key and suffix (only the first returned by `lookupPrinting`
+   can be named by a code, CARD-036), and (b) the **exact-name guard** (IMP-067): `nameKey` of
+   `<name> <SET> <NUM>` being another card's `cardKey` (hypothetical: card `Ion` printed as `ARC 2` next to
+   a card `Ion Arc 2`). If the check fails, the exporter tries the **code-only** row `<n>,<SET> <NUM>`
+   (IMP-066) with the same check; if that fails too, the copies go to the name-only row (rule 7) and the
+   export notice counts them ("`<n>` copies were saved without their printing.").
+7. **Name-only row.** Per card, the copies not written in a printing row are summed into **one** row
+   `<qty>,<name>`: the unassigned copies (`quantity − Σ byPrinting`, SPEC-007 COLL-002), plus the copies of
+   every **missing-printing** entry (a `printingId` not in the catalog, SPEC-007 COLL-014), plus copies that
+   failed rule 6, plus the copies of printings that resolve but have **no code** under rule 4 (CARD-037
+   form `code` (d), or a set code that is not exactly 3 letters, e.g. `PR`); the export notice counts
+   those too ("`<n>` copies were saved without their printing."), so no printing is dropped silently.
+   *Why missing printings go name-only:* their `printingId` cannot come back from a
+   catalog that no longer has it, and their remembered code (SPEC-007 COLL-075) would only produce an
+   `UNKNOWN_PRINTING` warning on every re-import (IMP-069 a) for the same result (unassigned copies), so
+   name-only keeps the quantity and imports with no issue. No row is written when this sum is 0. A
+   name-only row is checked like rule 6 (resolved, no issue, the record's `cardKey`); a canonical name
+   normally passes (exact match, IMP-025, and the exact-name guard of IMP-067 for names that look like
+   they end in a code, AC 29). A card whose name-only row would fail is still written and named in the
+   export notice ("`<card>` may not import back as written."). The rule 6 and rule 7 checks also cover
+   names the Line grammar would misread, e.g. a name starting with a standalone `X` word (`2,X Marks the
+   Spot` parses as quantity `2 X`): such a row fails its check and is handled as above; there is no
+   other format.
+8. **Quantities above 999.** A row count n > 999 (IMP-008 allows 1..999 per entry) is written as
+   ⌈n / 999⌉ rows: ⌊n / 999⌋ identical rows of 999, then one row with the rest **only when the rest is
+   greater than 0** (e.g. 1,200 → `999,Gust` and `201,Gust`; 1,998 → `999,Gust` twice, no `0,Gust` row);
+   IMP-047/048 sum them back.
+9. **Order.** Rows follow SPEC-007's default Collection order (COLL-031, `printingSortKey`), each card's
+   name-only row at its unassigned entry's position (COLL-012). Order has no effect on the import.
+10. **Left out.** Records whose `cardKey` does not resolve in the catalog (SPEC-007 COLL-015) have no
+    canonical name and are not written; the export notice names them ("`<n>` cards not in the card data
+    were left out."). A Replace import of the file removes them, and the IMP-050 confirmation lists them.
+
+**Round-trip guarantee.** Let collection C be exported with catalog K, and the file imported unedited
+with **Replace** against the same K. Then every line resolves with no issue and no review, except the
+rows of cards named in a rule 7 notice ("may not import back as written"), and the
+committed collection C′ has: the same `cardKey`s as C (minus rule 10's left-out records and any card named in a rule 7 notice); for each card,
+`C′.quantity = C.quantity`; for each `printingId` that resolves in K and passed rule 6 (on the
+`<name> <SET> <NUM>` row or on the code-only retry),
+`C′.byPrinting[printingId] = C.byPrinting[printingId]`; no other `byPrinting` keys, so the copies of
+missing-printing entries, of printings with no code (rule 4) and of printings that failed rule 6 are
+unassigned in C′. Tags, exclude flags,
+SPEC-007's printing-code memory and view state are not in the file and are not changed by the import
+(SPEC-007 COLL-057). See AC 35.
 
 ## Rationale: Add vs. Replace
 Players acquire cards over time (packs, trades), so the common action is "I got these cards, add them";
@@ -310,6 +383,7 @@ type IssueCode =
 // v0.5 severities: UNKNOWN_PRINTING is a warning when the line fell back to its name (IMP-069 a) and an
 // error for a code-only line or a TTS / deck-code token (IMP-069 b, IMP-037); PRINTING_NAME_MISMATCH and
 // AMBIGUOUS_PRINTING are warnings (the line status says whether it is resolved or needs review).
+// v0.8: INPUT_ENCODING is no longer produced by parsing; an upload that is not UTF-8 is an UploadRejection (IMP-010).
 // v0.4 removed: QUANTITY_ASSUMED (IMP-021), UNPARSEABLE_LINE (IMP-024), CSV_NO_NAME_COLUMN (IMP-041),
 // EMPTY_NAME (IMP-045, now MISSING_NAME), NAME_PRINTING_MISMATCH (IMP-044 withdrawn).
 
@@ -371,6 +445,11 @@ interface UploadInfo {        // IMP-001, IMP-061, IMP-062 (v0.4; replaces CsvCo
   fileType: 'txt' | 'csv' | 'xlsx';
 }
 
+interface UploadRejection {   // v0.8 (IMP-010, IMP-061): a rejected upload; not an ImportIssue, the parser never sees it
+  code: 'FILE_REJECTED' | 'INPUT_TOO_LARGE' | 'INPUT_ENCODING';
+  message: string;            // shown next to the upload control, e.g. "deck.pdf can't be imported. Use a .txt, .csv or .xlsx file."
+}                             // the text box and its UploadInfo stay unchanged
+
 interface ImportResult {
   format: SourceFormat;
   formatDetected: boolean;    // false when user overrode
@@ -380,11 +459,17 @@ interface ImportResult {
   merged: MergedCard[];       // owned-card import only (Part B); only 'resolved' lines
   issues: ImportIssue[];      // input-level issues
   summary: {
-    linesRead: number; entriesParsed: number; resolvedExact: number;
-    needsReview: number; errors: number; distinctNames: number; totalCopies: number;
+    // catalog-free (IMP-057, v0.8): present as soon as the text is parsed, before the catalog loads
+    linesRead: number; entriesParsed: number; errors: number; distinctNames: number; totalCopies: number;
+    // added by resolution against the catalog (H-057); absent before it
+    resolvedExact?: number; needsReview?: number;
   };
-  catalogVersion: string;     // SPEC-001 catalogVersion the result was resolved against
+  catalogVersion?: string;    // SPEC-001 catalogVersion the result was resolved against; absent before resolution (v0.8)
 }
+// v0.8 (IMP-057, IMP-066): before the catalog loads, the parser returns format, formatReason, upload, the
+// line-rule issues and the catalog-free summary; each line has location, raw, section, quantity, inputName
+// and printing. status / resolved / suggestions, resolution issues, merged, summary.resolvedExact,
+// summary.needsReview and catalogVersion come with resolution (H-057); formatDetected with the override (IMP-013).
 
 // --- Part B: collection-specific ---
 interface ImportCommitRequest {
@@ -467,11 +552,11 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
     (lines 1–4), "Loaded my.csv" is shown, the entries are `Kennen, Storm of Shuriken ×2`,
     `Kennen, Heart of the Tempest ×1` (unquoted comma re-joined), `Gust ×3`, and line 4 → `MISSING_QUANTITY`.
 
-14. **Name-first columns are not read** (IMP-040, 043) **Given** `owned.csv` with title row `Card Name,Quantity` and row `Seal of Discord,2` **When** uploaded **Then** the title row is skipped, line 1 is `Seal of Discord, 2`, and it is `MISSING_QUANTITY` (quantity must come first). **Given** instead semicolon rows `2;Seal of Discord` **Then** the delimiter is `;` and the entry is `Seal of Discord ×2`.
+14. **Name-first columns are not read** (IMP-040, 043) **Given** `owned.csv` with title row `Card Name,Quantity` and row `Seal of Discord,2` **When** uploaded **Then** the title row is skipped, line 1 is `Seal of Discord, 2`, and it is `MISSING_QUANTITY` (quantity must come first). **Given** instead semicolon rows `2;Seal of Discord` **Then** the delimiter is `;` and the entry is `Seal of Discord ×2`. **Given** instead `owned.csv` with rows `2;Kennen, Heart of the Tempest` and `3;Gust` (IMP-042, v0.8) **When** uploaded **Then** the delimiter is `;` (the comma in the name doesn't count against it), the text box holds `2 Kennen, Heart of the Tempest` / `3 Gust`, and the entries are `Kennen, Heart of the Tempest ×2` and `Gust ×3`. **Given** instead an empty first line, then `1,"Odd; Card"` and `2,Gust` **When** uploaded **Then** the delimiter is `,` (the `;` is inside quotes) and the text box holds `1 Odd; Card` / `2 Gust`. **Given** instead `2\tKennen, Heart of the Tempest` (tab) **When** uploaded **Then** the delimiter is tab and the entry is `Kennen, Heart of the Tempest ×2`.
 
 15. **Title row only when it looks like one** (IMP-041) **Given** a first row `foo,bar` **When** uploaded as `owned.csv` **Then** it is not skipped and is line 1 `foo, bar` → `MISSING_QUANTITY`. **Given** a first row `3,Gust` **Then** it is data (starts with a digit) → `Gust ×3`.
 
-15a. **Excel upload and rejected files** (IMP-001, 061) **Given** `owned.xlsx` whose first sheet has rows `Qty | Name`, `3 | Lightning Rush`, `2x Hextech Ray` (one cell) and a second sheet with other rows **When** uploaded **Then** the text box holds `3 Lightning Rush` / `2x Hextech Ray` and the second sheet is ignored. **Given** `owned.xls` **Then** "Older .xls files aren't supported. Save it as .xlsx or .csv and try again." and the text box is unchanged. **Given** a 6 MB file **Then** "<file> is too large to import (limit: 5 MB)."
+15a. **Excel upload and rejected files** (IMP-001, 061) **Given** `owned.xlsx` whose first sheet has rows `Qty | Name`, `3 | Lightning Rush`, `2x Hextech Ray` (one cell) and a second sheet with other rows **When** uploaded **Then** the text box holds `3 Lightning Rush` / `2x Hextech Ray` and the second sheet is ignored. **Given** `owned.xls` **When** uploaded **Then** "Older .xls files aren't supported. Save it as .xlsx or .csv and try again." and the text box is unchanged. **Given** a 6 MB `big.csv` **When** uploaded **Then** "big.csv is too large to import (limit: 5 MB)." (a `.txt` gets the 1 MB message instead, AC 38).
 
 15b. **Edit after upload; Continue** (IMP-062, 063, 002) **Given** AC 13's text box **When** the user edits line 4 to `1 Traveling Merchant` **Then** the list of problems is empty and the totals read "7 cards from 4 lines". **Given** a text box whose only line is `Lightning Rush` **When** the user clicks Continue **Then** "Add at least one line with a number and a card name first." is shown and nothing is saved. **Given** 60 lines without quantities **Then** 50 problems are listed, then "+10 more".
 
@@ -499,9 +584,9 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 
 **Fixture F1 for ACs 28–33 (v0.5).** Collector numbers are hypothetical until H-020 delivers the live payload; replace them then. The catalog has `Lightning Rush` with printings RAD `001` (base, `p_lr_001`) and RAD `001a` (`p_lr_001a`); `Kennen, Heart of the Tempest` with printings OGN `<n>` (base) and OGN `299` (`p_kn_299`, `variant.kind` as the catalog says, `unknown` while CARD-040 is BLOCKED); `Hextech Ray` and `Gust` as other cards; no RAD `999`; and the hypothetical card `Ion Arc 2`.
 
-27. **Quantity forms** (IMP-019, 020, 021, 024) **Given** lines 1–8: `x3 Lightning Rush`, `Lightning Rush x3`, `X2 Hextech Ray`, `Hextech Ray X2`, `3 Lightning Rush x3`, `Lightning Rush 3`, `x3`, `Gust x0` **When** parsed **Then** lines 1–4 are entries `Lightning Rush ×3`, `Lightning Rush ×3`, `Hextech Ray ×2`, `Hextech Ray ×2`; line 5 → `BAD_QUANTITY` ("Give the number of copies once per line."); line 6 → `MISSING_QUANTITY`; line 7 → `MISSING_NAME`; line 8 → `ZERO_QUANTITY` warning, skipped. `totalCopies = 10`.
+27. **Quantity forms** (IMP-019, 020, 021, 024; Line grammar step 5) **Given** lines 1–9: `x3 Lightning Rush`, `Lightning Rush x3`, `X2 Hextech Ray`, `Hextech Ray X2`, `3 Lightning Rush x3`, `Lightning Rush 3`, `x3`, `Gust x0`, `3x RAD 001 x2` **When** parsed **Then** lines 1–4 are entries `Lightning Rush ×3`, `Lightning Rush ×3`, `Hextech Ray ×2`, `Hextech Ray ×2`; line 5 → `BAD_QUANTITY` ("Give the number of copies once per line."); line 6 → `MISSING_QUANTITY`; line 7 → `MISSING_NAME`; line 8 → `ZERO_QUANTITY` warning, skipped; line 9 → `BAD_QUANTITY` ("Give the number of copies once per line."; after the code `RAD 001` is cut the body is `x2`), not an entry named `x2`. `totalCopies = 10`.
 
-28. **Printing code positions** (IMP-064, 065; Line grammar) **When** each line is parsed **Then** it gives:
+28. **Printing code positions** (IMP-064, 065; Line grammar) **Given** each line below (no catalog needed) **When** each line is parsed **Then** it gives:
 
     | Line | quantity | name | `setCode` | `collectorNumber` (verbatim) | lookup number |
     |---|---|---|---|---|---|
@@ -516,6 +601,7 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
     | `1 Lightning Rush RAD-SP1/005` | 1 | `Lightning Rush` | `RAD` | `SP1/005` | `SP1/005` |
     | `3 Lightning Rush RAD001` | 3 | `Lightning Rush` | `RAD` | `001` | `001` |
     | `3 RAD 001/167` | 3 | *(none)* | `RAD` | `001/167` | `001/167` |
+    | `1 Lightning Rush ABC DEF1/005` (hypothetical codes; earliest split wins, step 3) | 1 | `Lightning Rush` | `ABC` | `DEF1/005` | `DEF1/005` |
 
 29. **Code-like text that stays a name** (IMP-065, 067) **Given** `3 Lightning Rush 001/167`, `2 Seal of Discord RAD`, `3 Lightning Rush 001`, `1 Lightning RushRAD 001` **When** parsed **Then** each has `printing: null` and the whole card part as its name (`Lightning Rush 001/167`, `Seal of Discord RAD`, `Lightning Rush 001`, `Lightning RushRAD 001`), resolved by name only (here: not exact, so fuzzy suggestions per IMP-026). **Given** `1 Ion Arc 2` **When** parsed **Then** the grammar reads name `Ion` and code `ARC 2`, but the exact-name guard finds the card `Ion Arc 2`, so the line resolves by name (`method: "exact"`), `printing: null`, and no printing issue.
 
@@ -528,6 +614,49 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 33. **Printings kept, ownership by name** (IMP-047, 048, 070) **Given** F1 and `2 Lightning Rush RAD 001`, `1 Lightning Rush RAD 001a`, `1 Lightning Rush`, `1 Kennen, Heart of the Tempest (OGN 299/298)` **When** committed with Add to an empty collection **Then** `cards["lightning rush"] = {quantity: 4, byPrinting: {p_lr_001: 2, p_lr_001a: 1}}` (1 unassigned copy) and `cards["kennen heart of the tempest"] = {quantity: 1, byPrinting: {p_kn_299: 1}}`; whether `p_kn_299` shows as overnumbered depends only on its catalog `variant.kind` (the `/298` plays no part); SPEC-005 counts 4 owned `Lightning Rush`.
 
 34. **CSV rows with codes** (IMP-040, 044, 065) **Given** `owned.csv` with rows `Qty,Name`, `3,Lightning Rush,RAD 001/167`, `Lightning Rush x2`, `1,Lightning Rush,RAD,001a` **When** uploaded **Then** the text box holds `3 Lightning Rush, RAD 001/167` / `Lightning Rush x2` / `1 Lightning Rush, RAD, 001a`; line 1 resolves by code to `p_lr_001` ×3, line 2 is `Lightning Rush ×2` by name, and line 3 has `printing: null` and the name `Lightning Rush, RAD, 001a` (separate set and number cells are not a code), so it is resolved by name only: not exact, `needs-review` with `Lightning Rush` as a `low` suggestion (similarity ≈ 0.61, IMP-026).
+
+35. **CSV export round-trips** (IMP-055, Collection CSV export rules 1–10, round-trip guarantee; v0.7, H-045) **Given** F1 and a stored collection
+    `cards["lightning rush"] = {quantity: 6, byPrinting: {p_lr_001: 2, p_lr_001a: 1, p_lr_old: 1}}` (`p_lr_old` is not in the catalog: a missing-printing entry, SPEC-007 COLL-014, remembered code `RAD-002`; unassigned = 2),
+    `cards["kennen heart of the tempest"] = {quantity: 1, byPrinting: {p_kn_299: 1}}`, `cards["gust"] = {quantity: 1200, byPrinting: {}}`,
+    and the `p_lr_001` printing tagged `Trade binder` (SPEC-007), with these hypothetical orders until H-020: `setOrder` OGN = 0, RAD = 1 (CARD-071); `Lightning Rush`'s `defaultPrintingId` = `p_lr_001` (CARD-016); `Gust`'s `defaultPrintingId` = a RAD printing numbered after `001a` (e.g. RAD `050`) **When** the user exports the collection **Then** the file holds exactly these rows, in this order (rule 9: `printingSortKey`, CARD-070, so OGN before RAD and `001` before `001a`; the name-only row at `p_lr_001`, right after that printing's own row, SPEC-007 COLL-012):
+    ```
+    Quantity,Card Name
+    1,"Kennen, Heart of the Tempest OGN 299"
+    2,Lightning Rush RAD 001
+    3,Lightning Rush
+    1,Lightning Rush RAD 001a
+    999,Gust
+    201,Gust
+    ```
+    with no Tags column, the missing-printing copy summed into the name-only `Lightning Rush` row (2 unassigned + 1 missing = 3), and the Kennen name cell quoted because it contains a comma.
+    **When** that file is uploaded unedited and committed with **Replace** **Then** the text box holds `1 Kennen, Heart of the Tempest OGN 299` / `2 Lightning Rush RAD 001` / `3 Lightning Rush` / `1 Lightning Rush RAD 001a` / `999 Gust` / `201 Gust`; every line is `resolved` with no issue (lines 1, 2 and 4 with `method: "printing"`, codes `OGN 299`, `RAD 001`, `RAD 001a`; no `UNKNOWN_PRINTING`); and the collection is
+    `cards["lightning rush"] = {quantity: 6, byPrinting: {p_lr_001: 2, p_lr_001a: 1}}` (3 unassigned), `cards["kennen heart of the tempest"] = {quantity: 1, byPrinting: {p_kn_299: 1}}`, `cards["gust"] = {quantity: 1200, byPrinting: {}}`. `Trade binder` is still on `p_lr_001` (tags are kept, SPEC-007 COLL-057, not read from the file).
+
+**ACs 36–41 (v0.8)** need no catalog.
+
+36. **Quantities that are not whole numbers** (IMP-008, 024; Line grammar `DEC_LEAD`, `DEC_TRAIL`) **Given** lines 1–5: `2,5 Gust`, `2.5 Gust`, `.5 Gust`, `Gust x2.5`, `2. Gust` **When** parsed **Then** lines 1–4 → `BAD_QUANTITY` ("Quantity must be a whole number from 1 to 999."), and line 5 → `MISSING_QUANTITY` ("Start the line with a number, like "1 Card name" or "1x Card name"."); no entries. **Given** `owned.csv` with the row `2,5;Gust` **When** uploaded **Then** the delimiter is `;`, the text box holds `2,5, Gust`, and line 1 → `BAD_QUANTITY`.
+
+37. **Section label in its own cell** (IMP-040 (c), 023) **Given** `deck.csv` with rows `Champion,1 Kennen, Storm of Shuriken`, `Main Deck,3,Gust` and `Main Deck:,2,Hextech Ray` **When** uploaded **Then** the text box holds `Champion: 1 Kennen, Storm of Shuriken` / `Main Deck: 3 Gust` / `Main Deck: 2 Hextech Ray`, there are no problems, and the entries are `Kennen, Storm of Shuriken ×1` (section `champion`), `Gust ×3` and `Hextech Ray ×2` (section `main`).
+
+38. **Rejected uploads** (IMP-001, 006, 010, 061) **Given** a text box holding `3 Gust` from an earlier upload `my.csv` **When** the user uploads each file below **Then** the message is shown next to the upload control, the text box still holds `3 Gust`, and "Loaded my.csv" is still shown:
+
+    | File | Code | Message |
+    |---|---|---|
+    | `deck.pdf` | `FILE_REJECTED` | "deck.pdf can't be imported. Use a .txt, .csv or .xlsx file." |
+    | `old.XLS` | `FILE_REJECTED` | "Older .xls files aren't supported. Save it as .xlsx or .csv and try again." |
+    | `big.txt`, 1.5 MiB | `INPUT_TOO_LARGE` | "big.txt is too large to import (limit: 1 MB or 10,000 lines)." (the file is not read) |
+    | `huge.csv`, 6 MiB | `INPUT_TOO_LARGE` | "huge.csv is too large to import (limit: 5 MB)." (the file is not read) |
+    | `many.csv`, 10,001 rows `1,Gust` (under 1 MiB) | `INPUT_TOO_LARGE` | "many.csv is too large to import (limit: 1 MB or 10,000 lines)." |
+    | `bad.csv` containing the byte `0xFF` | `INPUT_ENCODING` | "bad.csv isn't UTF-8 text. Save it as UTF-8 or .xlsx and try again." |
+    | `empty.csv` holding only `Qty,Name` | `FILE_REJECTED` | "empty.csv has no lines to import." |
+
+    **Given** a pasted text of 1.2 MiB **When** parsed **Then** the one issue reads "This is too large to import (limit: 1 MB or 10,000 lines)." (AC 21).
+
+39. **Upload kept or dropped** (IMP-062, 007, 011) **Given** AC 13's upload of `my.csv` **When** the user edits line 4 **Then** "Loaded my.csv" is still shown and the format is `csv`. **When** instead the user selects the whole text and pastes `3 Gust` **Then** no file name is shown, the format is `plain-text`, and lines have the 500-character limit again. **When** instead the user deletes all the text (or leaves only spaces) **Then** no file name is shown.
+
+40. **Row limit on the converted line** (IMP-007, 056) **Given** `owned.csv` with the row `1,` + 1,998 × `A` (2,001 characters as cells joined with `, `, 2,000 as the converted line `1 AAA…`) **When** uploaded **Then** it has no problem. **Given** instead `1,` + 1,999 × `A` followed by `3,Gust` **When** uploaded **Then** line 1 → `LINE_TOO_LONG` ("Row is longer than 2,000 characters.") with a 120-character raw excerpt ending in `…`, and `Gust ×3` is still an entry. **Given** the pasted line `1 ` + 1,500 × `A` **When** parsed **Then** → `LINE_TOO_LONG` ("Line is longer than 500 characters.").
+
+41. **Catalog-free summary** (IMP-057, 066) **Given** lines 1–7 `3 Lightning Rush`, `1 lightning rush`, `2 Kennen, Heart of the Tempest`, `1 RAD 001/167`, `2 rad 001 / 167`, `Gust`, `0 Gust`, then a blank line 8 followed by a final line break **When** parsed before the catalog has loaded **Then** `summary = {linesRead: 8, entriesParsed: 5, errors: 1, distinctNames: 3, totalCopies: 9}` (the two code-only lines count as one name, `RAD001/167`; `0 Gust` is a warning, not an error), and `resolvedExact`, `needsReview` and `catalogVersion` are absent.
 
 ## Out of scope
 - Deck legality, bans, copy limits (SPEC-002). Deck lists the user wants to build: [[Deck Import]] (SPEC-006). Per-card owned/required display: [[Your Decks Ownership View]] (SPEC-005). Tags, sorting and filtering of owned cards: [[My Collection]] (SPEC-007).
@@ -546,8 +675,10 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 - **Resolved (H-048)** — RJ decision 2026-11-23: `x3 Name` and `Name x3` (also `X`) are accepted, IMP-020 is a MUST; `Name` alone stays `MISSING_QUANTITY`. Printing codes on a line (IMP-064…070) identify the exact printing.
 - **Needs RJ (low)** — IMP-068 policy chosen by spec-writer: two exact identifications that disagree → needs review; an unrecognized name with a found code → the code's card with a warning. RJ may prefer "always needs review".
 - **Needs research (low)** — set codes are matched as exactly 3 letters (RJ's brief). Promo set codes such as `PR` (2 letters, SPEC-001 open question 6) would not be read as codes; confirm against the live payload (H-020) which set codes the API uses.
-- **Open (H-045)** — the collection CSV export (IMP-055, SPEC-007 COLL-059) could now round-trip `byPrinting` by writing the printing code after the name (`2,Lightning Rush RAD 001`). Not decided here.
+- **Resolved (H-045)** — RJ decision 2026-11-23: the collection CSV export has no Tags column (SPEC-007 COLL-059 withdrawn; tags are expected to survive through sign-in sync, [[ADR-0007 Firebase Accounts and Firestore]]) and writes printing codes so `byPrinting` round-trips (IMP-055, Collection CSV export rules, AC 35). Spec-writer chose: code inside the name cell as `<SET> <NUM>`, missing-printing copies written name-only.
 - **Open** — separate set and collector-number cells in CSV/Excel are still not read (IMP-040, IMP-044); revisit with IMP-046 once real export files exist.
+- **Open (H-053, v0.8)** — IMP-042's delimiter rule (`;` or tab outside quotes beats `,`) is RJ's **interim** rule of 2026-11-23; revisit with IMP-046 once real export files exist.
+- **Resolved (v0.8)** — RJ decision 2026-11-23: UI messages use the straight apostrophe `'` (house style in IMP-061; IMP-010, IMP-061, AC 15a and AC 38 quote it). The shipped messages were changed to match (H-049 follow-up).
 - **Unverified** — TTS `COPY` suffix semantics; we treat each token as one copy per research (IMP-036).
 - **Resolved** — MVP storage is browser only, no accounts (IMP-053) and variants count as the same card (IMP-048, former A3): [[ADR-0005 MVP Product Defaults]].
 - **Resolved** — A1: name key = SPEC-001 CARD-030 `nameKey`, ownership by `cardKey`. Side effects noted: hyphen/spacing differences fall to fuzzy suggestions (AC23); the comma-prefix check in IMP-029 uses canonical names.
@@ -556,4 +687,4 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 - **Open** — fuzzy thresholds (0.85 / 0.60 / 0.05 margin) are initial values; tune against real typo samples.
 
 ## Changelog
-Current: 0.6 (2026-11-23, H-067). Full history: [[Collection Import changelog]] (archived). New entries go in the archive note.
+Current: 0.8 (2026-11-23, H-049; numbered 0.7 on its branch, renumbered at merge because H-045 is 0.7). Full history: [[Collection Import changelog]] (archived). New entries go in the archive note.

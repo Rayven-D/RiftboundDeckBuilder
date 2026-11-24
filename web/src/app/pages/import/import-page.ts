@@ -5,7 +5,12 @@ import { Router } from '@angular/router';
 import { SignInGate } from '../../core/sync/sign-in-gate';
 import { SignInPanel } from '../../core/sync/sign-in-panel';
 import { Icon, IconName } from '../../shared/icon';
-import { ImportDialog, ImportDialogData, ImportKind } from '../../shared/import/import-dialog';
+import {
+  hasFiles,
+  ImportDialog,
+  ImportDialogData,
+  ImportKind,
+} from '../../shared/import/import-dialog';
 import { ParseResult, SECTION_LABELS } from '../../shared/import/parse-card-list';
 
 interface ImportOption {
@@ -23,6 +28,11 @@ interface PendingImport {
 @Component({
   selector: 'app-import-page',
   imports: [Icon, MatButton, SignInPanel],
+  // A file that misses the cards must not make the browser leave the page to open it.
+  host: {
+    '(window:dragover)': 'ignoreStrayFile($event)',
+    '(window:drop)': 'ignoreStrayFile($event)',
+  },
   template: `
     <header class="page-header">
       <h1>Import</h1>
@@ -37,15 +47,26 @@ interface PendingImport {
         @for (option of options; track option.kind) {
           <button
             type="button"
-            class="import-card"
+            class="import-card lift"
+            [class.drag-over]="dragOver() === option.kind"
             (click)="open(option.kind)"
+            (dragenter)="onDragEnter($event, option.kind)"
+            (dragover)="onDragOver($event, option.kind)"
+            (dragleave)="onDragLeave($event)"
+            (drop)="onDrop($event, option.kind)"
             [attr.aria-haspopup]="'dialog'"
           >
             <span class="import-icon"><app-icon [name]="option.icon" /></span>
             <span class="import-text">
               <span class="import-title">{{ option.title }}</span>
               <span class="import-subtext">{{ option.subtext }}</span>
-              <span class="import-formats">Paste a list or upload CSV / Excel</span>
+              <span class="import-formats">
+                @if (dragOver() === option.kind) {
+                  Drop to import
+                } @else {
+                  Paste a list or upload CSV / Excel
+                }
+              </span>
             </span>
             <app-icon class="import-chevron" name="chevron_right" />
           </button>
@@ -91,6 +112,8 @@ export class ImportPage {
   private readonly router = inject(Router);
   protected readonly gate = inject(SignInGate);
   protected readonly pending = signal<PendingImport | null>(null);
+  /** The option card a file is being dragged over. */
+  protected readonly dragOver = signal<ImportKind | null>(null);
 
   protected readonly options: readonly ImportOption[] = [
     {
@@ -125,9 +148,44 @@ export class ImportPage {
     });
   }
 
-  protected open(kind: ImportKind): void {
+  /**
+   * Drag and drop (RJ, 2026-11-24): a file dropped on an option card opens that card's dialog with
+   * the file loaded through the dialog's own upload path. Only file drags are taken.
+   */
+  protected onDragEnter(event: DragEvent, kind: ImportKind): void {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    this.dragOver.set(kind);
+  }
+
+  protected onDragOver(event: DragEvent, kind: ImportKind): void {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    this.dragOver.set(kind);
+  }
+
+  protected ignoreStrayFile(event: DragEvent): void {
+    if (hasFiles(event)) event.preventDefault();
+  }
+
+  protected onDragLeave(event: DragEvent): void {
+    // Moving between the card's own children fires dragleave too: only clear when leaving the card.
+    const card = event.currentTarget as HTMLElement;
+    if (!card.contains(event.relatedTarget as Node | null)) this.dragOver.set(null);
+  }
+
+  protected onDrop(event: DragEvent, kind: ImportKind): void {
+    this.dragOver.set(null);
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    event.preventDefault();
+    this.open(kind, file);
+  }
+
+  protected open(kind: ImportKind, file?: File): void {
     const ref = this.dialog.open<ImportDialog, ImportDialogData, ParseResult>(ImportDialog, {
-      data: { kind },
+      data: file ? { kind, file } : { kind },
       width: '40rem',
       maxWidth: 'calc(100vw - 2rem)',
       autoFocus: 'textarea',

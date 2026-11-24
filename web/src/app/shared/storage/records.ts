@@ -10,6 +10,9 @@
 export type CardKey = string;
 export type PrintingId = string;
 export type PrintingCode = string;
+/** 'YYYY-MM-DD'. */
+export type IsoDate = string;
+/** ISO 8601 UTC. */
 export type IsoDateTime = string;
 
 // ---- SPEC-003 ----
@@ -45,7 +48,11 @@ export const TAG_COLOURS: readonly TagColour[] = [
   'blue',
   'purple',
 ];
-/** `p:<printingId>` or `u:<cardKey>`. */
+/**
+ * `p:<printingId>` or `u:<cardKey>`. SPEC-007 writes this as the template literal
+ * `` `p:${PrintingId}` | `u:${CardKey}` ``; it is kept as `string` here because sync merges and
+ * validates keys read from untrusted documents (SYNC-013) before they are known to match.
+ */
 export type TagTarget = string;
 
 export interface Tag {
@@ -139,15 +146,15 @@ export interface TournamentDeckSource {
   kind: 'tournament';
   eventId: string;
   eventName: string;
-  eventStartDate: string;
-  eventEndDate: string;
+  eventStartDate: IsoDate;
+  eventEndDate: IsoDate;
   region: string;
   decklistId: string;
   publishedRank: number;
   placingLabel: string;
   pilot: string;
   sourceUrl: string;
-  addedAt: string;
+  addedAt: IsoDateTime;
 }
 
 export type DeckSource = UserDeckSource | TournamentDeckSource;

@@ -41,6 +41,55 @@ Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 - RJ then changed the model: an account is required to import cards or decks (Tournaments open to all); sign-out clears the device; signed out = Home + Tournaments; production keeps no-account imports until sign-in is on; old browser data ignored. Filed H-080 (ADR-0007 + SPEC-010 v0.8) and H-081 (build).
 - H-080: ADR-0007 amendment accepted by RJ; SPEC-010 v0.8 (two modes by `signInEnabled`, sign-in gate with `sessionLostUid`, no Tournaments deck controls when signed out, lost session closes the pages, no legacy-data warning). Validator FAIL ×2, PASS round 3 ([[Validation H-080]]). New H-082 (Home copy), H-083 (RJ: 2 open questions). Build handed to one builder session (H-086, H-081, H-077, H-078, H-079). Spec-writer agent now limited to `brain/`.
 
+## 2026-11-24: H-085 fluid UI pass, teal accent, phone tab bar (builder)
+- RJ's brief: fluid pass + home redesign, teal (green as an alternative) instead of blue, fixed bottom tab bar on phones. Built on `loop/H-065-fluid-ui`; details, accent values and contrast ratios in [[Design Direction]] ("Fluid pass and teal accent").
+- Teal `#14B8A6` (light `#0F766E`) with AA text and label tones; green preview via `html[data-accent="green"]` and a switch on `/styleguide`. Material theme, favicon SVG/ICO/PNG regenerated.
+- Motion tokens and layer, Angular view transitions on `<main>` only, a global reduced-motion block. Sticky header aligned to the content edges; phone tab bar with `aria-current`. Home: full-screen hero, one-time deal-in + ownership fill, bands with one rhythm, the arrow-link row removed. Import: drop a file on a card or the text box (same upload path). Empty states have the deck mark.
+- Lint, build, 164 tests pass (new: tab bar, drop → dialog, dialog drop). Component-style budget warning raised from 4 to 6 kB. Checked with headless-Edge screenshots at 1440, 1024, 768 and 390. H-085 → verify (filed as H-065 at first; that ID was already taken on `dev`, so the branch keeps the old name); RJ review gate.
+- Same day (main session): installed the `design-taste-frontend` skill (project-level, `.claude/skills/`, reviewed; used as motion/layout reference only, Direction A kept). Merged `dev` into the branch (`9a026e5`, account menu moved into the new header row), then RJ approved: branch → `dev` (`38aab0b`), `dev` → `main` (`36ceb2c`, 346 tests, build clean), both pushed. The deploy drops `riot.txt` again (H-056). Open: validator run for H-085, RJ's teal vs green pick.
+
+## 2026-11-24: H-058 family merged into one branch, PR to `dev` (with RJ)
+- Merged `loop/H-058-shared-cards-lockin`, `H-050-spec004-bump`, `H-045-tags-column`, `H-049-spec-followups`, `H-059-lockin-engine`, `H-062-accounts-sync-build` into `loop/H-058-family-merge` (from `dev`).
+- Version clash: H-045 keeps SPEC-003 0.7 / SPEC-007 0.6; H-049 renumbered to SPEC-003 0.8 / SPEC-007 0.7, its new ACs 35–40 → 36–41. SPEC-008 0.3 also holds H-059's 0.2.1 fix; SPEC-005 0.4.1. Board ID clash: H-059's H-069 → H-076 (H-062's privacy research keeps H-069), next_id 77. API Contracts 1.6.
+- Validator FAIL (SPEC-003/007 frontmatter versions, stale renumbering text, Validation Runs order, H-061 Done row pipes, Done table > 10) → fixed. Code review: engine and store record types had drifted (`StoredTags` schema 2 vs 3) → builder made `shared/storage/records.ts` the single source. Lint, build, 339 tests green.
+- Still open: H-074 (SPEC-010 follow-ups, incl. its stale pins) running in its own session; H-060 not built.
+
+## 2026-11-23: H-058 shared cards + lock-in, runes, then sessions per item (with RJ)
+- Researcher: [[Physical Copies Across Decks]]. The Chosen Champion shares the per-name pool with Main/Sideboard. RJ chose to count every physical section (Legend, Champion, Main, Sideboard, Battlefields) and to ignore runes.
+- SPEC-008 [[Shared Cards and Lock-in]] and SPEC-009 [[Runes Assumed Owned]]. RJ accepted the five lock-in defaults and decided no force lock.
+- Validator round 1 FAIL (missing When steps, filter overlap, cross-spec warning placement) → H-065..H-068; round 2 PASS. Code review: 2 nits, both fixed. Committed on `loop/H-058-shared-cards-lockin`. `loop/ui-direction-a` deleted locally (fully in `dev`).
+- One session per remaining item: H-050, H-045, H-049, H-059 done on their own branches; H-061 grew into H-062 (build) and H-074 (still running). Merge plan and the SPEC-003/007 version clash are in [[Current State]].
+
+## 2026-11-23: Hero note text, local deploy with riot.txt (with RJ)
+- RJ shortened the home hero note to "Free". Committed on `dev`, merged into `main` (not pushed).
+- Local `firebase deploy --only hosting` from `dev` with the uncommitted `web/public/import/riot.txt`, so it is served at `/import/riot.txt` again (H-056 still open: the next Actions deploy of `main` drops it).
+
+## 2026-11-23: One `builder` agent replaces service-builder and ui-builder (with RJ)
+- Checked whether spec-writer had been building. Its definition never said to, and it has no Bash, but spec-writer items still shipped code: H-058 (8 `web/` files for the "available" label), H-029 (page text, routes), and H-048 (spec work and parser in one commit). Much UI work also ran in the main session without a builder.
+- RJ chose to replace both builders with one [[builder]] agent for UI, browser business logic and services. It keeps the RJ review gate for screens and the API Contracts rule, and must run lint, build and tests before it reports.
+- [[spec-writer]] now has a "You don't write code" rule: spec changes that need code become `builder` board items. `/loop` dispatches only `builder` for code. Validator routes code bugs to `builder`.
+- Open board items H-047, H-057, H-059, H-060, H-062 and H-064 moved to `builder`. Done rows keep their old owners as history. Updated CLAUDE.md, [[Loop Protocol]], [[Home]], the [[Agents/README|Agents README]], and the owner lines in UI Index, Design Direction and API Contracts. `.claude/` copies refreshed. Nothing committed.
+
+## 2026-11-23: H-050 SPEC-004 version bump (spec-writer)
+- SPEC-004 0.4 → 0.5 to record the H-044 lower-case "your decks" strings (CAT-070/074/076, ACs 16–18); archive changelog entry added. Pins → SPEC-004 0.5 in [[Spec Index]] (SPEC-004/005/006 rows), SPEC-005 and SPEC-006 Summary "Depends on" lines; SPEC-006 metadata-only changelog line. Validator PASS (V-009 + pins). H-050 → done. Branch `loop/H-050-spec004-bump`, no code.
+
+## 2026-11-23: H-045 collection CSV export vs positional import (spec-writer, validator)
+- RJ decided: the collection CSV export has **no Tags column** (tags and exclude flags are not in the CSV backup; sync per ADR-0007), and it **writes printing codes** (`2,Lightning Rush RAD 001`) so `byPrinting` round-trips. Unassigned, missing-printing and no-code copies go on a name-only row, the export re-parses each row before writing it, and counts above 999 split across rows.
+- SPEC-003 0.7 (IMP-055, export rules 1–10, round-trip guarantee, AC 35), SPEC-007 0.6 (COLL-059 withdrawn, AC 24); changelogs, Spec Index, Current State updated.
+- Validator: round 1 FAIL (AC row order, guarantee vs rule 7, no-code printings, 999-multiple rest row) → fixed → round 2 PASS. H-045 done. Follow-up for H-050: SPEC-005/006/008/009 still cite SPEC-003 0.6 / SPEC-007 0.5.
+
+## 2026-11-23: H-049 spec follow-ups (spec-writer + validator)
+- SPEC-003 0.7 (0.8 after the merge renumbering): import code behaviour written into the spec (interim CSV delimiter rule, decimal quantities, `2. Gust`, label-cell rows, seven upload checks with exact messages, upload kept/dropped, encoding rejection, row limit on the converted line, pre-catalog summary fields, Line grammar steps 3/5); IMP-050 split into MUST + IMP-050a SHOULD; new ACs 35–40.
+- SPEC-007 0.6 (0.7 after the merge renumbering) / SPEC-008 0.3: an import Undo warns about locked decks inside the COLL-058 confirmation, or asks for one only on a shortfall (no notice after). H-060 wording updated to match.
+- Validator PASS (strings probed against `parse-card-list.ts`, 157 web tests). RJ then decided: straight `'` in all UI messages (three import messages changed in code, 157 tests green) and Undo keeps the notice after it, with the warning before; every locked-deck warning ends "It stays locked." Validator PASS again. Committed on `loop/H-049-spec-followups`.
+
+## 2026-11-23: H-059 shared pool / lock-in engine (builder, validator)
+- Built the pure SPEC-008 / SPEC-009 engine and SPEC-005 v0.4.1 `computeDeckOwnership` in `web/src/app/core/decks/` (decision on the board: browser-only consumer, `services/` not hosted, `web/` can't import `services/`). Minimal SPEC-007 `deckOwnership` and SPEC-002 `banStatus`; `nameKey` moved to `web/src/app/core/cards/`; `tileOwnership` moved to core with a "… locked in" option. No new dependencies.
+- Cycle: validator round 1 FAIL (split-card label: OWN-033 vs SPEC-005 AC 4 / SPEC-008 AC 6) → spec-writer made OWN-033 explicit and fixed both ACs (SPEC-005 0.4.1, SPEC-008 0.2.1, no behaviour change). Code review (/code-review high, then an independent reviewer): lock comparator made a total order, rune detection uses the pool's catalog, `banStatus` memoized (OWN-080 was ~430 ms with a real ban list), caller duties documented. Rounds 2 and 3 PASS; web lint / build ok, 217 tests.
+- Changed notes: [[API Contracts]] (1.4, browser-side shared types), [[UI Index]], [[Your Decks Ownership View]], [[Shared Cards and Lock-in]], [[Validation Runs]], [[Handoff Board]] (H-059 done, H-060 blocked on Decks page only, new H-076 (H-069 on its branch)).
+- Open questions: H-076 (numbered H-069 on its branch; ownership-unavailable values, unparseable `lockedAt`, per-card vs total shortfall). Branch `loop/H-059-lockin-engine`, committed, not merged or pushed.
+- Next: Decks page, then H-060.
+
 ## 2026-11-23: H-061 accounts and sync spec (spec-writer + validator)
 - New SPEC-010 [[Accounts and Sync]] v0.4 (88 rows, 36 ACs): optional sign-in behind `signInEnabled`, the [[Firestore Data Shape]] layout, device-local sync log with 30-day tombstones, latest change wins per card count / tag target / lock / deck (monotonic stamps), first sign-in Combine or Cancel, offline, sign-out, delete account, owner-only rules with field validation. Locks sync (`state/locks`, `{lockedAt|null, updatedAt}`).
 - Validator FAIL ×3 (rounds 1–3: 6 + 4 + 2 blockers), PASS round 4 ([[Validation H-061]]). Spec Index and Current State rows added.

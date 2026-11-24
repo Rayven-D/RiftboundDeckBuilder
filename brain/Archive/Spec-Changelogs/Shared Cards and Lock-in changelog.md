@@ -9,6 +9,25 @@ superseded_by: "[[Shared Cards and Lock-in]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.3 (2026-11-23, H-049 item 19): SHARE-034 no longer treats Undo of an import as "the one change without a
+  confirmation step": Undo is warned **before** it runs, computed on the snapshot it would restore, inside the
+  SPEC-007 COLL-058 Undo confirmation when manual edits followed the import, otherwise in a confirmation it
+  asks for only when `lockedShortfalls` is not empty (the COLL-088 rule for edits without a confirmation).
+  The notice "'`<deck name>`' (locked) is now `<n>` cards short." is removed; no change warns only afterwards.
+  Agrees with SPEC-003 0.8 IMP-050/IMP-050a and SPEC-007 0.7 COLL-058/COLL-088. AC 16 Undo part rewritten
+  (confirm / cancel, with manual edits, no lock → no confirmation). `lockedShortfalls` comment covers Undo.
+  Summary updated. Pins: SPEC-003 0.8, SPEC-007 0.7. Still 43 requirements; 16 ACs.
+  RJ decision 2026-11-23 (H-049 follow-up): Undo warns before **and** notifies after. SHARE-034's one warning
+  string, used in every confirmation (edits, Replace, Undo), is now "'`<deck name>`' (locked) will be `<n>`
+  cards short. It stays locked." (a short deck stays locked, SHARE-033); a confirmed Undo (only) is followed
+  by the notice "'`<deck name>`' (locked) is now `<n>` cards short." (restored, now in addition to the
+  warning; the "is removed" line above no longer applies to Undo). Cancel → nothing changes, no notice.
+  Summary, `lockedShortfalls` comment, AC 9 and AC 16 (warning text; Undo notice after confirm, none after
+  cancel) updated.
+
+- 0.2.1 (2026-11-23, H-059 validation): AC 6 tile labels follow SPEC-005 OWN-033's card-total suffix (Champion
+  "1 of 1 available · 1 of 2 in this deck", Main "0 of 1 available · 1 of 2 in this deck"). No behaviour change.
+
 - 0.2 (2026-11-23, H-065/H-066/H-067, validator fixes for H-058; RJ's decisions unchanged):
   **H-065:** ACs 3, 6, 7 (first clause and the "instead" case), 8, 10, 12 now have a **When**.
   **H-066:** SHARE-051 rewritten so every deck has exactly one ownership group, first match wins: `locked`

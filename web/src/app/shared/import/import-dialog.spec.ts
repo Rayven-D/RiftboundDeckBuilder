@@ -57,6 +57,51 @@ function slowCsv(name: string, content: string): { file: File; release: () => vo
   return { file, release };
 }
 
+describe('ImportDialog dropped files', () => {
+  function drop(f: Fixture, file: File): Event {
+    const event = new Event('drop', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'dataTransfer', { value: { types: ['Files'], files: [file] } });
+    textarea(f).dispatchEvent(event);
+    return event;
+  }
+
+  it('loads a file dropped on the text box through the upload path', async () => {
+    const f = setup();
+    const event = drop(f, new File(['Qty,Name\n2,Gust\n'], 'drop.csv'));
+    expect(event.defaultPrevented).toBe(true);
+    await settle(f);
+    expect(textarea(f).value).toBe('2 Gust');
+    expect(hint(f)).toBe('Loaded drop.csv');
+  });
+
+  it('rejects a dropped file the same way as a picked one', async () => {
+    const f = setup();
+    type(f, '2 Void Gate');
+    drop(f, new File(['x'], 'old.xls'));
+    await settle(f);
+    expect(textarea(f).value).toBe('2 Void Gate');
+    expect(alert(f)).toContain("Older .xls files aren't supported.");
+  });
+
+  it('loads a file handed over in the dialog data (dropped on the Import page)', async () => {
+    TestBed.configureTestingModule({
+      imports: [ImportDialog],
+      providers: [
+        {
+          provide: MAT_DIALOG_DATA,
+          useValue: { kind: 'collection', file: new File(['3 Gust'], 'list.txt') },
+        },
+        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+      ],
+    });
+    const f = TestBed.createComponent(ImportDialog);
+    f.detectChanges();
+    await settle(f);
+    expect(textarea(f).value).toBe('3 Gust');
+    expect(hint(f)).toBe('Loaded list.txt');
+  });
+});
+
 describe('ImportDialog upload state', () => {
   it('writes the upload into the text box and shows the file name', async () => {
     const f = setup();
@@ -71,7 +116,7 @@ describe('ImportDialog upload state', () => {
     type(f, '2 Void Gate');
     await pick(f, new File(['x'], 'old.xls'));
     expect(textarea(f).value).toBe('2 Void Gate');
-    expect(alert(f)).toContain('Older .xls files aren’t supported.');
+    expect(alert(f)).toContain("Older .xls files aren't supported.");
     expect(hint(f)).not.toContain('Loaded');
     type(f, '2 Void Gate\n1 Gust');
     expect(alert(f)).toBeUndefined();

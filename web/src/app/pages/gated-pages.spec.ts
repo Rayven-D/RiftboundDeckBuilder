@@ -221,11 +221,11 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-008, SYNC-009)', () => {
       const fixture = TestBed.createComponent(App);
       await fixture.whenStable();
       const el = fixture.nativeElement as HTMLElement;
-      expect(Array.from(el.querySelectorAll('nav a')).map((a) => a.getAttribute('href'))).toEqual([
-        '/decks',
-        '/collection',
-        '/tournaments',
-      ]);
+      const hrefs = (selector: string) =>
+        Array.from(el.querySelectorAll(selector)).map((a) => a.getAttribute('href'));
+      expect(hrefs('.site-nav a')).toEqual(['/decks', '/collection', '/tournaments']);
+      // The phone tab bar (H-085) keeps the same tabs plus Import.
+      expect(hrefs('.tab-bar a')).toEqual(['/decks', '/collection', '/tournaments', '/import']);
       expect(el.querySelector('header .import-action')?.getAttribute('href')).toBe('/import');
     });
   });

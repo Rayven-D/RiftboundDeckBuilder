@@ -1,9 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, DOCUMENT, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { Icon } from '../../shared/icon';
 import { CardTile } from '../../shared/deck/card-tile';
 import { DeckHeading } from '../../shared/deck/deck-heading';
 import { sampleCardArt } from '../../shared/deck/sample-art';
+
+type Accent = 'teal' | 'green';
 
 interface SampleCard {
   readonly name: string;
@@ -23,6 +25,19 @@ interface SampleCard {
   imports: [CardTile, DeckHeading, MatButton, Icon],
   template: `
     <p class="page-eyebrow sample">Component preview · sample data, not real cards</p>
+    <div class="accent-switch" role="group" aria-labelledby="accent-label">
+      <span id="accent-label" class="accent-label">Accent</span>
+      @for (option of accents; track option.value) {
+        <button
+          type="button"
+          class="accent-option"
+          [attr.aria-pressed]="accent() === option.value"
+          (click)="setAccent(option.value)"
+        >
+          <span class="swatch" [style.background]="option.swatch"></span>{{ option.label }}
+        </button>
+      }
+    </div>
     <header class="page-header deck-header">
       <app-deck-heading
         name="Kennen: ASC Evansrhim"
@@ -67,6 +82,40 @@ interface SampleCard {
     .sample {
       color: var(--color-text-muted);
     }
+    .accent-switch {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-2);
+      margin-bottom: var(--space-5);
+    }
+    .accent-label {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+    }
+    .accent-option {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      min-height: 44px;
+      padding: 0 var(--space-3);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-surface);
+      color: var(--color-text);
+      font: inherit;
+      cursor: pointer;
+    }
+    .accent-option[aria-pressed='true'] {
+      border-color: var(--color-accent);
+      box-shadow: inset 0 0 0 1px var(--color-accent);
+      font-weight: 600;
+    }
+    .swatch {
+      width: 1rem;
+      height: 1rem;
+      border-radius: var(--radius-sm);
+    }
     .deck-header {
       display: grid;
       gap: var(--space-2);
@@ -95,6 +144,25 @@ interface SampleCard {
   `,
 })
 export class StyleguidePage {
+  /**
+   * Accent preview (RJ, 2026-11-24): teal is the default; Green sets html[data-accent="green"] so
+   * RJ can compare. Only this page sets the attribute; it lasts until the page is reloaded.
+   */
+  protected readonly accents: readonly { value: Accent; label: string; swatch: string }[] = [
+    { value: 'teal', label: 'Teal', swatch: '#14b8a6' },
+    { value: 'green', label: 'Green', swatch: '#22a559' },
+  ];
+  private readonly root = inject(DOCUMENT).documentElement;
+  protected readonly accent = signal<Accent>(
+    this.root.getAttribute('data-accent') === 'green' ? 'green' : 'teal',
+  );
+
+  protected setAccent(accent: Accent): void {
+    this.accent.set(accent);
+    if (accent === 'green') this.root.setAttribute('data-accent', 'green');
+    else this.root.removeAttribute('data-accent');
+  }
+
   protected readonly cards: readonly SampleCard[] = [
     { name: 'Hextech Ray', type: 'Spell', owned: 3, required: 3, color: '#4a6fb5' },
     { name: 'Rally Banner', type: 'Gear', owned: 1, required: 3, color: '#b8563a' },

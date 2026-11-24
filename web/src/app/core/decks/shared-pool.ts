@@ -1,0 +1,325 @@
+import { cachedDeckOwnership } from './deck-ownership';
+import { isRuneEntry } from './runes';
+import type {
+  CardAvailability,
+  CardKey,
+  CardPool,
+  CardUse,
+  CollectionCatalogView,
+  DeckCard,
+  DeckLock,
+  DeckLockState,
+  DeckZone,
+  LockCheck,
+  LockedShortfall,
+  SharedPool,
+  SharedPoolInput,
+  UserDeck,
+} from './types';
+
+/** SPEC-005 ZONE_ORDER: Riot decklist order, the section and allocation order (OWN-011, OWN-022). */
+export const ZONE_ORDER: readonly DeckZone[] = [
+  'legend',
+  'champion',
+  'main',
+  'battlefields',
+  'runes',
+  'sideboard',
+];
+
+/** SPEC-008 COUNTED_ZONES: ZONE_ORDER without 'runes' (SHARE-001, SPEC-009). */
+export const COUNTED_ZONES: readonly DeckZone[] = ZONE_ORDER.filter((z) => z !== 'runes');
+
+/** A deck's entries of one zone, in stored order (single slots as a 0/1-element list). */
+export function zoneEntries(deck: UserDeck, zone: DeckZone): readonly DeckCard[] {
+  switch (zone) {
+    case 'legend':
+      return deck.legend ? [deck.legend] : [];
+    case 'champion':
+      return deck.champion ? [deck.champion] : [];
+    default:
+      return deck[zone];
+  }
+}
+
+/** Counted entries (SPEC-008 definition): counted zones, rune entries left out (RUNE-001). */
+export function countedEntries(
+  deck: UserDeck,
+  catalog: CollectionCatalogView | null,
+): { zone: DeckZone; entry: DeckCard }[] {
+  const out: { zone: DeckZone; entry: DeckCard }[] = [];
+  for (const zone of COUNTED_ZONES) {
+    for (const entry of zoneEntries(deck, zone)) {
+      if (!isRuneEntry(zone, catalog?.cards[entry.cardKey] ?? null)) out.push({ zone, entry });
+    }
+  }
+  return out;
+}
+
+/** need(D, k) per counted cardKey, in deck order of first appearance (Map keeps insertion order). */
+function needs(deck: UserDeck, catalog: CollectionCatalogView): Map<CardKey, number> {
+  const m = new Map<CardKey, number>();
+  for (const { entry } of countedEntries(deck, catalog)) {
+    m.set(entry.cardKey, (m.get(entry.cardKey) ?? 0) + entry.qty);
+  }
+  return m;
+}
+
+/** Parsed `lockedAt` in ms; unparseable values map to +Infinity so they sort after every parseable one. */
+function lockTime(lockedAt: string): number {
+  const t = Date.parse(lockedAt);
+  return Number.isNaN(t) ? Number.POSITIVE_INFINITY : t;
+}
+
+/**
+ * SHARE-030 total order: parsed `lockedAt` ascending (unparseable values after all parseable ones),
+ * then the raw `lockedAt` string, then `deckId`. Each step compares one derived key for every
+ * lock, so the order is transitive whatever mix of timestamps the store holds.
+ */
+function compareLockOrder(a: DeckLock, b: DeckLock): number {
+  const ta = lockTime(a.lockedAt);
+  const tb = lockTime(b.lockedAt);
+  if (ta !== tb) return ta < tb ? -1 : 1;
+  if (a.lockedAt !== b.lockedAt) return a.lockedAt < b.lockedAt ? -1 : 1;
+  return a.deckId < b.deckId ? -1 : a.deckId > b.deckId ? 1 : 0;
+}
+
+/** SPEC-007 COLL-034 name comparison: locale `en`, base sensitivity, numeric segments. */
+const nameCollator = new Intl.Collator('en', { sensitivity: 'base', numeric: true });
+
+/**
+ * SPEC-008 `computeSharedPool` (SHARE-070): pure function of (decks, locks, ownership input).
+ * One pool per counted cardKey across all decks (SHARE-001/002); `deckOwnership` is called at most
+ * once per counted cardKey and never for a card the catalog doesn't have (pool 0, OWN-061). Holds
+ * are filled in lock order (SHARE-031); unlocked decks hold nothing (SHARE-012). Locks of decks not
+ * in `decks` are ignored (SHARE-062); `locks === null` ignores every lock (SHARE-061).
+ */
+export function computeSharedPool(input: SharedPoolInput): SharedPool {
+  const catalog = input.ownership.catalog;
+  const locksIgnored = input.locks === null;
+
+  const decksById = new Map<string, UserDeck>();
+  for (const d of input.decks) if (!decksById.has(d.id)) decksById.set(d.id, d);
+
+  // Valid locks in lock order, at most one per deck (SHARE-022: the earliest one wins).
+  const lockByDeck = new Map<string, DeckLock>();
+  for (const lock of [...(input.locks ?? [])].sort(compareLockOrder)) {
+    if (decksById.has(lock.deckId) && !lockByDeck.has(lock.deckId)) {
+      lockByDeck.set(lock.deckId, lock);
+    }
+  }
+  const lockOrder = [...lockByDeck.values()];
+
+  const needByDeck = new Map<string, Map<CardKey, number>>();
+  for (const d of decksById.values()) needByDeck.set(d.id, needs(d, catalog));
+
+  // Pool per counted cardKey (SHARE-004).
+  const byCard: Record<CardKey, CardPool> = {};
+  for (const need of needByDeck.values()) {
+    for (const k of need.keys()) {
+      if (byCard[k]) continue;
+      const o = catalog.cards[k] ? cachedDeckOwnership(input.ownership, k) : null;
+      byCard[k] = {
+        cardKey: k,
+        ownedForDecks: o?.ownedForDecks ?? 0,
+        ownedExcluded: o?.ownedExcluded ?? 0,
+        heldTotal: 0,
+        uses: [],
+      };
+    }
+  }
+
+  // Holds in lock order (SHARE-031); locked uses are pushed in lock order (SHARE-015).
+  const holdOf = new Map<string, Map<CardKey, number>>();
+  for (const lock of lockOrder) {
+    const deck = decksById.get(lock.deckId) as UserDeck;
+    const held = new Map<CardKey, number>();
+    for (const [k, need] of needByDeck.get(deck.id) as Map<CardKey, number>) {
+      const pool = byCard[k];
+      const hold = Math.min(need, Math.max(0, pool.ownedForDecks - pool.heldTotal));
+      pool.heldTotal += hold;
+      held.set(k, hold);
+      pool.uses.push({ deckId: deck.id, deckName: deck.name, need, locked: true, hold });
+    }
+    holdOf.set(deck.id, held);
+  }
+
+  // Unlocked uses: by name (COLL-034), then deckId (SHARE-015).
+  const unlocked = [...decksById.values()]
+    .filter((d) => !lockByDeck.has(d.id))
+    .sort(
+      (a, b) => nameCollator.compare(a.name, b.name) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+    );
+  for (const deck of unlocked) {
+    for (const [k, need] of needByDeck.get(deck.id) as Map<CardKey, number>) {
+      byCard[k].uses.push({ deckId: deck.id, deckName: deck.name, need, locked: false, hold: 0 });
+    }
+  }
+
+  const byDeck: Record<string, DeckLockState> = {};
+  for (const deck of decksById.values()) {
+    const need = needByDeck.get(deck.id) as Map<CardKey, number>;
+    const lock = lockByDeck.get(deck.id) ?? null;
+    const held = holdOf.get(deck.id);
+    const cardsShort: CardKey[] = [];
+    for (const [k, n] of need) {
+      const pool = byCard[k];
+      // Locked: allocated = hold. Unlocked: available = owned − Σ holds of locked decks (SHARE-011).
+      const allocated = held
+        ? (held.get(k) ?? 0)
+        : Math.min(n, Math.max(0, pool.ownedForDecks - pool.heldTotal));
+      if (allocated < n) cardsShort.push(k);
+    }
+    byDeck[deck.id] = {
+      deckId: deck.id,
+      locked: lock !== null,
+      lockedAt: lock?.lockedAt ?? null,
+      complete: need.size > 0 && cardsShort.length === 0,
+      short: lock !== null && cardsShort.length > 0,
+      cardsShort,
+    };
+  }
+
+  return { locksIgnored, byCard, byDeck };
+}
+
+/**
+ * SPEC-008 `availability(pool, deckId, cardKey)`: what deck D sees for card k (SHARE-010, SHARE-011,
+ * SHARE-015, SHARE-043). A cardKey not in `pool.byCard` (a rune entry, or a card no deck counts)
+ * gets all zeros; callers use SPEC-009 for rune entries.
+ */
+export function availability(pool: SharedPool, deckId: string, cardKey: CardKey): CardAvailability {
+  const card = pool.byCard[cardKey];
+  const locked = pool.byDeck[deckId]?.locked ?? false;
+  if (!card) {
+    return {
+      deckId,
+      cardKey,
+      ownedForDecks: 0,
+      ownedExcluded: 0,
+      lockedByOthers: 0,
+      available: 0,
+      need: 0,
+      heldByThisDeck: locked ? 0 : null,
+      otherUses: [],
+    };
+  }
+  const own = card.uses.find((u) => u.deckId === deckId);
+  const hold = own?.hold ?? 0;
+  const lockedByOthers = card.heldTotal - hold;
+  return {
+    deckId,
+    cardKey,
+    ownedForDecks: card.ownedForDecks,
+    ownedExcluded: card.ownedExcluded,
+    lockedByOthers,
+    available: Math.max(0, card.ownedForDecks - lockedByOthers),
+    need: own?.need ?? 0,
+    heldByThisDeck: locked ? hold : null,
+    otherUses: card.uses.filter((u) => u.deckId !== deckId),
+  };
+}
+
+/**
+ * SPEC-008 `canLock(pool, deck, readOnly)` (SHARE-020): the first failing check, in the order
+ * already-locked → read-only → locks-unreadable → ownership-unavailable → no-cards → incomplete.
+ * `pool === null` means ownership is unavailable (OWN-062/063). The pool is the only lock source
+ * here, so with a null pool `already-locked` can't be detected: a locked deck then gets
+ * `read-only` or `ownership-unavailable`. The caller must check the lock store itself first and
+ * show Unlock (not a disabled Lock in) for a deck that is locked.
+ */
+export function canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boolean): LockCheck {
+  const state = pool?.byDeck[deck.id];
+  if (state?.locked) return { ok: false, reason: 'already-locked' };
+  if (readOnly) return { ok: false, reason: 'read-only' };
+  if (pool?.locksIgnored) return { ok: false, reason: 'locks-unreadable' };
+  if (!pool) return { ok: false, reason: 'ownership-unavailable' };
+  // A counted entry is one this deck uses in the pool (rune entries are never in byCard).
+  const hasCounted = COUNTED_ZONES.some((zone) =>
+    zoneEntries(deck, zone).some((e) =>
+      pool.byCard[e.cardKey]?.uses.some((u) => u.deckId === deck.id),
+    ),
+  );
+  if (!hasCounted) return { ok: false, reason: 'no-cards' };
+  if (!state || !state.complete) {
+    return { ok: false, reason: 'incomplete', cardsShort: state?.cardsShort.length ?? 0 };
+  }
+  return { ok: true };
+}
+
+/** "1 card short" / "3 cards short" (SHARE-020, SHARE-033, SHARE-034). */
+export function cardsShortText(n: number): string {
+  return `${n} ${n === 1 ? 'card' : 'cards'} short`;
+}
+
+/** SHARE-020 disabled-reason text for a failed `LockCheck`; null for ok and `already-locked`. */
+export function lockCheckMessage(check: LockCheck): string | null {
+  if (check.ok) return null;
+  switch (check.reason) {
+    case 'already-locked':
+      return null;
+    case 'read-only':
+      return 'This deck is read-only';
+    case 'locks-unreadable':
+      return 'Locked decks could not be read';
+    case 'ownership-unavailable':
+      return 'Ownership unavailable';
+    case 'no-cards':
+      return 'Lock in needs at least one card besides runes';
+    case 'incomplete':
+      return `Lock in needs every card available: ${cardsShortText(check.cardsShort ?? 0)}`;
+  }
+}
+
+/** Σ hold and the deck name per deck, from every use in the pool. */
+function heldByDeck(pool: SharedPool): Map<string, { held: number; name: string }> {
+  const m = new Map<string, { held: number; name: string }>();
+  for (const card of Object.values(pool.byCard)) {
+    for (const u of card.uses) {
+      const t = m.get(u.deckId);
+      if (t) t.held += u.hold;
+      else m.set(u.deckId, { held: u.hold, name: u.deckName });
+    }
+  }
+  return m;
+}
+
+/**
+ * SPEC-008 `lockedShortfalls(before, after)` (SHARE-034): decks locked in both pools whose total
+ * held copies drop from `before` to `after`, with the number of short cardKeys in `after`, in
+ * `after`'s lock order. `after` is the pool for the collection as it would be after the change
+ * (computed on a parsed Replace import before commit), or, for an import Undo, as it now is.
+ */
+export function lockedShortfalls(before: SharedPool, after: SharedPool): LockedShortfall[] {
+  const lockedAfter = Object.values(after.byDeck)
+    .filter((s) => s.locked && before.byDeck[s.deckId]?.locked)
+    .map((s) => ({ deckId: s.deckId, lockedAt: s.lockedAt as string, state: s }))
+    .sort(compareLockOrder);
+  const heldBefore = heldByDeck(before);
+  const heldAfter = heldByDeck(after);
+  const out: LockedShortfall[] = [];
+  for (const { deckId, state } of lockedAfter) {
+    const now = heldAfter.get(deckId);
+    if ((now?.held ?? 0) >= (heldBefore.get(deckId)?.held ?? 0)) continue;
+    out.push({ deckId, deckName: now?.name ?? '', cardsShort: state.cardsShort.length });
+  }
+  return out;
+}
+
+/** SHARE-034 warning inside a confirmation: "'Kennen Aggro' (locked) will be 1 card short." */
+export function shortfallWarning(s: LockedShortfall): string {
+  return `'${s.deckName}' (locked) will be ${cardsShortText(s.cardsShort)}.`;
+}
+
+/** SHARE-034 notice after an import Undo: "'Kennen Tempo' (locked) is now 1 card short." */
+export function shortfallNotice(s: LockedShortfall): string {
+  return `'${s.deckName}' (locked) is now ${cardsShortText(s.cardsShort)}.`;
+}
+
+/** SHARE-042 shared indicator: "Also in 1 other deck · 1 locked"; null with no other use. */
+export function sharedIndicator(otherUses: readonly CardUse[]): string | null {
+  const n = otherUses.length;
+  if (n === 0) return null;
+  const m = otherUses.filter((u) => u.locked).length;
+  return `Also in ${n} other ${n === 1 ? 'deck' : 'decks'}${m > 0 ? ` · ${m} locked` : ''}`;
+}

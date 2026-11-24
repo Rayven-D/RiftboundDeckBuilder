@@ -2,30 +2,28 @@
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 22rem;
+  min-height: 26rem;
 }
 
 .hero-mark {
   position: absolute;
-  width: min(80%, 22rem);
-  fill: none;
-  stroke: var(--color-border);
-  stroke-width: 0.6;
+  width: min(85%, 26rem);
   opacity: 0.7;
 }
 
 /*
  * Each card is placed with margins (no transform), so it doesn't create its own stacking
  * context: the tilt is on the art only, and every chip can sit above all three cards.
+ * --deal-x / --deal-y move a card back onto the pile (the middle card's spot) for the deal-in.
  */
 .fan {
-  --card-w: 9.5rem;
+  --card-w: 11rem;
   --card-h: calc(var(--card-w) * 88 / 63);
 
   position: relative;
   width: 100%;
-  max-width: 26rem;
-  height: 20rem;
+  max-width: 31rem;
+  height: 24rem;
 }
 
 .fan-card {
@@ -34,7 +32,7 @@
   left: 50%;
   width: var(--card-w);
   margin-top: calc(var(--card-h) * -0.52);
-  transition: margin-left 200ms ease;
+  transition: margin-left var(--dur-med) var(--ease-out);
 }
 
 .fan-art {
@@ -42,15 +40,16 @@
   border-radius: var(--radius-md);
   overflow: hidden;
   box-shadow: 0 12px 28px rgb(0 0 0 / 45%);
-  transition: transform 200ms ease;
+  transform: rotate(var(--rot, 0deg));
 }
 
 .fan-card--0 {
-  margin-left: calc(var(--card-w) * -1.28);
+  --rot: -9deg;
+  --pile-rot: -3deg;
+  --deal-x: calc(var(--card-w) * 0.78);
+  --deal-y: calc(var(--card-h) * -0.06);
 
-  .fan-art {
-    transform: rotate(-9deg);
-  }
+  margin-left: calc(var(--card-w) * -1.28);
 }
 
 .fan-card--1 {
@@ -63,21 +62,27 @@
 }
 
 .fan-card--2 {
+  --rot: 8deg;
+  --pile-rot: 2deg;
+  --deal-x: calc(var(--card-w) * -0.78);
+  --deal-y: calc(var(--card-h) * -0.06);
+
   margin-left: calc(var(--card-w) * 0.28);
 
   .fan-art {
     z-index: 2;
-    transform: rotate(8deg);
   }
 }
 
-.fan:hover {
-  .fan-card--0 {
-    margin-left: calc(var(--card-w) * -1.36);
-  }
+@media (hover: hover) and (pointer: fine) {
+  .fan:hover {
+    .fan-card--0 {
+      margin-left: calc(var(--card-w) * -1.36);
+    }
 
-  .fan-card--2 {
-    margin-left: calc(var(--card-w) * 0.36);
+    .fan-card--2 {
+      margin-left: calc(var(--card-w) * 0.36);
+    }
   }
 }
 
@@ -89,22 +94,86 @@
   box-shadow: 0 2px 6px rgb(0 0 0 / 40%);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .fan-card,
-  .fan-art {
-    transition: none;
+/*
+ * One-time deal-in (≈1.5s): the pile rises in, the front card is dealt right, the back card left,
+ * then the colors fill (card-art --fill-*), then the chips appear. Transform, opacity and
+ * clip-path only, so nothing around the fan moves.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  :host(.fan--deal) {
+    .hero-mark {
+      animation: mark-in 700ms var(--ease-enter) 100ms backwards;
+    }
+
+    .fan {
+      animation: pile-in 400ms var(--ease-enter) 100ms backwards;
+    }
+
+    .fan-card--0 .fan-art,
+    .fan-card--2 .fan-art {
+      animation: deal 450ms var(--ease-enter) backwards;
+    }
+
+    .fan-card--2 .fan-art {
+      animation-delay: 450ms;
+    }
+
+    .fan-card--0 .fan-art {
+      animation-delay: 540ms;
+    }
+
+    .fan-card--1 .fan-art {
+      --fill-delay: 900ms;
+      --fill-duration: 500ms;
+    }
+
+    .fan-card--2 .fan-art {
+      --fill-delay: 960ms;
+      --fill-duration: 440ms;
+    }
+
+    .fan-chip {
+      animation: chip-in var(--dur-med) var(--ease-out) 1250ms backwards;
+    }
+  }
+}
+
+@keyframes mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes pile-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+@keyframes deal {
+  from {
+    transform: translate(var(--deal-x), var(--deal-y)) rotate(var(--pile-rot, 0deg));
+  }
+}
+
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
   }
 }
 
 @media (max-width: 52rem) {
   :host {
-    min-height: 17rem;
+    min-height: 18rem;
   }
 
   .fan {
-    --card-w: 6.75rem;
+    --card-w: 7.25rem;
 
-    height: 16rem;
+    height: 17rem;
   }
 
   .fan-chip {
