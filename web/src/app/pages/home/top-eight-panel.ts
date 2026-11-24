@@ -1,8 +1,6 @@
-import { Component, input } from '@angular/core';
+import { Component } from '@angular/core';
 import { sampleCardArt } from '../../shared/deck/sample-art';
 import { Icon } from '../../shared/icon';
-
-export type TopEightVariant = 'list' | 'grid' | 'strip';
 
 interface ExamplePlacing {
   readonly placing: string;
@@ -43,8 +41,8 @@ function exampleTop8(offset: number): readonly ExamplePlacing[] {
 
 /**
  * Home page "Winning decks" example (RJ, 2026-11-23): events as the top level, each expanding to its
- * Top 8 with the Legend card, player and Legend name. Three layout options while RJ picks one:
- * `list` (rows), `grid` (card grid) and `strip` (swipeable row of cards). Invented example data,
+ * Top 8 with the Legend card, player and Legend name. Phones swipe through a
+ * row of Legend cards; tablets and desktops show a grid (4 or 8 across). Invented example data,
  * placings only (CAT-011), no stats (ADR-0003). Uses native details/summary for expand/collapse.
  */
 @Component({
@@ -60,25 +58,17 @@ function exampleTop8(offset: number): readonly ExamplePlacing[] {
           </span>
           <app-icon class="event-chevron" name="chevron_right" />
         </summary>
-        <ol [class]="'top8 top8--' + variant()">
+        <ol class="top8">
           @for (p of event.top8; track p.placing; let i = $index) {
             <li class="entry">
               <span class="art-wrap">
                 <img class="legend-art" [src]="art(p, i)" [alt]="p.legend" loading="lazy" />
-                @if (variant() !== 'list') {
-                  <span class="placing placing--overlay">{{ p.placing }}</span>
-                }
-              </span>
-              @if (variant() === 'list') {
                 <span class="placing">{{ p.placing }}</span>
-              }
+              </span>
               <span class="who">
                 <span class="player">{{ p.player }}</span>
                 <span class="legend">{{ p.legend }}</span>
               </span>
-              @if (variant() === 'list') {
-                <span class="add">Add to your decks</span>
-              }
             </li>
           }
         </ol>
@@ -88,8 +78,6 @@ function exampleTop8(offset: number): readonly ExamplePlacing[] {
   styleUrl: './top-eight-panel.scss',
 })
 export class TopEightPanel {
-  readonly variant = input<TopEightVariant>('list');
-
   protected readonly events: readonly ExampleEvent[] = [
     { name: 'Example Regional Championship', when: 'Nov 2026', top8: exampleTop8(0) },
     { name: 'Example Regional Qualifier', when: 'Oct 2026', top8: exampleTop8(3) },

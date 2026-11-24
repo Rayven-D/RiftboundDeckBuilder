@@ -4,7 +4,6 @@ import { Icon } from '../../shared/icon';
 import { CardTile } from '../../shared/deck/card-tile';
 import { DeckHeading } from '../../shared/deck/deck-heading';
 import { sampleCardArt } from '../../shared/deck/sample-art';
-import { TopEightPanel } from '../home/top-eight-panel';
 
 interface SampleCard {
   readonly name: string;
@@ -21,7 +20,7 @@ interface SampleCard {
  */
 @Component({
   selector: 'app-styleguide-page',
-  imports: [CardTile, DeckHeading, MatButton, Icon, TopEightPanel],
+  imports: [CardTile, DeckHeading, MatButton, Icon],
   template: `
     <p class="page-eyebrow sample">Component preview · sample data, not real cards</p>
     <header class="page-header deck-header">
@@ -63,16 +62,6 @@ interface SampleCard {
         />
       </div>
     </section>
-
-    <section class="options" aria-labelledby="top8-options">
-      <h2 id="top8-options" class="zone">Winning decks panel: options</h2>
-      @for (o of top8Options; track o.variant) {
-        <figure class="option">
-          <figcaption class="option-bar">{{ o.label }}</figcaption>
-          <app-top-eight-panel [variant]="o.variant" />
-        </figure>
-      }
-    </section>
   `,
   styles: `
     .sample {
@@ -98,23 +87,6 @@ interface SampleCard {
       border-bottom: 1px solid var(--color-border);
       font-size: var(--font-size-md);
     }
-    .options {
-      margin-top: var(--space-7);
-    }
-    .option {
-      max-width: 40rem;
-      margin: 0 0 var(--space-5);
-      overflow: hidden;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-lg);
-      background: var(--color-surface);
-    }
-    .option-bar {
-      padding: var(--space-2) var(--space-3);
-      border-bottom: 1px solid var(--color-border);
-      font-size: var(--font-size-sm);
-      font-weight: 600;
-    }
     .tiles {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
@@ -123,12 +95,6 @@ interface SampleCard {
   `,
 })
 export class StyleguidePage {
-  protected readonly top8Options = [
-    { variant: 'list', label: 'Option A · Rows with a small Legend card' },
-    { variant: 'grid', label: 'Option B · Grid of Legend cards' },
-    { variant: 'strip', label: 'Option C · Swipe through Legend cards' },
-  ] as const;
-
   protected readonly cards: readonly SampleCard[] = [
     { name: 'Hextech Ray', type: 'Spell', owned: 3, required: 3, color: '#4a6fb5' },
     { name: 'Rally Banner', type: 'Gear', owned: 1, required: 3, color: '#b8563a' },
