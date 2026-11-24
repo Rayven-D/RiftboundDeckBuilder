@@ -1,6 +1,8 @@
-import { Component, ElementRef, viewChild } from '@angular/core';
+import { Component, ElementRef, inject, viewChild } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { AccountMenu } from './core/sync/account-menu';
+import { SIGN_IN_ENABLED } from './core/sync/sign-in-flag';
 import { Icon } from './shared/icon';
 
 interface NavItem {
@@ -10,7 +12,7 @@ interface NavItem {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatButton, Icon],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatButton, Icon, AccountMenu],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -23,6 +25,9 @@ export class App {
   ];
 
   private readonly main = viewChild.required<ElementRef<HTMLElement>>('main');
+
+  /** SPEC-010 SYNC-007: the account control (and the sync code) loads only when sign-in is enabled. */
+  protected readonly signInEnabled = inject(SIGN_IN_ENABLED);
 
   /**
    * With `<base href="/">` a bare `#main` href resolves to `/#main`, which would navigate home from

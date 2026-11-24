@@ -44,6 +44,7 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 | SPEC-007 [[My Collection]] | 0.7 | per-printing, tags, `deckOwnership()`; tags not in the CSV export (COLL-059 withdrawn) |
 | SPEC-008 [[Shared Cards and Lock-in]] | 0.3 | one per-name pool across decks; lock in a complete deck (H-058 PASS 2026-11-23; build: H-059 engine → H-060 Decks UI) |
 | SPEC-009 [[Runes Assumed Owned]] | 0.2 | runes never missing, never shared or locked |
+| SPEC-010 [[Accounts and Sync]] | 0.6 | optional sign-in (email link now, Google later via `authProviders`) + Firestore sync, LWW per card / tag target / lock / deck, same deck status on every device, owner-only rules (H-061 PASS; RJ's 11 decisions applied, H-073 PASS 2026-11-23; H-062 built and PASS on `loop/H-062-accounts-sync-build`, sign-in off in production) |
 
 ## Waiting on RJ
 - **Merge the H-058 family into `dev`** (all local, none pushed). Base: `loop/H-058-shared-cards-lockin` (SPEC-008/009 v0.2, "available" label). On top of it: `loop/H-050-spec004-bump` (SPEC-004 0.5), `loop/H-045-tags-column` (export drops Tags, printing codes), `loop/H-049-spec-followups` (SPEC-003/007/008 follow-ups), `loop/H-059-lockin-engine` (engine in `web/src/app/core/decks/`, 217 tests), `loop/H-062-accounts-sync-build` (SPEC-010 v0.6 + sign-in/sync build; contains `loop/H-061-accounts-sync-spec`). **Version clash:** H-045 and H-049 both call their SPEC-003 0.7 and SPEC-007 0.6; renumber one when merging. H-074 (SPEC-010 follow-ups) is still running in its own session.
