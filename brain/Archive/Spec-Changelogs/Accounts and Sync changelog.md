@@ -9,6 +9,25 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.10 (2026-11-24, [[UI Review 2026-11-24]] spec rows H-103, H-105, H-107, H-109, H-111, H-112, H-117, H-118,
+  H-119, H-121; RJ decision 15): **SYNC-006:** email link as the only provider shows the email form straight
+  away (no provider button; with two providers the reveal moves focus to the field); Send link reads
+  "Sending…"; own send-failure text "Couldn't send the link. Check the address and your connection, then try
+  again." (SYNC-005 no longer used for it); sent state "We sent a sign-in link to {address}. Open it on this
+  device to finish signing in." / "Didn't get it? Check your spam folder." with Send again (no cooldown) and Use
+  a different email; the link returns to the start page (path + query) and "You're signed in." shows once.
+  **SYNC-003 / SYNC-100:** "Signed in as {email}" as the account menu's first line, read from Auth, never
+  stored. **SYNC-096 / SYNC-084:** during an unfinished deletion no Sync now, no pending count, menu action "Try
+  deleting again". **SYNC-095:** sign-in-first state of the delete dialog (reuses the step 1 text; Sign out opens
+  the Sign out dialog). **SYNC-090:** Sync now reads "Syncing…" while it runs, Cancel stays enabled, the plain
+  explanation stays under the warning. **SYNC-009 / SYNC-086 (RJ decision 15):** signed-out panel line "Sign in
+  or create an account to start keeping track of your collections and decks" (was "You need a free account to
+  import cards or decks."); lost-session line "You've been signed out. Sign in again to continue." (was "…to see
+  them."); no panel headings in any state. Data contract: `AuthService.currentEmail()`, `canReauthenticate()`,
+  `sendEmailLink(email, returnTo?)`. ACs 1, 26, 27, 38, 43, 46, 47 changed; ACs 49–57 new. Decision 15 added,
+  decision 14 (b) superseded. Open questions 3–9 (RJ to confirm). Build: H-104, H-106, H-110, H-115, H-122
+  extended; H-140…H-145 new.
+
 - 0.9 (2026-11-24, H-134, RJ decision 14): SYNC-009: a gated page keeps its page header (title and
   description); only the content below it is replaced by the sign-in panel. Signed-out panel text is exactly
   "You need a free account to import cards or decks." (was "...cards and decks. Tournaments are open to

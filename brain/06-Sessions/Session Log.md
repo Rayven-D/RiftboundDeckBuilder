@@ -7,6 +7,12 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: SPEC-010 v0.10, UI review spec rows (spec-writer, chain step 4)
+- `loop/H-103-spec010-ui-review` from `loop/H-102-danger-button` @ `7f92a3c`. One [[Accounts and Sync]] revision v0.9 → v0.10 for H-103, H-105, H-107, H-109, H-111, H-112, H-117, H-118, H-119, H-121 (from [[UI Review 2026-11-24]]): single-provider layout, send-failure string, sent state, "Signed in as {email}" (accepted, SYNC-100 allows it to its owner), menu during an unfinished deletion, delete dialog sign-in-first state, RJ decision 15 panel line (panel headings go), one neutral lost-session line, email link returns to the start page + "You're signed in." once, sign-out dialog Syncing…. New ACs 49–57; ACs 1, 26, 27, 38, 43, 46, 47 changed. Stale "pending build" markers for H-077/H-078/H-081/H-127 now read built.
+- RJ to confirm: SPEC-010 Open questions 3–9 (defaults for H-107, H-109, H-111, H-112, H-117, H-118's panel headings, H-119).
+- Builder rows filed: H-140 sent state, H-141 identity line, H-142 menu during deletion, H-143 delete dialog sign-in-first, H-144 gate panel text (H-117 + H-118), H-145 return to start page (`next_id` 146). H-104 / H-106 now carry H-103 / H-105; H-110, H-115, H-122 text updated.
+- Validator FAIL r1 (SYNC-003 vs SYNC-006, AC 38 Given, OQ9 reason, stale build markers, split ADR-0005 link), FAIL r2 (H-077/H-078 markers), PASS r3 ([[Validation H-103 spec batch]]). No code; 542 web tests still green.
+
 ## 2026-11-24: H-102 danger button variant (builder, chain step 3)
 - `loop/H-102-danger-button` from `loop/H-101-snackbar-offset` @ `67f0eb8`. ui-engineer [[Brief H-102]] (filled danger chosen over outlined) → builder → Playwright at 1440/375, dark/light, teal and green accents, keyboard; signed-in menu and Delete dialog reached through Angular's dev console hook. PASS first time.
 - `styles.scss`: `--color-danger-contrast`, `.mat-mdc-button-base.danger` and `.mat-mdc-menu-item.danger` token overrides (no `!important`); account menu gets one divider before Delete account and data; `/styleguide` Buttons section.
