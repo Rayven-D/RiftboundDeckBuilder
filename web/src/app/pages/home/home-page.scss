@@ -126,9 +126,9 @@
   }
 }
 
-/* Copy on top, panel across the full width (room for 8 Legend cards). */
-.feature--wide {
-  grid-template-columns: minmax(0, 1fr);
+/* Panel on the left, copy on the right (copy goes first again on phones). */
+.feature--flip .feature-copy {
+  order: 2;
 }
 
 .feature-title {
@@ -182,6 +182,10 @@
 
   .feature {
     padding: var(--space-6) 0;
+  }
+
+  .feature--flip .feature-copy {
+    order: 0;
   }
 
   .steps {
