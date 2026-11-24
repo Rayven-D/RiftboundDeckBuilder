@@ -28,10 +28,10 @@ centrepiece. The Legal Jibber Jabber notice always sits in the footer.
 ## Home page and headline font (RJ, 2026-11-23)
 - Reference: riftatlas.com (layout ideas only; our own identity). Ideas came from ui-builder; RJ picked:
   - **`/` is the home page for everyone** (was a redirect to `/decks`); the wordmark links home; unknown paths go home.
-  - **Headline:** "Know what you own. / See what you need." (second line in `--color-accent-text`).
+  - **Headline:** "Know what you own. / Own what you need." (second line in `--color-accent-text`).
   - **Hero visual: ownership fan** (`pages/home/ownership-fan.ts`): three tilted placeholder cards (missing, 1 of 3, 3 of 3) with their chips, our deck-stack mark faded behind. Real card art drops into the same `app-card-art` later.
   - **Headline font: Archivo**, self-hosted (`@fontsource-variable/archivo`, OFL, no Google Fonts request), heavy (800) and semi-expanded (112%), via `--font-display`. Used for h1, h2, `.display` and the wordmark; body text stays the system font.
-- Page sections: hero (two import buttons, "Free · No account · Stored in your browser", arrow links); three step tiles with dividers (Import your cards, Add a deck, See what's missing); "Ownership" feature with a framed example deck panel; "Tournaments" feature with an example Top 8 panel (placings only, no stats). Example content is labelled "example".
+- Page sections: hero (two import buttons, "Free · No account · Stored in your browser", arrow links); three step tiles with dividers (Add your cards, Add a deck, See what's missing); "Ownership" feature with a framed example deck panel; "Tournaments" feature with an example Top 8 panel (placings only, no stats). Example content is labelled "example".
 - Shared pieces added: `.eyebrow` (mono uppercase label), `.arrow-link` (text link with →), `app-card-art` (ownership image treatment, used by the tile and the fan), `sampleCardArt()` (abstract placeholder art).
 - Not copied on purpose: Rift Atlas's font, cyan, wording; Riot's domain symbols; Play / Sealed; a card search box (no card data yet); language picker; anything popularity-based.
 - Later ideas from ui-builder, not built yet: returning-user summary in the hero ("3 decks · 412 cards · Continue"), card search with a Ctrl+K hint once card data exists, footer Privacy / About / Contact, a dismissible "Card data coming soon" banner, `kbd` hints.
@@ -107,3 +107,4 @@ fantasy-UI styling.
 - 2026-11-23: "There's already a Rift Decks": renamed to **Rift Builder**.
 - 2026-11-23: Renamed tabs "Your decks" → "Decks" and "My collection" → "Collection".
 - 2026-11-23: Headline changed to "Know what you own. See what you need."
+- 2026-11-23: Home copy pass (casual, shorter, phone-first). Headline "Know what you own. / Own what you need." (RJ's own wording). Lede states the loop: add cards → add decks → see what you can build and what's missing. Step tiles "Add your cards" / "Paste any deck list" / "Card by card, for every deck". Ownership text mentions shared cards and says deck view is coming soon; Tournaments text starts "Coming soon:". No copy promises Copy-missing or Top 8 import until those are built.
