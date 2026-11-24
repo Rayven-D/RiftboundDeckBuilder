@@ -9,6 +9,7 @@ superseded_by: "[[My Collection]]"
 
 Moved out of [[My Collection]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.4 (2026-11-23): H-058. Shared cards, lock in and runes (ADR-0006 "Shared cards, lock in and runes"). New COLL-086 (per-printing Collection, one per-name `ownedForDecks` pool that SPEC-008 builds on; excluded copies never available; locks never change Collection data), COLL-087 (runes never needed, SPEC-009 RUNE-008), COLL-088 SHOULD (warn when an edit makes a locked deck short, SHARE-034). Summary, research list and consumers (SPEC-008) updated. This version also carries the H-044 lower-case strings already in the text ("Not counted in your decks" in COLL-083, "… will no longer count in your decks" in COLL-084, AC 22), which H-050 asked to version. 81 requirements (62 MUST, 15 SHOULD, 4 MAY).
 - 0.3 (2026-11-23): H-039. Data contract: new `CollectionCatalogView`; `DeckOwnershipInput` carries the catalog view (COLL-081) and `CollectionQueryInput` carries the catalog view, ban data (`BanListFile | null`) and `today` (COLL-068), instead of only `catalogVersion`; COLL-068/081 name their input types. Removed stale open questions 2 (IMP-058, fixed in SPEC-003 v0.2) and 5 (date format, fixed in SPEC-004/006); renumbered. Summary block added; changelog moved to this archive note.
 - 0.2 (2026-11-23): H-034. Applies RJ's gate H-036 answers (ADR-0006 #3, #4, #6, #7) and the H-031
   validator follow-ups. **Entries:** one entry per printing (every printing type separate) with a count

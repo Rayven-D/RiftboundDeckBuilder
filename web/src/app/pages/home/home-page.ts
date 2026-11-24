@@ -5,6 +5,7 @@ import { CardTile } from '../../shared/deck/card-tile';
 import { sampleCardArt } from '../../shared/deck/sample-art';
 import { Icon, IconName } from '../../shared/icon';
 import { OwnershipFan } from './ownership-fan';
+import { TopEightPanel } from './top-eight-panel';
 
 export interface FanCard {
   readonly name: string;
@@ -28,7 +29,7 @@ interface StepTile {
  */
 @Component({
   selector: 'app-home-page',
-  imports: [RouterLink, MatButton, Icon, CardTile, OwnershipFan],
+  imports: [RouterLink, MatButton, Icon, CardTile, OwnershipFan, TopEightPanel],
   templateUrl: './home-page.html',
   styleUrl: './home-page.scss',
 })
@@ -36,7 +37,7 @@ export class HomePage {
   protected readonly steps: readonly StepTile[] = [
     {
       icon: 'stacks',
-      title: 'Import your cards',
+      title: 'Add your cards',
       subtitle: 'Paste a list, CSV or Excel',
       link: '/import',
       query: { type: 'collection' },
@@ -44,14 +45,14 @@ export class HomePage {
     {
       icon: 'playing_cards',
       title: 'Add a deck',
-      subtitle: 'From a deck list or a Top 8',
+      subtitle: 'Paste any deck list',
       link: '/import',
       query: { type: 'deck' },
     },
     {
       icon: 'content_copy',
       title: "See what's missing",
-      subtitle: 'Copy the list to buy or trade',
+      subtitle: 'Card by card, for every deck',
       link: '/decks',
     },
   ];

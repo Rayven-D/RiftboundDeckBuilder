@@ -1,0 +1,139 @@
+:host {
+  display: block;
+}
+
+/* ---- Event (top level) ---- */
+.event + .event {
+  border-top: 1px solid var(--color-border);
+}
+
+.event-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  list-style: none;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &:hover .event-name {
+    color: var(--color-accent-text);
+  }
+}
+
+.event-text {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-width: 0;
+}
+
+.event-name {
+  font-weight: 600;
+}
+
+.event-when {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.event-chevron {
+  font-size: 20px;
+  color: var(--color-text-muted);
+  transition: transform 120ms ease;
+}
+
+.event[open] .event-chevron {
+  transform: rotate(90deg);
+}
+
+/* ---- Top 8 entries: full Legend cards, scaled to fit 8 across so the panel stays about as tall as
+   the Ownership panel ---- */
+.top8 {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-1) var(--space-4) var(--space-3);
+  list-style: none;
+}
+
+.entry {
+  min-width: 0;
+}
+
+.art-wrap {
+  position: relative;
+  display: block;
+}
+
+.legend-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  border-radius: var(--radius-sm);
+}
+
+.placing {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow: 0 0 0 1px var(--color-border);
+  color: var(--color-accent-text);
+  font-family: var(--font-display);
+  font-stretch: var(--display-stretch);
+  font-weight: var(--display-weight);
+  font-size: var(--font-size-xs);
+}
+
+.who {
+  display: grid;
+  min-width: 0;
+  margin-top: var(--space-1);
+}
+
+.player {
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend {
+  overflow: hidden;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Phones: one swipeable row, with the next card peeking in. */
+@media (max-width: 52rem) {
+  .event-text {
+    display: grid;
+  }
+
+  .top8 {
+    display: flex;
+    gap: var(--space-3);
+    padding-bottom: var(--space-4);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--space-4);
+  }
+
+  .entry {
+    flex: none;
+    width: 5.75rem;
+    scroll-snap-align: start;
+  }
+}

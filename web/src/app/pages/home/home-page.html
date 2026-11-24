@@ -2,11 +2,11 @@
   <div class="hero-copy">
     <h1 id="hero-title" class="hero-title">
       Know what you own.
-      <span class="accent">See what you need.</span>
+      <span class="accent">Own what you need.</span>
     </h1>
     <p class="hero-lede">
-      Paste your Riftbound collection, add any deck list or tournament Top 8, and see card by card
-      what you already have and what you still need.
+      Add the cards you own. Add the decks you want. See which ones you can build and what's
+      missing.
     </p>
     <div class="hero-actions">
       <a matButton="filled" routerLink="/import" [queryParams]="{ type: 'collection' }">
@@ -21,7 +21,7 @@
     <nav class="hero-links" aria-label="Go to">
       <a class="arrow-link" routerLink="/decks">Decks</a>
       <a class="arrow-link" routerLink="/collection">Collection</a>
-      <a class="arrow-link" routerLink="/tournaments">Tournament Top 8s</a>
+      <a class="arrow-link" routerLink="/tournaments">Tournaments</a>
     </nav>
   </div>
 
@@ -44,15 +44,14 @@
 <section class="feature" aria-labelledby="ownership-title">
   <div class="feature-copy">
     <p class="eyebrow"><app-icon name="contrast" />Ownership</p>
-    <h2 id="ownership-title" class="feature-title">Full colour, half colour, not yet.</h2>
+    <h2 id="ownership-title" class="feature-title">Collect the cards each deck needs.</h2>
     <p class="feature-text">
-      Every card in a deck shows how many copies you own. Owned cards are in full colour, missing
-      cards are dimmed, and partly owned cards fill in from left to right. Copy the missing list
-      when you're ready to trade or buy.
+      Know what you need at a glance. Collect every copy you need of a card to fill it with color.
+      Deck view is coming soon.
     </p>
     <div class="feature-actions">
       <a matButton="filled" routerLink="/import" [queryParams]="{ type: 'collection' }"
-        >Try it with your cards</a
+        >Import your cards</a
       >
       <a class="arrow-link" routerLink="/styleguide">See an example deck</a>
     </div>
@@ -75,26 +74,18 @@
 
 <section class="feature feature--flip" aria-labelledby="tournaments-title">
   <div class="feature-copy">
-    <p class="eyebrow"><app-icon name="playing_cards" />Tournaments</p>
-    <h2 id="tournaments-title" class="feature-title">Top 8 lists, one click into your decks.</h2>
+    <p class="eyebrow"><app-icon name="playing_cards" />Winning decks</p>
+    <h2 id="tournaments-title" class="feature-title">Pick a winning deck to work towards.</h2>
     <p class="feature-text">
-      Browse recent events with their full published Top 8. Add a list to your decks and see
-      straight away which cards you already own.
+      Coming soon: decks that made Top 8 at recent events. Add one to your decks in a click and see
+      what you still need to build it.
     </p>
     <div class="feature-actions">
-      <a matButton="outlined" routerLink="/tournaments">Browse tournaments</a>
+      <a matButton="outlined" routerLink="/tournaments">See winning decks</a>
     </div>
   </div>
   <figure class="panel">
     <figcaption class="panel-bar">Rift Builder / Tournaments · example</figcaption>
-    <ol class="placings">
-      @for (place of ['1st', '2nd', '3rd', '4th']; track place) {
-        <li>
-          <span class="placing">{{ place }}</span>
-          <span class="placing-deck">Legend: Player {{ $index + 1 }}</span>
-          <span class="placing-action">Add to your decks</span>
-        </li>
-      }
-    </ol>
+    <app-top-eight-panel />
   </figure>
 </section>

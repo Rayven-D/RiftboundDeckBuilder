@@ -13,3 +13,4 @@ RJ approves all ADRs. Status: `proposed` · `accepted` · `superseded`
 | ADR-0004 | [[ADR-0004 Hosting (Deferred)]] | deferred |
 | ADR-0005 | [[ADR-0005 MVP Product Defaults]] | accepted (decision 3 narrowed by ADR-0006) |
 | ADR-0006 | [[ADR-0006 Two Imports - Collection and Decks]] | accepted |
+| ADR-0007 | [[ADR-0007 Firebase Accounts and Firestore]] | accepted |

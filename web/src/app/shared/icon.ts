@@ -34,7 +34,7 @@ const ICON_PATHS = {
 
 export type IconName = keyof typeof ICON_PATHS;
 
-/** Decorative inline SVG icon; sized by the font size and coloured by `currentColor`. */
+/** Decorative inline SVG icon; sized by the font size and colored by `currentColor`. */
 @Component({
   selector: 'app-icon',
   template: `

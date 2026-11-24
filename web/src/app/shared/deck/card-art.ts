@@ -2,7 +2,7 @@ import { booleanAttribute, Component, computed, input } from '@angular/core';
 import { OwnershipState } from './ownership';
 
 /**
- * Card image with the ownership treatment (SPEC-005 OWN-030..036): full colour, left-to-right
+ * Card image with the ownership treatment (SPEC-005 OWN-030..036): full color, left-to-right
  * partial fill with a 1px divider, or dimmed. Only the image is darkened. Used by the deck tile and
  * the home page fan.
  *

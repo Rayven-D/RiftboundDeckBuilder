@@ -78,7 +78,7 @@ export class CardTile {
   readonly owned = input.required<number>();
   readonly required = input.required<number>();
   readonly imageUrl = input<string | null>(null);
-  /** Pre-formatted SPEC-002 ban label, e.g. "Banned since Nov 23, 2026". Never changes colouring. */
+  /** Pre-formatted SPEC-002 ban label, e.g. "Banned since Nov 23, 2026". Never changes coloring. */
   readonly banLabel = input<string | null>(null);
 
   protected readonly ownership = computed(() => tileOwnership(this.owned(), this.required()));

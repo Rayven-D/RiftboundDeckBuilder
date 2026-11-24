@@ -13,7 +13,7 @@ describe('HomePage', () => {
   it('shows the headline with the accent line and both import actions', async () => {
     const el = await render();
     expect(el.querySelector('h1')?.textContent).toContain('Know what you own.');
-    expect(el.querySelector('h1 .accent')?.textContent).toContain('See what you need.');
+    expect(el.querySelector('h1 .accent')?.textContent).toContain('Own what you need.');
     const hrefs = Array.from(el.querySelectorAll('.hero-actions a')).map((a) =>
       a.getAttribute('href'),
     );
@@ -26,6 +26,18 @@ describe('HomePage', () => {
       c.textContent?.trim(),
     );
     expect(chips).toEqual(['0 of 2 owned', '1 of 3 owned', '3 of 3 owned']);
+  });
+
+  it('lists example events, the first open with its Top 8 Legend cards', async () => {
+    const el = await render();
+    const events = Array.from(el.querySelectorAll<HTMLDetailsElement>('details.event'));
+    expect(events.length).toBe(3);
+    expect(events.map((e) => e.open)).toEqual([true, false, false]);
+    const entries = events[0].querySelectorAll('.entry');
+    expect(entries.length).toBe(8);
+    expect(entries[0].querySelector('.placing')?.textContent).toContain('1st');
+    expect(entries[0].querySelector('.player')?.textContent).toContain('Player 1');
+    expect(entries[0].querySelector('img')?.getAttribute('alt')).toBe('Legend A');
   });
 
   it('uses no meta wording', async () => {

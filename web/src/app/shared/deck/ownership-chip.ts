@@ -4,7 +4,7 @@ import { OWNERSHIP_ICON, OwnershipState } from './ownership';
 
 /**
  * Ownership chip ("1 of 3 owned"): accent-filled when fully owned, outlined otherwise.
- * Always text + icon, never colour alone (SPEC-005 OWN-033).
+ * Always text + icon, never color alone (SPEC-005 OWN-033).
  */
 @Component({
   selector: 'app-ownership-chip',
