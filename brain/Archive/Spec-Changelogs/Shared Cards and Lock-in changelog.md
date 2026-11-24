@@ -9,6 +9,17 @@ superseded_by: "[[Shared Cards and Lock-in]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.4 (2026-11-24, H-097): **runes are cards** (RJ, 2026-11-24: "Allow users to import runes as well and
+  treat them like any other card."). New SHARE-006 (rune entries have need, hold, shared indicator,
+  breakdown and count toward completeness, shortfall and groups). SHARE-001 and `COUNTED_ZONES` now include
+  `runes`; SHARE-014, SHARE-042, SHARE-050, SHARE-051 drop the rune exceptions; SHARE-020 `no-cards` now
+  means an empty deck only, message "Lock in needs at least one card" (was "… besides runes"). Design
+  decision 1, definitions, data-contract comments and Out of scope updated. AC 12 rewritten (runes block lock
+  in, 2 cards short), AC 15 rewritten (`Rune Test` is "0 of 12 copies available", `incomplete`), new ACs 17
+  (runes shared and held across two Kennen decks) and 18 (a lock stored before v0.4 becomes short and
+  refills). SPEC-009 dependency removed; pins SPEC-003 0.9, SPEC-005 0.5, SPEC-007 0.8. Open question 4
+  records the decision.
+
 - 0.3 (2026-11-23, H-049 item 19): SHARE-034 no longer treats Undo of an import as "the one change without a
   confirmation step": Undo is warned **before** it runs, computed on the snapshot it would restore, inside the
   SPEC-007 COLL-058 Undo confirmation when manual edits followed the import, otherwise in a confirmation it

@@ -26,11 +26,13 @@ write when you learn.**
 | `riftbound-researcher` | Rules, ban lists, meta, tournament results, card data & image sources | `brain/01-Research/` |
 | `spec-writer` | Turns research into precise, testable specs | `brain/02-Specs/` |
 | `builder` | All code, built from specs: UI (with RJ), browser business logic, services & data pipeline | `web/`, `services/`, `data/`, `brain/04-UI/`, `brain/05-Services/` |
+| `ui-engineer` | UI/UX design advisor, **writes no code**: design briefs before a build, critiques and accessibility audits after, and RJ's sparring partner for UI/UX ideas. Uses every UI/UX skill and plugin and looks at the app with Playwright | `brain/04-UI/`, `builder` items on the Handoff Board |
 | `validator` | Verifies every item; routes failures back | `brain/07-Loop/`, Handoff Board |
 
-Flow: **researcher → spec-writer → builder**, with RJ in the loop on UI and on every ADR.
-Only `builder` changes code. `spec-writer` writes specs only, and when a spec change needs
-code it files a `builder` item on the Handoff Board. Any agent can post a request to the Handoff Board.
+Flow: **researcher → spec-writer → (ui-engineer brief) → builder**, with RJ in the loop on UI and on every ADR.
+Only `builder` changes code. `ui-engineer` guides the UI design and files `builder` items.
+`spec-writer` writes specs only, and when a spec change needs code it files a `builder` item on
+the Handoff Board. Any agent can post a request to the Handoff Board.
 
 ## The closed loop
 

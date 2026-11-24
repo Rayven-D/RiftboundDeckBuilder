@@ -1,5 +1,5 @@
 import { Component, computed, input } from '@angular/core';
-import { Icon } from '../icon';
+import { StatusLabel } from '../status-label';
 import { CardArt } from './card-art';
 import { tileOwnership } from './ownership';
 import { OwnershipChip } from './ownership-chip';
@@ -10,7 +10,7 @@ import { OwnershipChip } from './ownership-chip';
  */
 @Component({
   selector: 'app-card-tile',
-  imports: [CardArt, OwnershipChip, Icon],
+  imports: [CardArt, OwnershipChip, StatusLabel],
   template: `
     <article class="tile" [attr.aria-label]="accessibleName()">
       <app-card-art
@@ -27,7 +27,7 @@ import { OwnershipChip } from './ownership-chip';
       <div class="labels">
         <app-ownership-chip [state]="ownership().state" [label]="ownership().label" />
         @if (banLabel(); as ban) {
-          <span class="ban"><app-icon name="block" />{{ ban }}</span>
+          <app-status-label variant="banned" [text]="ban" />
         }
       </div>
     </article>
@@ -57,17 +57,6 @@ import { OwnershipChip } from './ownership-chip';
       display: flex;
       flex-wrap: wrap;
       gap: var(--space-1);
-    }
-    .ban {
-      display: inline-flex;
-      align-items: center;
-      gap: 2px;
-      font-size: var(--font-size-xs);
-      font-weight: 600;
-      color: var(--color-danger);
-    }
-    .ban app-icon {
-      font-size: 14px;
     }
   `,
 })

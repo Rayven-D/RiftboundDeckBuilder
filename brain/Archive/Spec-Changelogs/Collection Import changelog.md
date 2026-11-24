@@ -9,6 +9,14 @@ superseded_by: "[[Collection Import]]"
 
 Moved out of [[Collection Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.9 (2026-11-24, H-097): **runes are imported like any card** (RJ, 2026-11-24: "Allow users to import
+  runes as well and treat them like any other card."). New IMP-071 (no rune-specific skip, filter, warning
+  or issue code in parse, resolve, merge, commit or export) and AC 42 (`Rune Pool:` / `Runes` sections,
+  merge, Add commit, export and Replace round-trip). The parser never dropped runes; this makes it a
+  tested contract. Open questions: RJ decision recorded; H-099 (rune printings in the API) added. Pin
+  SPEC-008 0.4; research list adds [[Physical Copies Across Decks]]. H-096 (IMP-055 singular strings) is
+  still open and will bump again.
+
 - 0.8 (2026-11-23, H-049; numbered 0.7 on its branch, renumbered at merge because H-045 is 0.7): follow-ups from H-040/H-043/H-046/H-048/H-053/H-058 validation; builder-defined
   behaviour of `parse-card-list.ts` / `import-dialog.ts` written into the spec as built. IMP-058 cites
   `deckOwnership(input, cardKey)`. IMP-042: RJ's interim delimiter rule (H-053): first non-empty line, outside

@@ -7,11 +7,60 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: Runes are cards, H-098 (builder)
+- Did: removed every rune exception from the deck engine (`runes.ts` deleted; `COUNTED_ZONES` = `ZONE_ORDER`; `canLock` `no-cards` only for an empty deck, "Lock in needs at least one card"; runes allocated, summed, missing and copied under `Rune Pool:`; `OwnershipCard.isRune` gone) and from Collection (`CardSummary.isRune`, the dialog's rune line, styleguide rune sample, sample decks). Parser and CSV exporter unchanged (they never skipped runes).
+- Tests: `runes-are-cards.spec.ts` replaces `runes.spec.ts` (SPEC-005 ACs 7, 8, 17–19; SPEC-008 ACs 12, 17, 18; SPEC-007 AC 25); AC 12/15 in `shared-pool.spec.ts`, OWN-028 in `deck-ownership-view.spec.ts`, A6 + COLL-089 in `collection-view.spec.ts`, SPEC-003 AC 42 in the parser and export specs. Lint clean, build OK, 425 web tests green. The Accept search in `web/src` finds nothing.
+- Notes: [[Collection]], [[Collection Components]], [[API Contracts]] v1.8. H-098 → `verify`. Uncommitted on `loop/H-086-collection-page`; nothing staged.
+
+## 2026-11-24: Runes are cards, H-097 (spec-writer)
+- Did: recorded RJ's decision ("Allow users to import runes as well and treat them like any other card.") in ADR-0006 and the Decision Log; withdrew SPEC-009 (v0.3, RUNE-001…010 → replacement table); SPEC-003 0.9 IMP-071 + AC 42, SPEC-005 0.5 OWN-028/029 (OWN-022a withdrawn) + ACs 7/8/17 rewritten, 18/19 new, SPEC-007 0.8 COLL-089 (COLL-087 withdrawn) + AC 25, SPEC-008 0.4 SHARE-006 + ACs 12/15 rewritten, 17/18 new; changelogs, Spec Index, Current State; H-060 text updated.
+- Migration: none (no schema bump); runes not in the collection show as missing; no one-time notice (default, open question for RJ).
+- Open: H-098 builder (engine, Collection dialog, tests, brief lines), H-099 researcher (rune printings in the API, needs H-020). SPEC-010 still pins SPEC-009 (left for H-074). No files outside `brain/` changed; nothing committed.
+
+## 2026-11-24: Collection code-review fixes, H-086 (builder)
+- Did: fixed the 7 RJ-approved code-review findings on `loop/H-086-collection-page` (uncommitted): styleguide Clear confirms and deletes only sample decks (`rift.dev.sampleDecks`); load sequencing + one reload per frame for storage bursts; unreadable-decks notice and dialog line; serialised view-state saves; known battlefield orientation in `app-card-art`; dev sample generator behind a dynamic `import()`; singular CSV notice.
+- Checks: lint clean, build OK, 413 web tests green (10 new; the 3 page tests fail on the old code). `sample-data` is only in a 3.4 kB lazy chunk, not in `main` or `collection-page`.
+- Open: H-096 (spec-writer records the singular export notices in SPEC-003). Then the RJ gate for H-086.
+
+## 2026-11-24: Collection review fixes, H-095 (builder)
+- Did: fixed all 9 items of [[Collection Review H-086]] on `loop/H-086-collection-page` (uncommitted): no view transition on search or sort (URL via `Location.replaceState`; transitions are never skipped, so no AbortError), landscape art shown whole, `<button class="button">` border reset, 44px phone targets, the lock band at 320, the teal focus ring on Material icon buttons, the corrected "None of your decks" copy, `scrollbar-gutter: stable`, eager images for the first screen (NG0913).
+- Checks: lint, build, 403 web tests green. Headless Edge, dark and light, reduced motion on and off: 0 transitions for query changes, 1 for a tab change, 0 console errors.
+- Next: ui-engineer re-check at 1440 and 390, then the RJ gate for H-086.
+
+## 2026-11-24: Collection page built, H-086 (builder)
+- Did: built `/collection` from [[Collection]] rev 3 and [[Collection Components]] on `loop/H-086-collection-page` (uncommitted): tiles per entry, `×N` badge, card-level lock band, read-only card dialog, search + three sorts in URL and memory, CSV export (SPEC-003 AC 35 exact), Unresolved cards, window virtual scroll by rows. New components and tokens shown on `/styleguide`, with a dev-only sample loader (fixture or 5,000 generated entries).
+- Checks: lint, build, 395 web tests green (49 new, named by requirement ID). Headless Edge at 1440 / 1024 / 768 / 390, dark and light, fixture and 5,000 entries: 7/6/4/2 columns, no sideways scroll, about 9 rows in the DOM, no console errors.
+- Changed notes: [[API Contracts]] v1.7 (Collection page section), board H-086 → `verify`.
+- Open: H-087 (import landing, S10 wording), H-091 (deferred SPEC-007 parts), ban data has no web source yet (dialog shows "Ban status unknown"), the 320px two-column rule needs tiles under 144px. ui-engineer review, then RJ gate.
+
 ## 2026-11-24: Card keyword explanations, H-089 / H-090 (spec-writer → researcher → spec-writer)
 - Did: spec-writer set up the spec task. riftbound-researcher wrote [[Card Keywords]] (28 keywords; 24 confirmed on official Riot pages; 0 definitions checked against the official PDF; the API documents only `keywords: List[string]`; Riot's policy doesn't clearly allow rules text from outside the API). spec-writer finished [[Keyword Explanations]] SPEC-011 0.2.1: 33 requirements, 23 ACs. Validator: H-089 PASS round 2, H-090 PASS round 3 ([[Validation Runs]]).
 - Changed notes: [[Card Keywords]], [[Keyword Explanations]], [[ADR-0008 Keyword Glossary Source]] (proposed; recommends A + ask Riot), [[Decision Log]], [[Spec Index]], [[Research Index]], [[Change Feed]], board.
 - Open questions: H-092 (RJ) decides ADR-0008 and SPEC-011 RJ-1 (hide keywords with no definition vs show "No definition yet"). SPEC-007 still needs a pointer to SPEC-011 (H-091).
 - Next: H-093 (builder) builds the unblocked engine and the hidden section on fixtures. H-094 (research, PDF check) runs only if RJ picks option (b). H-020 re-checks the keyword string format. No code touched, nothing committed.
+
+## 2026-11-24: Collection brief approved
+- RJ approved [[Collection]] rev 3 (one tile per printing) and answered every open choice: "ALL cards available" = cards the user owns; no badge at 1 copy; Could fit in = unlocked decks using the card with the a-of-q chip; ban status in the dialog only; an import lands on Collection with Undo.
+- H-086 (builder) is now `todo`; the import-landing / missing-catalog parts still wait on H-087 and the deferred SPEC-007 parts on H-091.
+
+## 2026-11-24: Collection page design brief (ui-engineer)
+- RJ asked for the first brief: [[Collection]] (`status: proposed`), linked from [[UI Index]]. Read SPEC-007 in full, SPEC-003 Replace / Undo / export, SPEC-008 SHARE-034, SPEC-010 where it touches the page.
+- Looked at the running app (Playwright, dev server stopped after): Collection placeholder at 1440 (light), 1024 (light), 768 and 390 (dark), `/styleguide`, Import and home at 1440 dark. Screenshots in `.playwright-mcp/` (not git-ignored; untracked).
+- Design: art grid by default (list toggle proposed), filter rail from 64rem, sticky toolbar, detail sheet with stepper / tags / full art, nothing dimmed in Collection, one-sentence summary instead of stat tiles, virtual scroll by rows with the existing `@angular/cdk`. Every state, all copy (spec strings verbatim), confirmations with `shortfallWarning()` text, keyboard map, requirement map, acceptance points A1–A23.
+- Measured: `--color-border` is 1.29:1 (dark) / 1.42:1 (light) on the surface, too low for control edges (WCAG 1.4.11); proposed `--color-border-strong` `#727D89` / `#7F8994` (≥ 3:1).
+- Filed H-086 (builder, build the page, blocked on RJ approving the brief), H-087 (spec-writer: import landing / Undo placement, missing catalog, layout preference, tag-limit wording), H-088 (builder P3: placeholder art hard-codes the old blue `#3a5f7d`). Six open choices for RJ in the brief.
+- Same day, RJ's review: "much simpler". Brief rewritten as rev 2: image-only full-color tiles (one per card), `×N` total badge, lock band "2 locked in <deck>" / "3 locked in 2 decks", read-only card dialog (You own N, Locked in, Could fit in with the existing availability chip, ban, keyword slot). The spec parts it no longer covers are listed in its §9. H-086 and H-087 rewritten; new H-089 (researcher: sourced keyword glossary), H-090 (spec-writer: glossary data vs the Riot-data-only rule), H-091 (spec-writer: SPEC-007 simplification decisions).
+- RJ picked one tile per printing (SPEC-007 COLL-011 stands). Brief rev 3: badge = copies of that printing (none at 1); the lock band is card-level ("2 of this card locked in <deck>") on every printing tile, because the engine holds copies per `cardKey` only; dialog opens on the clicked printing with "You own N across all printings". H-086 and H-091 rows updated.
+- RJ approved rev 3; builder started H-086. Wrote [[Collection Components]] (handoff per component: tokens incl. `--color-border-strong` / `--lock-scrim` / `--tile-min`, sizes per breakpoint, states, accessible names, roving-tabindex grid, dialog, page states, copy), linked from the brief and UI Index.
+- Reviewed the built page (H-086) at 1440/1024/768/390/320, dark, light, reduced motion, keyboard, 5,000 entries: [[Collection Review H-086]]. Not ready for RJ yet: 4 blocking fixes (view transition on every search + console AbortError, cropped landscape battlefield art, UA border on `button.button`, phone targets < 44px) and 5 polish, filed as H-095. Verdict on 320px: keep 2 columns (~138px tiles); brief and Components updated.
+- Re-checked H-095 (all 9 fixes) at 1440 / 390 / 320-equivalent, dark, light, reduced motion: all pass, console clean (no AbortError, no NG0913). H-095 Result added; Collection is ready for the RJ gate.
+
+## 2026-11-24: New agent ui-engineer (design advisor)
+- RJ asked for a UI/UX engineer agent that uses every installed UI/UX skill and plugin. Added [[ui-engineer]] (`brain/Agents/ui-engineer.md`, installed in `.claude/agents/`).
+- RJ: `builder` stays the only agent that writes code. `ui-engineer` only guides: design briefs in `04-UI/` before a build, critiques and accessibility audits after (Playwright at 1440 / 1024 / 768 / 390, dark, light, reduced motion), and RJ's sparring partner for ideas. Every change it wants becomes a `builder` item.
+- Skills it uses per step: user-research / research-synthesis, frontend-design, design-taste-frontend (home page and polish reviews), design-system, dataviz, ux-copy, accessibility-review, design-critique, design-handoff.
+- Updated CLAUDE.md team table, [[Loop Protocol]] owners, `/loop`, [[validator]] routing, [[builder]] (reads briefs; Skill tool + design skills section now in the tracked copy too), Agents README, Handoff Board owners.
+- The design plugin's Figma / Notion / Linear / Slack connectors need `/mcp` sign-in before the agent can use them.
 
 ## 2026-11-24: H-085 fluid UI pass, teal accent, phone tab bar (builder)
 - RJ's brief: fluid pass + home redesign, teal (green as an alternative) instead of blue, fixed bottom tab bar on phones. Built on `loop/H-065-fluid-ui`; details, accent values and contrast ratios in [[Design Direction]] ("Fluid pass and teal accent").

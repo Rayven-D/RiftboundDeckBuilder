@@ -1,11 +1,9 @@
 import { cachedDeckOwnership } from './deck-ownership';
-import { isRuneEntry } from './runes';
 import type {
   CardAvailability,
   CardKey,
   CardPool,
   CardUse,
-  CollectionCatalogView,
   DeckCard,
   DeckLock,
   DeckLockState,
@@ -27,8 +25,8 @@ export const ZONE_ORDER: readonly DeckZone[] = [
   'sideboard',
 ];
 
-/** SPEC-008 COUNTED_ZONES: ZONE_ORDER without 'runes' (SHARE-001, SPEC-009). */
-export const COUNTED_ZONES: readonly DeckZone[] = ZONE_ORDER.filter((z) => z !== 'runes');
+/** SPEC-008 COUNTED_ZONES: every zone, = ZONE_ORDER, Runes included (SHARE-001, SHARE-006). */
+export const COUNTED_ZONES: readonly DeckZone[] = ZONE_ORDER;
 
 /** A deck's entries of one zone, in stored order (single slots as a 0/1-element list). */
 export function zoneEntries(deck: UserDeck, zone: DeckZone): readonly DeckCard[] {
@@ -42,24 +40,19 @@ export function zoneEntries(deck: UserDeck, zone: DeckZone): readonly DeckCard[]
   }
 }
 
-/** Counted entries (SPEC-008 definition): counted zones, rune entries left out (RUNE-001). */
-export function countedEntries(
-  deck: UserDeck,
-  catalog: CollectionCatalogView | null,
-): { zone: DeckZone; entry: DeckCard }[] {
+/** Counted entries (SPEC-008 definition): every entry of every counted zone, runes included (SHARE-006). */
+export function countedEntries(deck: UserDeck): { zone: DeckZone; entry: DeckCard }[] {
   const out: { zone: DeckZone; entry: DeckCard }[] = [];
   for (const zone of COUNTED_ZONES) {
-    for (const entry of zoneEntries(deck, zone)) {
-      if (!isRuneEntry(zone, catalog?.cards[entry.cardKey] ?? null)) out.push({ zone, entry });
-    }
+    for (const entry of zoneEntries(deck, zone)) out.push({ zone, entry });
   }
   return out;
 }
 
 /** need(D, k) per counted cardKey, in deck order of first appearance (Map keeps insertion order). */
-function needs(deck: UserDeck, catalog: CollectionCatalogView): Map<CardKey, number> {
+function needs(deck: UserDeck): Map<CardKey, number> {
   const m = new Map<CardKey, number>();
-  for (const { entry } of countedEntries(deck, catalog)) {
+  for (const { entry } of countedEntries(deck)) {
     m.set(entry.cardKey, (m.get(entry.cardKey) ?? 0) + entry.qty);
   }
   return m;
@@ -111,7 +104,7 @@ export function computeSharedPool(input: SharedPoolInput): SharedPool {
   const lockOrder = [...lockByDeck.values()];
 
   const needByDeck = new Map<string, Map<CardKey, number>>();
-  for (const d of decksById.values()) needByDeck.set(d.id, needs(d, catalog));
+  for (const d of decksById.values()) needByDeck.set(d.id, needs(d));
 
   // Pool per counted cardKey (SHARE-004).
   const byCard: Record<CardKey, CardPool> = {};
@@ -185,8 +178,7 @@ export function computeSharedPool(input: SharedPoolInput): SharedPool {
 
 /**
  * SPEC-008 `availability(pool, deckId, cardKey)`: what deck D sees for card k (SHARE-010, SHARE-011,
- * SHARE-015, SHARE-043). A cardKey not in `pool.byCard` (a rune entry, or a card no deck counts)
- * gets all zeros; callers use SPEC-009 for rune entries.
+ * SHARE-015, SHARE-043). A cardKey not in `pool.byCard` (a card no deck uses) gets all zeros.
  */
 export function availability(pool: SharedPool, deckId: string, cardKey: CardKey): CardAvailability {
   const card = pool.byCard[cardKey];
@@ -234,13 +226,8 @@ export function canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boole
   if (readOnly) return { ok: false, reason: 'read-only' };
   if (pool?.locksIgnored) return { ok: false, reason: 'locks-unreadable' };
   if (!pool) return { ok: false, reason: 'ownership-unavailable' };
-  // A counted entry is one this deck uses in the pool (rune entries are never in byCard).
-  const hasCounted = COUNTED_ZONES.some((zone) =>
-    zoneEntries(deck, zone).some((e) =>
-      pool.byCard[e.cardKey]?.uses.some((u) => u.deckId === deck.id),
-    ),
-  );
-  if (!hasCounted) return { ok: false, reason: 'no-cards' };
+  // SHARE-020 v0.4: `no-cards` only for a deck with no entry at all (runes count, SHARE-006).
+  if (countedEntries(deck).length === 0) return { ok: false, reason: 'no-cards' };
   if (!state || !state.complete) {
     return { ok: false, reason: 'incomplete', cardsShort: state?.cardsShort.length ?? 0 };
   }
@@ -265,7 +252,7 @@ export function lockCheckMessage(check: LockCheck): string | null {
     case 'ownership-unavailable':
       return 'Ownership unavailable';
     case 'no-cards':
-      return 'Lock in needs at least one card besides runes';
+      return 'Lock in needs at least one card';
     case 'incomplete':
       return `Lock in needs every card available: ${cardsShortText(check.cardsShort ?? 0)}`;
   }

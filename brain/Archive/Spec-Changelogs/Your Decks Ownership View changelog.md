@@ -9,6 +9,21 @@ superseded_by: "[[Your Decks Ownership View]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.5, note (2026-11-24, H-097): open question 7 resolved by RJ ("No notice"). OWN-029's Source now cites
+  RJ's decision instead of a Claude default; the proposed notice wording is marked not used. No requirement
+  or AC changed, so no version bump.
+
+- 0.5 (2026-11-24, H-097): **runes are cards** (RJ, 2026-11-24: "Allow users to import runes as well and
+  treat them like any other card."). OWN-022a withdrawn; new OWN-028 (rune entries are counted entries
+  everywhere, no "Assumed owned" / "not tracked") and OWN-029 (no migration, unimported runes show as missing,
+  no one-time notice: open question 7). OWN-011 Runes heading "Runes · 12 cards · 6 available"; OWN-020/021/
+  022 allocate over the full `ZONE_ORDER`; OWN-033, OWN-050 (R = 0 only for an empty deck), OWN-051, OWN-052
+  (`Rune Pool:` in the copied missing list) updated; design decision 8 added. Data contract: `isRune` removed
+  from `OwnershipCard`, no `isRuneEntry()`. AC 7 now 0 of 66 / 0 of 32 with a `Rune Pool:` section, AC 8
+  missing list has a Runes group, AC 17 rewritten (6 of 9 Chaos Rune), new ACs 18 (rune in Main) and 19 (no
+  migration). SPEC-009 dependency removed; pins SPEC-007 0.8, SPEC-008 0.4. Open questions 7 (notice) and 8
+  (H-099 rune printings in the API) added.
+
 - 0.4.1 (2026-11-23, H-059 validation): OWN-033 says the card-total suffix ("· `<a>` of `<n>` in this deck")
   goes on every counted tile of a card with more than one counted entry (several zones, or two entries in one
   zone); AC 4's Main tile corrected to "2 of 2 available · 2 of 3 in this deck". No behaviour change.
