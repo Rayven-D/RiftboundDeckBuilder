@@ -3,7 +3,7 @@ tags: [moc, ui]
 ---
 # UI Index
 
-Owner: **ui-builder** with RJ. Record agreed screens and design decisions here.
+Owner: **builder** with RJ. Record agreed screens and design decisions here.
 
 ## Screens
 | Screen | Status | Notes |

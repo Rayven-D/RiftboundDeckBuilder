@@ -17,8 +17,7 @@ Edit the copies here, then re-run the copy.
 |---|---|
 | Researcher | [[riftbound-researcher]] |
 | Spec writer | [[spec-writer]] |
-| Service builder | [[service-builder]] |
-| UI builder | [[ui-builder]] |
+| Builder (UI, business logic, services) | [[builder]] |
 | Validator | [[validator]] |
 
 Commands: [[loop]] (`/loop`), [[research-refresh]] (`/research-refresh`)

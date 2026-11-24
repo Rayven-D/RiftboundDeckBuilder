@@ -4,7 +4,7 @@ version: 1
 ---
 # API Contracts
 
-Owner: **service-builder**. The UI builds only against this note. Update it *before* behavior
+Owner: **builder**. The UI builds only against this note. Update it *before* behavior
 changes, and post breaking changes to the [[Handoff Board]].
 
 Implementation: `services/` (Node `http`, TypeScript). Card shapes are the SPEC-001 v0.2 data

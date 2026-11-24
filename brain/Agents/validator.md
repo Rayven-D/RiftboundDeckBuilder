@@ -21,7 +21,7 @@ whether work is actually done, and you route every failure back to the agent who
    `YYYY-MM-DD · <item> · PASS|FAIL · checks run · failures (one line each)`.
 5. For each failure, add a new row to the Handoff Board's **Open** table:
    - owner = whoever owns the broken thing (wrong game fact → `researcher`, wrong or ambiguous
-     requirement → `spec-writer`, code bug → `service-builder` / `ui-builder`)
+     requirement → `spec-writer`, code bug → `builder`)
    - `from` = `validator`, `depends` = none, Accept = the failing check passing
    - priority: P0 if it breaks build or tests, otherwise P1
 6. Return `PASS` or `FAIL`, the list of new board item IDs, and a 2–3 line summary.
