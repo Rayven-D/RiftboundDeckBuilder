@@ -9,6 +9,9 @@ superseded_by: "[[Shared Cards and Lock-in]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.2.1 (2026-11-23, H-059 validation): AC 6 tile labels follow SPEC-005 OWN-033's card-total suffix (Champion
+  "1 of 1 available · 1 of 2 in this deck", Main "0 of 1 available · 1 of 2 in this deck"). No behaviour change.
+
 - 0.2 (2026-11-23, H-065/H-066/H-067, validator fixes for H-058; RJ's decisions unchanged):
   **H-065:** ACs 3, 6, 7 (first clause and the "instead" case), 8, 10, 12 now have a **When**.
   **H-066:** SHARE-051 rewritten so every deck has exactly one ownership group, first match wins: `locked`
