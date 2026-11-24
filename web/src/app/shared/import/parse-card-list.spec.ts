@@ -491,7 +491,7 @@ describe('H-053 upload fixes', () => {
   it('(4) rejects .xls files (IMP-061)', async () => {
     const err = await rejection('old.xls', 'x');
     expect(err.message).toBe(
-      'Older .xls files aren’t supported. Save it as .xlsx or .csv and try again.',
+      "Older .xls files aren't supported. Save it as .xlsx or .csv and try again.",
     );
   });
 
@@ -568,7 +568,7 @@ describe('H-046 parser conformance', () => {
       const err = await rejection(name, new Uint8Array([0x32, 0x20, 0x47, 0xff, 0xfe, 0x0a]));
       expect(err.code).toBe('INPUT_ENCODING');
       expect(err.message).toBe(
-        `${name} isn’t UTF-8 text. Save it as UTF-8 or .xlsx and try again.`,
+        `${name} isn't UTF-8 text. Save it as UTF-8 or .xlsx and try again.`,
       );
     },
   );
@@ -713,7 +713,7 @@ describe('review fixes', () => {
     async (name) => {
       const err = await rejection(name, '3 Gust');
       expect(err.code).toBe('FILE_REJECTED');
-      expect(err.message).toBe(`${name} can’t be imported. Use a .txt, .csv or .xlsx file.`);
+      expect(err.message).toBe(`${name} can't be imported. Use a .txt, .csv or .xlsx file.`);
     },
   );
 });

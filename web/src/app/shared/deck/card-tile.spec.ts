@@ -11,10 +11,10 @@ function render(inputs: Record<string, unknown>) {
 describe('CardTile', () => {
   it('shows the count label and a partial fill for 1 of 3', () => {
     const el = render({ name: 'Rally Banner', zone: 'Main Deck', owned: 1, required: 3 });
-    expect(el.querySelector('app-ownership-chip')?.textContent).toContain('1 of 3 owned');
+    expect(el.querySelector('app-ownership-chip')?.textContent).toContain('1 of 3 available');
     expect(el.querySelector('.art')?.classList).toContain('art--partial');
     expect(el.querySelector('article')?.getAttribute('aria-label')).toBe(
-      'Rally Banner, Main Deck, 1 of 3 owned',
+      'Rally Banner, Main Deck, 1 of 3 available',
     );
   });
 
@@ -33,7 +33,7 @@ describe('CardTile', () => {
   it('marks an unowned card as none', () => {
     const el = render({ name: 'Void Gate', owned: 0, required: 2 });
     expect(el.querySelector('.art')?.classList).toContain('art--none');
-    expect(el.textContent).toContain('0 of 2 owned');
+    expect(el.textContent).toContain('0 of 2 available');
   });
 
   it('marks the image decorative because the name is shown in the heading', () => {

@@ -13,6 +13,11 @@
       }
     </ul>
   </nav>
+  @if (signInEnabled) {
+    @defer (on immediate) {
+      <app-account-menu />
+    }
+  }
   <a
     class="import-action"
     matButton="filled"

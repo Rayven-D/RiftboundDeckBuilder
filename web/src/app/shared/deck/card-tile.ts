@@ -75,6 +75,10 @@ export class CardTile {
   readonly name = input.required<string>();
   readonly type = input<string>();
   readonly zone = input<string>();
+  /**
+   * Copies available to this deck (SPEC-008 SHARE-010: owned for decks minus copies locked by other
+   * decks), not raw owned copies. The label reads "… available".
+   */
   readonly owned = input.required<number>();
   readonly required = input.required<number>();
   readonly imageUrl = input<string | null>(null);

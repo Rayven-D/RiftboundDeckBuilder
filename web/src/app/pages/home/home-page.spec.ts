@@ -25,7 +25,7 @@ describe('HomePage', () => {
     const chips = Array.from(el.querySelectorAll('.fan app-ownership-chip')).map((c) =>
       c.textContent?.trim(),
     );
-    expect(chips).toEqual(['0 of 2 owned', '1 of 3 owned', '3 of 3 owned']);
+    expect(chips).toEqual(['0 of 2 available', '1 of 3 available', '3 of 3 available']);
   });
 
   it('lists example events, the first open with its Top 8 Legend cards', async () => {

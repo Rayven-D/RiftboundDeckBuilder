@@ -1,9 +1,9 @@
 ---
 tags: [spec]
 id: SPEC-008
-version: 0.1
+version: 0.3
 status: draft
-depends_on: [SPEC-001, SPEC-005, SPEC-006, SPEC-007, SPEC-009]
+depends_on: [SPEC-001, SPEC-003, SPEC-005, SPEC-006, SPEC-007, SPEC-009]
 research: ["[[Physical Copies Across Decks]]", "[[Deck Construction Rules]]"]
 decisions: ["[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
 board: H-058
@@ -26,13 +26,21 @@ in and runes").
 - SHARE-010/011: **available(D, k) = ownedForDecks(k) − lockedByOthers(D, k)**, where lockedByOthers is
   the copies of `k` held by locked decks other than D. This replaces `ownedForDecks` as SPEC-005's pool.
 - SHARE-012: **unlocked decks reserve nothing**; each sees the full available count plus "Also in N other decks".
-- SHARE-014/020: Lock in needs a **complete** deck (every non-rune card fully available), readable
-  ownership and locks, and a writable deck. No legality needed.
+- SHARE-014/020: Lock in needs a **complete** deck (at least one non-rune card, every non-rune card fully
+  available), readable ownership and locks, and a writable deck. No legality needed. An empty or runes-only
+  deck can't be locked ("Lock in needs at least one card besides runes").
 - SHARE-024/025: Delete releases the lock (Undo restores the deck **unlocked**); a locked deck's cards
   can't be edited.
 - SHARE-030…033: locked decks hold copies in **lock order** (earliest `lockedAt` first). A lock never yields
   to an unlocked deck; a locked deck that falls short **stays locked, flagged "N cards short"**, and refills
   by itself when copies come back.
+- SHARE-034 (v0.3): a Collection change that would leave a locked deck holding fewer copies warns **inside
+  its confirmation, before the change** (Collection edits, the SPEC-003 IMP-050 Replace confirmation computed
+  on the parsed import, and an Undo of an import); a change without a confirmation of its own asks for one
+  only then. The warning reads "… will be `<n>` cards short. It stays locked." No change warns only after the
+  fact; a confirmed Undo of an import is also followed by the notice "… is now `<n>` cards short." (RJ 2026-11-23).
+- SHARE-051 (v0.2): each deck is in exactly one ownership group: Locked (not short), Ready to build,
+  Partly available or None available; an empty or runes-only deck is None available.
 - SHARE-043: card breakdown "Owned for decks X · Locked by other decks Y · Available Z · This deck needs N"
   plus every other deck using the card (needs, locked or not, holds).
 - SHARE-060: locks live in their own browser `DeckLockStore`; `UserDeck` is unchanged.
@@ -40,10 +48,11 @@ in and runes").
 **Shared types:** `DeckLock`, `StoredDeckLocks`, `DeckLockStore`, `SharedPoolInput`, `SharedPool`,
 `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck`. Functions `computeSharedPool()`,
 `availability()`, `canLock()`, `lockedShortfalls()` (all pure).
-**Depends on:** [[Card Data Model]] v0.3, [[Your Decks Ownership View]] v0.3, [[Deck Import]] v0.6,
-[[My Collection]] v0.4, [[Runes Assumed Owned]] v0.1. **Consumers:** [[Your Decks Ownership View]] (pool,
-labels, breakdown), [[My Collection]] (shortfall warnings), [[Deck Import]] (edit/delete/duplicate rules).
-**Open:** the Claude defaults in design decisions 3–6 (RJ may change them); no research blockers.
+**Depends on:** [[Card Data Model]] v0.3, [[Collection Import]] v0.8, [[Your Decks Ownership View]] v0.4,
+[[Deck Import]] v0.6, [[My Collection]] v0.7, [[Runes Assumed Owned]] v0.2. **Consumers:**
+[[Your Decks Ownership View]] (pool, labels, breakdown), [[My Collection]] and [[Collection Import]]
+(shortfall warnings), [[Deck Import]] (edit/delete/duplicate rules).
+**Open:** none. Design decisions 3–6 and no force lock accepted by RJ 2026-11-23.
 
 ## Purpose
 Users import several community decks they want to build ([[ADR-0006 Two Imports - Collection and Decks]]).
@@ -82,13 +91,13 @@ SPEC-005 owns the deck view and tiles and reads this spec's `SharedPool`. SPEC-0
    `cardKey`s (DECK-096), and SPEC-007 already gives one per-name number (`ownedForDecks`) from its
    per-printing Collection. So this spec never looks at printings, and the "exclude from decks" tag applies
    before any lock.
-3. **Earliest lock wins** (Claude default). When locked decks together need more than the user owns (after a
+3. **Earliest lock wins** (Claude default, accepted by RJ 2026-11-23). When locked decks together need more than the user owns (after a
    re-import or edit), the deck locked first keeps its copies. Any fixed rule works; this one never takes
    copies from a deck that was complete when the user locked a newer one.
-4. **A lock never yields to an unlocked deck** (Claude default). That is the point of locking.
-5. **Short locked decks stay locked** (Claude default). Auto-unlocking would silently hand the deck's
+4. **A lock never yields to an unlocked deck** (Claude default, accepted by RJ 2026-11-23). That is the point of locking.
+5. **Short locked decks stay locked** (Claude default, accepted by RJ 2026-11-23). Auto-unlocking would silently hand the deck's
    remaining copies to other decks. The deck is flagged instead, and the user decides.
-6. **No card edits while locked; Undo restores unlocked** (Claude default). Editing could silently grow a
+6. **No card edits while locked; Undo restores unlocked** (Claude default, accepted by RJ 2026-11-23). Editing could silently grow a
    lock's hold and push a later lock short. Restoring a deleted deck's old lock time could take copies from a
    deck locked during the Undo window.
 7. **Only the lock is stored.** Holds, availability and shortfall are computed from (decks, locks,
@@ -117,7 +126,7 @@ SPEC-005 owns the deck view and tiles and reads this spec's `SharedPool`. SPEC-0
 ### C. Locking and unlocking
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| SHARE-020 | MUST | The deck view header has a **Lock in** action on an unlocked deck and **Unlock** on a locked one. Lock in is enabled only when `canLock()` is ok: the deck is complete (SHARE-014), ownership is available (SPEC-005 OWN-062/063 not in effect), the lock store is readable (SHARE-061) and the deck is not read-only (DECK-091). Otherwise it is disabled with its reason: "Lock in needs every card available: `<n>` cards short" (n = counted `cardKey`s with available < need; "1 card short" for one), "Ownership unavailable", "Locked decks could not be read", or "This deck is read-only". | [[ADR-0006 Two Imports - Collection and Decks]] ("when a deck is complete, the user can lock it in") |
+| SHARE-020 | MUST | The deck view header has a **Lock in** action on an unlocked deck and **Unlock** on a locked one. Lock in is enabled only when `canLock()` is ok: the deck is complete (SHARE-014), ownership is available (SPEC-005 OWN-062/063 not in effect), the lock store is readable (SHARE-061) and the deck is not read-only (DECK-091). Otherwise it is disabled with the reason of the **first** failing check, in this order (`LockCheck.reason`): `read-only` "This deck is read-only"; `locks-unreadable` "Locked decks could not be read"; `ownership-unavailable` "Ownership unavailable"; `no-cards` (the deck has no counted entry: it is empty or holds only rune entries, SPEC-009 RUNE-001) "Lock in needs at least one card besides runes"; `incomplete` "Lock in needs every card available: `<n>` cards short" (n = counted `cardKey`s with available < need; "1 card short" for one). `already-locked` is checked before all of these and has no message: a locked deck shows Unlock instead (SHARE-022). | [[ADR-0006 Two Imports - Collection and Decks]] ("when a deck is complete, the user can lock it in") |
 | SHARE-021 | MUST | Lock in asks for confirmation: "Lock in '`<deck name>`'? Its cards won't count toward your other decks until you unlock or delete it." If other decks use any of its counted cards, the dialog SHOULD add "`<m>` other decks use some of these cards: `<names>`" (at most 3 names, then "and `<r>` more"). On confirm it stores `DeckLock { deckId, lockedAt: now }`. | [[ADR-0006 Two Imports - Collection and Decks]]; design rule |
 | SHARE-022 | MUST | A lock is **per deck**, at most one per deck. Locking a locked deck is not possible (the action shows Unlock). | design rule |
 | SHARE-023 | MUST | **Unlock** removes the deck's lock at once, without confirmation; its copies are available to other decks on the next computation. Locking it again needs SHARE-020 again, with a new `lockedAt`. | [[ADR-0006 Two Imports - Collection and Decks]] ("until that deck is unlocked or deleted") |
@@ -134,7 +143,7 @@ SPEC-005 owns the deck view and tiles and reads this spec's `SharedPool`. SPEC-0
 | SHARE-031 | MUST | **Holds.** For each `cardKey` k, go through the locked decks in lock order: hold(L, k) = min(need(L, k), max(0, ownedForDecks(k) − Σ hold of the locked decks before L)). So Σ holds ≤ ownedForDecks(k), and a locked deck that is not short holds exactly its need. | design decision 3; [[ADR-0006 Two Imports - Collection and Decks]] |
 | SHARE-032 | MUST | A lock **never yields copies to an unlocked deck**. Among locked decks, the earlier lock is served first; a later lock is the one that goes short. | design decisions 3, 4 |
 | SHARE-033 | MUST | A locked deck is **short** when hold(L, k) < need(L, k) for some counted k. A short deck **stays locked** (never unlocked automatically) and is flagged "Locked · `<n>` cards short" (n = number of `cardKey`s short; "1 card short" for one). It holds only the copies it really has. When copies come back (re-import, edit, tag change), holds refill in lock order with no user action and the flag disappears. | design decision 5 |
-| SHARE-034 | SHOULD | When a Collection change would lower the copies a locked deck holds (− on an entry, Remove card, a Replace import, turning on an exclude flag, assigning an excluded tag), the change's confirmation names each affected locked deck: "'`<deck name>`' (locked) will be `<n>` cards short." ("1 card short" for one; n counts `cardKey`s, as in SHARE-033). After an import commit (no confirmation step) the same text is a notice. Computed with `lockedShortfalls(before, after)`. | design rule; [[My Collection]] COLL-084 (confirmation pattern) |
+| SHARE-034 | SHOULD | When a Collection change would lower the copies a locked deck holds, the warning is shown **before** the change, **inside the change's confirmation**, naming each affected locked deck: "'`<deck name>`' (locked) will be `<n>` cards short. It stays locked." ("1 card short" for one; n counts `cardKey`s, as in SHARE-033; a short deck stays locked, SHARE-033). This one warning string is used in every confirmation (edits, Replace, Undo). This covers the SPEC-007 edits (− on an entry, a typed lower quantity, Remove card, turning on an exclude flag, assigning an excluded tag; COLL-088; an edit that has no confirmation of its own asks for one only when `lockedShortfalls` is not empty), an Owned Cards Import committed in **Replace** mode, whose SPEC-003 IMP-050 confirmation adds the warning computed on the parsed import (the collection as it would be after Replace; IMP-050a), and (v0.3) an **Undo** of the last import commit (IMP-052), computed on the snapshot it would restore: the warning goes inside the SPEC-007 COLL-058 Undo confirmation when manual edits followed the import; an Undo with no confirmation of its own asks for one only when `lockedShortfalls` is not empty, like the edits above. After a confirmed **Undo** (only), a notice per affected deck follows: "'`<deck name>`' (locked) is now `<n>` cards short." Cancelling changes nothing and shows no notice. An import committed in **Add** mode never lowers a hold, so it has no warning. No change shows the warning only after it has run. Computed with `lockedShortfalls(before, after)`, where `after` is the `SharedPool` for the collection as it would be after the change. | design rule; SHARE-033; [[My Collection]] COLL-058, COLL-084, COLL-088 (confirmation pattern); [[Collection Import]] IMP-050, IMP-050a, IMP-052; RJ decision 2026-11-23 (H-049 follow-up: Undo warns before and notifies after; "It stays locked.") |
 | SHARE-035 | MUST | Holds, available counts, completeness and shortfall are **computed, never stored** (only `DeckLock` is stored). | design decision 7; [[Your Decks Ownership View]] OWN-026 |
 
 ### E. Display in a deck
@@ -149,8 +158,8 @@ SPEC-005 owns the deck view and tiles and reads this spec's `SharedPool`. SPEC-0
 ### F. Deck list and "ready to build"
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| SHARE-050 | MUST | A deck tile in the Decks list shows the lock badge ("Locked" or "Locked · `<n>` cards short") and the ownership line "`<A>` of `<R>` copies available" (unlocked) or "`<A>` of `<R>` copies locked in" (locked), A and R as in SPEC-005 OWN-050. | design rule |
-| SHARE-051 | MUST | The Decks list ownership filter (SPEC-005 OWN-006) uses availability: **Ready to build** (unlocked and complete), **Partly available** (0 < A < R), **None available** (A = 0, R > 0), and a lock filter **Locked** / **Not locked**. A locked deck that is not short is never "Partly available"; a short one is. URL: `own=ready|partial|none`, `lock=locked|unlocked`. | Product vision ("which decks you can build right now"); design rule |
+| SHARE-050 | MUST | A deck tile in the Decks list shows the lock badge ("Locked" or "Locked · `<n>` cards short") and the ownership line "`<A>` of `<R>` copies available" (unlocked) or "`<A>` of `<R>` copies locked in" (locked), A and R as in SPEC-005 OWN-050. A deck with R = 0 (no counted entry: empty or runes only) shows "No cards to count" instead. | design rule |
+| SHARE-051 | MUST | The Decks list ownership filter (SPEC-005 OWN-006) uses availability. Every deck has **exactly one** ownership group (SPEC-005 `DeckTileSummary.ownershipFilter`), taken from the **first** rule that matches, in this order: (1) `locked`: locked and not short (A = R, R > 0); (2) `none`: R = 0 (empty or runes-only deck); (3) `ready`: unlocked and complete (SHARE-014; then A = R); (4) `none`: A = 0, which includes a short locked deck holding no copies; (5) `partial`: every other deck (0 < A < R), which includes a short locked deck holding some copies. The filter options are **Ready to build** (`ready`), **Partly available** (`partial`) and **None available** (`none`); a `locked` deck matches none of the three and is found with the lock filter. The lock filter **Locked** / **Not locked** is independent of the ownership filter (a short locked deck matches both its ownership option and Locked). URL: `own=ready|partial|none`, `lock=locked|unlocked`. | Product vision ("which decks you can build right now"); design rule |
 | SHARE-052 | MUST NOT | Nothing here ranks decks against each other or the meta, or suggests which deck to lock (ADR-0003). | [[ADR-0003 Tournament Results Only]] |
 
 ### G. Storage
@@ -174,7 +183,7 @@ SPEC-005 owns the deck view and tiles and reads this spec's `SharedPool`. SPEC-0
 ```ts
 // shapes only; no implementation
 import type { UserDeck, DeckZone } from './deck-import';                  // SPEC-006 v0.6
-import type { DeckOwnershipInput } from './my-collection';              // SPEC-007 v0.4, COLL-081
+import type { DeckOwnershipInput } from './my-collection';              // SPEC-007 v0.7, COLL-081
 type CardKey = string;
 type IsoDateTime = string;                                              // ISO 8601 UTC
 
@@ -246,10 +255,12 @@ interface CardAvailability {                 // what one deck sees for one card 
   otherUses: CardUse[];                      // SHARE-015, without this deck
 }
 
-type LockCheck =
-  | { ok: true }
+type LockCheck =                            // first failing check wins (SHARE-020):
+  | { ok: true }                             // already-locked → read-only → locks-unreadable →
   | { ok: false; reason: 'already-locked' | 'no-cards' | 'incomplete' | 'ownership-unavailable'
                        | 'locks-unreadable' | 'read-only'; cardsShort?: number };
+                                             // ownership-unavailable → no-cards → incomplete;
+                                             // cardsShort only with 'incomplete'; message per SHARE-020
 
 // computeSharedPool(input: SharedPoolInput): SharedPool                       — pure (SHARE-070)
 // availability(pool: SharedPool, deckId: string, cardKey: CardKey): CardAvailability — pure
@@ -259,13 +270,17 @@ type LockCheck =
 // lockedShortfalls(before: SharedPool, after: SharedPool):
 //   { deckId: string; deckName: string; cardsShort: number }[]                — pure (SHARE-034);
 //   locked decks whose total held copies (Σ hold over their cards) drop from before to after;
-//   cardsShort = the deck's number of short cardKeys in `after`
+//   cardsShort = the deck's number of short cardKeys in `after`. `after` is computed from the
+//   collection as it would be after the change (Collection edit, Replace import, Undo of an import:
+//   the snapshot it would restore), before it is committed (v0.3); for an Undo the same list
+//   drives the notice shown after it is confirmed
 ```
 
 ## Acceptance criteria
 `Hextech Ray` is the card in RJ's example (H-058 brief); deck names are illustrative. "Deck 1" is
-`Kennen Tempo`, "Deck 2" is `Kennen Control`. Unless stated, each needs 3 `Hextech Ray` in Main, no copy is
-excluded, and every other card of both decks is owned in full.
+`Kennen Tempo`, "Deck 2" is `Kennen Control`, "Deck 3" (AC 9 only) is `Kennen Aggro` and needs 2 `Hextech
+Ray`. Unless stated, Decks 1 and 2 each need 3 `Hextech Ray` in Main, no copy is excluded, and every other
+card of every deck is owned in full.
 
 1. **2 owned, no locks** (SHARE-011, SHARE-012, SHARE-042, SHARE-043, SHARE-020)
    **Given** `ownedForDecks('hextech ray') = 2` and no locks **When** either deck opens **Then** its Hextech
@@ -281,7 +296,7 @@ excluded, and every other card of both decks is owned in full.
    "Kennen Tempo · needs 3 · Locked, holds 3"; Deck 2's missing list has `3 Hextech Ray` under `Main Deck:`;
    Deck 2's Lock in is disabled ("1 card short").
 3. **4 owned, Deck 1 locked** (SHARE-011)
-   **Given** AC 2 with `ownedForDecks = 4` **Then** Deck 2 shows "1 of 3 available", fill 1/3, and the
+   **Given** AC 2 with `ownedForDecks = 4` **When** Deck 2's view opens **Then** Deck 2 shows "1 of 3 available", fill 1/3, and the
    breakdown Owned 4, Locked by other decks 3, Available 1, Needs 3.
 4. **Unlock releases** (SHARE-023)
    **Given** AC 2 **When** the user unlocks Deck 1 **Then**, without reload, both decks show "3 of 3
@@ -294,37 +309,40 @@ excluded, and every other card of both decks is owned in full.
 6. **Chosen Champion shares the main pool** (SHARE-002, SHARE-013)
    **Given** Deck A with Chosen Champion `Kai'Sa, Survivor` ×1 and `Kai'Sa, Survivor` ×2 in Main (need 3),
    Deck B with Chosen Champion `Kai'Sa, Survivor` ×1 and ×1 in Main (need 2), `ownedForDecks = 4`, and
-   Deck A locked **Then** Deck A holds 3; Deck B's available is 1, so its Champion tile is "1 of 1 available"
-   (full) and its Main tile "0 of 1 available" (none); Deck B's breakdown reads Owned 4, Locked by other
+   Deck A locked **When** Deck B's view opens **Then** Deck A holds 3; Deck B's available is 1, so its Champion tile is "1 of 1 available · 1 of 2 in this deck"
+   (full) and its Main tile "0 of 1 available · 1 of 2 in this deck" (none; SPEC-005 OWN-033 card-total suffix); Deck B's breakdown reads Owned 4, Locked by other
    decks 3, Available 1, Needs 2.
 7. **Legend** (SHARE-001, SHARE-002)
-   **Given** two decks with Legend `Kennen, Heart of the Tempest` ×1, `ownedForDecks = 1`, no locks **Then**
-   both Legend tiles are "1 of 1 available" with "Also in 1 other deck". **When** Deck 1 is locked **Then**
-   Deck 2's Legend tile is "0 of 1 available" (darkened) and Deck 2 is not complete. **Given**
-   `ownedForDecks = 2` instead **Then** Deck 2's Legend is "1 of 1 available". The Legend never shares a
-   pool with `Kennen, Storm of Shuriken`.
+   **Given** two decks with Legend `Kennen, Heart of the Tempest` ×1, `ownedForDecks = 1`, no locks **When**
+   either deck's view opens **Then** both Legend tiles are "1 of 1 available" with "Also in 1 other deck".
+   **When** Deck 1 is locked **Then** Deck 2's Legend tile is "0 of 1 available" (darkened) and Deck 2 is not
+   complete. **Given** `ownedForDecks = 2` instead **When** Deck 1 is locked **Then** Deck 2's Legend is "1 of
+   1 available". The Legend never shares a pool with `Kennen, Storm of Shuriken`.
 8. **Battlefield** (SHARE-001)
    **Given** `Zaun Warrens` ×1 in the Battlefields of a locked deck and of an unlocked deck, `ownedForDecks =
-   1` **Then** the unlocked deck's Zaun Warrens tile is "0 of 1 available" with "Also in 1 other deck · 1
-   locked", and the breakdown lists the locked deck with "needs 1 · Locked, holds 1".
+   1` **When** the unlocked deck's view opens and the user expands its Zaun Warrens tile **Then** that tile is
+   "0 of 1 available" with "Also in 1 other deck · 1 locked", and the breakdown lists the locked deck with
+   "needs 1 · Locked, holds 1".
 9. **Shortfall after a collection change; earliest lock wins** (SHARE-031…034)
-   **Given** Deck 1 locked at 10:00 (needs 3) and Deck 3 locked at 11:00 (needs 2 Hextech Ray),
-   `ownedForDecks = 5` **When** the user presses − twice on a Hextech Ray entry in Collection **Then** the
-   first − (5 → 4) and the second − (4 → 3) each warn "'Deck 3' (locked) will be 1 card short." (SHOULD;
-   Deck 1 is never named, it keeps its 3); after both, Deck 1 holds 3 ("3 of 3 locked in"), Deck 3 holds 0 ("0 of 2 locked in"), both stay
-   locked, and Deck 3's badge reads "Locked · 1 card short". **When** the user adds 2 copies back **Then**
+   **Given** Deck 1 locked at 10:00 (needs 3) and Deck 3 (`Kennen Aggro`) locked at 11:00 (needs 2 Hextech
+   Ray), `ownedForDecks = 5` **When** the user presses − twice on a Hextech Ray entry in Collection **Then**
+   the confirmations of the first − (5 → 4) and the second − (4 → 3) each warn "'Kennen Aggro' (locked) will
+   be 1 card short. It stays locked." before the change (SHOULD; Deck 1 is never named, it keeps its 3); after both, Deck 1
+   holds 3 ("3 of 3 locked in"), Deck 3 holds 0 ("0 of 2 locked in"), both stay locked, and Deck 3's badge
+   reads "Locked · 1 card short". **When** the user adds 2 copies back **Then**
    Deck 3 holds 2 and the flag disappears with no other action.
 10. **Excluded copies never count** (SHARE-004, SHARE-043)
     **Given** 4 Hextech Ray owned, 1 of them a foil tagged `Collector` (exclude from decks), so
-    `ownedForDecks = 3`, `ownedExcluded = 1`, and Deck 1 locked **Then** Deck 2's breakdown reads "Owned for
-    decks: 3 (1 more excluded from decks)", "Locked by other decks: 3", "Available to this deck: 0".
+    `ownedForDecks = 3`, `ownedExcluded = 1`, and Deck 1 locked **When** Deck 2's view opens and the user
+    expands its Hextech Ray tile **Then** Deck 2's breakdown reads "Owned for decks: 3 (1 more excluded from
+    decks)", "Locked by other decks: 3", "Available to this deck: 0".
 11. **Locked decks can't change cards** (SHARE-025, SHARE-026)
     **Given** Deck 1 locked **When** the user opens Edit **Then** add, quantity, move and remove are disabled
     with "Unlock this deck to change its cards"; Rename works. **When** the user duplicates Deck 1 **Then**
     the copy is unlocked and shows "0 of 3 available" for Hextech Ray (Deck 1 holds all 3).
 12. **Runes never block lock in** (SHARE-014, SPEC-009 RUNE-004)
     **Given** a deck whose every counted card is fully available and whose 12 runes the user doesn't own
-    **Then** the deck is complete and Lock in is enabled.
+    **When** the deck view opens **Then** the deck is complete and Lock in is enabled.
 13. **Lock store unreadable** (SHARE-061)
     **Given** `StoredDeckLocks` with `schemaVersion: 2` **When** Decks opens **Then** the banner "Locked
     decks could not be read; counts ignore locks." shows, AC 2's Deck 2 shows "3 of 3 available", Lock in
@@ -333,6 +351,39 @@ excluded, and every other card of both decks is owned in full.
     **Given** two locks with the same `lockedAt` on decks `a1…` and `b2…`, needing 3 each, `ownedForDecks =
     4` **When** `computeSharedPool` runs twice **Then** both outputs are deep-equal, deck `a1…` holds 3 and
     `b2…` holds 1, and browser storage is unchanged.
+15. **Empty and runes-only decks; one ownership group per deck** (SHARE-014, SHARE-020, SHARE-050, SHARE-051)
+    **Given** an unlocked deck `Rune Test` whose only entries are `Chaos Rune` ×9 and `Order Rune` ×3 in
+    Runes, an unlocked deck `Empty Draft` whose entries were all removed, and a locked deck `Ray Only` whose
+    only counted entry is `Hextech Ray` ×3 in Main and which holds 0 (Deck 1, locked earlier, holds all 3
+    owned) **When** Decks opens and the user then opens `Rune Test` **Then** the `Rune Test` and `Empty
+    Draft` tiles read "No cards to count", have no lock badge and have `ownershipFilter: 'none'`; `Ray Only`
+    reads "0 of 3 copies locked in" with "Locked · 1 card short" and `ownershipFilter: 'none'`; with
+    `own=none` all three are listed, with `own=partial` and `own=ready` none of them is; with `own=none&lock=locked`
+    only `Ray Only` is; Deck 1 (`ownershipFilter: 'locked'`) matches no `own` option and is listed with
+    `lock=locked`. In `Rune Test`'s view the rune tiles read "Assumed owned", `canLock` returns
+    `{ ok: false, reason: 'no-cards' }` and Lock in is disabled with "Lock in needs at least one card besides
+    runes". AC 9's `Kennen Aggro` after both − presses has `ownershipFilter: 'partial'` (it still holds its
+    other cards) and matches `lock=locked`.
+16. **Replace import and Undo warn in their confirmation** (SHARE-034; SPEC-003 IMP-050, IMP-050a; SPEC-007 COLL-058, COLL-088)
+    **Given** Deck 1 locked, `ownedForDecks('hextech ray') = 3`, and an Owned Cards Import whose parsed lines
+    hold `2 Hextech Ray` and every other card of Deck 1 in full **When** the user commits it in Replace mode
+    **Then** the IMP-050 confirmation lists the removed and changed names and adds "'Kennen Tempo' (locked)
+    will be 1 card short. It stays locked."; **When** the user cancels **Then** the collection and Deck 1's holds are
+    unchanged; **When** the user commits again and confirms **Then** Deck 1 stays locked with "Locked · 1
+    card short". **When** the same lines are committed in Add mode instead **Then** no locked-deck warning
+    is shown (Add never lowers a hold).
+    **Given** instead `ownedForDecks = 2`, an Add import of `1 Hextech Ray` committed (3 owned), Deck 1
+    locked after that commit (holds 3), and no manual edit since **When** the user presses Undo on the import
+    (IMP-052) **Then** before anything changes a confirmation reads "'Kennen Tempo' (locked) will be 1 card
+    short. It stays locked."; **When** the user cancels **Then** 3 stay owned, Deck 1 is "3 of 3 locked in",
+    and no notice is shown; **When** the user presses Undo again and confirms **Then** the collection is back
+    to 2, Deck 1 stays locked as "Locked · 1 card short", and the notice "'Kennen Tempo' (locked) is now 1 card
+    short." is shown. **Given** the same, but the user also pressed + on a `Gust` entry after the
+    import **When** the user presses Undo **Then** one confirmation both warns that the manual edits will be
+    lost (COLL-058) and reads "'Kennen Tempo' (locked) will be 1 card short. It stays locked."; **When** the
+    user confirms **Then** the same notice follows. **Given** the same import with
+    no deck locked and no manual edit since **When** the user presses Undo **Then** it runs at once with no
+    confirmation.
 
 ## Out of scope
 - Accounts, syncing locks between browsers, sharing decks.
@@ -342,12 +393,12 @@ excluded, and every other card of both decks is owned in full.
 - Runes (SPEC-009) and tokens (not cards, [[Physical Copies Across Decks]] fact 13; rejected by DECK-026).
 
 ## Open questions / BLOCKED
-1. **Claude defaults, RJ may change (ADR-0006 "Shared cards, lock in and runes"):** earliest lock wins
+1. **Resolved 2026-11-23: RJ accepted the Claude defaults (ADR-0006 "Shared cards, lock in and runes"):** earliest lock wins
    (SHARE-030/031); a lock never yields to an unlocked deck (SHARE-032); short decks stay locked and are
    flagged (SHARE-033); no card edits while locked (SHARE-025); Undo after delete restores unlocked (SHARE-024).
-2. **Needs RJ (low):** should a deck be lockable while it is short only because of copies locked elsewhere
-   (a "force lock" that then shows short)? Proposed: no, lock needs complete (SHARE-020).
+2. **Resolved 2026-11-23 (RJ): no force lock.** A deck short only because of copies locked elsewhere can't be
+   locked; lock needs complete (SHARE-020).
 3. No research blockers: the section rules come from [[Physical Copies Across Decks]] (verified 2026-11-23).
 
 ## Changelog
-Current: 0.1 (2026-11-23, H-058). Full history: [[Shared Cards and Lock-in changelog]] (archived). New entries go in the archive note.
+Current: 0.3 (2026-11-23, H-049; also holds the 0.2.1 AC 6 label fix from H-059 validation, made in parallel). Full history: [[Shared Cards and Lock-in changelog]] (archived). New entries go in the archive note.
