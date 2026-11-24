@@ -21,8 +21,9 @@ export function statusText(s: SyncStatus, formatTime: (ms: number) => string = d
 /** SYNC-090: the sign-out warning for unsynced changes. */
 export function unsyncedWarning(n: number): string | null {
   if (n <= 0) return null;
-  const first = n === 1 ? "1 change hasn't synced yet." : `${n} changes haven't synced yet.`;
-  return `${first} They'll be lost if you remove this device's copy.`;
+  return n === 1
+    ? "1 change hasn't synced yet. It'll be lost if you sign out now."
+    : `${n} changes haven't synced yet. They'll be lost if you sign out now.`;
 }
 
 const defaultTime = (ms: number): string =>

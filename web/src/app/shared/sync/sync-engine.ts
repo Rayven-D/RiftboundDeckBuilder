@@ -1,5 +1,6 @@
 import type { StoredCollection, StoredDeckLocks, StoredTags, TagStore, UserDeck } from '../storage/records';
-import { LocalSnapshot, MergeResult, cloudCounts, liveCounts, mergePulled } from './merge';
+import { GateState, gateState } from './gate';
+import { LocalSnapshot, MergeResult, mergePulled } from './merge';
 import { PushPlan, applyPushSuccess, planPush } from './push-plan';
 import { reconcileCollection, reconcileDecks, reconcileLocks, reconcileTags } from './stamp';
 import { DAY_MS, cloneLog, emptySyncLog, itemRef, pendingCount } from './sync-log';
@@ -25,13 +26,12 @@ import { RawCollectionStore, RawDeckStore, SerialQueue } from './tracked-stores'
  */
 
 export const MESSAGES = {
-  uploaded: 'Your collection and decks are now saved to your account.',
   signInFailed: "Sign-in didn't complete. Your data on this device is unchanged.",
   offline: "You're offline.",
   sessionLost: "You've been signed out. Sign in again to sync.",
   accountDeleted: 'This account was deleted. Its data has been removed from this device.',
   halfDeleted:
-    "This account is being deleted, so you've been signed out. Your collection and decks are still on this device.",
+    "This account is being deleted, so you've been signed out and its data was removed from this device.",
   deletedOwn: 'Your account and its data were deleted.',
   deleteIncomplete: "Some data couldn't be deleted. Try again.",
   deleteNotDone: "Your account wasn't deleted.",
@@ -42,7 +42,6 @@ export const MESSAGES = {
   writeFailed: "Couldn't sync. Your changes are saved on this device. Try again.",
   tooLarge: 'This data is too large to sync.',
   paused: 'Sync paused. Your changes are saved on this device.',
-  differentAccount: "This device's data was last synced with a different account.",
 } as const;
 
 /** SYNC-121 */
@@ -54,26 +53,16 @@ export const FULL_READ_AFTER_MS = 30 * DAY_MS;
 /** SYNC-063 */
 export const CLOCK_WARN_MS = 5 * 60_000;
 
-export interface Counts {
-  cards: number;
-  decks: number;
-  tags: number;
-}
-export interface CombineQuestion {
-  device: Counts;
-  account: Counts;
-  differentAccount: boolean;
-}
-
 export interface LocalAdapters {
   collection: RawCollectionStore;
   tags: TagStore;
   locks: { load(): Promise<StoredDeckLocks | null>; save(l: StoredDeckLocks): Promise<void> };
   decks: RawDeckStore;
-  /** SYNC-091 "Remove" / SYNC-096 step 4: every local store, including the sync log. */
+  /**
+   * Clears this device (SYNC-048 step 1, SYNC-091, SYNC-096 step 4, SYNC-097): every local store, including
+   * printing codes, view state, the import Undo snapshot and the sync log.
+   */
   clearAll(): Promise<void>;
-  /** SYNC-097 `deleted`: the synced data (collection, tags, decks, locks). */
-  clearSynced(): Promise<void>;
 }
 
 export interface EngineDeps {
@@ -85,7 +74,6 @@ export interface EngineDeps {
   now: () => Ms;
   appVersion: string;
   isOnline: () => boolean;
-  confirmCombine: (q: CombineQuestion) => Promise<'combine' | 'cancel'>;
   notify: (message: string) => void;
   onStatus?: (s: SyncStatus) => void;
   /** SPEC-008 `lockedShortfalls(before, after)` (SYNC-068, SYNC-074); optional until H-059 builds it. */
@@ -103,7 +91,10 @@ export class SyncEngine {
   private remote: RemoteStore | null = null;
   private uid: string | null = null;
   private accountChecked = false;
+  /** SYNC-086: the session was lost; nothing syncs until the user signs in again. */
   private stopped = false;
+  /** SYNC-048 / SYNC-009: the first-sign-in flow failed; the gated pages offer Try again. */
+  private firstSyncFailed = false;
   private deleting = false;
   /** Mirrors `StoredSyncLog.deletingUid` for this session (SYNC-096). */
   private deletionPending = false;
@@ -144,6 +135,14 @@ export class SyncEngine {
     return { kind: 'synced', at: this.lastLog.lastSyncAt ?? this.deps.now(), pendingCount: pending };
   }
 
+  /**
+   * SYNC-009: the sign-in gate (account-required mode; the engine runs only when `signInEnabled` is on).
+   * Decided from the sync log plus what only this session knows (a failed first sync, a lost session).
+   */
+  gate(): GateState {
+    return gateState(true, this.lastLog, { firstSyncFailed: this.firstSyncFailed, sessionLost: this.stopped });
+  }
+
   /** Start-up (SYNC-002, SYNC-004): loads Firebase only when a session is expected. */
   async start(): Promise<void> {
     const log = await this.loadLog();
@@ -173,6 +172,9 @@ export class SyncEngine {
     }
     await this.updateLog((log) => {
       log.sessionExpected = true;
+      // SYNC-086: signing in again as the lost session's uid resumes it. Another uid keeps the gate closed
+      // until its first sign-in clears this device (SYNC-048).
+      if (log.uid === uid) log.sessionLostUid = null;
     });
     this.stopped = false;
     await this.openSession(uid);
@@ -221,20 +223,21 @@ export class SyncEngine {
     });
   }
 
-  /** SYNC-090 / SYNC-091 / SYNC-092. */
-  async signOut(mode: 'keep' | 'remove'): Promise<void> {
+  /**
+   * SYNC-090 / SYNC-091 / SYNC-092: sign-out ends the session and clears this device (every local store and
+   * the sync log); the cloud is never touched. Needs a connection (SYNC-081): offline nothing is cleared.
+   */
+  async signOut(): Promise<'ok' | 'offline'> {
+    if (!this.deps.isOnline()) {
+      this.deps.notify(MESSAGES.offline);
+      return 'offline';
+    }
     this.cancelTimer();
     if (this.auth) await this.auth.signOut().catch(() => undefined);
     this.endSession();
-    if (mode === 'remove') {
-      await this.deps.queue.run(() => this.deps.local.clearAll());
-      this.lastLog = emptySyncLog();
-    } else {
-      await this.updateLog((log) => {
-        log.sessionExpected = false;
-      });
-    }
+    await this.clearDevice();
     this.emit();
+    return 'ok';
   }
 
   /**
@@ -293,9 +296,7 @@ export class SyncEngine {
         }
       }
       // (4) clear this device (the sync log too, so nothing stays pending), (5) tell the user
-      this.cancelTimer();
-      await this.deps.queue.run(() => this.deps.local.clearAll());
-      this.lastLog = emptySyncLog();
+      await this.clearDevice();
       this.deletionPending = false;
       this.endSession();
       this.deps.notify(MESSAGES.deletedOwn);
@@ -366,54 +367,32 @@ export class SyncEngine {
     return log.uid !== this.uid || log.lastFullSyncAt === null;
   }
 
-  /** SYNC-048 / SYNC-049 / SYNC-050. */
+  /**
+   * SYNC-048 first sign-in on this device (v0.8): (1) clear the device, (2) full read with the account check,
+   * (3) download, or create the account, or (f) the half-deleted branch, (4) link the uid. Never uploads device
+   * data and shows no Combine dialog (SYNC-049). A failed or interrupted run starts again at step 1.
+   */
   private async firstSignIn(uid: string): Promise<void> {
+    this.firstSyncFailed = false;
+    // (1) Clear: legacy local data is never imported, uploaded or merged; nothing is written to the cloud.
+    await this.clearDevice(true);
+    this.readOnlyAreas.clear();
+    this.emit();
+    // (2) Full read with the account check (SYNC-045, SYNC-053).
     const pulled = await this.pull(uid, null, true);
-    if (!pulled) return;
+    if (!pulled) return this.failFirstSync();
     const account = pulled.account ?? null;
     const hasCloudDocs = !!(pulled.collection || pulled.tags || pulled.locks || Object.keys(pulled.decks).length);
     if (!account && hasCloudDocs) return this.halfDeleted(); // (f)
 
-    const before = await this.snapshot();
-    const device = liveCounts(before.local);
-    const cloud = cloudCounts({ ...pulled, fullRead: true });
-    const deviceHas = device.cards + device.decks + device.tags + device.locks > 0;
-    const cloudHas = !!account && cloud.cards + cloud.decks + cloud.tags + cloud.locks > 0;
-    // A retry of this device's own interrupted upload into this account (part of it may already be
-    // written) resumes as case (b) without asking; latest change wins per item as usual (SYNC-048).
-    const resuming = !!account && before.log.uploadingUid === uid;
-
-    let mode: 'regular' | 'combine' = 'regular';
-    if (deviceHas && cloudHas && !resuming) {
-      const choice = await this.deps.confirmCombine({
-        device: { cards: device.cards, decks: device.decks, tags: device.tags },
-        account: { cards: cloud.cards, decks: cloud.decks, tags: cloud.tags },
-        differentAccount: before.log.uid !== null && before.log.uid !== uid,
-      });
-      if (choice === 'cancel') {
-        // SYNC-049: sign out, change nothing, link nothing.
-        await this.auth?.signOut().catch(() => undefined);
-        this.endSession();
-        await this.updateLog((log) => {
-          log.sessionExpected = false;
-        });
-        return;
-      }
-      mode = 'combine';
-    }
-
+    // (3) (c) / (e): download into the empty stores; merge writes keep the pulled times (SYNC-041).
     const now = this.deps.now();
     const merged = await this.deps.queue.run(async () => {
       const snap = await this.snapshot();
-      let log = snap.log;
-      if (cloudHas && !deviceHas) log = forgetItems(log); // (c): download everything
-      else log = markAllPending(log, snap.local); // (b), (d): upload what the cloud lacks or is older
-      if (deviceHas) log.uploadingUid = uid;
       const result = mergePulled({
         local: snap.local,
-        log,
+        log: snap.log,
         pulled: { ...pulled, fullRead: true },
-        mode,
         absentMeansDeleted: false,
         now,
       });
@@ -422,30 +401,31 @@ export class SyncEngine {
     });
     this.afterMerge(merged.result, merged.snap.local);
 
+    // (a) creates the account; (c) / (e) update it only when this build differs (SYNC-012).
     const accountChange: NonNullable<Parameters<typeof planPush>[2]['account']> | undefined = account
       ? account.lastClientVersion !== this.deps.appVersion
         ? { create: false, createdAt: account.createdAt, updatedAt: now, lastClientVersion: this.deps.appVersion }
         : undefined
       : { create: true, createdAt: now, updatedAt: now, lastClientVersion: this.deps.appVersion };
-    const pushed = await this.pushPending({ account: accountChange, batch: true });
-    if (!pushed) return; // SYNC-048: interrupted → runs again on the next attempt
+    if (accountChange && !(await this.pushPending({ account: accountChange }))) return this.failFirstSync();
 
+    // (4) Complete: link the uid; the gate opens (SYNC-009).
     await this.updateLog((log) => {
       log.uid = uid;
       log.lastFullSyncAt = now;
       log.lastSyncAt = now;
       log.cursors = pulled.cursors;
-      log.uploadingUid = null;
       log.lastBuild = this.deps.appVersion;
+      log.sessionLostUid = null;
     });
     this.accountChecked = true;
     this.lastPullAt = now;
-    if (mode === 'combine') {
-      const after = liveCounts((await this.snapshot()).local);
-      this.deps.notify(`Combined. You now have ${after.cards} cards, ${after.decks} decks and ${after.tags} tags.`);
-    } else if (deviceHas && (!cloudHas || resuming)) {
-      this.deps.notify(MESSAGES.uploaded);
-    }
+  }
+
+  /** SYNC-048 / SYNC-009: the flow failed; it starts again at step 1 on Try again, Sync now or reopen. */
+  private failFirstSync(): void {
+    if (this.uid) this.firstSyncFailed = true;
+    this.emit();
   }
 
   /** Pull (SYNC-040): account check on the first pull of a session (SYNC-053), full read when due (SYNC-045). */
@@ -467,6 +447,12 @@ export class SyncEngine {
       }
       this.accountChecked = true;
       const acct = pulled.account as AccountDoc;
+      if (log.sessionLostUid) {
+        // SYNC-086: the restore returned the linked uid and the account check passed: the loss was temporary.
+        await this.updateLog((l) => {
+          l.sessionLostUid = null;
+        });
+      }
       if ((log.lastBuild ?? null) !== this.deps.appVersion) {
         // This device's build changed: retry rejected items (SYNC-118) and record the build in the
         // account once (SYNC-012), unless another device already wrote this same build.
@@ -484,7 +470,6 @@ export class SyncEngine {
         local: snap.local,
         log: snap.log,
         pulled: { ...pulled, fullRead: full },
-        mode: 'regular',
         absentMeansDeleted: snap.log.uid === uid && snap.log.lastFullSyncAt !== null,
         now,
       });
@@ -612,12 +597,7 @@ export class SyncEngine {
     this.cancelTimer();
     const check = await this.auth!.checkAccount();
     if (check === 'deleted') {
-      await this.deps.queue.run(async () => {
-        await this.deps.local.clearSynced();
-        const fresh = emptySyncLog();
-        await this.deps.log.save(fresh);
-        this.lastLog = fresh;
-      });
+      await this.clearDevice();
       await this.auth!.signOut().catch(() => undefined);
       this.endSession();
       this.deps.notify(MESSAGES.accountDeleted);
@@ -631,19 +611,14 @@ export class SyncEngine {
     this.emit();
   }
 
-  /** SYNC-097 `ok` with the account document missing, and SYNC-048 (f): sign out, keep the data. */
+  /**
+   * SYNC-097 `ok` with the account document missing, and SYNC-048 (f): write nothing, sign out and clear this
+   * device (v0.8: there is no signed-out data). Leftover cloud documents are never imported or changed.
+   */
   private async halfDeleted(): Promise<void> {
     await this.auth?.signOut().catch(() => undefined);
     this.endSession();
-    await this.updateLog((log) => {
-      log.sessionExpected = false;
-      log.uid = null;
-      log.lastFullSyncAt = null;
-      log.cursors = { state: null, decks: null };
-      log.cloudDocs = [];
-      log.rejected = [];
-      log.pending = { account: false, cards: [], tags: [], assignments: [], locks: [], decks: [] };
-    });
+    await this.clearDevice();
     this.deps.notify(MESSAGES.halfDeleted);
     this.emit();
   }
@@ -655,11 +630,7 @@ export class SyncEngine {
   private async sessionProblem(okMeans: 'signed-out' | 'rejected' = 'signed-out'): Promise<void> {
     const check = this.auth ? await this.auth.checkAccount() : 'signed-out';
     if (check === 'deleted') {
-      await this.deps.queue.run(async () => {
-        await this.deps.local.clearSynced();
-        await this.deps.log.save(emptySyncLog());
-        this.lastLog = emptySyncLog();
-      });
+      await this.clearDevice();
       this.endSession();
       this.deps.notify(MESSAGES.accountDeleted);
       return this.emit();
@@ -675,13 +646,36 @@ export class SyncEngine {
     await this.sessionLost();
   }
 
-  /** SYNC-086: stop syncing, keep local data, pending items and `sessionExpected`. */
+  /**
+   * SYNC-086: stop syncing, keep local data, pending items and `sessionExpected`, and record the loss
+   * (`sessionLostUid` = the linked uid) so the gate stays closed, also after a reload (SYNC-009).
+   */
   private async sessionLost(): Promise<void> {
     this.cancelTimer();
     this.uid = null;
     this.stopped = true;
+    await this.updateLog((l) => {
+      if (l.sessionExpected) l.sessionLostUid = l.uid;
+    });
     this.deps.notify(MESSAGES.sessionLost);
     this.emit();
+  }
+
+  /**
+   * Clears this device: every local store and the sync log (SYNC-091). The first-sign-in clear keeps only
+   * `sessionExpected: true` (SYNC-048). Writes nothing to the cloud and creates no tombstones (SYNC-033).
+   */
+  private async clearDevice(sessionExpected = false): Promise<void> {
+    this.cancelTimer();
+    await this.deps.queue.run(async () => {
+      await this.deps.local.clearAll();
+      const fresh = emptySyncLog();
+      if (sessionExpected) {
+        fresh.sessionExpected = true;
+        await this.deps.log.save(fresh);
+      }
+      this.lastLog = fresh;
+    });
   }
 
   private endSession(): void {
@@ -692,6 +686,7 @@ export class SyncEngine {
     this.problem = null;
     this.lastPullAt = null;
     this.deletionPending = false;
+    this.firstSyncFailed = false;
     this.readOnlyAreas.clear();
   }
 
@@ -896,32 +891,3 @@ function isCreate(log: StoredSyncLog, ref: string, plan: PushPlan): boolean {
   if (ref === 'account') return !!plan.changes.account?.create;
   return !log.cloudDocs.includes(ref);
 }
-
-/** First sign-in (b)/(d): every local item and tombstone is offered for upload; the merge drops what the cloud already has. */
-function markAllPending(log: StoredSyncLog, local: LocalSnapshot): StoredSyncLog {
-  const next = cloneLog(log);
-  next.cloudDocs = [];
-  next.rejected = [];
-  next.pending.cards = Object.keys(next.cards);
-  next.pending.tags = Object.keys(next.tags);
-  next.pending.assignments = Object.keys(next.assignments);
-  next.pending.locks = Object.keys(next.locks);
-  next.pending.decks = [...new Set([...local.decks.map((d) => d.id), ...Object.keys(next.deckTombstones)])];
-  return next;
-}
-
-/** First sign-in (c): the device has nothing live, so the cloud wins everything. */
-function forgetItems(log: StoredSyncLog): StoredSyncLog {
-  const next = cloneLog(log);
-  next.cards = {};
-  next.tags = {};
-  next.assignments = {};
-  next.locks = {};
-  next.deckTombstones = {};
-  next.knownDecks = {};
-  next.cloudDocs = [];
-  next.rejected = [];
-  next.pending = { account: false, cards: [], tags: [], assignments: [], locks: [], decks: [] };
-  return next;
-}
-

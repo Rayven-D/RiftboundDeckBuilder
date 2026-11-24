@@ -3,12 +3,14 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { CombineQuestion, MESSAGES, SyncEngine } from '../../shared/sync/sync-engine';
+import { MESSAGES, SyncEngine } from '../../shared/sync/sync-engine';
 import { statusText } from '../../shared/sync/status-text';
+import { enabledProviders } from '../../shared/sync/sync-types';
 import type { AuthService, RemoteStore, SyncStatus } from '../../shared/sync/sync-types';
 import { AppStores } from '../storage/app-stores';
-import { SIGN_IN_ENABLED } from './sign-in-flag';
-import { CombineDialog } from './sync-dialogs';
+import { SignInGate } from './sign-in-gate';
+import { AUTH_PROVIDERS, SIGN_IN_ENABLED } from './sign-in-flag';
+import { SignInDialog, SignInDialogData } from './sync-dialogs';
 
 export { SIGN_IN_ENABLED };
 
@@ -38,6 +40,8 @@ export class SyncService {
   private readonly snackBar = inject(MatSnackBar);
   private readonly app = inject(AppStores);
   private readonly loadAdapters = inject(SYNC_ADAPTERS);
+  private readonly gate = inject(SignInGate);
+  private readonly providers = inject(AUTH_PROVIDERS);
 
   readonly status = signal<SyncStatus>({ kind: 'signed-out' });
   readonly statusLine = computed(() => statusText(this.status()));
@@ -60,11 +64,11 @@ export class SyncService {
       now: () => Date.now(),
       appVersion: environment.appVersion,
       isOnline: () => navigator.onLine,
-      confirmCombine: (q) => this.askCombine(q),
       notify: (m) => this.notify(m),
       onStatus: (s) => {
         this.status.set(s);
         this.deletion.set(this.engine.unfinishedDeletion());
+        this.gate.set(this.engine.gate()); // SYNC-009
       },
       withTabLock: tabLock,
       setTimer: (fn, ms) => setTimeout(fn, ms),
@@ -74,6 +78,7 @@ export class SyncService {
       () => this.engine.scheduleChange(),
       (area) => this.engine.isReadOnly(area),
     );
+    this.gate.connect({ signIn: () => void this.openSignIn(), retry: () => void this.syncNow() });
     inject(DestroyRef).onDestroy(() => this.removeListeners());
   }
 
@@ -106,8 +111,24 @@ export class SyncService {
     return this.engine.syncNow();
   }
 
-  signOut(mode: 'keep' | 'remove'): Promise<void> {
-    return this.engine.signOut(mode);
+  /** SYNC-090 / SYNC-091: signs out and clears this device; refused offline (SYNC-081). */
+  signOut(): Promise<'ok' | 'offline'> {
+    return this.engine.signOut();
+  }
+
+  /**
+   * SYNC-003 Sign in dialog (header and the SYNC-009 panels). Opening it loads nothing (SYNC-002); Send link
+   * or Continue with Google does.
+   */
+  async openSignIn(): Promise<void> {
+    const data: SignInDialogData = {
+      online: this.online(),
+      providers: enabledProviders(this.providers),
+      sendEmailLink: (e) => this.sendEmailLink(e),
+    };
+    const ref = this.dialog.open(SignInDialog, { data, autoFocus: 'first-tabbable' });
+    const choice = await firstValueFrom(ref.afterClosed());
+    if (choice === 'google' && this.providers.includes('google')) await this.signInWithGoogle();
   }
 
   deleteAccount(): Promise<'ok' | 'cancelled' | 'needs-sign-in' | 'failed' | 'offline'> {
@@ -119,22 +140,12 @@ export class SyncService {
     return this.engine.cancelDeletion();
   }
 
-  /** SYNC-052: Delete all local data while signed in removes this device's copy and signs out. */
-  deleteLocalData(): Promise<void> {
-    return this.engine.signOut('remove');
-  }
-
   private async completeEmailLink(): Promise<void> {
     // The address is kept on the device that asked for the link; opened elsewhere, ask for it.
     const email =
       localStorage.getItem('rift.emailForSignIn') ?? prompt('Confirm your email address to finish signing in.') ?? undefined;
     if (!email) return;
     await this.engine.signIn('email-link', email);
-  }
-
-  private async askCombine(q: CombineQuestion): Promise<'combine' | 'cancel'> {
-    const ref = this.dialog.open(CombineDialog, { data: q, disableClose: true, autoFocus: 'first-tabbable' });
-    return (await firstValueFrom(ref.afterClosed())) === 'combine' ? 'combine' : 'cancel';
   }
 
   private notify(message: string): void {

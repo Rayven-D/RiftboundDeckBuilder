@@ -9,10 +9,10 @@ import type { RemoteErrorCode } from './sync-types';
 
 async function signedInLaptop(db: FakeFirestore): Promise<Device> {
   const d = new Device(db);
-  await d.setCard('hextech ray', 1);
   d.auth.nextSignIn = 'uA';
   await d.engine.signIn('google');
   await d.settle();
+  await d.setCard('hextech ray', 1);
   await d.createDeck('Kennen Tempo');
   await d.engine.flush();
   return d;
@@ -159,11 +159,11 @@ describe('SyncEngine unfinished deletion and Cancel deletion (SPEC-010 SYNC-096,
     expect(d.engine.unfinishedDeletion()).toEqual({ canCancel: false });
   });
 
-  it('SYNC-030 deletingRemovedAny is cleared with deletingUid by a completed deletion and by removing this device’s copy', async () => {
+  it('SYNC-030 / SYNC-091 deletingRemovedAny is cleared with deletingUid by a completed deletion and by a sign-out (H-083 default: allowed)', async () => {
     const d = await signedInLaptop(db);
     failDeleteAt(d, 0);
     await d.engine.deleteAccount();
-    await d.engine.signOut('remove');
+    expect(await d.engine.signOut()).toBe('ok');
     let log = await d.log();
     expect(log.deletingUid ?? null).toBeNull();
     expect(log.deletingRemovedAny).toBeUndefined();

@@ -3,7 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { AccountMenu } from './account-menu';
-import { CombineDialog, DeleteAccountDialog, SignInDialog, SignOutDialog } from './sync-dialogs';
+import * as dialogs from './sync-dialogs';
+import { DeleteAccountDialog, SignInDialog, SignOutDialog } from './sync-dialogs';
 import { SIGN_IN_ENABLED, SYNC_ADAPTERS, SyncService, isEmailLinkUrl } from './sync.service';
 import { environment } from '../../../environments/environment';
 import { enabledProviders } from '../../shared/sync/sync-types';
@@ -73,8 +74,10 @@ describe('Sign-in UI (SPEC-010)', () => {
     const el = await openSignInDialog(environment.authProviders);
     expect(environment.authProviders).toEqual(['email-link']);
     expect(text(el)).toContain(
-      "Sign in to keep your collection and decks in sync across your devices. You don't need an account: without one, everything stays on this device.",
+      "Sign in to import your cards and decks. They're saved to your account, so you'll see them on any device you sign in on.",
     );
+    // SYNC-003 v0.8 / AC 3 / AC 48: no warning about legacy local data
+    expect(text(el)).not.toMatch(/this device|cleared|removed|legacy|don't need an account/i);
     expect(buttons(el).filter((b) => b !== 'Close')).toEqual(['Sign in with an email link']);
     expect(text(el)).not.toContain('Google');
   });
@@ -89,40 +92,110 @@ describe('Sign-in UI (SPEC-010)', () => {
     expect(enabledProviders([])).toEqual([]);
   });
 
-  it('SYNC-049 the Combine dialog shows both sides’ counts, the different-account line, and only Combine and Cancel', async () => {
-    TestBed.configureTestingModule({
-      imports: [CombineDialog],
-      providers: [
-        {
-          provide: MAT_DIALOG_DATA,
-          useValue: { device: { cards: 1, decks: 1, tags: 1 }, account: { cards: 3, decks: 2, tags: 4 }, differentAccount: true },
-        },
-        { provide: MatDialogRef, useValue: { close: () => undefined } },
-      ],
-    });
-    const fixture = TestBed.createComponent(CombineDialog);
-    await fixture.whenStable();
-    const el = fixture.nativeElement as HTMLElement;
-    expect(text(el)).toContain('This device: 1 cards, 1 decks, 1 tags. Account: 3 cards, 2 decks, 4 tags.');
-    expect(text(el)).toContain("This device's data was last synced with a different account.");
-    expect(buttons(el)).toEqual(['Cancel', 'Combine']);
+  it('SYNC-049 / AC 5 there is no Combine dialog any more', () => {
+    expect(Object.keys(dialogs).some((k) => /combine/i.test(k))).toBe(false);
   });
 
-  it('SYNC-090 the sign-out dialog warns about unsynced changes, offers Sync now, and Keep a copy is primary (AC 20)', async () => {
-    TestBed.configureTestingModule({
-      imports: [SignOutDialog],
-      providers: [
-        { provide: MAT_DIALOG_DATA, useValue: { pending: 1, online: true } },
-        { provide: MatDialogRef, useValue: { close: () => undefined } },
-      ],
+  describe('SYNC-090 / SYNC-081 the sign-out dialog (AC 20)', () => {
+    async function openSignOut(pending: number, onSync: () => number = () => pending) {
+      let closed: unknown = 'not closed';
+      let count = pending;
+      const online = signal(true);
+      TestBed.configureTestingModule({
+        imports: [SignOutDialog],
+        providers: [
+          {
+            provide: MAT_DIALOG_DATA,
+            useValue: {
+              pending: () => count,
+              online,
+              syncNow: async () => {
+                count = onSync();
+              },
+            },
+          },
+          { provide: MatDialogRef, useValue: { close: (v: unknown) => (closed = v) } },
+        ],
+      });
+      const fixture = TestBed.createComponent(SignOutDialog);
+      await fixture.whenStable();
+      const el = fixture.nativeElement as HTMLElement;
+      const button = (label: string) => Array.from(el.querySelectorAll('button')).find((b) => text(b) === label)!;
+      const settle = async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+      };
+      return { el, button, online, settle, closed: () => closed };
+    }
+
+    it('SYNC-090 AC 20 with nothing pending: the plain question with Sign out (primary) and Cancel; no Keep a copy', async () => {
+      const { el, button, settle, closed } = await openSignOut(0);
+      expect(text(el.querySelector('h2')!)).toBe('Sign out?');
+      expect(text(el)).toContain(
+        'Your collection and decks stay in your account and are removed from this device. Sign in again to get them back.',
+      );
+      expect(buttons(el)).toEqual(['Cancel', 'Sign out']);
+      expect(button('Sign out').getAttribute('matButton')).toBe('filled');
+      button('Sign out').click();
+      await settle();
+      expect(closed()).toBe(true);
     });
-    const fixture = TestBed.createComponent(SignOutDialog);
-    await fixture.whenStable();
-    const el = fixture.nativeElement as HTMLElement;
-    expect(text(el)).toContain("1 change hasn't synced yet. They'll be lost if you remove this device's copy.");
-    expect(buttons(el)).toEqual(['Cancel', 'Sync now', 'Remove from this device', 'Keep a copy on this device']);
-    const keep = Array.from(el.querySelectorAll('button')).find((b) => text(b) === 'Keep a copy on this device')!;
-    expect(keep.getAttribute('matButton')).toBe('filled');
+
+    it('SYNC-090 AC 20 with 1 pending change: the warning with Sync now (primary), Sign out anyway and Cancel', async () => {
+      const { el, button, settle, closed } = await openSignOut(1);
+      expect(text(el)).toContain("1 change hasn't synced yet. It'll be lost if you sign out now.");
+      expect(buttons(el)).toEqual(['Cancel', 'Sign out anyway', 'Sync now']);
+      expect(text(el)).not.toMatch(/Keep a copy|Remove/);
+      expect(button('Sync now').getAttribute('matButton')).toBe('filled');
+      button('Sign out anyway').click();
+      await settle();
+      expect(closed()).toBe(true);
+    });
+
+    it('SYNC-090 AC 20 Sync now keeps the dialog open and switches to the plain question once nothing is pending', async () => {
+      const { el, button, settle, closed } = await openSignOut(1, () => 0);
+      button('Sync now').click();
+      await vi.waitFor(async () => {
+        await settle();
+        expect(buttons(el)).toEqual(['Cancel', 'Sign out']);
+      });
+      expect(closed()).toBe('not closed');
+      expect(text(el)).toContain('Your collection and decks stay in your account and are removed from this device.');
+    });
+
+    it('SYNC-090 AC 20 a rejected push leaves the warning with the new count', async () => {
+      const { el, button, settle } = await openSignOut(1, () => 1);
+      button('Sync now').click();
+      await vi.waitFor(async () => {
+        await settle();
+        expect(button('Sync now').disabled).toBe(false); // the sync finished
+      });
+      expect(text(el)).toContain("1 change hasn't synced yet. It'll be lost if you sign out now.");
+      expect(buttons(el)).toEqual(['Cancel', 'Sign out anyway', 'Sync now']);
+    });
+
+    it("SYNC-081 AC 20 the connection drops while open: You're offline, only Cancel works; buttons return online", async () => {
+      const { el, button, online, settle } = await openSignOut(1);
+      online.set(false);
+      await settle();
+      expect(text(el)).toContain("You're offline.");
+      expect(text(el)).toContain("1 change hasn't synced yet.");
+      expect(button('Sync now').disabled).toBe(true);
+      expect(button('Sign out anyway').disabled).toBe(true);
+      expect(button('Cancel').disabled).toBe(false);
+      online.set(true);
+      await settle();
+      expect(button('Sync now').disabled).toBe(false);
+      expect(button('Sign out anyway').disabled).toBe(false);
+      expect(text(el)).not.toContain("You're offline.");
+    });
+
+    it('SYNC-081 offline with nothing pending, Sign out is disabled', async () => {
+      const { button, online, settle } = await openSignOut(0);
+      online.set(false);
+      await settle();
+      expect(button('Sign out').disabled).toBe(true);
+    });
   });
 
   it('SYNC-095 Delete account stays disabled until the user types delete, with no keep-a-copy option (AC 38)', async () => {

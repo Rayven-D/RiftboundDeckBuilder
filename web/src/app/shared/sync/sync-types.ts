@@ -154,7 +154,10 @@ export interface StoredSyncLog {
   deckCreated?: Record<string, Ms>;
   /** This device's app build when it last synced: a change retries rejected items (SYNC-118) and updates the account once (SYNC-012). */
   lastBuild?: string | null;
-  /** First-sign-in upload into this uid started and may be partly written (SYNC-048): a retry resumes it without asking. */
+  /**
+   * v0.7 only: an interrupted first-sign-in upload. v0.8 never writes it (the first sign-in never uploads,
+   * SYNC-048); a value left by an older build is ignored and dropped by the first-sign-in clear (SYNC-030).
+   */
   uploadingUid?: string | null;
   /** Account deletion of this uid started on this device and is not finished (SYNC-096): sync is stopped, Delete can be retried. */
   deletingUid?: string | null;
@@ -164,6 +167,12 @@ export interface StoredSyncLog {
    * Cancel deletion. Cleared with `deletingUid`.
    */
   deletingRemovedAny?: boolean;
+  /**
+   * SYNC-086 / SYNC-009: the linked uid when a lost session was detected. While it equals `uid` the sign-in
+   * gate is closed, also at start-up. Cleared by a successful sign-in, by a restore of the linked uid that
+   * passes the account check, and by every clear of the log.
+   */
+  sessionLostUid?: string | null;
 }
 
 export interface SyncLogStore {

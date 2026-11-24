@@ -5,17 +5,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { firstValueFrom } from 'rxjs';
 import { MESSAGES } from '../../shared/sync/sync-engine';
-import {
-  DeleteAccountDialog,
-  SignInDialog,
-  SignInDialogData,
-  SignOutChoice,
-  SignOutDialog,
-  SignOutDialogData,
-} from './sync-dialogs';
+import { DeleteAccountDialog, SignOutDialog, SignOutDialogData } from './sync-dialogs';
 import { SyncService } from './sync.service';
-import { AUTH_PROVIDERS } from './sign-in-flag';
-import { enabledProviders } from '../../shared/sync/sync-types';
 
 /**
  * Header account control (SYNC-003): "Sign in" when signed out; an account menu with the sync status
@@ -65,7 +56,6 @@ export class AccountMenu {
   protected readonly sync = inject(SyncService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
-  private readonly providers = inject(AUTH_PROVIDERS);
   protected readonly offline = MESSAGES.offline;
   /** A deletion or Cancel deletion is running (SYNC-096): its menu actions are disabled meanwhile. */
   protected readonly busy = signal(false);
@@ -76,23 +66,19 @@ export class AccountMenu {
     this.sync.start();
   }
 
-  protected async openSignIn(): Promise<void> {
-    const data: SignInDialogData = {
-      online: this.sync.online(),
-      providers: enabledProviders(this.providers),
-      sendEmailLink: (e) => this.sync.sendEmailLink(e),
-    };
-    const ref = this.dialog.open(SignInDialog, { data, autoFocus: 'first-tabbable' });
-    const choice = await firstValueFrom(ref.afterClosed());
-    if (choice === 'google' && this.providers.includes('google')) await this.sync.signInWithGoogle();
+  protected openSignIn(): Promise<void> {
+    return this.sync.openSignIn();
   }
 
+  /** SYNC-090: the dialog stays open during Sync now; Sign out (or Sign out anyway) clears this device. */
   protected async openSignOut(): Promise<void> {
-    const data: SignOutDialogData = { pending: this.sync.pendingCount(), online: this.sync.online() };
+    const data: SignOutDialogData = {
+      pending: () => this.sync.pendingCount(),
+      online: this.sync.online,
+      syncNow: () => this.sync.syncNow(),
+    };
     const ref = this.dialog.open(SignOutDialog, { data });
-    const choice = (await firstValueFrom(ref.afterClosed())) as SignOutChoice | undefined;
-    if (choice === 'sync') await this.sync.syncNow();
-    else if (choice) await this.sync.signOut(choice);
+    if ((await firstValueFrom(ref.afterClosed())) === true) await this.sync.signOut();
   }
 
   /**

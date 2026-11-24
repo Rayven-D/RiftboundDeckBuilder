@@ -2,6 +2,8 @@ import { Component, effect, inject, input, signal, untracked } from '@angular/co
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
+import { SignInGate } from '../../core/sync/sign-in-gate';
+import { SignInPanel } from '../../core/sync/sign-in-panel';
 import { Icon, IconName } from '../../shared/icon';
 import { ImportDialog, ImportDialogData, ImportKind } from '../../shared/import/import-dialog';
 import { ParseResult, SECTION_LABELS } from '../../shared/import/parse-card-list';
@@ -20,58 +22,63 @@ interface PendingImport {
 
 @Component({
   selector: 'app-import-page',
-  imports: [Icon, MatButton],
+  imports: [Icon, MatButton, SignInPanel],
   template: `
     <header class="page-header">
       <h1>Import</h1>
       <p class="page-lede">Add cards you own, or deck lists you want to build.</p>
     </header>
 
-    <div class="import-options">
-      @for (option of options; track option.kind) {
-        <button
-          type="button"
-          class="import-card"
-          (click)="open(option.kind)"
-          [attr.aria-haspopup]="'dialog'"
-        >
-          <span class="import-icon"><app-icon [name]="option.icon" /></span>
-          <span class="import-text">
-            <span class="import-title">{{ option.title }}</span>
-            <span class="import-subtext">{{ option.subtext }}</span>
-            <span class="import-formats">Paste a list or upload CSV / Excel</span>
-          </span>
-          <app-icon class="import-chevron" name="chevron_right" />
-        </button>
-      }
-    </div>
+    <!-- SYNC-009: gated in account-required mode; always open in local-only mode. -->
+    @if (!gate.open()) {
+      <app-sign-in-panel page="import" />
+    } @else {
+      <div class="import-options">
+        @for (option of options; track option.kind) {
+          <button
+            type="button"
+            class="import-card"
+            (click)="open(option.kind)"
+            [attr.aria-haspopup]="'dialog'"
+          >
+            <span class="import-icon"><app-icon [name]="option.icon" /></span>
+            <span class="import-text">
+              <span class="import-title">{{ option.title }}</span>
+              <span class="import-subtext">{{ option.subtext }}</span>
+              <span class="import-formats">Paste a list or upload CSV / Excel</span>
+            </span>
+            <app-icon class="import-chevron" name="chevron_right" />
+          </button>
+        }
+      </div>
 
-    @if (pending(); as p) {
-      <section class="pending" aria-labelledby="pending-title">
-        <h2 id="pending-title">
-          {{ p.kind === 'deck' ? 'Deck list' : 'Collection list' }} ready:
-          {{ p.result.summary.totalCopies }}
-          {{ p.result.summary.totalCopies === 1 ? 'card' : 'cards' }}
-        </h2>
-        <p class="pending-note">
-          Not saved yet. Matching names to cards and saving come once card data is connected.
-        </p>
-        <ul class="pending-list">
-          @for (e of p.result.entries; track $index) {
-            <li>
-              <span class="qty">{{ e.quantity }}</span>
-              <span>{{ e.name || e.printing?.text }}</span>
-              @if (p.kind === 'deck' && e.section) {
-                <span class="section">{{ sectionLabel(e.section) }}</span>
-              }
-            </li>
-          }
-        </ul>
-        <div class="pending-actions">
-          <button matButton="outlined" type="button" (click)="open(p.kind)">Import another</button>
-          <button matButton type="button" (click)="pending.set(null)">Clear</button>
-        </div>
-      </section>
+      @if (pending(); as p) {
+        <section class="pending" aria-labelledby="pending-title">
+          <h2 id="pending-title">
+            {{ p.kind === 'deck' ? 'Deck list' : 'Collection list' }} ready:
+            {{ p.result.summary.totalCopies }}
+            {{ p.result.summary.totalCopies === 1 ? 'card' : 'cards' }}
+          </h2>
+          <p class="pending-note">
+            Not saved yet. Matching names to cards and saving come once card data is connected.
+          </p>
+          <ul class="pending-list">
+            @for (e of p.result.entries; track $index) {
+              <li>
+                <span class="qty">{{ e.quantity }}</span>
+                <span>{{ e.name || e.printing?.text }}</span>
+                @if (p.kind === 'deck' && e.section) {
+                  <span class="section">{{ sectionLabel(e.section) }}</span>
+                }
+              </li>
+            }
+          </ul>
+          <div class="pending-actions">
+            <button matButton="outlined" type="button" (click)="open(p.kind)">Import another</button>
+            <button matButton type="button" (click)="pending.set(null)">Clear</button>
+          </div>
+        </section>
+      }
     }
   `,
   styleUrl: './import-page.scss',
@@ -82,6 +89,7 @@ export class ImportPage {
 
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
+  protected readonly gate = inject(SignInGate);
   protected readonly pending = signal<PendingImport | null>(null);
 
   protected readonly options: readonly ImportOption[] = [
@@ -102,7 +110,8 @@ export class ImportPage {
   constructor() {
     effect(() => {
       const type = this.type();
-      if (type === 'collection' || type === 'deck') {
+      // SYNC-009: a deep link keeps its URL while the gate is closed and opens the dialog once it opens.
+      if ((type === 'collection' || type === 'deck') && this.gate.open()) {
         untracked(() => {
           this.open(type);
           // Drop the query param so a refresh or back navigation doesn't reopen the dialog.

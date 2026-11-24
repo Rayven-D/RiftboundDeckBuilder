@@ -6,7 +6,7 @@ import { MemoryBackend } from '../../../core/storage/kv-backend';
 import { BrowserStores, createBrowserStores } from '../../../core/storage/browser-stores';
 import type { DeckCard, StoredCollection, StoredTags, UserDeck } from '../../storage/records';
 import { emptySyncLog } from '../sync-log';
-import { CombineQuestion, SyncEngine } from '../sync-engine';
+import { SyncEngine } from '../sync-engine';
 import type { StoredSyncLog, SyncStatus } from '../sync-types';
 import { FakeAuth, FakeFirestore, FakeRemote } from './fakes';
 
@@ -27,8 +27,6 @@ export class Device {
   readonly stores: BrowserStores;
   readonly engine: SyncEngine;
   readonly notices: string[] = [];
-  readonly questions: CombineQuestion[] = [];
-  combineAnswer: 'combine' | 'cancel' = 'combine';
   online = true;
   now: number;
   adaptersLoaded = 0;
@@ -59,10 +57,6 @@ export class Device {
       now: () => this.now,
       appVersion: opts.appVersion ?? 'test-1',
       isOnline: () => this.online,
-      confirmCombine: async (q) => {
-        this.questions.push(q);
-        return this.combineAnswer;
-      },
       notify: (m) => this.notices.push(m),
       onStatus: (s) => (this.status = s),
       setTimer: (fn, ms) => {

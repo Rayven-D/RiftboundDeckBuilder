@@ -7,6 +7,10 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: H-081 account-required mode (builder)
+- Built [[Accounts and Sync]] v0.8 account-required mode on `loop/H-081-account-required` (not committed): SYNC-009 sign-in gate from the sync log (new `sessionLostUid`), panels on Collection / Decks / deck detail / Import, `SignInGate.deckControls` for Tournaments; first sign-in clears the device then downloads (no Combine, no upload); sign-out, the half-deleted branch and `deleted` clear the device; new sign-in and sign-out dialogs. Local-only mode unchanged (tested). [[API Contracts]] v1.4, [[UI Index]] row.
+- Tests: 331 web unit tests and 33 emulator tests green; lint and build clean. The first-sign-in write counts of ACs 3, 5, 36, 40, 48 pass without a separate H-077 change (the clear leaves nothing to upload); H-077's `batch` clean-up and edge cases remain.
+
 ## 2026-11-24: H-086 Cancel deletion and the account-menu Try again (builder)
 - Built SYNC-096 / AC 43 from [[Accounts and Sync]] v0.8: `RemoteStore.deleteAll` reports `removedAny`, sync log `deletingRemovedAny`, account menu shows Try again (works after a reload) and Cancel deletion while nothing was removed. [[API Contracts]] v1.3.
 - Tests: 294 web unit tests, 33 emulator tests (`test:rules`, new `rules-tests/delete-all.test.ts`); lint and build clean. Builder choices for the spec: Cancel deletion stays enabled offline (only Try again needs a connection); a log from an older build with `deletingUid` but no `deletingRemovedAny` offers no Cancel; a `deleteAll` that returns `'ok'` also sets the flag true.

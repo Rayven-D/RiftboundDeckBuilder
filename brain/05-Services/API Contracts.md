@@ -175,8 +175,8 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   `StoredSyncLog.cloudDocs` (documents known to exist, for create vs update), `pending.collectionReplace`,
   `locks[id].h` (lockedAt), `deckTombstones[id].createdAt` and `.wasPending`; after H-062 round 1 also
   `deckCreated` (deck createdAt for tombstones), `lastBuild` (this device's build: SYNC-118 retry and the
-  once-per-build account update), `uploadingUid` (an interrupted first-sign-in upload resumes without
-  Combine), `deletingUid` (this device's unfinished deletion: sync stopped, Delete retryable);
+  once-per-build account update), `uploadingUid` (v0.7 only: no longer written since H-081, an old value is
+  ignored and dropped by the first-sign-in clear), `deletingUid` (this device's unfinished deletion: sync stopped, Delete retryable);
   `AuthService.reauthenticate()` may return `'needs-sign-in'` (email link); `RemoteErrorCode` adds
   `'unconfirmed'` (a write not acknowledged in 20 s: kept pending, confirmed by the next pull).
 - **Unfinished deletion and Cancel deletion (SYNC-096, H-086):** `RemoteStore.deleteAll(uid)` returns
@@ -190,6 +190,29 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   (exposed as `SyncService.deletion` and `cancelDeletion()`): Cancel is allowed only while
   `deletingRemovedAny === false`; it clears both fields, notifies "Your account wasn't deleted." and runs a
   normal sync (account check, pull, push).
+- **Account-required mode (SYNC-008/009/048/086/090/091/097, H-081):** the sync engine runs only when
+  `signInEnabled` is true, so everything below applies to that mode; with `signInEnabled: false` nothing here
+  runs (no gate, no clearing).
+  - Sync log `sessionLostUid?: string | null`: set to the linked uid when a lost session is detected (SYNC-086);
+    cleared by a successful sign-in with that uid, by a start-up whose restore returns the linked uid and passes
+    the account check, and by every log clear (`emptySyncLog()` writes `sessionLostUid: null` and no longer writes
+    `uploadingUid`).
+  - Gate (pure, `web/src/app/shared/sync/gate.ts`): `gateState(signInEnabled, log, { firstSyncFailed?, sessionLost? })`
+    → `'open' | 'signed-out' | 'session-lost' | 'first-sync' | 'first-sync-failed'`; always `'open'` in local-only
+    mode. `LocalSyncLogStore.peek()` reads the log synchronously so the gate is right at the first frame.
+    `SyncEngine.gate()` adds the session's runtime state. Angular: `SignInGate` (`core/sync/sign-in-gate.ts`):
+    `state`, `open`, `deckControls` (Tournaments Add to your decks / In your decks / Add another copy render only
+    while true), `offerDeleteLocalData` (SYNC-052: true only in local-only mode), `signIn()`, `retry()`; kept
+    current by `SyncService`. Gated pages render `<app-sign-in-panel page="collection|decks|import">` instead of
+    their content.
+  - `SyncEngine.signOut(): Promise<'ok' | 'offline'>` (no mode): clears every local store and the sync log;
+    refused offline. `SyncService.deleteLocalData()` removed. First sign-in: clear, full read, download or create
+    the account (or the SYNC-048 f half-deleted branch), link; no Combine, no upload, no `batch`. Removed:
+    `EngineDeps.confirmCombine`, `CombineQuestion`, `CombineDialog`, `MESSAGES.uploaded`/`differentAccount`,
+    `LocalAdapters.clearSynced` (SYNC-097 `deleted` now uses `clearAll`), `mergePulled`'s `mode` and the Combine
+    union, `liveCounts`, `cloudCounts`. `PushChanges.batch` stays in the adapter (unused by the first sign-in).
+  - Sign-out dialog data: `{ pending: () => number; online: Signal<boolean>; syncNow: () => Promise<void> }`; it
+    closes with `true` to sign out.
 - **SYNC-097 Auth codes (verified on the Auth emulator, 2026-11-23):** deleted user → `reload()`
   `auth/user-token-expired`, forced refresh `auth/invalid-refresh-token`; revoked → `reload()`
   `auth/user-token-expired` (refresh still works in the emulator); disabled → `auth/user-disabled`.
@@ -209,3 +232,6 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   store, sync-log and adapter contracts in `web/`, and the additions the build needed.
 - v1.3 (2026-11-24, H-086): no endpoint change. `RemoteStore.deleteAll` reports `removedAny`; sync log
   `deletingRemovedAny`; engine/service `unfinishedDeletion()` and `cancelDeletion()` (SYNC-096).
+- v1.4 (2026-11-24, H-081): no endpoint change. Account-required mode: sync log `sessionLostUid`,
+  `uploadingUid` no longer written, the gate (`gateState`, `SignInGate`, `LocalSyncLogStore.peek()`), sign-out
+  without a mode, Combine and upload paths removed.
