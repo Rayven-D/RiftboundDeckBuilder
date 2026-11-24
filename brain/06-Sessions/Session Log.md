@@ -16,6 +16,7 @@ Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 - Merged the chain with `dev` @ `dd9673b` on `loop/SPEC-010-v0.9-build` (`1337685`): Import page gate around dev's drag-and-drop, AC 46 nav test split for the phone tab bar, API Contracts renumbered v1.7–v1.10. 444 web + 34 rules tests.
 - Incident: H-078 validation created an empty preview channel `sync-test` (real Firebase CLI ran instead of a fake). Briefs now forbid the real CLI.
 - Board IDs taken: H-087–H-094, H-097–H-099; `next_id` 100. Open work compiled in [[Open Work 2026-11-24]].
+- ui-engineer review → [[UI Review 2026-11-24]], filed as H-100–H-126 (`next_id` 127). RJ answered: H-126 "Free account", H-118 panel text "Sign in or create an account to start keeping track of your collections and decks", H-120 rejected. A separate top-level orchestrator session now runs H-100–H-126 from `loop/SPEC-010-v0.9-build` @ `259484b`. `loop/SPEC-010-v0.9-build` pushed with a PR into `dev` for RJ to merge.
 
 ## 2026-11-24: H-079 H-062 clean-ups (builder)
 - [[Accounts and Sync]] AC 22 on `loop/H-079-rules-cleanups` (from H-078 tip `c1ae411`): rules test for a 37-character `duplicatedFrom` (denied; 36 allowed); stale comments fixed in `sync-types.ts` (`KNOWN_DOC_SCHEMA`, no spec version) and `firebase-adapters.ts` (`WRITE_TIMEOUT_MS` → `'unconfirmed'`, `withTimeout` SYNC-042 → SYNC-080). The `PushChanges.batch` comment was moot after H-077.
