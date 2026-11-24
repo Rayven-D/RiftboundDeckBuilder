@@ -13,7 +13,7 @@ Owner: **spec-writer**. Status: `draft` · `review` · `approved` · `blocked` �
 | SPEC-002 | [[Deck Legality]] | 0.3 | draft | [[Deck Construction Rules]], [[Ban List]], [[Formats]] |
 | SPEC-003 | [[Collection Import]] | 0.8 | draft | [[Collection Import Formats]], SPEC-001, SPEC-008 0.3 (IMP-050a warning); 0.7: CSV export round-trips `byPrinting`, no Tags column (H-045); 0.8: import code behaviour as built, IMP-050a (H-049) |
 | SPEC-004 | [[Tournament Deck Catalog]] | 0.5 | draft | [[Tournament Results]], [[ADR-0003 Tournament Results Only]] |
-| SPEC-005 | [[Your Decks Ownership View]] | 0.4 | draft | SPEC-001 0.3, SPEC-002 0.3, SPEC-004 0.5, SPEC-006 0.6, SPEC-007 0.7, SPEC-008 0.3, SPEC-009 0.2, [[Physical Copies Across Decks]] |
+| SPEC-005 | [[Your Decks Ownership View]] | 0.4.1 | draft | SPEC-001 0.3, SPEC-002 0.3, SPEC-004 0.5, SPEC-006 0.6, SPEC-007 0.7, SPEC-008 0.3, SPEC-009 0.2, [[Physical Copies Across Decks]] |
 | SPEC-006 | [[Deck Import]] | 0.6 | draft | [[Collection Import Formats]], SPEC-001 0.3, SPEC-002 0.3, SPEC-003 0.8, SPEC-004 0.5, SPEC-008 0.3 |
 | SPEC-007 | [[My Collection]] | 0.7 | draft | SPEC-001 0.3, SPEC-002 0.3, SPEC-003 0.8, SPEC-008 0.3, SPEC-009 0.2, [[Physical Copies Across Decks]] |
 | SPEC-008 | [[Shared Cards and Lock-in]] | 0.3 | draft | [[Physical Copies Across Decks]], [[Deck Construction Rules]], SPEC-001 0.3, SPEC-003 0.8, SPEC-005 0.4, SPEC-006 0.6, SPEC-007 0.7, SPEC-009 0.2 |

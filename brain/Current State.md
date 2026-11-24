@@ -39,7 +39,7 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 | SPEC-002 [[Deck Legality]] | 0.3 | 4 ban waves as data, `banStatus()`, display rules LEGAL-R08 |
 | SPEC-003 [[Collection Import]] | 0.8 | owned cards; Part A = shared parsers; quantity required (any side), printing codes, .xlsx; upload rejections and `;`/tab delimiter as built; Replace and Undo confirmations warn about locked decks; CSV export `Quantity,Card Name` round-trips per printing (H-045) |
 | SPEC-004 [[Tournament Deck Catalog]] | 0.5 | Top 8, Add to your decks |
-| SPEC-005 [[Your Decks Ownership View]] | 0.4 | full / darkened / partial fill of **available** copies, Riot section order, ban labels |
+| SPEC-005 [[Your Decks Ownership View]] | 0.4.1 | full / darkened / partial fill of **available** copies, Riot section order, ban labels |
 | SPEC-006 [[Deck Import]] | 0.6 | community decks; CSV / Excel too; shared tournament source; locked decks can't change cards |
 | SPEC-007 [[My Collection]] | 0.7 | per-printing, tags, `deckOwnership()`; tags not in the CSV export (COLL-059 withdrawn) |
 | SPEC-008 [[Shared Cards and Lock-in]] | 0.3 | one per-name pool across decks; lock in a complete deck (H-058 PASS 2026-11-23; build: H-059 engine → H-060 Decks UI) |

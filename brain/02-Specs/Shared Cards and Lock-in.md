@@ -309,8 +309,8 @@ card of every deck is owned in full.
 6. **Chosen Champion shares the main pool** (SHARE-002, SHARE-013)
    **Given** Deck A with Chosen Champion `Kai'Sa, Survivor` ×1 and `Kai'Sa, Survivor` ×2 in Main (need 3),
    Deck B with Chosen Champion `Kai'Sa, Survivor` ×1 and ×1 in Main (need 2), `ownedForDecks = 4`, and
-   Deck A locked **When** Deck B's view opens **Then** Deck A holds 3; Deck B's available is 1, so its Champion tile is "1 of 1 available"
-   (full) and its Main tile "0 of 1 available" (none); Deck B's breakdown reads Owned 4, Locked by other
+   Deck A locked **When** Deck B's view opens **Then** Deck A holds 3; Deck B's available is 1, so its Champion tile is "1 of 1 available · 1 of 2 in this deck"
+   (full) and its Main tile "0 of 1 available · 1 of 2 in this deck" (none; SPEC-005 OWN-033 card-total suffix); Deck B's breakdown reads Owned 4, Locked by other
    decks 3, Available 1, Needs 2.
 7. **Legend** (SHARE-001, SHARE-002)
    **Given** two decks with Legend `Kennen, Heart of the Tempest` ×1, `ownedForDecks = 1`, no locks **When**
@@ -401,4 +401,4 @@ card of every deck is owned in full.
 3. No research blockers: the section rules come from [[Physical Copies Across Decks]] (verified 2026-11-23).
 
 ## Changelog
-Current: 0.3 (2026-11-23, H-049). Full history: [[Shared Cards and Lock-in changelog]] (archived). New entries go in the archive note.
+Current: 0.3 (2026-11-23, H-049; also holds the 0.2.1 AC 6 label fix from H-059 validation, made in parallel). Full history: [[Shared Cards and Lock-in changelog]] (archived). New entries go in the archive note.

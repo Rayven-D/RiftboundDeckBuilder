@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-005
-version: 0.4
+version: 0.4.1
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-004, SPEC-006, SPEC-007, SPEC-008, SPEC-009]
 research: ["[[Ban List]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]", "[[Card Data & Images]]", "[[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]]", "[[2026-11 RC Europe - 5 - CTCG DZiden - Kai'Sa]]"]
@@ -154,7 +154,7 @@ card fields are SPEC-001 ([[Card Data Model]]).
 | OWN-030 | MUST | `full`: the card image in **full colour**, no overlay. | [[ADR-0006 Two Imports - Collection and Decks]] |
 | OWN-031 | MUST | `none`: the card image **darkened/faded but still readable**: default treatment grayscale 100 % and brightness 55 % (design tokens; the H-023 design direction may tune them), such that the name printed on the card image stays legible at 100 % zoom. App-rendered text on the tile is not darkened (OWN-034). | [[ADR-0006 Two Imports - Collection and Decks]] ("darkened/faded but still readable") |
 | OWN-032 | MUST | `partial`: the **left** `fill × 100 %` of the image width is in full colour, the rest has the `none` treatment. The split is a straight vertical edge at exactly `fill` of the width (not rounded to steps), with a 1 px light divider line so the edge is visible on dark art. The fill always runs **left to right**, also in right-to-left page layouts. | [[ADR-0006 Two Imports - Collection and Decks]] follow-up decisions ("left to right") |
-| OWN-033 | MUST | **Not colour alone.** Every counted tile shows a text label of the count for that zone entry, "`<allocated>` of `<qty>` available" (e.g. "1 of 3 available", "0 of 2 available", "3 of 3 available"), or "`<allocated>` of `<qty>` locked in" in a locked deck (SHARE-040), plus a state icon (full: check; partial: half circle; none: empty circle), and the shared indicator when other decks use the card (SHARE-042). The tile's accessible name includes name, zone, count label, shared indicator and ban label, e.g. "Lightning Rush, Main Deck, 1 of 3 available" or "Hextech Ray, Main Deck, 0 of 3 available, also in 1 other deck, 1 locked". When the card's copies are split across zones, the label adds the card total, e.g. "0 of 1 available · 2 of 3 in this deck". Rune tiles use SPEC-009 RUNE-006 instead. | design rule (WCAG 2.2 SC 1.4.1 Use of Color); [[Shared Cards and Lock-in]] SHARE-040, SHARE-042, SHARE-044 |
+| OWN-033 | MUST | **Not colour alone.** Every counted tile shows a text label of the count for that zone entry, "`<allocated>` of `<qty>` available" (e.g. "1 of 3 available", "0 of 2 available", "3 of 3 available"), or "`<allocated>` of `<qty>` locked in" in a locked deck (SHARE-040), plus a state icon (full: check; partial: half circle; none: empty circle), and the shared indicator when other decks use the card (SHARE-042). The tile's accessible name includes name, zone, count label, shared indicator and ban label, e.g. "Lightning Rush, Main Deck, 1 of 3 available" or "Hextech Ray, Main Deck, 0 of 3 available, also in 1 other deck, 1 locked". When the card's copies are split across entries (the `cardKey` has more than one counted entry in the deck: entries in more than one zone, or two entries of it in one zone), the label on **every counted tile of that card** adds the card total, e.g. "2 of 2 available · 2 of 3 in this deck" and "0 of 1 available · 2 of 3 in this deck"; a card with a single counted entry gets no suffix. Rune tiles use SPEC-009 RUNE-006 instead. | design rule (WCAG 2.2 SC 1.4.1 Use of Color); [[Shared Cards and Lock-in]] SHARE-040, SHARE-042, SHARE-044 |
 | OWN-034 | MUST | Text the app renders on or beside a tile (name, counts, type, domains, stats, ban label, rules text) meets **4.5:1** contrast against its background in every state; the darkened treatment applies to the image only. Icons and the fill divider meet **3:1** (non-text contrast). | design rule (WCAG 2.2 SC 1.4.3, 1.4.11) |
 | OWN-035 | MUST | With `prefers-reduced-motion: reduce`, fill and state changes apply instantly. Otherwise a change MAY animate for at most 200 ms. Nothing flashes. | design rule (WCAG 2.2 SC 2.3.3) |
 | OWN-036 | MUST | A placeholder tile (missing image, unknown card) gets the same fill treatment on its placeholder surface, so state is still visible. | design rule |
@@ -374,7 +374,7 @@ deck uses the cards and no deck is locked, so available = `ownedForDecks`.
    today is 2026-11-20 **Then** the same tile shows "Banned from Nov 23, 2026" and stays full colour.
 4. **Main ×2 + Sideboard ×1 with 2 owned** (OWN-021, OWN-022, OWN-033, OWN-042, OWN-051)
    **Given** `KAISA_5` with `The Empyrean` ×2 in Main and ×1 in Sideboard, `ownedForDecks 2` **When**
-   the view opens **Then** the Main tile is `allocated 2, fill 1, full`, "2 of 2 available"; the Sideboard
+   the view opens **Then** the Main tile is `allocated 2, fill 1, full`, "2 of 2 available · 2 of 3 in this deck"; the Sideboard
    tile is `allocated 0, fill 0, none`, "0 of 1 available · 2 of 3 in this deck"; both expands show "Main
    Deck 2 of 2 · Sideboard 0 of 1"; The Empyrean is not fully available (2 < 3); the missing list has
    `Sideboard:` / `1 The Empyrean`. **Given** `ownedForDecks 1` instead **Then** Main is `fill 1/2,
@@ -474,4 +474,4 @@ deck uses the cards and no deck is locked, so available = `ownedForDecks`.
    questions 1 and 2, both resolved). Nothing here is open.
 
 ## Changelog
-Current: 0.4 (2026-11-23, H-065/H-066/H-067). Full history: [[Your Decks Ownership View changelog]] (archived). New entries go in the archive note.
+Current: 0.4.1 (2026-11-23, H-059 validation). Full history: [[Your Decks Ownership View changelog]] (archived). New entries go in the archive note.

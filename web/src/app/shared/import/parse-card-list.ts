@@ -12,6 +12,8 @@
  * here; resolving them needs the card catalog (IMP-067…069).
  */
 
+import { nameKey } from '../../core/cards/name-key';
+
 export type DeckSection = 'legend' | 'champion' | 'main' | 'battlefields' | 'runes' | 'sideboard';
 
 /** The printing a line names, before resolution (SPEC-003 Data contract, IMP-064). */
@@ -515,24 +517,6 @@ function excerpt(raw: string): string {
 function entryKey(e: ParsedEntry): string {
   if (e.name || !e.printing) return 'n:' + nameKey(e.name);
   return 'c:' + e.printing.setCode + e.printing.collectorNumber.replace(/\s+/g, '').toUpperCase();
-}
-
-/**
- * CARD-030 `nameKey` (same steps as `services/src/domain/name-key.ts`). Only used for the
- * `distinctNames` count here; resolution against the catalog uses the catalog's own keys.
- */
-function nameKey(name: string): string {
-  return name
-    .normalize('NFKC')
-    .replace(/[’‘ʼ´`]/gu, "'")
-    .replace(/[“”]/gu, '"')
-    .replace(/[‐‑–—]/gu, '-')
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, '')
-    .replace(/\s+/gu, ' ')
-    .trim();
 }
 
 /** IMP-006: more than 1 MiB of UTF-8 or more than 10,000 lines. */

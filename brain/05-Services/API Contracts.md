@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1
+version: 1.4
 ---
 # API Contracts
 
@@ -148,6 +148,55 @@ Notes for the UI:
 - Data files behind the API: `data/cards.json` (`CardSnapshot`) and `data/cards.report.json`
   (`IngestionReport`), written by `npm run ingest:cards`.
 
+## Browser-side shared types (deck ownership engine, H-059)
+**Not an endpoint.** These run in the browser only (OWN-093): nothing here is sent to or served by
+`services/`. The engine lives in `web/src/app/core/decks/` (barrel `index.ts`, shapes in `types.ts`)
+because its only consumer is the browser, `services/` isn't hosted (ADR-0004) and `web/` can't import
+from `services/`. It is pure: no Angular, no storage, no network, no clock. Shapes follow the specs'
+data contracts: [[Shared Cards and Lock-in]] v0.2, [[Runes Assumed Owned]] v0.2,
+[[Your Decks Ownership View]] v0.4, plus the parts of SPEC-001/002/003/006/007 they read.
+
+| Group | Types |
+|---|---|
+| SPEC-008 | `DeckLock`, `StoredDeckLocks`, `DeckLockStore`, `SharedPoolInput`, `SharedPool`, `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck` (`LockFailure`), `LockedShortfall` |
+| SPEC-005 | `CollectionOwnership`, `DeckOwnershipView`, `ZoneSection`, `OwnershipCard`, `OwnedPrintingRow`, `MissingLine`, `CardBan`, `DeckTileSummary` (`OwnershipFilter`) |
+| Read from other specs | SPEC-006 `UserDeck`, `DeckCard`, `DeckZone`, `DeckSource`; SPEC-007 `DeckOwnershipInput`, `DeckOwnership`, `CollectionCatalogView`, `StoredTags`, `Tag`, `StoredPrintingCodes`; SPEC-003 `StoredCollection`; SPEC-002 `BanListFile`, `BanStatus`; SPEC-001 `PlayableCard`, `Printing`, `CardSet` (subset: no `collector` / `extra`) |
+
+```ts
+isRuneEntry(zone: DeckZone, card: PlayableCard | null): boolean                    // RUNE-001
+computeSharedPool(input: SharedPoolInput): SharedPool                              // SHARE-070
+availability(pool: SharedPool, deckId: string, cardKey: CardKey): CardAvailability // SHARE-010/011/015
+canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boolean): LockCheck     // SHARE-020; null = ownership unavailable
+lockedShortfalls(before: SharedPool, after: SharedPool): LockedShortfall[]         // SHARE-034
+computeDeckOwnership(deck, ownership: CollectionOwnership, catalog | null, banData | null, today): DeckOwnershipView // OWN-025
+summarizeDeck(deck, view, legality: { verdict; asOf } | null, format: { id; name } | null): DeckTileSummary
+// text helpers: lockCheckMessage(), cardsShortText(), sharedIndicator(), shortfallWarning(), shortfallNotice()
+// minimal stand-ins until SPEC-007 / SPEC-002 are built in web/: deckOwnership(input, cardKey) (COLL-081),
+//   cachedDeckOwnership() (OWN-083, per input object), banStatus(data, cardKey, format, region, asOf) (LEGAL-B10)
+```
+Notes for the UI:
+- Treat every input as an immutable snapshot. **H-060 must create a new `DeckOwnershipInput` object
+  on every change** to the collection, tags, printing codes or catalog. `cachedDeckOwnership`
+  reuses results per input object (WeakMap identity), so mutating an input in place would show
+  stale counts.
+- Treat `BanListFile` as an immutable snapshot too: `banStatus` builds its banned/upcoming lookup
+  once per (file object, format, region, asOf) (OWN-080), so load a new object when the ban data
+  changes.
+- Rune detection (RUNE-001) in `computeDeckOwnership` uses `ownership.input.catalog` when ownership
+  is ok, the same catalog as `computeSharedPool`. Deck entries must be DECK-096-valid (`qty` 1..999).
+- Compute one `SharedPool` per input change and pass it to every deck view and tile (SHARE-071).
+- Lock order (SHARE-030) is a total order: parsed `lockedAt` ascending with unparseable values
+  after every parseable one, then the raw `lockedAt` string, then `deckId`.
+- `canLock(null, …)`: with ownership unavailable the pool is `null`, and the pool is the engine's
+  only lock source, so `already-locked` can't be detected (a locked deck gets `read-only` or
+  `ownership-unavailable`). **The caller must check the lock store itself** and show Unlock, not a
+  disabled Lock in, for a locked deck.
+- With ownership unavailable (OWN-062/063), all **pending a spec-writer decision** (board item to
+  follow): `OwnershipCard.label` is `''` (no count labels); `DeckOwnershipView.lock` is `null`, so
+  `DeckTileSummary.lockBadge` is `null` (no lock badge, even for a locked deck);
+  `DeckTileSummary.ownershipLine` is "Ownership unavailable" (wording pending spec); and
+  `DeckTileSummary.ownershipFilter` is `'none'`.
+
 ## Changelog
 - v0: created
 - v1 (2026-11-23, H-008): first endpoints: `GET /api/health`, `GET /api/sets`, `GET /api/cards`
@@ -155,3 +204,11 @@ Notes for the UI:
   wrappers over the SPEC-001 v0.2 types; CORS for `http://localhost:4200` in development only.
 - v1.1 (2026-11-23, H-055): no endpoint change. Base URL is `/api` in dev and prod (dev via the
   `ng serve` proxy); production `/api/**` returns `404` until ADR-0004 picks an API host.
+- v1.2 (2026-11-23, H-059): no endpoint change. Added "Browser-side shared types": the pure deck
+  ownership engine in `web/src/app/core/decks/` (SPEC-005 v0.4, SPEC-008 v0.2, SPEC-009 v0.2).
+- v1.3 (2026-11-23, H-059 review): no endpoint change. Engine notes: SHARE-030 total lock order,
+  `canLock(null, …)` caller duty, new `DeckOwnershipInput` per change (H-060), and the
+  ownership-unavailable view values pending spec.
+- v1.4 (2026-11-23, H-059 review 2): no endpoint change and no shape change. `banStatus` memoizes
+  its lookup per `BanListFile` object (OWN-080); rune detection in the view uses the pool's
+  catalog; entries rely on DECK-096 validation.
