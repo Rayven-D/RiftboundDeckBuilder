@@ -2,7 +2,7 @@
 tags: [loop, validation]
 item: H-081
 date: 2026-11-24
-round: 1
+round: 2
 result: PASS
 ---
 # Validation H-081: SPEC-010 v0.8 account-required mode
@@ -138,3 +138,68 @@ These match the builder's report. `services/` is unchanged, so its V-008 leg was
   decks / In your decks / Add another copy) and SPEC-007 COLL-074 (Delete all local data) get UI, render them only
   while `SignInGate.deckControls()` / `offerDeleteLocalData` allow, keep the CAT-074 "already added" lookup
   behind the gate, and add the AC 31 / 45 / 46 page tests for them. Accept: AC 31, 45, 46 pass against the real controls.
+
+## Round 2 (2026-11-24)
+Scope: round 1's build is committed as `4c0c786`. The code-review fixes are uncommitted on top of it
+(`git diff HEAD`): `sync-engine.ts` (session generation counter), `sync-dialogs.ts` (`SignOutDialog.syncNow()`
+catches errors), new tests in `sync-engine-account-required.spec.ts` and `account-menu.spec.ts`, and the [[Session Log]].
+
+### Result
+2026-11-24 · H-081 · PASS (round 2) · V-008 (web) rerun, fix review (every stale check), race tests run against the pre-fix engine, 5 validator probes · failures: none (1 proposed builder item, below)
+
+### V-008 (web), rerun from `web/`
+| Command | Result |
+|---|---|
+| `npm run lint` | All files pass linting |
+| `npm run build` | bundle generated |
+| `npm test -- --watch=false` | 23 files, **337 passed** |
+| `npm run test:rules` (Java 21.0.13 prepended to PATH) | 4 files, **33 passed**, exit 0 |
+
+These match the builder's report.
+
+### The fix: review of each generation bump and stale check
+`generation` is bumped by `openSession`, `endSession`, `clearDevice` and `sessionLost`. Work captures it and
+checks `stale(gen)` after each await. `updateLog(fn, gen)` checks inside the queue, so a write queued before a
+clear but run after it is dropped.
+- **firstSignIn's own step 1:** `clearDevice(true)` bumps first, and `gen` is captured **after** it. The full read,
+  the merge (checked inside the queue), the account push and the step-4 link (`updateLog(…, gen)` plus the `linked`
+  flag) all run under that same value, so the flow never drops its own work. Confirmed by the green AC 3/5/25/36/40/47/48 tests.
+- **`sessionLost` mid-flow:** it bumps and then writes `sessionLostUid` with the **new** value, so the flag is
+  always stored. The interrupted caller stops, which is what SYNC-086 wants ("stops syncing"). Probes, all green:
+  (a) a regular pull rejected `unauthenticated` → `sessionLostUid: 'uA'`, gate `session-lost`, data kept;
+  (b) the same during the first sign-in's full read → gate `session-lost`, nothing linked, `sessionExpected` true
+  (as in round 1);
+  (c) a push rejected `unauthenticated` → flag stored, the item still pending.
+- **`sessionProblem` / `accountGone`** capture the generation before `checkAccount()` and ignore the result if the session ended meanwhile. They are called from the current generation, so their own clear or `sessionLost` still runs. OK.
+- **`pull` / `pushPending`:** a result that arrives after the session ended is dropped, and errors are not handled. A push that landed just as the session ended is not recorded, so its items stay pending. On the next sign-in with the same uid they are pushed again or settled by the tie rule (SYNC-061). No data loss.
+- **`signOut`:** `endSession()` (which bumps) now runs **before** the awaited Auth sign-out, so a pull resolving
+  during that await is already stale. OK.
+- **`deleteAccount`:** stale after re-auth, after `deleteAll`, and before step 4 → `'failed'` without touching the
+  cleared device or deleting the Auth user. OK. See R2-1 for the notice this then shows.
+- **User stamping** (tracked stores) does not go through `updateLog`, so user edits are never dropped by the counter.
+- `SignOutDialog.syncNow()` now has `catch {}` and still re-reads the count in `finally`. OK.
+
+### Do the new tests exercise the race?
+I ran the new tests against the **pre-fix** engine (`git show HEAD:…/sync-engine.ts` swapped in temporarily, then the
+fixed file restored; `cmp` identical):
+- "SYNC-091 / AC 20 sign-out during a running first sync (and a regular sync)…" **fails** without the fix. A separate
+  probe with only the regular-sync half also **fails** without the fix and passes with it, so both halves discriminate.
+- "SYNC-091 / SYNC-096 sign-out while a deletion is running…" **fails** without the fix (`deleteAccount` returned
+  `'ok'`: the old engine went on to delete the Auth user after the sign-out).
+- With the fix, both pass. They hold `pull` / `deleteAll` on a promise, sign out while it is pending, then release it.
+  That is the real interleaving.
+- The other new tests: "SYNC-002 a stored linked uid with sessionExpected false…" (engine: 0 adapters, 0 reads and
+  writes, gate `signed-out`; service: only the Sign in button, 0 adapter loads) covers round 1's N2.
+  "SYNC-081 / AC 20 offline the menu Sign out is disabled…" covers N1. "SYNC-090 a Sync now that rejects is caught" fails on an unhandled rejection without the `catch`.
+
+### Notes
+- **R2-1 (proposed builder item, P2; not an H-081 Accept failure):** after a sign-out during a running deletion,
+  `deleteAccount()` returns `'failed'`. `AccountMenu.runDelete()` then shows the "Some data couldn't be deleted." snack bar
+  with **Try again** on a signed-out device (account-menu.ts, `if (result === 'failed')`). Try again calls
+  `deleteAccount()`, which returns `'failed'` at once (`!this.uid`), so the same notice comes back each time. No data is
+  harmed. What the device should show here depends on H-083 (1) (sign-out during an unfinished deletion, default yes).
+  Suggested fix: return a distinct result from a deletion ended by sign-out (for example `'signed-out'`) and show no
+  failure notice for it (or dismiss the open one on sign-out). Test: the menu shows no Try again after signing out
+  mid-deletion. Accept: that test passes.
+- Round 1's proposed items P1–P3 still stand. N2 (the restored SYNC-002 test) is done. P1, the question of resuming
+  a v0.7 Keep-a-copy log on sign-in, is still open; the new test only covers start-up.

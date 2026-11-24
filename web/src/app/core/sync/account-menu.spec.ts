@@ -54,6 +54,19 @@ describe('Sign-in UI (SPEC-010)', () => {
     expect(adapterLoads).toBe(0);
   });
 
+  it('SYNC-002 a stored linked uid with sessionExpected false loads no Firebase at start-up', async () => {
+    setup(true);
+    const seeded: StoredSyncLog = { ...emptySyncLog(), uid: 'uA', sessionExpected: false, lastFullSyncAt: 1, cursors: { state: 1, decks: 1 } };
+    localStorage.setItem(STORAGE_KEYS.syncLog, JSON.stringify(seeded));
+    const fixture = TestBed.createComponent(AccountMenu);
+    TestBed.inject(SyncService).start();
+    await fixture.whenStable();
+    await new Promise((r) => setTimeout(r));
+    expect(adapterLoads).toBe(0);
+    expect(buttons(fixture.nativeElement)).toEqual(['Sign in']);
+    localStorage.clear();
+  });
+
   const openSignInDialog = async (providers: readonly ('email-link' | 'google')[]) => {
     TestBed.configureTestingModule({
       imports: [SignInDialog],
@@ -161,6 +174,36 @@ describe('Sign-in UI (SPEC-010)', () => {
       });
       expect(closed()).toBe('not closed');
       expect(text(el)).toContain('Your collection and decks stay in your account and are removed from this device.');
+    });
+
+    it('SYNC-090 a Sync now that rejects is caught: the dialog stays open and re-reads the count', async () => {
+      // Vitest fails the run on an unhandled rejection, so an uncaught syncNow() error would show up there.
+      const syncNowCalls = vi.fn(() => Promise.reject(new Error('push failed')));
+      let closed: unknown = 'not closed';
+      TestBed.configureTestingModule({
+        imports: [SignOutDialog],
+        providers: [
+          {
+            provide: MAT_DIALOG_DATA,
+            useValue: { pending: () => 2, online: signal(true), syncNow: syncNowCalls },
+          },
+          { provide: MatDialogRef, useValue: { close: (v: unknown) => (closed = v) } },
+        ],
+      });
+      const fixture = TestBed.createComponent(SignOutDialog);
+      await fixture.whenStable();
+      const el = fixture.nativeElement as HTMLElement;
+      const syncNow = Array.from(el.querySelectorAll('button')).find((b) => text(b) === 'Sync now')!;
+      syncNow.click();
+      await vi.waitFor(async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(syncNow.disabled).toBe(false);
+      });
+      await new Promise((r) => setTimeout(r));
+      expect(syncNowCalls).toHaveBeenCalledTimes(1);
+      expect(closed).toBe('not closed');
+      expect(text(el)).toContain("2 changes haven't synced yet. They'll be lost if you sign out now.");
     });
 
     it('SYNC-090 AC 20 a rejected push leaves the warning with the new count', async () => {
@@ -355,6 +398,14 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
   it('SYNC-081 offline the menu Try again is disabled (a deletion needs a connection)', async () => {
     await menuFor({ canCancel: true }, false);
     expect(menuButton('Try again')!.disabled).toBe(true);
+    expect(overlayText()).toContain("You're offline.");
+  });
+
+  it('SYNC-081 / AC 20 offline the menu Sign out is disabled and the offline line shows', async () => {
+    await menuFor(null, false);
+    expect(menuButton('Sign out')!.disabled).toBe(true);
+    expect(menuButton('Sync now')!.disabled).toBe(true);
+    expect(menuButton('Delete account and data')!.disabled).toBe(true);
     expect(overlayText()).toContain("You're offline.");
   });
 

@@ -108,6 +108,12 @@ export class SyncEngine {
   private readonly readOnlyAreas = new Set<string>();
   /** SYNC-063: client time of this session's writes, by document ref. */
   private readonly writeTimes = new Map<string, Ms>();
+  /**
+   * Session generation: bumped when a session starts or ends (sign-out, deletion, SYNC-097, a lost session) and
+   * whenever the device is cleared. Work started under an older generation never writes to the local stores or
+   * the sync log afterwards (SYNC-091: a sign-out during a running sync leaves the device cleared).
+   */
+  private generation = 0;
 
   constructor(private readonly deps: EngineDeps) {}
 
@@ -233,8 +239,8 @@ export class SyncEngine {
       return 'offline';
     }
     this.cancelTimer();
-    if (this.auth) await this.auth.signOut().catch(() => undefined);
     this.endSession();
+    if (this.auth) await this.auth.signOut().catch(() => undefined);
     await this.clearDevice();
     this.emit();
     return 'ok';
@@ -252,6 +258,7 @@ export class SyncEngine {
       return 'offline';
     }
     const uid = this.uid;
+    const gen = this.generation;
     this.deleting = true;
     this.cancelTimer();
     const reauth = async (): Promise<'ok' | 'cancelled' | 'needs-sign-in'> => {
@@ -266,19 +273,21 @@ export class SyncEngine {
         const r = await reauth();
         if (r !== 'ok') return r;
       }
+      if (this.stale(gen)) return 'failed'; // signed out meanwhile: the device is already cleared
       await this.updateLog((l) => {
         if (l.deletingUid === uid) return; // a retry keeps deletingRemovedAny
         l.deletingUid = uid;
         l.deletingRemovedAny = false;
-      });
+      }, gen);
       this.deletionPending = true;
       // (2) account document first, then every deck and the three state documents
       const r = await this.remote.deleteAll(uid);
+      if (this.stale(gen)) return 'failed';
       if (r === 'ok' || r.removedAny) {
         // Something is (or may be) gone, so Cancel deletion is no longer offered; never back to false.
         await this.updateLog((l) => {
           l.deletingRemovedAny = true;
-        });
+        }, gen);
       }
       if (r !== 'ok') {
         this.deps.notify(MESSAGES.deleteIncomplete);
@@ -295,6 +304,7 @@ export class SyncEngine {
           return 'failed';
         }
       }
+      if (this.stale(gen)) return 'failed';
       // (4) clear this device (the sync log too, so nothing stays pending), (5) tell the user
       await this.clearDevice();
       this.deletionPending = false;
@@ -306,7 +316,7 @@ export class SyncEngine {
       return 'failed';
     } finally {
       this.deleting = false;
-      if (this.deletionPending) this.setProblem('write', MESSAGES.deleteIncomplete);
+      if (this.deletionPending && !this.stale(gen)) this.setProblem('write', MESSAGES.deleteIncomplete);
       this.emit();
     }
   }
@@ -347,6 +357,7 @@ export class SyncEngine {
   // ---------- session ----------
 
   private async openSession(uid: string): Promise<void> {
+    this.generation++;
     this.uid = uid;
     this.accountChecked = false;
     this.stopped = false;
@@ -376,10 +387,12 @@ export class SyncEngine {
     this.firstSyncFailed = false;
     // (1) Clear: legacy local data is never imported, uploaded or merged; nothing is written to the cloud.
     await this.clearDevice(true);
+    const gen = this.generation;
     this.readOnlyAreas.clear();
     this.emit();
     // (2) Full read with the account check (SYNC-045, SYNC-053).
     const pulled = await this.pull(uid, null, true);
+    if (this.stale(gen)) return; // signed out (or cleared) meanwhile: write nothing
     if (!pulled) return this.failFirstSync();
     const account = pulled.account ?? null;
     const hasCloudDocs = !!(pulled.collection || pulled.tags || pulled.locks || Object.keys(pulled.decks).length);
@@ -388,6 +401,7 @@ export class SyncEngine {
     // (3) (c) / (e): download into the empty stores; merge writes keep the pulled times (SYNC-041).
     const now = this.deps.now();
     const merged = await this.deps.queue.run(async () => {
+      if (this.stale(gen)) return null;
       const snap = await this.snapshot();
       const result = mergePulled({
         local: snap.local,
@@ -399,6 +413,7 @@ export class SyncEngine {
       await this.applyMerge(result);
       return { result, snap };
     });
+    if (!merged) return;
     this.afterMerge(merged.result, merged.snap.local);
 
     // (a) creates the account; (c) / (e) update it only when this build differs (SYNC-012).
@@ -407,17 +422,24 @@ export class SyncEngine {
         ? { create: false, createdAt: account.createdAt, updatedAt: now, lastClientVersion: this.deps.appVersion }
         : undefined
       : { create: true, createdAt: now, updatedAt: now, lastClientVersion: this.deps.appVersion };
-    if (accountChange && !(await this.pushPending({ account: accountChange }))) return this.failFirstSync();
+    if (accountChange) {
+      const pushed = await this.pushPending({ account: accountChange });
+      if (this.stale(gen)) return;
+      if (!pushed) return this.failFirstSync();
+    }
 
     // (4) Complete: link the uid; the gate opens (SYNC-009).
+    let linked = false;
     await this.updateLog((log) => {
+      linked = true;
       log.uid = uid;
       log.lastFullSyncAt = now;
       log.lastSyncAt = now;
       log.cursors = pulled.cursors;
       log.lastBuild = this.deps.appVersion;
       log.sessionLostUid = null;
-    });
+    }, gen);
+    if (!linked) return;
     this.accountChecked = true;
     this.lastPullAt = now;
   }
@@ -431,6 +453,7 @@ export class SyncEngine {
   /** Pull (SYNC-040): account check on the first pull of a session (SYNC-053), full read when due (SYNC-045). */
   private async pullAndMerge(): Promise<boolean> {
     const uid = this.uid!;
+    const gen = this.generation;
     const log = await this.loadLog();
     const now = this.deps.now();
     const full =
@@ -439,7 +462,7 @@ export class SyncEngine {
       log.lastSyncAt === null ||
       now - log.lastSyncAt > FULL_READ_AFTER_MS;
     const pulled = await this.pull(uid, full ? null : log.cursors, !this.accountChecked);
-    if (!pulled) return false;
+    if (this.stale(gen) || !pulled) return false;
     if (!this.accountChecked) {
       if (pulled.account === null) {
         await this.accountGone();
@@ -451,7 +474,7 @@ export class SyncEngine {
         // SYNC-086: the restore returned the linked uid and the account check passed: the loss was temporary.
         await this.updateLog((l) => {
           l.sessionLostUid = null;
-        });
+        }, gen);
       }
       if ((log.lastBuild ?? null) !== this.deps.appVersion) {
         // This device's build changed: retry rejected items (SYNC-118) and record the build in the
@@ -460,11 +483,12 @@ export class SyncEngine {
           l.rejected = [];
           l.pending.account = acct.lastClientVersion !== this.deps.appVersion;
           l.lastBuild = this.deps.appVersion;
-        });
+        }, gen);
       }
     }
     this.clockCheck(pulled);
     const merged = await this.deps.queue.run(async () => {
+      if (this.stale(gen)) return null;
       const snap = await this.snapshot();
       const result = mergePulled({
         local: snap.local,
@@ -482,6 +506,7 @@ export class SyncEngine {
       await this.applyMerge(result);
       return { result, snap };
     });
+    if (!merged) return false;
     this.lastPullAt = now;
     this.afterMerge(merged.result, merged.snap.local);
     return true;
@@ -491,6 +516,7 @@ export class SyncEngine {
   private async pushPending(extra: { account?: Parameters<typeof planPush>[2]['account']; batch?: boolean } = {}): Promise<boolean> {
     if (this.deletionPending) return false;
     const uid = this.uid!;
+    const gen = this.generation;
     const now = this.deps.now();
     const plan = await this.deps.queue.run(async () => {
       const snap = await this.snapshot();
@@ -508,18 +534,22 @@ export class SyncEngine {
       this.emit();
       return plan.tooLarge.length === 0;
     }
+    if (this.stale(gen)) return false;
     let outcome: PushOutcome;
     try {
       outcome = await this.remote!.push(uid, plan.changes);
     } catch (e) {
-      await this.handleRemoteError(e);
+      if (!this.stale(gen)) await this.handleRemoteError(e);
       return false;
     }
+    if (this.stale(gen)) return false;
     for (const [ref, r] of Object.entries(outcome)) if (r === 'ok') this.writeTimes.set(ref, now);
     await this.deps.queue.run(async () => {
+      if (this.stale(gen)) return;
       const log = await this.loadLog();
       await this.saveLog(applyPushSuccess(log, plan, outcome));
     });
+    if (this.stale(gen)) return false;
     return this.handleFailures(plan, outcome);
   }
 
@@ -595,7 +625,9 @@ export class SyncEngine {
   /** SYNC-097: the account document is missing on a linked device (or a write said so). */
   private async accountGone(): Promise<void> {
     this.cancelTimer();
+    const gen = this.generation;
     const check = await this.auth!.checkAccount();
+    if (this.stale(gen)) return; // the session already ended (e.g. signed out) while checking
     if (check === 'deleted') {
       await this.clearDevice();
       await this.auth!.signOut().catch(() => undefined);
@@ -628,7 +660,9 @@ export class SyncEngine {
    * session is fine and the rules refused the request: an Error status, not "signed out" (SYNC-118).
    */
   private async sessionProblem(okMeans: 'signed-out' | 'rejected' = 'signed-out'): Promise<void> {
+    const gen = this.generation;
     const check = this.auth ? await this.auth.checkAccount() : 'signed-out';
+    if (this.stale(gen)) return; // the session already ended while checking
     if (check === 'deleted') {
       await this.clearDevice();
       this.endSession();
@@ -652,11 +686,12 @@ export class SyncEngine {
    */
   private async sessionLost(): Promise<void> {
     this.cancelTimer();
+    this.generation++;
     this.uid = null;
     this.stopped = true;
     await this.updateLog((l) => {
       if (l.sessionExpected) l.sessionLostUid = l.uid;
-    });
+    }, this.generation);
     this.deps.notify(MESSAGES.sessionLost);
     this.emit();
   }
@@ -667,6 +702,7 @@ export class SyncEngine {
    */
   private async clearDevice(sessionExpected = false): Promise<void> {
     this.cancelTimer();
+    this.generation++;
     await this.deps.queue.run(async () => {
       await this.deps.local.clearAll();
       const fresh = emptySyncLog();
@@ -679,6 +715,7 @@ export class SyncEngine {
   }
 
   private endSession(): void {
+    this.generation++;
     this.uid = null;
     this.accountChecked = false;
     this.offline = false;
@@ -697,16 +734,18 @@ export class SyncEngine {
     cursors: StoredSyncLog['cursors'] | null,
     withAccount: boolean,
   ): Promise<PullResult | null> {
+    const gen = this.generation;
     try {
       this.syncing = true;
       this.emit();
       const r = await this.remote!.pull(uid, cursors, { withAccount });
+      if (this.stale(gen)) return null;
       this.offline = false;
       this.paused = false;
       if (this.problem?.kind === 'read-denied') this.problem = null;
       return r;
     } catch (e) {
-      await this.handleRemoteError(e);
+      if (!this.stale(gen)) await this.handleRemoteError(e);
       return null;
     } finally {
       this.syncing = false;
@@ -871,12 +910,18 @@ export class SyncEngine {
     this.lastLog = l;
   }
 
-  private updateLog(fn: (l: StoredSyncLog) => void): Promise<void> {
+  /** `gen`: skip the write when that session generation has ended (checked inside the queue, after any clear). */
+  private updateLog(fn: (l: StoredSyncLog) => void, gen?: number): Promise<void> {
     return this.deps.queue.run(async () => {
+      if (gen !== undefined && this.stale(gen)) return;
       const l = cloneLog(await this.loadLog());
       fn(l);
       await this.saveLog(l);
     });
+  }
+
+  private stale(gen: number): boolean {
+    return gen !== this.generation;
   }
 
   private emit(): void {

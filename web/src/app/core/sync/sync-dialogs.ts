@@ -183,6 +183,8 @@ export class SignOutDialog {
     this.syncing.set(true);
     try {
       await this.data.syncNow();
+    } catch {
+      // The engine reports sync failures itself (status line, notices); the dialog only re-reads the count.
     } finally {
       this.pending.set(this.data.pending());
       this.syncing.set(false);

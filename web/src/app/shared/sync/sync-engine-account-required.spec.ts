@@ -285,6 +285,86 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       expect(await laptop.quantity('hextech ray')).toBe(3);
     });
 
+    /** Makes the next pulls wait until `release()`; resolves `started` when one is waiting. */
+    function deferPulls(d: Device) {
+      let release!: () => void;
+      const gate = new Promise<void>((res) => (release = res));
+      const pull = d.remote.pull.bind(d.remote);
+      const spy = vi.spyOn(d.remote, 'pull').mockImplementation(async (uid, cursors, opts): Promise<PullResult> => {
+        await gate;
+        return pull(uid, cursors, opts);
+      });
+      return { release, started: () => vi.waitFor(() => expect(spy).toHaveBeenCalled()) };
+    }
+
+    it('SYNC-091 / AC 20 sign-out during a running first sync (and a regular sync) leaves the device cleared', async () => {
+      await accountWith(db, { 'hextech ray': 3 });
+
+      // (1) first sync: the full read is still in flight when the user signs out
+      const phone = new Device(db);
+      const first = deferPulls(phone);
+      phone.auth.nextSignIn = 'uA';
+      const signingIn = phone.engine.signIn('google');
+      await first.started();
+      expect(await phone.engine.signOut()).toBe('ok');
+      first.release();
+      await signingIn;
+      await phone.settle();
+      expect(riftKeys(phone)).toEqual([]);
+      expect(await phone.quantity('hextech ray')).toBe(0);
+      expect(phone.engine.gate()).toBe('signed-out');
+      expect(phone.engine.signedInUid).toBeNull();
+
+      // (2) regular sync: a synced device pulls a change from another device while the user signs out
+      const tablet = new Device(db);
+      await signIn(tablet);
+      expect(await tablet.quantity('hextech ray')).toBe(3);
+      const other = new Device(db); // another device writes to uA
+      await signIn(other);
+      await other.setCard('lightning rush', 4);
+      await other.engine.flush();
+      tablet.now += 60_000;
+      const regular = deferPulls(tablet);
+      const syncing = tablet.engine.syncNow();
+      await regular.started();
+      expect(await tablet.engine.signOut()).toBe('ok');
+      regular.release();
+      await syncing;
+      await tablet.settle();
+      expect(riftKeys(tablet)).toEqual([]);
+      expect(await tablet.quantity('lightning rush')).toBe(0);
+      expect(tablet.engine.gate()).toBe('signed-out');
+      expect(db.get('users/uA/state/collection').cards['lightning rush'].q).toBe(4); // the cloud is untouched
+    });
+
+    it('SYNC-091 / SYNC-096 sign-out while a deletion is running: nothing is written back to the cleared device', async () => {
+      const laptop = await accountWith(db, { 'hextech ray': 3 });
+      let release!: () => void;
+      const hold = new Promise<void>((res) => (release = res));
+      const deleteAll = laptop.remote.deleteAll.bind(laptop.remote);
+      const spy = vi.spyOn(laptop.remote, 'deleteAll').mockImplementation(async (uid) => {
+        await hold;
+        return deleteAll(uid);
+      });
+      const deleting = laptop.engine.deleteAccount();
+      await vi.waitFor(() => expect(spy).toHaveBeenCalled());
+      expect(await laptop.engine.signOut()).toBe('ok'); // H-083 default: allowed during a deletion
+      release();
+      expect(await deleting).toBe('failed');
+      await laptop.settle();
+      expect(riftKeys(laptop)).toEqual([]);
+      expect(laptop.auth.deletedUser).toBe(false); // the Auth user is never deleted from an ended session
+    });
+
+    it('SYNC-002 a stored linked uid with sessionExpected false loads no Firebase at start-up', async () => {
+      const d = new Device(db);
+      await d.stores.log.save({ ...emptySyncLog(), uid: 'uA', sessionExpected: false, lastFullSyncAt: T0, cursors: { state: 1, decks: 1 } });
+      await d.engine.start();
+      expect(d.adaptersLoaded).toBe(0);
+      expect(db.reads + db.writes).toBe(0);
+      expect(d.engine.gate()).toBe('signed-out');
+    });
+
     it('AC 26 / SYNC-002 sign out then reload: no Firebase, no session-lost message, gate closed, stores empty', async () => {
       const laptop = await accountWith(db, { 'hextech ray': 3 });
       await laptop.engine.signOut();
