@@ -9,6 +9,21 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.5 (2026-11-23, RJ's answers to the 11 open questions): "Open questions for RJ" replaced by **Decisions
+  (RJ, 2026-11-23)**, quoting each answer. SYNC-006: providers Google and email link ("Continue with Google",
+  "Sign in with an email link"). SYNC-071/072/074/049/090 cite RJ decisions 4/3/2/5/6 (defaults confirmed). New
+  **SYNC-077**: every deck status (ownership group, lock badge incl. "cards short", fill and labels, shared
+  indicator, Lock in reason) is identical on every signed-in device once synced; statuses are computed only from
+  synced data plus the catalog, never stored; view state, saved views, printing-code memory, import Undo snapshot
+  and sync log never affect them (so none needs syncing); listed per-device exceptions are always visible
+  (pending, rejected, unreadable, newer schema, invalid item, different `catalogVersion`). SYNC-095/096: no
+  keep-a-copy option; deleting the account always clears this device; type `delete` kept. SYNC-097 half-deleted
+  branch: sign out, write nothing, keep local data as signed-out data, clear linked uid; Upload path removed (also
+  from SYNC-048 f); SYNC-004 and SYNC-098 residual risks updated. SYNC-034/083 cite decision 9 (accepted for now,
+  may be revisited). SYNC-101 cites H-069 and decision 10. ACs 1, 28, 36 updated; new ACs 37 (same status on two
+  devices) and 38 (delete without keep-a-copy). 89 requirements (81 MUST, 3 SHOULD, 5 MUST NOT); 38 ACs; no open
+  questions for RJ.
+
 - 0.4 (2026-11-23, H-061 validator round 3, [[Validation H-061]]):
   **(1)** SYNC-041: tag assignment lists the merge rewrites (ids moved by SYNC-065, ids removed by SYNC-066,
   SYNC-064 Combine unions) are stamped `max(now, pulled t + 1)` and pending, like the SYNC-065/071 tombstones, so
