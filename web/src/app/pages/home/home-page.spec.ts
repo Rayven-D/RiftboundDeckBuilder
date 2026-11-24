@@ -28,6 +28,18 @@ describe('HomePage', () => {
     expect(chips).toEqual(['0 of 2 owned', '1 of 3 owned', '3 of 3 owned']);
   });
 
+  it('lists example events, the first open with its Top 8 Legend cards', async () => {
+    const el = await render();
+    const events = Array.from(el.querySelectorAll<HTMLDetailsElement>('details.event'));
+    expect(events.length).toBe(3);
+    expect(events.map((e) => e.open)).toEqual([true, false, false]);
+    const entries = events[0].querySelectorAll('.entry');
+    expect(entries.length).toBe(8);
+    expect(entries[0].querySelector('.placing')?.textContent).toContain('1st');
+    expect(entries[0].querySelector('.player')?.textContent).toContain('Player 1');
+    expect(entries[0].querySelector('img')?.getAttribute('alt')).toBe('Legend A');
+  });
+
   it('uses no meta wording', async () => {
     const text = (await render()).textContent!.toLowerCase();
     for (const word of [

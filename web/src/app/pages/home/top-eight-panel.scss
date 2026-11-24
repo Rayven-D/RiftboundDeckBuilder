@@ -1,0 +1,187 @@
+:host {
+  display: block;
+}
+
+/* ---- Event (top level) ---- */
+.event + .event {
+  border-top: 1px solid var(--color-border);
+}
+
+.event-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  list-style: none;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &:hover .event-name {
+    color: var(--color-accent-text);
+  }
+}
+
+.event-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.event-name {
+  font-weight: 600;
+}
+
+.event-when {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.event-chevron {
+  font-size: 20px;
+  color: var(--color-text-muted);
+  transition: transform 120ms ease;
+}
+
+.event[open] .event-chevron {
+  transform: rotate(90deg);
+}
+
+/* ---- Top 8 entries ---- */
+.top8 {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-4);
+  list-style: none;
+}
+
+.entry {
+  min-width: 0;
+}
+
+.art-wrap {
+  position: relative;
+  display: block;
+}
+
+.legend-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  border-radius: var(--radius-sm);
+}
+
+.placing {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  color: var(--color-accent-text);
+  font-family: var(--font-display);
+  font-stretch: var(--display-stretch);
+  font-weight: var(--display-weight);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+.placing--overlay {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  background: var(--color-surface);
+  box-shadow: 0 0 0 1px var(--color-border);
+}
+
+.who {
+  display: grid;
+  min-width: 0;
+}
+
+.player {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend {
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* Option A: rows with a small Legend thumbnail. */
+.top8--list {
+  .entry {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+
+    & + .entry {
+      border-top: 1px solid var(--color-border);
+    }
+  }
+
+  .art-wrap {
+    flex: none;
+    width: 36px;
+  }
+
+  .placing {
+    min-width: 3rem;
+  }
+
+  .who {
+    flex: 1;
+  }
+}
+
+/* Option B: grid of Legend cards, 4 across (2 on phones). */
+.top8--grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-3);
+
+  .who {
+    margin-top: var(--space-2);
+  }
+}
+
+/* Option C: one swipeable row of Legend cards. */
+.top8--strip {
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--space-4);
+  padding-bottom: var(--space-4);
+
+  .entry {
+    flex: none;
+    width: 5.75rem;
+    scroll-snap-align: start;
+  }
+
+  .who {
+    margin-top: var(--space-2);
+  }
+}
+
+@media (max-width: 52rem) {
+  .top8--grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .add {
+    display: none;
+  }
+}

@@ -167,46 +167,6 @@
   padding: var(--space-4);
 }
 
-.placings {
-  margin: 0;
-  padding: var(--space-2) var(--space-4);
-  list-style: none;
-
-  li {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3) 0;
-
-    & + li {
-      border-top: 1px solid var(--color-border);
-    }
-  }
-}
-
-.placing {
-  min-width: 3.25rem;
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
-  color: var(--color-accent-text);
-  font-family: var(--font-display);
-  font-stretch: var(--display-stretch);
-  font-weight: var(--display-weight);
-  text-align: center;
-}
-
-.placing-deck {
-  flex: 1;
-  min-width: 0;
-}
-
-.placing-action {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
 /* ---- Phones and narrow tablets ---- */
 @media (max-width: 52rem) {
   .hero,

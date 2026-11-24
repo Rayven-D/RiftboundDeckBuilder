@@ -112,3 +112,4 @@ fantasy-UI styling.
 - 2026-11-23: RJ: ownership text was too descriptive (the example panel already shows it) and read in the wrong order. Now follows the panel left to right: "Not yet, half colour, full colour." / "Cards start out dimmed. Collect copies and they fill with colour, until you own them all."
 - 2026-11-23: RJ: the ownership section title should say what it is for (knowing which cards finish a deck), not describe the colours. Title now "Collect the cards each deck needs."
 - 2026-11-23: RJ: ownership text now "Know what you need at a glance. Collect every copy a card needs to fill it in with colour."
+- 2026-11-23: RJ: American spelling ("color") in UI copy. Winning decks panel reworked: events are the top level (native details/summary, first open), each expands to its Top 8 with the Legend card, player and Legend name (`pages/home/top-eight-panel.ts`). Three layouts on `/styleguide` for RJ to pick: A rows, B grid, C swipe. Home uses A until RJ picks.

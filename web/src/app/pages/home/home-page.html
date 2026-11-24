@@ -46,8 +46,8 @@
     <p class="eyebrow"><app-icon name="contrast" />Ownership</p>
     <h2 id="ownership-title" class="feature-title">Collect the cards each deck needs.</h2>
     <p class="feature-text">
-      Know what you need at a glance. Collect every copy a card needs to fill it in with colour.
-      Deck view is coming soon.
+      Know what you need at a glance. Collect every copy a card needs to fill it in with color. Deck
+      view is coming soon.
     </p>
     <div class="feature-actions">
       <a matButton="filled" routerLink="/import" [queryParams]="{ type: 'collection' }"
@@ -86,14 +86,6 @@
   </div>
   <figure class="panel">
     <figcaption class="panel-bar">Rift Builder / Tournaments · example</figcaption>
-    <ol class="placings">
-      @for (place of ['1st', '2nd', '3rd', '4th']; track place) {
-        <li>
-          <span class="placing">{{ place }}</span>
-          <span class="placing-deck">Legend: Player {{ $index + 1 }}</span>
-          <span class="placing-action">Add to your decks</span>
-        </li>
-      }
-    </ol>
+    <app-top-eight-panel variant="list" />
   </figure>
 </section>

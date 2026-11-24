@@ -5,6 +5,7 @@ import { CardTile } from '../../shared/deck/card-tile';
 import { sampleCardArt } from '../../shared/deck/sample-art';
 import { Icon, IconName } from '../../shared/icon';
 import { OwnershipFan } from './ownership-fan';
+import { TopEightPanel } from './top-eight-panel';
 
 export interface FanCard {
   readonly name: string;
@@ -28,7 +29,7 @@ interface StepTile {
  */
 @Component({
   selector: 'app-home-page',
-  imports: [RouterLink, MatButton, Icon, CardTile, OwnershipFan],
+  imports: [RouterLink, MatButton, Icon, CardTile, OwnershipFan, TopEightPanel],
   templateUrl: './home-page.html',
   styleUrl: './home-page.scss',
 })
