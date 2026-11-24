@@ -8,7 +8,7 @@ result: PASS
 # Validation H-081: SPEC-010 v0.8 account-required mode
 
 Item: [[Handoff Board]] H-081. Accept: "SPEC-010 v0.8 ACs 3, 5, 20, 25–28, 31, 36, 40, 45–48 pass; tests".
-Scope: uncommitted tree on `loop/H-081-account-required` on top of `ccda2f2` (H-086): 26 modified files, 6 new
+Scope: uncommitted tree on `loop/H-081-account-required` on top of `ccda2f2` (H-127): 26 modified files, 6 new
 (`gate.ts`, `gate.spec.ts`, `sign-in-gate.ts`, `sign-in-panel.ts`, `gated-pages.spec.ts`,
 `sync-engine-account-required.spec.ts`). Spec: [[Accounts and Sync]] v0.8 (SYNC-001…009, 030, 048–052, 086,
 090–091, 097, ACs above).
@@ -93,7 +93,7 @@ These match the builder's report. `services/` is unchanged, so its V-008 leg was
 |---|---|---|
 | 1 | Tournaments deck controls and COLL-074 have no UI yet; only `SignInGate.deckControls()` / `offerDeleteLocalData` are tested | **Acceptable for H-081.** The pages are scaffolds: no control exists that could leak. The contract is in [[API Contracts]], the [[UI Index]] and a code comment in `tournaments-page.ts`. The items that later build CAT-070/074 and COLL-074 must render them only behind the gate, and must test that (proposed item P3). |
 | 2 | A session lost before the first sync completes shows the lost-session panel | **Acceptable; spec gap.** SYNC-009 doesn't cover this. The device holds nothing (it was cleared at step 1), so nothing leaks. Note that `sessionLostUid` stays null here (no linked uid), so a reload shows "Getting…" again until the restore fails. Proposed item P2. |
-| 3 | Gated pages keep their h1 above the panel | **Acceptable.** "Shows a sign-in panel instead of its content": the h1/lede is page chrome, and no store data is read. The [[UI Index]] already lists it as an RJ question. **Resolved 2026-11-24:** RJ decision 14 (SPEC-010 v0.9, H-093) keeps the page header above the panel; tested in H-094 ([[Validation H-093 H-094]]). |
+| 3 | Gated pages keep their h1 above the panel | **Acceptable.** "Shows a sign-in panel instead of its content": the h1/lede is page chrome, and no store data is read. The [[UI Index]] already lists it as an RJ question. **Resolved 2026-11-24:** RJ decision 14 (SPEC-010 v0.9, H-134) keeps the page header above the panel; tested in H-135 ([[Validation H-134 H-135]]). |
 | 4 | Sign-out dialog splits the spec sentence into title "Sign out?" and body | **Acceptable.** The text is verbatim. A title/body split is a presentation choice. |
 | 5 | The engine also refuses sign-out offline | **Acceptable, and correct:** SYNC-081/090 "Nothing is cleared while offline". |
 | 6 | SYNC-097 `deleted` clears every store, incl. printing codes and view state | **Correct per v0.8:** "clears this device as for sign-out (SYNC-091: every local store and the sync log)". |

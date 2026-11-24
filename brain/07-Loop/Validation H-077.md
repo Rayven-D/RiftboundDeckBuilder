@@ -15,7 +15,7 @@ Scope: the uncommitted tree on `loop/H-077-write-budget` on top of `8a860a7` (H-
 Earlier report for context: [[Validation H-081]].
 
 ## Result
-2026-11-24 · H-077 · PASS (round 1) · Accept (ACs 3, 4, 36, 40 with exact write counts; AC 48 tightened), V-008 (web, incl. rules emulator), V-005 (in-scope IDs), V-009 (changed notes), V-010, V-011, V-012, 1 mutation run, 1 validator probe · failures: none (1 spec-writer follow-up filed: H-097)
+2026-11-24 · H-077 · PASS (round 1) · Accept (ACs 3, 4, 36, 40 with exact write counts; AC 48 tightened), V-008 (web, incl. rules emulator), V-005 (in-scope IDs), V-009 (changed notes), V-010, V-011, V-012, 1 mutation run, 1 validator probe · failures: none (1 spec-writer follow-up filed: H-136)
 
 ## Checks run
 ### V-008 (web), rerun by the validator from `web/`
@@ -58,8 +58,8 @@ So the write budget (SYNC-050 "at most 1 write") holds even on inconsistent data
 ### Builder-flagged spec issues: verdicts
 | # | Issue | Verdict |
 |---|---|---|
-| 1 | SYNC-113 says "The `PushChanges.batch` split stays in the code", but the data contract (~line 465) says "the builder may remove it". The builder removed it. | **Acceptable.** The removal follows the data contract and SYNC-050 ("does not use the `PushChanges.batch` flag"). The SYNC-113 sentence described the H-062 build, and nothing else uses batches now. The spec text is stale: the SYNC-113 sentence and the `batch?` line of the data contract should be updated. Filed as part of **H-097** (spec-writer). |
-| 2 | After a download from inconsistent cloud data, a merge repair (SYNC-071 / SYNC-065) or an expired-tombstone purge (SYNC-034) is left for the first regular push, but SYNC-050 says "nothing is pending" | **Acceptable build behaviour; spec gap.** The validator probe confirms the pending item. The other choice, sending the repair in the same push, would break the "at most 1 write" MUST, which is the stronger rule and the point of H-077. AC 4 uses consistent data, so it passes as written. SYNC-050 should say that repairs and purges found by the download wait for the first regular push, and an AC should cover it. Filed as part of **H-097** (spec-writer). |
+| 1 | SYNC-113 says "The `PushChanges.batch` split stays in the code", but the data contract (~line 465) says "the builder may remove it". The builder removed it. | **Acceptable.** The removal follows the data contract and SYNC-050 ("does not use the `PushChanges.batch` flag"). The SYNC-113 sentence described the H-062 build, and nothing else uses batches now. The spec text is stale: the SYNC-113 sentence and the `batch?` line of the data contract should be updated. Filed as part of **H-136** (spec-writer). |
+| 2 | After a download from inconsistent cloud data, a merge repair (SYNC-071 / SYNC-065) or an expired-tombstone purge (SYNC-034) is left for the first regular push, but SYNC-050 says "nothing is pending" | **Acceptable build behaviour; spec gap.** The validator probe confirms the pending item. The other choice, sending the repair in the same push, would break the "at most 1 write" MUST, which is the stronger rule and the point of H-077. AC 4 uses consistent data, so it passes as written. SYNC-050 should say that repairs and purges found by the download wait for the first regular push, and an AC should cover it. Filed as part of **H-136** (spec-writer). |
 
 ### Other checks
 - **V-005 (traceability), in-scope IDs:** test names contain SYNC-012 (5), SYNC-034 (3), SYNC-048 (15), SYNC-050 (6), SYNC-113 (4), SYNC-120 (3). SPEC-010 is `status: draft`, so the full V-005 does not apply yet. For information: 21 of the 88 MUST rows have no test named by ID (SYNC-004, 010, 011, 015, 017, 019, 064, 067, 068, 070, 074, 085, 092, 100, 101, 102, 114, 117, 122, 130, 131). None of them is in H-077's scope.
@@ -75,4 +75,4 @@ So the write budget (SYNC-050 "at most 1 write") holds even on inconsistent data
 - H-070 (researcher) asks about `existsAfter()` billing inside a batch. The code no longer uses any batch, so only the "per created document" upper bound in SYNC-113/120 still matters.
 
 ## Filed
-- **H-097** (spec-writer, P2): SPEC-010 text after H-077. See the [[Handoff Board]].
+- **H-136** (spec-writer, P2): SPEC-010 text after H-077. See the [[Handoff Board]].

@@ -231,7 +231,7 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   ignored and dropped by the first-sign-in clear), `deletingUid` (this device's unfinished deletion: sync stopped, Delete retryable);
   `AuthService.reauthenticate()` may return `'needs-sign-in'` (email link); `RemoteErrorCode` adds
   `'unconfirmed'` (a write not acknowledged in 20 s: kept pending, confirmed by the next pull).
-- **Unfinished deletion and Cancel deletion (SYNC-096, H-086):** `RemoteStore.deleteAll(uid)` returns
+- **Unfinished deletion and Cancel deletion (SYNC-096, H-127):** `RemoteStore.deleteAll(uid)` returns
   `DeleteAllResult = 'ok' | { remaining: number; removedAny: boolean }`. `removedAny` is true when this
   attempt removed a document, or when the failing delete timed out (`'unconfirmed'`, may still land); a failed
   deck-list read (before the first delete) returns `{ remaining: 4, removedAny: false }`. Sync log
@@ -324,7 +324,7 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   store, sync-log and adapter contracts in `web/`, and the additions the build needed.
 - v1.6 (2026-11-24, H-058 family merge): no endpoint change. The engine's stored-record types now come
   from `shared/storage/records.ts` (one source; `StoredTags` schema 3); ownership-unavailable values → H-076.
-- v1.7 (2026-11-24, H-086; numbered v1.3 on its branch): no endpoint change. `RemoteStore.deleteAll` reports `removedAny`; sync log
+- v1.7 (2026-11-24, H-127; numbered v1.3 on its branch): no endpoint change. `RemoteStore.deleteAll` reports `removedAny`; sync log
   `deletingRemovedAny`; engine/service `unfinishedDeletion()` and `cancelDeletion()` (SYNC-096).
 - v1.8 (2026-11-24, H-081; numbered v1.4 on its branch): no endpoint change. Account-required mode: sync log `sessionLostUid`,
   `uploadingUid` no longer written, the gate (`gateState`, `SignInGate`, `LocalSyncLogStore.peek()`), sign-out

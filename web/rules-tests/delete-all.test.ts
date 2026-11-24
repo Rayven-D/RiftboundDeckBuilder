@@ -1,5 +1,5 @@
 /**
- * SPEC-010 SYNC-096 step 2: `FirestoreRemoteStore.deleteAll()` and its `removedAny` report (H-086),
+ * SPEC-010 SYNC-096 step 2: `FirestoreRemoteStore.deleteAll()` and its `removedAny` report (H-127),
  * against the Firestore emulator with the real rules (`npm run test:rules`), plus the ordered-delete
  * helper it uses for the cases the emulator cannot produce on demand (a failed or timed-out delete).
  */

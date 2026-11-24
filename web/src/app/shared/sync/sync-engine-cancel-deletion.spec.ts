@@ -1,5 +1,5 @@
 /**
- * SPEC-010 v0.8 engine tests for H-086: an unfinished account deletion offers Try again after a reload,
+ * SPEC-010 v0.8 engine tests for H-127: an unfinished account deletion offers Try again after a reload,
  * and Cancel deletion while nothing was removed (`deletingRemovedAny`, SYNC-096, SYNC-030, AC 43).
  */
 import { FakeFirestore } from './testing/fakes';

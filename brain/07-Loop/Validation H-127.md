@@ -1,20 +1,20 @@
 ---
 tags: [loop, validation]
-item: H-086
+item: H-127
 date: 2026-11-24
 round: 2
 result: PASS
 ---
-# Validation H-086: Cancel deletion and the account-menu Try again (SPEC-010 v0.8 SYNC-096, AC 43)
+# Validation H-127: Cancel deletion and the account-menu Try again (SPEC-010 v0.8 SYNC-096, AC 43)
 
-Item: [[Handoff Board]] H-086. Accept: "SYNC-096 / AC 43 pass; tests".
-Scope: uncommitted tree on `loop/H-086-cancel-deletion` (HEAD 85c1198). The base branch
+Item: [[Handoff Board]] H-127. Accept: "SYNC-096 / AC 43 pass; tests".
+Scope: uncommitted tree on `loop/H-127-cancel-deletion` (HEAD 85c1198). The base branch
 `loop/H-074-spec010-followups` was deleted while this run was going on. It pointed at 85c1198, the same commit as HEAD,
 so the diff was taken against HEAD. Spec: [[Accounts and Sync]] v0.8 (SYNC-096, SYNC-030 `deletingRemovedAny`,
 Data contract `deleteAll` → `{ remaining, removedAny }`, AC 43).
 
 ## Result
-2026-11-24 · H-086 · PASS (round 1) · Accept (AC 43, every clause), SYNC-030/SYNC-096 behaviour vs code, V-008 (web), V-010, V-011, V-012, V-009 (changed notes), ID-rename check · failures: none
+2026-11-24 · H-127 · PASS (round 1) · Accept (AC 43, every clause), SYNC-030/SYNC-096 behaviour vs code, V-008 (web), V-010, V-011, V-012, V-009 (changed notes), ID-rename check · failures: none
 
 ## Checks run
 ### V-008 (web), rerun by the validator from `web/`
@@ -59,14 +59,14 @@ Also noted, not a failure:
 - **V-010:** no metagame terms in the added `web/` lines. OK.
 - **V-011:** `grep` for firebase/@firebase/aws imports in `web/src` outside `/adapters/`: no output. (`rules-tests/` is test code outside `web/src`.) OK.
 - **V-012:** `git grep RGAPI-` (excluding brain): no matches. OK.
-- **V-009 (changed notes):** [[API Contracts]] gained the `deleteAll`/`deletingRemovedAny`/`cancelDeletion` contract, and the [[Session Log]] gained the H-086 builder entry; their wikilinks resolve. No spec text changed except the rename below.
-- **ID rename H-085 → H-086:** a word-level diff of `brain/` (ignoring CR) shows only `H-085` → `H-086` tokens and `next_id` 86 → 87 in [[Handoff Board]], [[Accounts and Sync]], [[Accounts and Sync changelog]], [[Current State]], [[Validation H-074]] and [[Validation H-080]]. The only other changes are the builder's own additions to [[API Contracts]] and [[Session Log]]. `grep H-085` across `brain/` outside Archive: no hits. OK.
+- **V-009 (changed notes):** [[API Contracts]] gained the `deleteAll`/`deletingRemovedAny`/`cancelDeletion` contract, and the [[Session Log]] gained the H-127 builder entry; their wikilinks resolve. No spec text changed except the rename below.
+- **ID rename H-085 → H-127:** a word-level diff of `brain/` (ignoring CR) shows only `H-085` → `H-127` tokens and `next_id` 86 → 87 in [[Handoff Board]], [[Accounts and Sync]], [[Accounts and Sync changelog]], [[Current State]], [[Validation H-074]] and [[Validation H-080]]. The only other changes are the builder's own additions to [[API Contracts]] and [[Session Log]]. `grep H-085` across `brain/` outside Archive: no hits. OK.
 
 ## Proposed follow-ups (not filed; next free ID 87)
-- **H-087** · P2 · spec-writer · from validator · depends H-086 merged · SPEC-010: mark the H-086 parts as built (SYNC-096 "pending build, H-086" and its "Gap in the current build" sentence, the Data contract PENDING BUILD notes on `deletingRemovedAny` and `deleteAll`, the AC 43 *(H-086)* tags, decision 12 "Not built yet", the Summary line), and state the builder's choices 1–4 above (Cancel allowed offline; old log without the field → no Cancel; `'ok'` also sets the flag; menu order), plus whether the status during an unfinished deletion shows Offline or Error while offline · Accept: SPEC-010 matches the H-086 build; V-009.
+- **H-128** · P2 · spec-writer · from validator · depends H-127 merged · SPEC-010: mark the H-127 parts as built (SYNC-096 "pending build, H-127" and its "Gap in the current build" sentence, the Data contract PENDING BUILD notes on `deletingRemovedAny` and `deleteAll`, the AC 43 *(H-127)* tags, decision 12 "Not built yet", the Summary line), and state the builder's choices 1–4 above (Cancel allowed offline; old log without the field → no Cancel; `'ok'` also sets the flag; menu order), plus whether the status during an unfinished deletion shows Offline or Error while offline · Accept: SPEC-010 matches the H-127 build; V-009.
 
 ## Round 2 (after code review)
-2026-11-24 · H-086 · PASS (round 2) · V-008 (web) rerun, AC 43 Cancel clause re-checked, SYNC-096 vs the two review changes · failures: none
+2026-11-24 · H-127 · PASS (round 2) · V-008 (web) rerun, AC 43 Cancel clause re-checked, SYNC-096 vs the two review changes · failures: none
 
 ### What changed since round 1
 1. `account-menu.ts` `cancelDeletion()` calls `this.snackBar.dismiss()` before `sync.cancelDeletion()`, so the still-visible
@@ -97,8 +97,8 @@ Also noted, not a failure:
   runs again" and gives no step-3 wording, so this is a gap in the spec, not a code bug. **Proposed follow-up below.**
 
 ### Proposed follow-ups (not filed; next free ID 87)
-- **H-087** · P2 · spec-writer · as in round 1 (mark the H-086 parts of SPEC-010 as built, and record builder choices 1–4).
-- **H-088** · P2 · spec-writer · from validator · depends none · SPEC-010 SYNC-096 step 3: say what the user sees when
+- **H-128** · P2 · spec-writer · as in round 1 (mark the H-127 parts of SPEC-010 as built, and record builder choices 1–4).
+- **H-129** · P2 · spec-writer · from validator · depends none · SPEC-010 SYNC-096 step 3: say what the user sees when
   the re-auth at step 3 is cancelled or returns `'needs-sign-in'` after every document was deleted (today: "Your account
   wasn't deleted.", or the sign-out/sign-in-again advice, which clears `deletingUid` with only the Auth user left). Choose
   the wording (e.g. "Your data was deleted. Try again to finish deleting your account.") and whether sign-out is still
