@@ -1,20 +1,56 @@
 /**
- * Browser-side shapes for the deck ownership engine (SPEC-005 v0.4, SPEC-008 v0.2, SPEC-009 v0.2)
- * and the parts of SPEC-001/002/003/006/007 it reads. Shapes only; copied from the specs' data
- * contracts because `web/` can't import from `services/`. Keep in sync with the specs and with
+ * Browser-side shapes for the deck ownership engine (SPEC-005 v0.4.1, SPEC-008 v0.3, SPEC-009 v0.2)
+ * and the parts of SPEC-001/002 it reads. Shapes only; copied from the specs' data contracts
+ * because `web/` can't import from `services/`. Keep in sync with the specs and with
  * brain/05-Services/API Contracts.md ("Browser-side shared types").
+ *
+ * The stored records (SPEC-003 v0.8, SPEC-006, SPEC-007 v0.7 + SPEC-010 SYNC-016, SPEC-008 v0.3)
+ * are defined once in `shared/storage/records.ts` (types and constants only, no side effects) and
+ * re-exported here, so the stores and the engine share one shape.
  */
 
+import type {
+  CardKey,
+  DeckLock,
+  FormatId,
+  IsoDate,
+  IsoDateTime,
+  PrintingCode,
+  PrintingId,
+  StoredCollection,
+  StoredPrintingCodes,
+  StoredTags,
+  TagId,
+  TagTarget,
+  UserDeck,
+} from '../../shared/storage/records';
 import type { OwnershipState } from './tile-ownership';
 
-export type CardKey = string;
-export type PrintingId = string;
-export type PrintingCode = string;
-export type TagId = string;
-/** 'YYYY-MM-DD'. */
-export type IsoDate = string;
-/** ISO 8601 UTC. */
-export type IsoDateTime = string;
+export type {
+  CardKey,
+  CollectionCard,
+  DeckCard,
+  DeckLock,
+  DeckLockStore,
+  DeckSource,
+  DeckSourceFormat,
+  FormatId,
+  IsoDate,
+  IsoDateTime,
+  PrintingCode,
+  PrintingId,
+  StoredCollection,
+  StoredDeckLocks,
+  StoredPrintingCodes,
+  StoredTags,
+  Tag,
+  TagColour,
+  TagId,
+  TagTarget,
+  TournamentDeckSource,
+  UserDeck,
+  UserDeckSource,
+} from '../../shared/storage/records';
 
 // ---- SPEC-001 v0.3 (subset the engine reads) ----
 export type CardCategory =
@@ -63,7 +99,6 @@ export interface Printing {
 }
 
 // ---- SPEC-002 v0.3 (ban data and the legality fields the deck tile reads) ----
-export type FormatId = string;
 export type RegionId = string;
 export type BanKind = 'card' | 'battlefield' | 'legend';
 export interface BanEntry {
@@ -108,38 +143,7 @@ export interface FormatName {
   name: string;
 }
 
-// ---- SPEC-003 v0.6 ----
-export interface StoredCollection {
-  schemaVersion: 1;
-  updatedAt: IsoDateTime;
-  catalogVersion: string;
-  cards: Record<CardKey, { quantity: number; byPrinting: Record<PrintingId, number> }>;
-}
-
-// ---- SPEC-007 v0.5 ----
-export interface Tag {
-  id: TagId;
-  label: string;
-  key: string;
-  colour: string | null;
-  excludeFromDecks: boolean;
-  createdAt: IsoDateTime;
-}
-export type TagTarget = `p:${PrintingId}` | `u:${CardKey}`;
-export interface StoredTags {
-  schemaVersion: 2;
-  updatedAt: IsoDateTime;
-  tags: Tag[];
-  assignments: Record<TagTarget, TagId[]>;
-}
-export interface StoredPrintingCodes {
-  schemaVersion: 1;
-  updatedAt: IsoDateTime;
-  codes: Record<
-    PrintingId,
-    { code: PrintingCode; cardKey: CardKey; lastSeenCatalogVersion: string }
-  >;
-}
+// ---- SPEC-005 v0.4.1 (ownership input and per-card ownership) ----
 export interface CollectionCatalogView {
   catalogVersion: string;
   sets: CardSet[];
@@ -171,68 +175,10 @@ export interface DeckOwnership {
   entries: DeckOwnershipEntry[];
 }
 
-// ---- SPEC-006 v0.6 ----
+// ---- SPEC-006 (zones) ----
 export type DeckZone = 'legend' | 'champion' | 'main' | 'sideboard' | 'runes' | 'battlefields';
-export interface DeckCard {
-  cardKey: CardKey;
-  name: string;
-  qty: number;
-}
-export interface UserDeckSource {
-  kind: 'user';
-  text: string | null;
-  url: string | null;
-}
-export interface TournamentDeckSource {
-  kind: 'tournament';
-  eventId: string;
-  eventName: string;
-  eventStartDate: IsoDate;
-  eventEndDate: IsoDate;
-  region: string;
-  decklistId: string;
-  publishedRank: number;
-  placingLabel: string;
-  pilot: string;
-  sourceUrl: string;
-  addedAt: IsoDateTime;
-}
-export type DeckSource = UserDeckSource | TournamentDeckSource;
-export interface UserDeck {
-  schemaVersion: 1;
-  id: string;
-  name: string;
-  format: FormatId;
-  source: DeckSource;
-  sourceFormat: string;
-  notes: string;
-  createdAt: IsoDateTime;
-  updatedAt: IsoDateTime;
-  catalogVersion: string;
-  duplicatedFrom?: string;
-  importRemovedLines?: string[];
-  legend: DeckCard | null;
-  champion: DeckCard | null;
-  main: DeckCard[];
-  sideboard: DeckCard[];
-  runes: DeckCard[];
-  battlefields: DeckCard[];
-}
 
-// ---- SPEC-008 v0.2 ----
-export interface DeckLock {
-  deckId: string;
-  lockedAt: IsoDateTime;
-}
-export interface StoredDeckLocks {
-  schemaVersion: 1;
-  updatedAt: IsoDateTime;
-  locks: DeckLock[];
-}
-export interface DeckLockStore {
-  load(): Promise<StoredDeckLocks | null>;
-  save(l: StoredDeckLocks): Promise<void>;
-}
+// ---- SPEC-008 v0.3 ----
 export interface SharedPoolInput {
   /** Every deck in the DeckStore (SHARE-005). */
   decks: readonly UserDeck[];
@@ -300,7 +246,7 @@ export interface LockedShortfall {
   cardsShort: number;
 }
 
-// ---- SPEC-005 v0.4 ----
+// ---- SPEC-005 v0.4.1 ----
 export type CollectionOwnership =
   { status: 'ok'; input: DeckOwnershipInput; shared: SharedPool } | { status: 'unavailable' };
 

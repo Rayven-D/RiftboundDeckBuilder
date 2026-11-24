@@ -2,7 +2,8 @@ import { banStatus } from './ban-status';
 import { cachedDeckOwnership, deckOwnership } from './deck-ownership';
 import { makeCatalog, makeInput, makeTag, printingIdOf } from './engine-fixtures';
 import { tileOwnership } from './tile-ownership';
-import type { BanListFile } from './types';
+import type { StoredTags as StoreTags } from '../../shared/storage/records';
+import type { BanListFile, DeckOwnershipInput } from './types';
 
 describe('SPEC-007 COLL-081 deckOwnership (minimal)', () => {
   const foil = 'p-lr-foil';
@@ -159,5 +160,24 @@ describe('OWN-083 cachedDeckOwnership (immutable-input contract)', () => {
     expect(fresh).not.toBe(first);
     expect(fresh.owned).toBe(3);
     expect(cachedDeckOwnership(before, 'lightning rush').owned).toBe(1);
+  });
+});
+
+describe('SPEC-010 SYNC-016 stored records feed the engine unchanged', () => {
+  it('SYNC-016 a TagStore record (schemaVersion 3, short ids) is a valid engine input', () => {
+    const cat = makeCatalog(['Lightning Rush']);
+    const fromStore: StoreTags = {
+      schemaVersion: 3,
+      updatedAt: '2026-11-24T00:00:00Z',
+      tags: [makeTag('t_Ab12Cd', 'Binder', true)],
+      assignments: { 'u:lightning rush': ['t_Ab12Cd'] },
+    };
+    const input: DeckOwnershipInput = {
+      ...makeInput(cat, { owned: { 'Lightning Rush': 2 } }),
+      tags: fromStore,
+    };
+    expect(deckOwnership(input, 'lightning rush')).toEqual(
+      expect.objectContaining({ owned: 2, ownedForDecks: 0, ownedExcluded: 2 }),
+    );
   });
 });

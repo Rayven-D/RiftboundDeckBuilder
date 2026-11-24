@@ -7,6 +7,12 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: H-058 family merged into one branch, PR to `dev` (with RJ)
+- Merged `loop/H-058-shared-cards-lockin`, `H-050-spec004-bump`, `H-045-tags-column`, `H-049-spec-followups`, `H-059-lockin-engine`, `H-062-accounts-sync-build` into `loop/H-058-family-merge` (from `dev`).
+- Version clash: H-045 keeps SPEC-003 0.7 / SPEC-007 0.6; H-049 renumbered to SPEC-003 0.8 / SPEC-007 0.7, its new ACs 35–40 → 36–41. SPEC-008 0.3 also holds H-059's 0.2.1 fix; SPEC-005 0.4.1. Board ID clash: H-059's H-069 → H-076 (H-062's privacy research keeps H-069), next_id 77. API Contracts 1.6.
+- Validator FAIL (SPEC-003/007 frontmatter versions, stale renumbering text, Validation Runs order, H-061 Done row pipes, Done table > 10) → fixed. Code review: engine and store record types had drifted (`StoredTags` schema 2 vs 3) → builder made `shared/storage/records.ts` the single source. Lint, build, 339 tests green.
+- Still open: H-074 (SPEC-010 follow-ups, incl. its stale pins) running in its own session; H-060 not built.
+
 ## 2026-11-23: H-058 shared cards + lock-in, runes, then sessions per item (with RJ)
 - Researcher: [[Physical Copies Across Decks]]. The Chosen Champion shares the per-name pool with Main/Sideboard. RJ chose to count every physical section (Legend, Champion, Main, Sideboard, Battlefields) and to ignore runes.
 - SPEC-008 [[Shared Cards and Lock-in]] and SPEC-009 [[Runes Assumed Owned]]. RJ accepted the five lock-in defaults and decided no force lock.
@@ -32,14 +38,14 @@ Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 - Validator: round 1 FAIL (AC row order, guarantee vs rule 7, no-code printings, 999-multiple rest row) → fixed → round 2 PASS. H-045 done. Follow-up for H-050: SPEC-005/006/008/009 still cite SPEC-003 0.6 / SPEC-007 0.5.
 
 ## 2026-11-23: H-049 spec follow-ups (spec-writer + validator)
-- SPEC-003 0.7: import code behaviour written into the spec (interim CSV delimiter rule, decimal quantities, `2. Gust`, label-cell rows, seven upload checks with exact messages, upload kept/dropped, encoding rejection, row limit on the converted line, pre-catalog summary fields, Line grammar steps 3/5); IMP-050 split into MUST + IMP-050a SHOULD; new ACs 35–40.
-- SPEC-007 0.6 / SPEC-008 0.3: an import Undo warns about locked decks inside the COLL-058 confirmation, or asks for one only on a shortfall (no notice after). H-060 wording updated to match.
+- SPEC-003 0.7 (0.8 after the merge renumbering): import code behaviour written into the spec (interim CSV delimiter rule, decimal quantities, `2. Gust`, label-cell rows, seven upload checks with exact messages, upload kept/dropped, encoding rejection, row limit on the converted line, pre-catalog summary fields, Line grammar steps 3/5); IMP-050 split into MUST + IMP-050a SHOULD; new ACs 35–40.
+- SPEC-007 0.6 (0.7 after the merge renumbering) / SPEC-008 0.3: an import Undo warns about locked decks inside the COLL-058 confirmation, or asks for one only on a shortfall (no notice after). H-060 wording updated to match.
 - Validator PASS (strings probed against `parse-card-list.ts`, 157 web tests). RJ then decided: straight `'` in all UI messages (three import messages changed in code, 157 tests green) and Undo keeps the notice after it, with the warning before; every locked-deck warning ends "It stays locked." Validator PASS again. Committed on `loop/H-049-spec-followups`.
 
 ## 2026-11-23: H-059 shared pool / lock-in engine (builder, validator)
 - Built the pure SPEC-008 / SPEC-009 engine and SPEC-005 v0.4.1 `computeDeckOwnership` in `web/src/app/core/decks/` (decision on the board: browser-only consumer, `services/` not hosted, `web/` can't import `services/`). Minimal SPEC-007 `deckOwnership` and SPEC-002 `banStatus`; `nameKey` moved to `web/src/app/core/cards/`; `tileOwnership` moved to core with a "… locked in" option. No new dependencies.
 - Cycle: validator round 1 FAIL (split-card label: OWN-033 vs SPEC-005 AC 4 / SPEC-008 AC 6) → spec-writer made OWN-033 explicit and fixed both ACs (SPEC-005 0.4.1, SPEC-008 0.2.1, no behaviour change). Code review (/code-review high, then an independent reviewer): lock comparator made a total order, rune detection uses the pool's catalog, `banStatus` memoized (OWN-080 was ~430 ms with a real ban list), caller duties documented. Rounds 2 and 3 PASS; web lint / build ok, 217 tests.
-- Changed notes: [[API Contracts]] (1.4, browser-side shared types), [[UI Index]], [[Your Decks Ownership View]], [[Shared Cards and Lock-in]], [[Validation Runs]], [[Handoff Board]] (H-059 done, H-060 blocked on Decks page only, new H-069).
+- Changed notes: [[API Contracts]] (1.4, browser-side shared types), [[UI Index]], [[Your Decks Ownership View]], [[Shared Cards and Lock-in]], [[Validation Runs]], [[Handoff Board]] (H-059 done, H-060 blocked on Decks page only, new H-076 (H-069 on its branch)).
 - Open questions: H-076 (numbered H-069 on its branch; ownership-unavailable values, unparseable `lockedAt`, per-card vs total shortfall). Branch `loop/H-059-lockin-engine`, committed, not merged or pushed.
 - Next: Decks page, then H-060.
 

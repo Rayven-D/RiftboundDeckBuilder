@@ -6,7 +6,7 @@ import {
 } from './deck-ownership-view';
 import { lock, makeCatalog, makeDeck, makeInput, makeTag, printingIdOf } from './engine-fixtures';
 import { computeSharedPool } from './shared-pool';
-import type { BanListFile, TournamentDeckSource, UserDeck } from './types';
+import type { BanListFile, FormatName, TournamentDeckSource, UserDeck } from './types';
 
 // SPEC-005 v0.4 computeDeckOwnership / summarizeDeck: the parts SPEC-008/009 changed plus the
 // allocation they rely on.
@@ -207,7 +207,7 @@ describe('SPEC-005 summarizeDeck', () => {
 
   it('OWN-004 legality labels; null legality or format is "Not fully checked"', () => {
     const v = build(deck, { 'Lightning Rush': 3 });
-    const std = { id: 'standard', name: 'Standard' };
+    const std: FormatName = { id: 'standard', name: 'Standard' };
     const label = (verdict: 'legal' | 'illegal' | 'incomplete') =>
       summarizeDeck(deck, v, { verdict, asOf: TODAY }, std).legalityLabel;
     expect(label('legal')).toBe('Legal in Standard as of Nov 23, 2026');

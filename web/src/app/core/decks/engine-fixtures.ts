@@ -111,7 +111,7 @@ export function makeInput(
   return {
     collection: makeCollection(spec),
     tags: {
-      schemaVersion: 2,
+      schemaVersion: 3,
       updatedAt: '2026-11-23T00:00:00Z',
       tags: spec.tags ?? [],
       assignments: spec.assignments ?? {},

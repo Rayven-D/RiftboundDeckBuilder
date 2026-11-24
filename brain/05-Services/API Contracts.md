@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.5
+version: 1.6
 ---
 # API Contracts
 
@@ -175,6 +175,9 @@ summarizeDeck(deck, view, legality: { verdict; asOf } | null, format: { id; name
 //   cachedDeckOwnership() (OWN-083, per input object), banStatus(data, cardKey, format, region, asOf) (LEGAL-B10)
 ```
 Notes for the UI:
+- Stored-record shapes (`UserDeck`, `StoredCollection`, `StoredTags` schema 3, `DeckLock`, …) are defined once,
+  in `web/src/app/shared/storage/records.ts`; `core/decks/types.ts` re-exports them. In code `TagTarget` is
+  `string` (the spec's `p:` / `u:` pattern is not enforced by type) and `FormatId` is `'standard'`.
 - Treat every input as an immutable snapshot. **H-060 must create a new `DeckOwnershipInput` object
   on every change** to the collection, tags, printing codes or catalog. `cachedDeckOwnership`
   reuses results per input object (WeakMap identity), so mutating an input in place would show
@@ -191,8 +194,7 @@ Notes for the UI:
   only lock source, so `already-locked` can't be detected (a locked deck gets `read-only` or
   `ownership-unavailable`). **The caller must check the lock store itself** and show Unlock, not a
   disabled Lock in, for a locked deck.
-- With ownership unavailable (OWN-062/063), all **pending a spec-writer decision** (board item to
-  follow): `OwnershipCard.label` is `''` (no count labels); `DeckOwnershipView.lock` is `null`, so
+- With ownership unavailable (OWN-062/063), all **pending a spec-writer decision** (H-076): `OwnershipCard.label` is `''` (no count labels); `DeckOwnershipView.lock` is `null`, so
   `DeckTileSummary.lockBadge` is `null` (no lock badge, even for a locked deck);
   `DeckTileSummary.ownershipLine` is "Ownership unavailable" (wording pending spec); and
   `DeckTileSummary.ownershipFilter` is `'none'`.
@@ -253,3 +255,5 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   catalog; entries rely on DECK-096 validation.
 - v1.5 (2026-11-23, H-062; numbered v1.2 on its branch): no endpoint change. New section "Browser stores and sync": the SPEC-010
   store, sync-log and adapter contracts in `web/`, and the additions the build needed.
+- v1.6 (2026-11-24, H-058 family merge): no endpoint change. The engine's stored-record types now come
+  from `shared/storage/records.ts` (one source; `StoredTags` schema 3); ownership-unavailable values → H-076.

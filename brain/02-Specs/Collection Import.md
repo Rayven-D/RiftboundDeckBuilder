@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-003
-version: 0.7
+version: 0.8
 status: draft
 depends_on: [SPEC-001, SPEC-008]
 related: ["[[Deck Import]]", "[[My Collection]]", "[[Your Decks Ownership View]]", "[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]

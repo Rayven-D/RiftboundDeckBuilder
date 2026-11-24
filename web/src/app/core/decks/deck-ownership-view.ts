@@ -22,6 +22,7 @@ import type {
   DeckOwnershipView,
   DeckTileSummary,
   DeckZone,
+  FormatId,
   FormatName,
   IsoDate,
   LegalityVerdict,
@@ -283,7 +284,7 @@ export function computeDeckOwnership(
 function cardBan(
   data: BanListFile | null,
   cardKey: CardKey,
-  format: string,
+  format: FormatId,
   today: IsoDate,
 ): CardBan {
   return data ? banStatus(data, cardKey, format, 'global', today) : { status: 'unknown' };

@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-007
-version: 0.6
+version: 0.7
 status: draft
 depends_on: ["SPEC-001", "SPEC-002", "SPEC-003", "SPEC-008", "SPEC-009"]
 research: ["[[Sets]]", "[[Card Data & Images]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]", "[[Ban List]]", "[[Collection Import Formats]]"]

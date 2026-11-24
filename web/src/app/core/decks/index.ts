@@ -1,5 +1,6 @@
 /**
- * Deck ownership engine (SPEC-005 v0.4, SPEC-008 v0.2, SPEC-009 v0.2). Pure, framework-free and
+ * Deck ownership engine (SPEC-005 v0.4.1, SPEC-008 v0.3, SPEC-009 v0.2; stored records per
+ * SPEC-003 v0.8 and SPEC-007 v0.7 from shared/storage/records). Pure, framework-free and
  * browser-only (OWN-093): no Angular, no storage, no network, no clock.
  */
 export * from './types';
