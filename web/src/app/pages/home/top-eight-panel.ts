@@ -60,7 +60,7 @@ function exampleTop8(offset: number): readonly ExamplePlacing[] {
         </summary>
         <ol class="top8">
           @for (p of event.top8; track p.placing; let i = $index) {
-            <li class="entry">
+            <li class="entry zoom-art">
               <span class="art-wrap">
                 <img class="legend-art" [src]="art(p, i)" [alt]="p.legend" loading="lazy" />
                 <span class="placing">{{ p.placing }}</span>

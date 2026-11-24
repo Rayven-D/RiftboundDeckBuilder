@@ -7,6 +7,12 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: H-085 fluid UI pass, teal accent, phone tab bar (builder)
+- RJ's brief: fluid pass + home redesign, teal (green as an alternative) instead of blue, fixed bottom tab bar on phones. Built on `loop/H-065-fluid-ui`; details, accent values and contrast ratios in [[Design Direction]] ("Fluid pass and teal accent").
+- Teal `#14B8A6` (light `#0F766E`) with AA text and label tones; green preview via `html[data-accent="green"]` and a switch on `/styleguide`. Material theme, favicon SVG/ICO/PNG regenerated.
+- Motion tokens and layer, Angular view transitions on `<main>` only, a global reduced-motion block. Sticky header aligned to the content edges; phone tab bar with `aria-current`. Home: full-screen hero, one-time deal-in + ownership fill, bands with one rhythm, the arrow-link row removed. Import: drop a file on a card or the text box (same upload path). Empty states have the deck mark.
+- Lint, build, 164 tests pass (new: tab bar, drop → dialog, dialog drop). Component-style budget warning raised from 4 to 6 kB. Checked with headless-Edge screenshots at 1440, 1024, 768 and 390. H-085 → verify (filed as H-065 at first; that ID was already taken on `dev`, so the branch keeps the old name); RJ review gate.
+
 ## 2026-11-24: H-058 family merged into one branch, PR to `dev` (with RJ)
 - Merged `loop/H-058-shared-cards-lockin`, `H-050-spec004-bump`, `H-045-tags-column`, `H-049-spec-followups`, `H-059-lockin-engine`, `H-062-accounts-sync-build` into `loop/H-058-family-merge` (from `dev`).
 - Version clash: H-045 keeps SPEC-003 0.7 / SPEC-007 0.6; H-049 renumbered to SPEC-003 0.8 / SPEC-007 0.7, its new ACs 35–40 → 36–41. SPEC-008 0.3 also holds H-059's 0.2.1 fix; SPEC-005 0.4.1. Board ID clash: H-059's H-069 → H-076 (H-062's privacy research keeps H-069), next_id 77. API Contracts 1.6.

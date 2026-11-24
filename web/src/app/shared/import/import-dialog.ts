@@ -23,6 +23,8 @@ export type ImportKind = 'collection' | 'deck';
 
 export interface ImportDialogData {
   readonly kind: ImportKind;
+  /** A file dropped on the Import page's option card: loaded through the same upload path. */
+  readonly file?: File;
 }
 
 const COPY: Readonly<Record<ImportKind, { title: string; lede: string; action: string }>> = {
@@ -39,6 +41,11 @@ const COPY: Readonly<Record<ImportKind, { title: string; lede: string; action: s
 };
 
 const MAX_ISSUES_SHOWN = 50;
+
+/** True when a drag carries files (not text or a link). */
+export function hasFiles(event: DragEvent): boolean {
+  return Array.from(event.dataTransfer?.types ?? []).includes('Files');
+}
 
 /**
  * Paste-or-upload dialog shared by both imports. Uploaded CSV / Excel / text rows are written into
@@ -73,6 +80,8 @@ const MAX_ISSUES_SHOWN = 50;
           [value]="text()"
           (beforeinput)="onBeforeInput($event)"
           (input)="onType($event)"
+          (dragover)="onDragOver($event)"
+          (drop)="onDrop($event)"
           [placeholder]="placeholder"
           aria-describedby="import-format-hint"
         ></textarea>
@@ -195,6 +204,10 @@ export class ImportDialog {
   /** Set by a paste or drop that replaces the whole text box content (see `onType`). */
   private replacingAll = false;
 
+  constructor() {
+    if (this.data.file) void this.loadFile(this.data.file);
+  }
+
   protected onBeforeInput(event: Event): void {
     const { inputType } = event as InputEvent;
     const box = event.target as HTMLTextAreaElement;
@@ -217,11 +230,28 @@ export class ImportDialog {
     this.submitError.set(null);
   }
 
-  protected async onFile(event: Event): Promise<void> {
+  protected onFile(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
+    if (file) void this.loadFile(file);
+  }
+
+  /** A file dragged over the text box can be dropped (text drags keep the native behavior). */
+  protected onDragOver(event: DragEvent): void {
+    if (hasFiles(event)) event.preventDefault();
+  }
+
+  /** A dropped file goes through the same upload path as "Upload file" (IMP-061 / IMP-062). */
+  protected onDrop(event: DragEvent): void {
+    const file = event.dataTransfer?.files?.[0];
     if (!file) return;
+    event.preventDefault();
+    void this.loadFile(file);
+  }
+
+  /** The one upload path: picked, dropped on the text box, or dropped on the Import page card. */
+  private async loadFile(file: File): Promise<void> {
     const request = ++this.uploadRequest;
     this.fileError.set(null);
     this.submitError.set(null);

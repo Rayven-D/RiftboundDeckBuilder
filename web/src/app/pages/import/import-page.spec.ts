@@ -35,6 +35,25 @@ function button(label: string): HTMLButtonElement {
   )!;
 }
 
+/** A drag event with a stand-in dataTransfer (jsdom has no DataTransfer). */
+function dragEvent(
+  type: string,
+  data: { types: string[]; files?: File[] },
+): DragEvent {
+  const event = new Event(type, { bubbles: true, cancelable: true }) as DragEvent;
+  Object.defineProperty(event, 'dataTransfer', {
+    value: { types: data.types, files: data.files ?? [], dropEffect: 'none' },
+  });
+  return event;
+}
+
+/** Lets the file read settle, then renders. */
+async function settle(harness: RouterTestingHarness): Promise<void> {
+  for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+  harness.fixture.detectChanges();
+  await harness.fixture.whenStable();
+}
+
 describe('ImportPage', () => {
   afterEach(() =>
     document.querySelectorAll('.cdk-overlay-container').forEach((el) => (el.innerHTML = '')),
@@ -90,6 +109,42 @@ describe('ImportPage', () => {
     expect(dialogEl()?.textContent).toContain(
       'Add at least one line with a number and a card name first.',
     );
+  });
+
+  it('highlights a card while a file is dragged over it, and not for a text drag', async () => {
+    const harness = await setup();
+    const card = harness.routeNativeElement!.querySelectorAll<HTMLElement>('.import-card')[1];
+
+    const textDrag = dragEvent('dragenter', { types: ['text/plain'] });
+    card.dispatchEvent(textDrag);
+    harness.fixture.detectChanges();
+    expect(textDrag.defaultPrevented).toBe(false);
+    expect(card.classList).not.toContain('drag-over');
+
+    card.dispatchEvent(dragEvent('dragenter', { types: ['Files'] }));
+    harness.fixture.detectChanges();
+    expect(card.classList).toContain('drag-over');
+    expect(card.textContent).toContain('Drop to import');
+
+    card.dispatchEvent(dragEvent('dragleave', { types: ['Files'] }));
+    harness.fixture.detectChanges();
+    expect(card.classList).not.toContain('drag-over');
+  });
+
+  it('opens that card’s dialog with a dropped file loaded through the upload path', async () => {
+    const harness = await setup();
+    const card = harness.routeNativeElement!.querySelectorAll<HTMLElement>('.import-card')[1];
+    const file = new File(['Qty,Name\n3,Lightning Rush\n2,Hextech Ray\n'], 'deck.csv');
+
+    const drop = dragEvent('drop', { types: ['Files'], files: [file] });
+    card.dispatchEvent(drop);
+    expect(drop.defaultPrevented).toBe(true);
+    await settle(harness);
+
+    expect(dialogEl()?.textContent).toContain('Import deck');
+    expect(dialogEl()!.querySelector('textarea')!.value).toBe('3 Lightning Rush\n2 Hextech Ray');
+    expect(dialogEl()!.textContent).toContain('Loaded deck.csv');
+    expect(dialogEl()!.textContent).toContain('5 cards from 2 lines');
   });
 
   it('opens the right dialog from ?type=deck', async () => {
