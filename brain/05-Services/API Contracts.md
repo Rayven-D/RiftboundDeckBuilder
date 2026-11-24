@@ -227,6 +227,33 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   creates) and `firestore.indexes.json` (every field but `syncedAt` exempt). Not deployed: deploy with
   `firebase deploy --only firestore` before sign-in ships (SYNC-117).
 
+## Builds and deploys (SPEC-010 SYNC-007, SYNC-012, H-078)
+- **`appVersion` per build (SYNC-012).** `web/scripts/build.mjs` computes it and passes it to `ng build` as the
+  define `APP_VERSION` (nothing is written into the source tree). Format `web-<prod|preview>-<id>`: `<id>` is
+  the first 7 characters of the full commit id, lowercased (`git rev-parse HEAD`, else `GITHUB_SHA`), or the
+  UTC build time `YYYYMMDDTHHMMSSZ` when neither gives a full id. ≤ 40 characters of `[0-9A-Za-z._+-]`; the
+  script fails the build rather than ship anything else. Pure logic: `web/scripts/app-version.mjs`
+  (`appVersion`, `resolveCommitId`, `formatBuildTime`, `ngBuildArgs`). `environment.ts` and
+  `environment.preview.ts` read `APP_VERSION`; a bare `ng build` without the define falls back to `web-dev`.
+  The dev server keeps `web-dev` (`environment.development.ts`); unit tests inject their own value.
+  The id is the commit checked out: uncommitted changes do not change it.
+- **Builds** (from `web/`): `npm run build` = production (`signInEnabled: false`, `web-prod-…`, output
+  `web/dist/web`); `npm run build:preview` = `ng build --configuration preview` (`signInEnabled: true`,
+  `web-preview-…`, output `web/dist/web-preview`).
+- **Production deploys (unchanged):** `firebase deploy --only hosting` and the GitHub Actions deploy of `main`
+  run the `firebase.json` predeploy `npm --prefix web run build` and upload `web/dist/web/browser`.
+- **Preview deploy (SYNC-007), the only supported way to put sign-in on a URL:**
+  `npm run deploy:preview -- <channel> [expires]` from `web/` (e.g. `npm run deploy:preview -- sync-test`).
+  It runs `firebase hosting:channel:deploy <channel> --config firebase.preview.json [--expires <expires>]` from
+  the repo root. `firebase.preview.json` has the same hosting rules as `firebase.json`, but its predeploy is
+  `node web/scripts/build.mjs preview --channel-deploy` and its `public` is `web/dist/web-preview/browser`, so
+  the uploaded folder is the preview build and no production build runs in between. `<channel>`: required,
+  1–36 lowercase letters, digits or inner hyphens, never `live`. `[expires]`: e.g. `12h`, `3d`, `2w`, at most
+  30 days; without it Firebase's default (7 days) applies. The preview predeploy refuses to build unless
+  `deploy:preview` started it (env `RIFT_PREVIEW_CHANNEL`), so `firebase deploy --config firebase.preview.json`
+  cannot put a preview build on `live`. **Preview URLs are public to anyone who has the link:** share them
+  privately and let them expire.
+
 ## Changelog
 - v0: created
 - v1 (2026-11-23, H-008): first endpoints: `GET /api/health`, `GET /api/sets`, `GET /api/cards`
@@ -244,3 +271,5 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
 - v1.5 (2026-11-24, H-077): no endpoint change. `PushChanges.batch` and `PlanOptions.batch` removed (the adapter
   no longer uses `writeBatch`); new pure `planAccountPush(account)`; the first-sign-in flow pushes the account
   write only (SYNC-050).
+- v1.6 (2026-11-24, H-078): no endpoint change. New section "Builds and deploys": per-build `appVersion`
+  (SYNC-012) and the preview deploy command `npm run deploy:preview -- <channel> [expires]` (SYNC-007).
