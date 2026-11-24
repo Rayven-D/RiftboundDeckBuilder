@@ -127,15 +127,20 @@ describe('SPEC-005 computeDeckOwnership', () => {
     });
   });
 
-  it('RUNE-001 rune detection uses the pool catalog (ownership.input.catalog), so view and pool agree', () => {
+  it('OWN-028 a rune card is counted whatever catalog the view gets, so view and pool agree', () => {
     const poolCat = makeCatalog([{ name: 'Chaos Rune', category: 'rune' }]);
-    const staleCat = makeCatalog(['Chaos Rune']); // same card, no rune category
+    const otherCat = makeCatalog(['Chaos Rune']); // same card, no rune category
     const deck = makeDeck('d', 'D', { main: [['Chaos Rune', 2]] });
-    const input = makeInput(poolCat);
+    const input = makeInput(poolCat, { owned: { 'Chaos Rune': 1 } });
     const shared = computeSharedPool({ decks: [deck], locks: [], ownership: input });
-    expect(shared.byCard['chaos rune']).toBeUndefined(); // the pool skips it as a rune entry
-    const v = computeDeckOwnership(deck, { status: 'ok', input, shared }, staleCat, null, TODAY);
-    expect(v.sections[2].cards[0]).toMatchObject({ isRune: true, label: 'Assumed owned' });
+    expect(shared.byCard['chaos rune']).toMatchObject({ ownedForDecks: 1 });
+    for (const cat of [poolCat, otherCat]) {
+      const v = computeDeckOwnership(deck, { status: 'ok', input, shared }, cat, null, TODAY);
+      expect(v.sections[2].cards[0]).toMatchObject({ label: '1 of 2 available', state: 'partial' });
+      expect(v.missing).toEqual([
+        { zone: 'main', cardKey: 'chaos rune', name: 'Chaos Rune', missing: 1 },
+      ]);
+    }
   });
 
   it('AC 15 (OWN-025) purity: two runs are deep-equal', () => {

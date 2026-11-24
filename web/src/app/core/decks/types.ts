@@ -1,5 +1,5 @@
 /**
- * Browser-side shapes for the deck ownership engine (SPEC-005 v0.4.1, SPEC-008 v0.3, SPEC-009 v0.2)
+ * Browser-side shapes for the deck ownership engine (SPEC-005 v0.5, SPEC-008 v0.4)
  * and the parts of SPEC-001/002 it reads. Shapes only; copied from the specs' data contracts
  * because `web/` can't import from `services/`. Keep in sync with the specs and with
  * brain/05-Services/API Contracts.md ("Browser-side shared types").
@@ -143,7 +143,7 @@ export interface FormatName {
   name: string;
 }
 
-// ---- SPEC-005 v0.4.1 (ownership input and per-card ownership) ----
+// ---- SPEC-005 v0.5 (ownership input and per-card ownership) ----
 export interface CollectionCatalogView {
   catalogVersion: string;
   sets: CardSet[];
@@ -178,7 +178,7 @@ export interface DeckOwnership {
 // ---- SPEC-006 (zones) ----
 export type DeckZone = 'legend' | 'champion' | 'main' | 'sideboard' | 'runes' | 'battlefields';
 
-// ---- SPEC-008 v0.3 ----
+// ---- SPEC-008 v0.4 ----
 export interface SharedPoolInput {
   /** Every deck in the DeckStore (SHARE-005). */
   decks: readonly UserDeck[];
@@ -246,7 +246,7 @@ export interface LockedShortfall {
   cardsShort: number;
 }
 
-// ---- SPEC-005 v0.4.1 ----
+// ---- SPEC-005 v0.5 ----
 export type CollectionOwnership =
   { status: 'ok'; input: DeckOwnershipInput; shared: SharedPool } | { status: 'unavailable' };
 
@@ -266,7 +266,6 @@ export interface OwnershipCard {
   cardKey: CardKey;
   zone: DeckZone;
   name: string;
-  isRune: boolean;
   required: number;
   allocated: number;
   fill: number;

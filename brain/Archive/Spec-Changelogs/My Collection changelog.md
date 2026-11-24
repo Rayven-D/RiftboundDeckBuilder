@@ -9,6 +9,13 @@ superseded_by: "[[My Collection]]"
 
 Moved out of [[My Collection]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.8 (2026-11-24, H-097): **runes are cards** (RJ, 2026-11-24: "Allow users to import runes as well and
+  treat them like any other card."). COLL-087 ("Runes are never needed") withdrawn; new COLL-089 (runes are
+  listed, tagged, edited, exported and counted toward decks like any card; no rune-specific text such as
+  "Runes are assumed owned"). New AC 25. Open questions 9 (H-099, rune printings in the API) and 10
+  (resolved: RJ's decision) added. Summary bullet added; SPEC-009 dependency removed; pins SPEC-003 0.9, SPEC-008 0.4.
+  Note: H-091 (Collection simplification) will bump this spec again.
+
 - 0.7 (2026-11-23, H-049 item 19; numbered 0.6 on its branch, renumbered at merge because H-045 is 0.6): Undo of an import warns **before** it runs, like every other change:
   COLL-088 puts SPEC-008's "'`<deck name>`' (locked) will be `<n>` cards short." inside the COLL-058 undo
   confirmation when manual edits followed the import, and otherwise asks for a confirmation only when a

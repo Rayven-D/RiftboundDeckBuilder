@@ -1,4 +1,4 @@
-import { booleanAttribute, Component, computed, input } from '@angular/core';
+import { booleanAttribute, Component, computed, input, signal } from '@angular/core';
 import { OwnershipState } from './ownership';
 
 /**
@@ -18,11 +18,25 @@ import { OwnershipState } from './ownership';
       class="art"
       [class]="'art art--' + state()"
       [class.art--fill-in]="animateFill()"
+      [class.art--landscape]="isLandscape()"
       [style.--fill]="fill()"
     >
       @if (imageUrl(); as url) {
-        <img class="card-image" [src]="url" [alt]="altText()" loading="lazy" />
-        <img class="card-image dimmed" [src]="url" alt="" loading="lazy" aria-hidden="true" />
+        <img
+          class="card-image"
+          [src]="url"
+          [alt]="altText()"
+          [attr.loading]="eager() ? 'eager' : 'lazy'"
+          [attr.fetchpriority]="eager() ? 'high' : null"
+          (load)="onLoad($event)"
+        />
+        <img
+          class="card-image dimmed"
+          [src]="url"
+          alt=""
+          [attr.loading]="eager() ? 'eager' : 'lazy'"
+          aria-hidden="true"
+        />
       } @else {
         <div class="card-image placeholder" [attr.aria-hidden]="decorative() ? 'true' : null">
           {{ name() }}
@@ -47,6 +61,12 @@ import { OwnershipState } from './ownership';
     }
     .art--full .dimmed {
       display: none;
+    }
+    /* Landscape art (battlefields) is shown whole inside the 63:88 frame, letterboxed on the
+       raised surface, never cropped (H-095 fix 2). */
+    .art--landscape .card-image {
+      object-fit: contain;
+      background: var(--color-surface-raised);
     }
     .art--partial::after {
       content: '';
@@ -75,7 +95,8 @@ import { OwnershipState } from './ownership';
      */
     @media (prefers-reduced-motion: no-preference) {
       .art--fill-in .dimmed {
-        animation: fill-in var(--fill-duration, 600ms) var(--ease-out) var(--fill-delay, 0ms) backwards;
+        animation: fill-in var(--fill-duration, 600ms) var(--ease-out) var(--fill-delay, 0ms)
+          backwards;
       }
       .art--fill-in.art--full .dimmed {
         display: block;
@@ -116,6 +137,34 @@ export class CardArt {
   readonly decorative = input(false, { transform: booleanAttribute });
   /** Play the left-to-right fill once when first shown (decorative use on the home page). */
   readonly animateFill = input(false, { transform: booleanAttribute });
+
+  /** First row of a list: load now, not lazily (it is likely the LCP image; NG0913). */
+  readonly eager = input(false, { transform: booleanAttribute });
+
+  /**
+   * Known orientation from the caller (e.g. the card's category is battlefield). When set it wins
+   * from the first frame, so a battlefield never flashes cropped. null = measure the loaded image.
+   */
+  readonly landscape = input<boolean | null>(null);
+
+  /**
+   * Orientation measured from the last loaded image, with the card it belongs to. It is kept across
+   * URL changes for the same card (thumbnail → full swap) until the new image loads, and only
+   * applies while the card name matches (a recycled tile showing another card starts as cover).
+   */
+  private readonly measured = signal<{ name: string; landscape: boolean } | null>(null);
+  /** Shown whole with `contain` (H-095 fix 2). */
+  protected readonly isLandscape = computed(() => {
+    const known = this.landscape();
+    if (known !== null) return known;
+    const m = this.measured();
+    return m !== null && m.name === this.name() && m.landscape;
+  });
+
+  protected onLoad(e: Event): void {
+    const img = e.target as HTMLImageElement;
+    this.measured.set({ name: this.name(), landscape: img.naturalWidth > img.naturalHeight });
+  }
 
   protected readonly altText = computed(() =>
     this.decorative() ? '' : (this.alt() ?? this.name()),

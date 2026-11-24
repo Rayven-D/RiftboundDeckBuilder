@@ -12,10 +12,10 @@ Follow `brain/07-Loop/Loop Protocol.md` exactly. In short:
    a. Pick the actionable item: status `todo`, all `depends` are `done`, owner is an agent (not
       RJ), and the highest priority (P0 → P3), oldest first.
    b. Mark it `doing`. Run `git checkout -b loop/<ID>-<slug> dev`.
-   c. Dispatch the owning subagent (`riftbound-researcher`, `spec-writer`, `builder`) with the
-      item row, its links, and its Accept check. Code changes come only from `builder`: if a
-      spec or research item turns out to need code, file a `builder` item instead of adding the
-      code to this one.
+   c. Dispatch the owning subagent (`riftbound-researcher`, `spec-writer`, `ui-engineer`, `builder`)
+      with the item row, its links, and its Accept check. Code changes come only from `builder`
+      (`ui-engineer` writes design guidance only): if a spec, research or design item turns out to
+      need code, file a `builder` item instead of adding the code to this one.
    d. Dispatch `validator` on the item.
    e. On **PASS**: mark the item `done` with a link to the result, commit `"<ID>: <summary>"` on the
       item branch, then run `git checkout dev && git merge --no-ff loop/<ID>-<slug>`.
