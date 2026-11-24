@@ -1,13 +1,14 @@
 ---
 tags: [spec, accounts, sync, firestore]
 id: SPEC-010
-version: 0.6
+version: 0.7
 status: draft
 depends_on: [SPEC-003, SPEC-005, SPEC-006, SPEC-007, SPEC-008, SPEC-009]
 research: ["[[Firestore Data Shape]]", "[[Card Data & Images]]"]
 decisions: ["[[ADR-0007 Firebase Accounts and Firestore]]", "[[ADR-0001 Tech Stack]]", "[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
-board: H-061
+board: H-061, H-074
 as_of: 2026-11-23
+updated: 2026-11-23
 ---
 # SPEC-010: Accounts and Sync
 
@@ -20,8 +21,10 @@ browser storage. Signed in, the browser stores stay the working copy and are syn
 
 **Key rules**
 - SYNC-001…007: sign-in is optional; signed out, nothing loads or calls Firebase; the `firebase` package is
-  lazy-loaded on "Sign in" or at start-up only when a session is **expected** (signed in last time, not signed
-  out). Sign-in stays hidden behind a build flag until the privacy notice is approved (SYNC-007).
+  lazy-loaded only when the user starts a sign-in, at start-up when a session is **expected** (signed in last
+  time, not signed out), or at start-up when the URL is an email sign-in link (SYNC-002). Sign-in stays hidden
+  behind a build flag until the privacy notice is approved (SYNC-007); only the `preview` and development
+  builds turn it on, and no deploy path ships the preview build yet (SYNC-007).
 - SYNC-010…019: the layout is the [[Firestore Data Shape]] one: `users/{uid}`, `users/{uid}/state/collection`,
   `…/state/tags`, `…/state/locks`, `users/{uid}/decks/{deckId}`. Every document has `schemaVersion`,
   `updatedAt` (client clock) and `syncedAt` (server time, the delta cursor). Printing codes, view state and the
@@ -33,7 +36,9 @@ browser storage. Signed in, the browser stores stay the working copy and are syn
 - SYNC-040…053: open = account check + pull changes since the cursor (3 reads at start-up, 2 later), merge,
   push what is newer locally. Writes made by the merge keep the pulled times and are never pending
   (SYNC-041). First sign-in with data on both sides asks to **Combine** (or cancel); the account is linked
-  only once the first sync completes (SYNC-048). No write before a successful account check (SYNC-053).
+  only once the first sync completes (SYNC-048). First-sign-in writes go in batches of at most 10 documents,
+  account document first; a retry of this device's own interrupted upload resumes without asking (SYNC-050).
+  No write before a successful account check (SYNC-053); whether a write is a create comes from `cloudDocs`.
 - SYNC-060…068: **latest change wins** per card (`cardKey` record: quantity and printings together), per tag,
   per tag target's assignment list (union on first sign-in), per deck and per lock. Ties go to the cloud copy.
   New stamps are monotonic per item (`max(now, known + 1)`) so clock skew cannot undo an edit made on top of a
@@ -42,26 +47,34 @@ browser storage. Signed in, the browser stores stay the working copy and are syn
   locked with its new cards; a merge that leaves a locked deck short **keeps it locked and flagged** (SPEC-008
   SHARE-033) with a notice (RJ decisions 2–4). **Every deck status is identical on every signed-in device once
   synced** (SYNC-077): statuses are computed only from synced data and the card catalog, never stored.
-- SYNC-080…086: offline is normal; changes queue on the device and push later; status line shows Synced /
-  Syncing / Offline / Sync paused / Sync error.
+- SYNC-080…086: offline is normal; changes queue on the device and push later; a write not confirmed in time
+  stays pending and is checked by the next pull (SYNC-080); status line shows Synced / Syncing / Offline / Sync
+  paused / Sync error.
 - SYNC-090…098: sign-out offers keep (primary) or remove this device's copy; "Delete account and data" deletes
   the account document first (the "deleted" marker other devices check), then every other cloud document, then
-  the sign-in account, and always removes the data from the deleting device. A device that finds the account
-  half-deleted signs out and keeps its data as signed-out data (RJ decision 11).
+  the sign-in account, and always removes the data from the deleting device. With email link, the user signs in
+  again first. An unfinished deletion stops all sync on that device; if it removed nothing, **Cancel deletion**
+  resumes syncing (RJ, H-074; **pending build, H-076**). A device that finds the account half-deleted signs out
+  and keeps its data as signed-out data (RJ decision 11).
 - SYNC-110…119: owner-only security rules with per-document field validation; the only rule lookup is
   `existsAfter()` on document creates (so a deleted account is not recreated; counted as ≤ 1 read per create,
   billing details `unverified`); index exemptions on every field
-  but `syncedAt`; a rejected write stays pending and is reported (SYNC-118).
+  but `syncedAt`; a rejected write stays pending and is reported, and is retried when **this device's** build
+  changes (SYNC-118).
 - SYNC-120…125: cost limits from [[Firestore Data Shape]] (debounce ≥ 2 s, no listener on all decks).
 - SYNC-100…102 privacy; SYNC-130…131 adapters and pure merge functions.
 
-**Shared types:** `AuthService`, `RemoteStore`, `StoredSyncLog`, `SyncStatus`, Firestore document shapes
-`AccountDoc`, `CollectionDoc`, `TagsDoc`, `LocksDoc`, `DeckDoc`.
+**Shared types:** `AuthService`, `RemoteStore`, `PushChanges`, `PushOutcome`, `RemoteErrorCode`,
+`StoredSyncLog`, `SyncStatus`, Firestore document shapes `AccountDoc`, `CollectionDoc`, `TagsDoc`, `LocksDoc`,
+`DeckDoc`. Source of truth in code: `web/src/app/shared/sync/sync-types.ts` (v0.7 matches it, except the
+H-076 additions marked in the Data contract).
 **Depends on:** [[Collection Import]] v0.6, [[Your Decks Ownership View]] v0.4, [[Deck Import]] v0.6,
 [[My Collection]] v0.5, [[Shared Cards and Lock-in]] v0.2, [[Runes Assumed Owned]] v0.2. **Consumers:** H-062
-(build), [[ADR-0007 Firebase Accounts and Firestore]].
-**Open:** none for RJ (all 11 answered 2026-11-23, see Decisions); privacy-notice legal content `BLOCKED:
-needs research` (H-069; sign-in hidden in production until RJ approves the notice, SYNC-007).
+(build), H-076 (Cancel deletion), [[ADR-0007 Firebase Accounts and Firestore]].
+**Open:** none for RJ (all 11 answered 2026-11-23, plus decision 12 on cancelling a deletion, see Decisions);
+privacy-notice legal content `BLOCKED: needs research` (H-069; sign-in hidden in production until RJ approves
+the notice, SYNC-007). Not built yet: Cancel deletion (SYNC-096, AC 43, H-076). No deploy path for a preview
+build (SYNC-007, AC 35).
 
 ## Purpose
 RJ wants users to be able to sign in so the collection and decks persist across devices (ADR-0007, RJ
@@ -123,19 +136,19 @@ this spec only decides where their records also live and which version wins.
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | SYNC-001 | MUST | **Accounts are optional.** Signed out, every feature of SPEC-003…009 works fully from browser storage. No feature, page or action requires sign-in. | [[ADR-0007 Firebase Accounts and Firestore]] "Accounts stay optional" |
-| SYNC-002 | MUST | Unless a session is expected (SYNC-004), the app **does not load** the `firebase` package and makes **no request** to any Firebase Auth or Firestore endpoint, whether or not a linked uid is stored. The package is loaded on demand when the user chooses Sign in, or at start-up when `sessionExpected` is true. | [[ADR-0007 Firebase Accounts and Firestore]] consequences (lazy-loaded on sign-in) |
-| SYNC-003 | MUST | A **Sign in** action is in the app header and in Settings. It opens a dialog: "Sign in to keep your collection and decks in sync across your devices. You don't need an account: without one, everything stays on this device." followed by one button per enabled sign-in provider (`authProviders`, SYNC-006) and a link to the privacy notice (SYNC-101). Signed in, the header shows an account menu with the sync status (SYNC-084), **Sync now**, **Sign out** (SYNC-090) and a link to Settings, where **Delete account and data** lives (SYNC-095). | [[ADR-0007 Firebase Accounts and Firestore]]; design rule |
+| SYNC-002 | MUST | Unless one of the three triggers below applies, the app **does not load** the `firebase` package and makes **no request** to any Firebase Auth or Firestore endpoint, whether or not a linked uid is stored. The package is loaded only: (1) when the user **starts** a sign-in: **Send link** in the email-link form or **Continue with Google** (opening the Sign in dialog alone loads nothing); (2) at start-up when `sessionExpected` is true (SYNC-004); (3) at start-up when the page URL is an **email sign-in link** (query parameters `mode=signIn` and `oobCode`, which Firebase adds to the link). The app detects (3) from the URL without loading `firebase`, then completes that sign-in (SYNC-006). All three apply only while `signInEnabled` is true (SYNC-007). | [[ADR-0007 Firebase Accounts and Firestore]] consequences (lazy-loaded on sign-in); as built in H-062 (`isEmailLinkUrl`) |
+| SYNC-003 | MUST | A **Sign in** action is in the app header and in Settings. It opens a dialog: "Sign in to keep your collection and decks in sync across your devices. You don't need an account: without one, everything stays on this device." followed by one button per enabled sign-in provider (`authProviders`, SYNC-006) and a link to the privacy notice (SYNC-101). Signed in, the header shows an account menu with the sync status (SYNC-084), **Sync now**, **Sign out** (SYNC-090) and a link to Settings, where **Delete account and data** lives (SYNC-095). **Interim placement (until a Settings page exists):** Sign in is only in the header; the account menu has no Settings link and holds **Delete account and data** itself, after Sign out. Offline, Sync now, Sign out and Delete account and data are disabled and the menu shows "You're offline." (SYNC-081). When Settings is built, Sign in and Delete account and data move as stated above. | [[ADR-0007 Firebase Accounts and Firestore]]; design rule; interim placement as built in H-062 ([[Validation H-062]]) |
 | SYNC-004 | MUST | A successful sign-in sets `sessionExpected = true`. **Every** sign-out (Keep or Remove, SYNC-091), Cancel of the Combine dialog (SYNC-049), account deletion (SYNC-096, SYNC-097) and the half-deleted sign-out (SYNC-097) sets it to false. While it is true the app restores the session at start-up (loading `firebase`) and syncs. The **linked uid** is written only when a first sync completes (SYNC-048) and is cleared only by "Remove", account deletion and the half-deleted sign-out. If the tab closes after sign-in but before the first sync completed, the next start-up restores the session and runs the first-sign-in flow again (SYNC-048). | design rule |
 | SYNC-005 | MUST | A failed or cancelled sign-in changes no local data and shows "Sign-in didn't complete. Your data on this device is unchanged." (cancelled by the user: no message). | design rule |
-| SYNC-006 | MUST | **Providers.** Two providers are specified: **email link** and **Google**. At launch only **email link** is on (RJ decision 1, 2026-11-23; it is the only provider RJ enabled in the console, H-063). The enabled providers come from build configuration: environment `authProviders`, default `['email-link']`. The SYNC-003 dialog shows a button for each enabled provider and no others: "Sign in with an email link" (asks for an email address, then says "Check your email for a sign-in link.") and, only when `'google'` is in `authProviders`, "Continue with Google". Turning Google on later needs only `authProviders: ['email-link', 'google']` plus enabling the provider in the Firebase console, with no spec change. The rest of this spec does not depend on the provider. | RJ 2026-11-23 (decision 1); [[ADR-0007 Firebase Accounts and Firestore]] consequences; board H-063 |
-| SYNC-007 | MUST | **Sign-in is gated by a build flag** `signInEnabled` (build configuration, default `false`). While false, no Sign in action is shown anywhere and SYNC-002 holds for every user. It may be `true` in local builds and preview channels for RJ's testing; it is set `true` for the production build only after the privacy notice (SYNC-101) is approved by RJ. **This is obscurity, not access control:** preview-channel URLs are public to anyone who has the link, so anyone who finds one can sign in there; RJ shares preview links only privately and lets them expire. | [[ADR-0007 Firebase Accounts and Firestore]] consequences ("a privacy policy"); design rule |
+| SYNC-006 | MUST | **Providers.** Two providers are specified: **email link** and **Google**. At launch only **email link** is on (RJ decision 1, 2026-11-23; it is the only provider RJ enabled in the console, H-063). The enabled providers come from build configuration: environment `authProviders`, default `['email-link']`. The SYNC-003 dialog shows a button for each enabled provider and no others: "Sign in with an email link" (asks for an email address, then says "Check your email for a sign-in link.") and, only when `'google'` is in `authProviders`, "Continue with Google". Turning Google on later needs only `authProviders: ['email-link', 'google']` plus enabling the provider in the Firebase console, with no spec change. The rest of this spec does not depend on the provider. **Email link as built:** the link returns to the app root. The address is kept on this device only (browser storage) from Send link until the sign-in completes, then removed; it is never synced (SYNC-100). When the link is opened (SYNC-002 trigger 3) on the device that sent it, the sign-in completes without a question. When it is opened on **another device or browser** (no stored address), the app asks "Confirm your email address to finish signing in." If the user gives no address, the sign-in does not complete and no message is shown (as a cancel, SYNC-005). A link that fails (e.g. expired) shows the SYNC-005 failure message. After a successful sign-in the one-time code is removed from the page URL. | RJ 2026-11-23 (decision 1); [[ADR-0007 Firebase Accounts and Firestore]] consequences; board H-063; as built in H-062 |
+| SYNC-007 | MUST | **Sign-in is gated by a build flag** `signInEnabled` (build configuration, default `false`). While false, no Sign in action is shown anywhere and SYNC-002 holds for every user. It may be `true` in local builds and preview channels for RJ's testing; it is set `true` for the production build only after the privacy notice (SYNC-101) is approved by RJ. **This is obscurity, not access control:** preview-channel URLs are public to anyone who has the link, so anyone who finds one can sign in there; RJ shares preview links only privately and lets them expire. **Builds as they exist:** production (`environment.ts`, the default `ng build`) has `signInEnabled: false`; the `preview` configuration (`ng build --configuration preview`, `environment.preview.ts`) and the development configuration have it `true`. **Preview deploys:** the `firebase.json` hosting `predeploy` runs `npm --prefix web run build` (the production configuration) before every hosting deploy, including `firebase hosting:channel:deploy` and the GitHub Actions deploy of `main`. So a preview channel deployed with the repo as it is ships `signInEnabled: false`. A preview channel with sign-in MUST be served from the output of `ng build --configuration preview`, and the deploy MUST NOT rebuild it with the production configuration. The repo has no command for this yet: **gap, needs a deploy path** (builder or RJ). Until then, sign-in is tested on a local preview or development build. | [[ADR-0007 Firebase Accounts and Firestore]] consequences ("a privacy policy"); design rule; `firebase.json`, `web/angular.json` ([[Validation H-062]] note) |
 
 ### B. Cloud layout and documents
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | SYNC-010 | MUST | A user's cloud data is exactly these documents: `users/{uid}` (account), `users/{uid}/state/collection`, `users/{uid}/state/tags`, `users/{uid}/state/locks`, and `users/{uid}/decks/{deckId}` (one per deck, `deckId` = `UserDeck.id`). No other path is written. | [[Firestore Data Shape]] "Layout"; board H-061 |
 | SYNC-011 | MUST | Every document has `schemaVersion` (integer, 1 for every document in this version), `updatedAt` (Firestore timestamp from the **client** clock: the latest change in the document) and `syncedAt` (set with the server timestamp on every write; the rules require it to equal the request time, SYNC-112). `syncedAt` is the only field any query filters on. | [[Firestore Data Shape]] "Layout" |
-| SYNC-012 | MUST | **Account document** `users/{uid}`: `schemaVersion`, `createdAt` (first sign-in), `updatedAt`, `syncedAt`, `lastClientVersion` (the app build that last wrote it, ≤ 40 characters, a design cap for a version string). Nothing else: no email, name, photo or provider data (SYNC-100). It is **created only by the first-sign-in flow** (SYNC-048), as the first write of that flow, and updated at most once per app build after that (an `update()`, never a `set()`). | [[Firestore Data Shape]] "`users/{uid}`"; design decision 8 |
+| SYNC-012 | MUST | **Account document** `users/{uid}`: `schemaVersion`, `createdAt` (first sign-in), `updatedAt`, `syncedAt`, `lastClientVersion` (the app build that last wrote it, ≤ 40 characters, a design cap for a version string). Nothing else: no email, name, photo or provider data (SYNC-100). It is **created only by the first-sign-in flow** (SYNC-048), as the first write of that flow, and updated at most once per app build after that (an `update()`, never a `set()`; the rules keep `createdAt` unchanged, SYNC-112). **"App build"** is the build configuration value `appVersion`. **"The build changed"** is decided per device: the device keeps the build it last synced with (`StoredSyncLog.lastBuild`). On the first pull of a session where `lastBuild` differs from this build, the device records the new build and updates the account document only if its `lastClientVersion` differs from this build; the first-sign-in flow does the same check. So each device updates the account at most once per change of its own build, and not at all if another device already wrote that build. | [[Firestore Data Shape]] "`users/{uid}`"; design decision 8 |
 | SYNC-013 | MUST | **Collection document** `state/collection` (SPEC-003 `StoredCollection`): `catalogVersion` (string) and `cards`: map `cardKey` → `{ q, t, p }` where `q` = `quantity` (integer 0–9999), `p` = `byPrinting` (map `printingId` → integer 1–9999), `t` = the card's change time (integer ms). A card removed from the collection is the **tombstone** `{ q: 0, t, p: {} }`. Live cards have `q ≥ 1` and `Σ p ≤ q` (SPEC-007 COLL-002). | [[Firestore Data Shape]] "`state/collection`"; [[Collection Import]] `StoredCollection`; [[My Collection]] COLL-052 |
 | SYNC-014 | MUST | **Collection writes.** A change to some cards is one `update()` with one `FieldPath('cards', cardKey)` per changed card (never a dotted string path: card names contain spaces, commas and apostrophes), plus `updatedAt` and `syncedAt`. Each card value is replaced whole; nested maps are never deep-merged (a printing removed from `p` must disappear). An Owned Cards Import in **Replace** mode is one `set()` of the whole document carrying every card of the new collection and a tombstone for every card it removed. The first write of the document is a `set()`. | [[Firestore Data Shape]] "`state/collection`", sync-flow table; [[Collection Import]] IMP-050 |
 | SYNC-015 | MUST | **Tags document** `state/tags` (SPEC-007 `StoredTags`): `tags`: map `TagId` → `{ label, key, colour \| null, excludeFromDecks, createdAt, updatedAt }` (`createdAt`, `updatedAt` timestamps) or, for a deleted tag, the tombstone `{ deleted: true, updatedAt }`; `assignments`: map `TagTarget` (`p:<printingId>` / `u:<cardKey>`) → `{ a: TagId[], t }` (`a` ≤ 20 ids, `t` = change time ms). An unassigned target is the tombstone `{ a: [], t }`. Dormant assignments (COLL-029) are kept like any other. Writes use one `FieldPath` per changed tag or target, as SYNC-014. | [[Firestore Data Shape]] "`state/tags`"; [[My Collection]] COLL-019…029, `StoredTags`; design decision 4 |
@@ -147,7 +160,7 @@ this spec only decides where their records also live and which version wins.
 ### C. Change tracking on the device
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| SYNC-030 | MUST | The app keeps a device-local **sync log** (`StoredSyncLog`, `schemaVersion: 1`) with: linked uid, `sessionExpected`, cursors, last full sync time, change times and tombstones per item, the known deck versions (`knownDecks`), each store's last stamped record `updatedAt` (`recordUpdatedAt`), a value hash per card, tag and tag target (`h`, SYNC-032), the items the rules rejected (`rejected`, SYNC-118), and the pending set. It is behind its own store interface, like the other stores. | design decision 3 |
+| SYNC-030 | MUST | The app keeps a device-local **sync log** (`StoredSyncLog`, `schemaVersion: 1`) with: linked uid, `sessionExpected`, cursors, last full sync time, change times and tombstones per item, the known deck versions (`knownDecks`), each store's last stamped record `updatedAt` (`recordUpdatedAt`), a value hash per card, tag and tag target (`h`, SYNC-032), the items the rules rejected (`rejected`, SYNC-118), and the pending set. Added in the H-062 build: the cloud documents this device knows exist (`cloudDocs`, SYNC-053), a Replace-import flag (`pending.collectionReplace`, SYNC-014), each deck's `createdAt` (`deckCreated`, for tombstones, SYNC-018), whether a deleted deck was pending before the delete (`deckTombstones[id].wasPending`, for Undo, SYNC-035), this device's last synced build (`lastBuild`, SYNC-012, SYNC-118), an unfinished first-sign-in upload (`uploadingUid`, SYNC-048) and an unfinished account deletion (`deletingUid`, SYNC-096). The Data contract describes each field. It is behind its own store interface, like the other stores. | design decision 3; as built in H-062 |
 | SYNC-031 | MUST | **Stamping.** Every save of a local store made by a user action (not by the sync engine, SYNC-041), **signed in or not**, compares the new record with the previous one and, for each item that changed, appeared or disappeared, stamps `t = max(now, previous t of that item + 1)` and adds it to the pending set; a disappeared item gets a tombstone. A card is "changed" when its `quantity` or any `byPrinting` entry differs; a tag when any of its fields differ; a tag target when its id list differs; a lock when it is added, removed or its `lockedAt` differs. **Decks** use `UserDeck.updatedAt` as their change time, made monotonic in the same way: a saved deck gets `updatedAt = max(now, previous updatedAt + 1 ms)` (the previous version being the one this device last held, local or pulled), and a deletion gets the tombstone `deletedAt = max(now, updatedAt + 1 ms)`. | design rule; [[Deck Import]] DECK-074 |
 | SYNC-032 | MUST | The stamps and the record are saved **together** (one transaction where the adapter allows it). **Reconcile on load:** the sync log keeps, per store, the record `updatedAt` it last wrote or stamped, and per card, tag and tag target a short **value hash** (e.g. 32-bit FNV-1a of the item's canonical JSON; locks compare `lockedAt` directly). If a loaded record's `updatedAt` differs (a save whose stamps were lost), only items whose hash differs, items new to the log, and items the log knows as live but the record lacks are stamped (`t` = the record's `updatedAt`, made monotonic as in SYNC-031; missing items get tombstones) and marked pending; unchanged items keep their stamps. For decks, a deck whose `updatedAt` differs from `knownDecks` is pending, and a known deck missing from the `DeckStore` gets a tombstone. Records saved before this version have no log entries, so every item is stamped with the record's `updatedAt` once. | design rule; [[Collection Import]] IMP-054 |
 | SYNC-033 | MUST | A store record that is **missing or unreadable** (SPEC-003/007/008 newer or corrupt record, SHARE-061, COLL-071, DECK-091) never produces tombstones: its area is not pushed and not merged until it is readable again, and the status shows Sync error with "Some data on this device could not be read, so it isn't being synced." Only a user's change (or a pulled remote change) deletes an item. | design rule (prevents an unreadable store from wiping the cloud) |
@@ -165,12 +178,12 @@ this spec only decides where their records also live and which version wins.
 | SYNC-045 | MUST | **Full read.** The app reads every `state` and `decks` document (no cursor) on first sign-in on this device, when the cursors are missing, and when the last successful sync is more than **30 days** ago (tombstones may have expired, SYNC-034). | [[Firestore Data Shape]] "Open on a second device" |
 | SYNC-046 | MUST | **Newer cloud schema.** A cloud document whose `schemaVersion` is higher than the app knows is never written by this app. Its area (collection, tags, locks, or that deck) is shown from local data read-only on this device, its local changes are disabled with "Update Rift Builder to change this: your account data was saved by a newer version. Reload the page.", and the rest keeps syncing. | [[Firestore Data Shape]] "Layout" (`schemaVersion`); [[Deck Import]] DECK-091 |
 | SYNC-047 | MUST | **Validate pulled data.** Security rules cannot check every map entry (SYNC-112), so the client checks each pulled item against SYNC-013…018 and SPEC-003/006/007 limits. An invalid item is skipped (never written locally, never pushed back over), and the status shows Sync error with "Some account data couldn't be read." A valid item next to it is still merged. | design rule |
-| SYNC-048 | MUST | **First sign-in on this device** (no linked uid, or a different one). After the full read (SYNC-045): (a) cloud empty, device empty → create the account document only; (b) cloud empty, device has data → upload everything, then notice "Your collection and decks are now saved to your account."; (c) cloud has data, device empty → download everything, no question; (d) both have data → the **Combine** dialog (SYNC-049). "Has data" = at least one live card, tag, deck or lock; "cloud" means the account document **exists**. Edge cases: (e) account document exists but the account has no data → treat as (a)/(b), but never `set()` over the existing account document (only the SYNC-012 `update()`); (f) **no account document but `state` or `decks` documents exist** (leftovers of a half-finished deletion) → never import them and write nothing; follow SYNC-097's half-deleted branch (sign out, keep this device's data as signed-out data). In cases (a) and (b) the account document is created first (SYNC-012). **Only when the flow's writes and local updates have all succeeded** does the app write the linked uid (this uid) and `lastFullSyncAt`; until then the device counts as never synced with this account, so SYNC-044 deletes nothing. A flow that fails or is interrupted writes neither and runs again on the next attempt. | [[Firestore Data Shape]] first sign-in rows; board H-061 ("first sign-in merges browser data") |
+| SYNC-048 | MUST | **First sign-in on this device** (no linked uid, or a different one). After the full read (SYNC-045): (a) cloud empty, device empty → create the account document only; (b) cloud empty, device has data → upload everything, then notice "Your collection and decks are now saved to your account."; (c) cloud has data, device empty → download everything, no question; (d) both have data → the **Combine** dialog (SYNC-049). "Has data" = at least one live card, tag, deck or lock; "cloud" means the account document **exists**. Edge cases: (e) account document exists but the account has no data → treat as (a)/(b), but never `set()` over the existing account document (only the SYNC-012 `update()`); (f) **no account document but `state` or `decks` documents exist** (leftovers of a half-finished deletion) → never import them and write nothing; follow SYNC-097's half-deleted branch (sign out, keep this device's data as signed-out data). In cases (a) and (b) the account document is created first (SYNC-012). **Only when the flow's writes and local updates have all succeeded** does the app write the linked uid (this uid) and `lastFullSyncAt`; until then the device counts as never synced with this account, so SYNC-044 deletes nothing. A flow that fails or is interrupted writes neither and runs again on the next attempt. **Resuming this device's own upload:** when the flow starts writing and the device has data (cases b and d), it records `uploadingUid` = this uid; a completed first sync clears it. On the next attempt, if the account document exists and `uploadingUid` equals this uid, the cloud data is this device's own partial upload, so the flow treats it as case (b): no Combine dialog, latest change wins per item (section E), the rest is uploaded, and the case (b) notice shows. A device whose `uploadingUid` is another uid or unset still gets the Combine dialog (case d). | [[Firestore Data Shape]] first sign-in rows; board H-061 ("first sign-in merges browser data"); resume as built in H-062 |
 | SYNC-049 | MUST | **Combine dialog** (case d): "This device and your account both have data. Combine them? You'll have the newest version of each card count, tag and deck. This device: `<c>` cards, `<d>` decks, `<g>` tags. Account: `<c'>` cards, `<d'>` decks, `<g'>` tags." Buttons **Combine** (primary) and **Cancel**, and no others (RJ decision 5). When the linked uid is a different account, it adds "This device's data was last synced with a different account." Cancel signs out (`sessionExpected = false`), changes nothing on either side, and writes neither the linked uid nor `lastFullSyncAt`, so the next sign-in shows the Combine dialog again. Combine merges with section E (assignments as a union, SYNC-064) and then shows "Combined. You now have `<c''>` cards, `<d''>` decks and `<g''>` tags." plus any SYNC-074 notice. (`c` counts live `cardKey`s; decks and tags count live ones.) | board H-061; design rule |
-| SYNC-050 | MUST | First sign-in writes are batched: at most 4 + N writes for N decks (account, three state documents, the decks), and only documents that changed in case (d). | [[Firestore Data Shape]] sync-flow table |
+| SYNC-050 | MUST | First sign-in writes are batched: at most 4 + N writes for N decks (account, three state documents, the decks), and only documents that changed in case (d). They are sent as **batches of at most 10 documents**, in this order: the account document creation first (so it is in the first batch), then the decks, then the `state` documents (collection, tags, locks), and an account `update()` (case e) last. Each batch commits on its own. A batch that fails marks its documents and every later document as failed; the flow then does not complete and runs again (SYNC-048), resuming as case (b) when it was this device's own upload. The split into 10s is a precaution against the unverified per-request limit on rule lookups (SYNC-113). | [[Firestore Data Shape]] sync-flow table; batch size as built in H-062 |
 | SYNC-051 | SHOULD | **One syncing tab.** In one browser, at most one tab pulls or pushes at a time; other tabs see the results through their store-change handling (OWN-071, COLL-073, SHARE-064). | design rule |
 | SYNC-052 | MUST | **Delete all local data** (SPEC-007 COLL-074) while signed in removes this device's copy and signs out (SYNC-091 "Remove"); it never deletes cloud data. Its confirmation adds "Your account keeps its copy. To delete that too, use Delete account and data." | [[My Collection]] COLL-074; design rule |
-| SYNC-053 | MUST | **Account check before writing.** In each session (after start-up or sign-in), before its first write other than the first-sign-in flow's account creation, the device does the account check (`get users/{uid}`). If the document exists, writes may follow. If it is **missing** on a device with a linked uid equal to this uid, the device writes nothing and follows SYNC-097. In addition, an `update()` that fails with not-found (the document is gone), and a **create** (`set()` of a document that doesn't exist yet) denied by the rules, are treated the same way: stop writing, keep the item pending, and run the account check again. If it finds the account document **missing**, follow SYNC-097. If it finds it **present**, the denial was not about the account: the item falls back to SYNC-118 (rejected, not retried until it changes), and writing resumes for everything else, so there is no retry loop. **A write is a create** when the client has no record of the document existing in the cloud: for a deck, no `knownDecks` entry and never written by this device; for a `state` document, the last full read did not return it and this device never wrote it. Only the first-sign-in flow (SYNC-048) may create documents in an account whose account document is missing. | design decision 8; [[Firestore Data Shape]] fact 8 |
+| SYNC-053 | MUST | **Account check before writing.** In each session (after start-up or sign-in), before its first write other than the first-sign-in flow's account creation, the device does the account check (`get users/{uid}`). If the document exists, writes may follow. If it is **missing** on a device with a linked uid equal to this uid, the device writes nothing and follows SYNC-097. In addition, an `update()` that fails with not-found (the document is gone), and a **create** (`set()` of a document that doesn't exist yet) denied by the rules, are treated the same way: stop writing, keep the item pending, and run the account check again. If it finds the account document **missing**, follow SYNC-097. If it finds it **present**, the denial was not about the account: the item falls back to SYNC-118 (rejected, not retried until it changes), and writing resumes for everything else, so there is no retry loop. **A write is a create** when the document is not in `StoredSyncLog.cloudDocs`, the device's list of cloud documents it knows exist (`collection`, `tags`, `locks`, `deck:<id>`). A document joins `cloudDocs` when a pull returns it (valid and of a known schema) or when this device writes it successfully. It leaves `cloudDocs` when a write to it fails with not-found while the account document is present, when its deck tombstone is hard-deleted (SYNC-034), when a full read no longer returns a deck tombstone, and when the first-sign-in flow or the half-deleted sign-out (SYNC-097) resets the list. A `state` document that is not in `cloudDocs` is written with one `set()` of the whole document (SYNC-014); one that is, with an `update()`. For the account document, a create is the first-sign-in creation only. Only the first-sign-in flow (SYNC-048) may create documents in an account whose account document is missing. | design decision 8; [[Firestore Data Shape]] fact 8 |
 
 ### E. Conflict rules: latest change wins
 | ID | Level | Requirement | Source |
@@ -200,11 +213,11 @@ this spec only decides where their records also live and which version wins.
 ### G. Offline and status
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| SYNC-080 | MUST | Signed in and offline, every feature works on the local stores; changes are stamped and stay pending (SYNC-031) and are pushed when the browser is online again or on the next open. Correctness never depends on Firestore's own offline cache. | [[Firestore Data Shape]] "Offline" |
+| SYNC-080 | MUST | Signed in and offline, every feature works on the local stores; changes are stamped and stay pending (SYNC-031) and are pushed when the browser is online again or on the next open. Correctness never depends on Firestore's own offline cache. **Unconfirmed writes:** a write that the server does not acknowledge within 20 s (`RemoteErrorCode` `'unconfirmed'`) may still land later, so it is neither failed nor rejected: its items stay pending, no error status is shown, and about 60 s later the device pulls and then pushes again. If the write landed, the pull returns the same change time, the cloud copy wins the tie (SYNC-061) and the items leave the pending set without a second write; if not, they are pushed again. | [[Firestore Data Shape]] "Offline"; unconfirmed handling as built in H-062 (`WRITE_TIMEOUT_MS`, `PULL_BEFORE_PUSH_MS`) |
 | SYNC-081 | MUST | Sign-in, Sync now, sign-out and account deletion need a connection; offline they are disabled with "You're offline." | design rule |
 | SYNC-082 | MUST | A pending change survives a closed tab or a restart (the sync log is persistent) and is pushed on the next signed-in open. | [[Firestore Data Shape]] "Offline" |
 | SYNC-083 | MUST | **Free tier used up.** When Firestore rejects reads or writes because the project's quota is exhausted, sync stops until the next pull attempt after the reset, nothing local is lost, and the status reads "Sync paused. Your changes are saved on this device." | [[Firestore Data Shape]] decision 1 (accepted for now, RJ decision 9), fact 2 |
-| SYNC-084 | MUST | The account menu shows one **sync status**: `Synced` ("Synced · `<time>`"), `Syncing…`, `Offline` ("Offline · changes are saved on this device"), `Paused` (SYNC-083), `Error` (SYNC-033, SYNC-047, or a failed write: "Couldn't sync. Your changes are saved on this device. Try again."). With pending items the text adds "· `<n>` changes not synced yet". Status is text, not colour alone. | design rule (accessibility) |
+| SYNC-084 | MUST | The account menu shows one **sync status**: `Synced` ("Synced · `<time>`"), `Syncing…`, `Offline` ("Offline · changes are saved on this device"), `Paused` (SYNC-083), `Error` (SYNC-033, SYNC-047, or a failed write: "Couldn't sync. Your changes are saved on this device. Try again."). With pending items the text adds "· `<n>` changes not synced yet" ("· 1 change not synced yet" for one). Status is text, not colour alone. | design rule (accessibility) |
 | SYNC-085 | MUST | A sync failure never blocks or undoes a local save: the local store keeps the change (SPEC-003/006/007/008 save rules apply only to the local store). | design rule; [[Deck Import]] DECK-093; [[My Collection]] COLL-072 |
 | SYNC-086 | MUST | **Session lost.** This applies only while `sessionExpected` is true: if the session cannot be restored at start-up or ends without the user signing out (token expired or revoked, account disabled) and `AuthService.checkAccount()` does **not** return `deleted` (SYNC-097), the app stops syncing, keeps local data and pending items, keeps `sessionExpected` true, and shows "You've been signed out. Sign in again to sync." Signing in again with the same uid resumes as a normal pull and push. A deliberate sign-out (SYNC-090) never shows this message. | design rule |
 
@@ -215,8 +228,8 @@ this spec only decides where their records also live and which version wins.
 | SYNC-091 | MUST | Both choices set `sessionExpected = false`, so the next start-up loads no Firebase (SYNC-002). **Keep a copy:** local stores stay as they are and become signed-out data (later changes are stamped and pending, SYNC-031); the linked uid stays in the sync log so signing in again with the same account resumes normally (no Combine dialog), and a different account gets the Combine dialog with the "different account" line (SYNC-049). **Remove:** every local store (collection, tags, decks, locks, printing codes, view state, import Undo snapshot, sync log) is cleared and the app returns to the empty signed-out state. | design rule; [[My Collection]] COLL-074 |
 | SYNC-092 | MUST | Signing out ends the Firebase session in this browser; no Firestore request is made afterwards until the next sign-in. | design rule |
 | SYNC-095 | MUST | **Delete account and data** (Settings) shows: "Delete your Rift Builder account? This deletes your account and the collection, tags, decks and locks saved in it, including the copy on this device and on every other device that syncs it. This can't be undone." The user types `delete` to enable **Delete account** (Cancel always available). There is **no** option to keep a copy (RJ decision 7). | RJ 2026-11-23 (decision 7); [[ADR-0007 Firebase Accounts and Firestore]] consequences ("delete my account and data" option) |
-| SYNC-096 | MUST | **Deletion order:** (1) if the sign-in provider needs a recent sign-in to delete the account, get it first, before anything is deleted. With **email link** (the launch provider) the user must sign in again with a fresh link: the app shows "To delete your account, sign out, sign in again, then choose Delete account and data within 5 minutes." and deletes nothing. A **Google** popup re-authentication (`AuthService.reauthenticate()`) applies only when Google is enabled (SYNC-006) and the user signed in with it; (2) delete `users/{uid}` **first** (the marker other devices check, SYNC-053), then every document under `users/{uid}/decks` (tombstones included) and the three `state` documents; (3) delete the Firebase Auth user; (4) clear every local store on this device, as for SYNC-091 "Remove" (collection, tags, decks, locks, printing codes, view state, import Undo snapshot, sync log), so `sessionExpected` is false and no linked uid remains; (5) show "Your account and its data were deleted." If any step fails, stop, say what is left ("Some data couldn't be deleted. Try again."), and allow a retry that continues from where it stopped (a missing account document is not an error for the deleting device); the Auth user is deleted only after every document is gone. | [[ADR-0007 Firebase Accounts and Firestore]]; [[Firestore Data Shape]] ("Delete account and data: N + 4 deletes") |
-| SYNC-097 | MUST | **Deleted account on another device.** The signals are: the account document is missing on a device whose linked uid is this uid (SYNC-053), an `update()` fails with not-found, a create is denied and the repeated account check finds the account document missing (SYNC-053), or the session cannot be restored. On any of them the device stops writing and calls `AuthService.checkAccount()`, which returns `ok`, `deleted` (the provider reports that the user no longer exists), `signed-out`, or `offline`. **`deleted`:** it removes the synced local data, clears the linked uid, sets `sessionExpected = false`, and shows "This account was deleted. Its data has been removed from this device." (RJ decision 8.) **`ok` with the account document missing** (a deletion in progress or one that stopped half-way): it writes nothing, **signs out** (RJ decision 11): `sessionExpected = false`, linked uid cleared, pending items dropped from the sync log, and keeps this device's data as signed-out data (as "Keep a copy", RJ decision 6). It shows "This account is being deleted, so you've been signed out. Your collection and decks are still on this device." Leftover cloud documents are never imported or changed; the deleting device's retry (SYNC-096) removes them. **`signed-out`:** SYNC-086. **`offline`:** retry on the next SYNC-040 trigger. Which provider error means `deleted` is mapped inside the `AuthService` adapter and must be confirmed against the Auth emulator in H-062 (`unverified`); any unclear result counts as `signed-out` (local data kept). | design decision 8; design rule |
+| SYNC-096 | MUST | **Deletion order:** (1) if the sign-in provider needs a recent sign-in to delete the account, get it first, before anything is deleted. A recent sign-in is needed when the last sign-in is more than 5 minutes ago or unknown (`AuthService.needsRecentSignIn()`). With **email link** (the launch provider) the user must **sign in again** with a fresh link: `reauthenticate()` returns `'needs-sign-in'`, the app shows "To delete your account, sign out, sign in again, then choose Delete account and data within 5 minutes." and deletes nothing. A **Google** popup re-authentication (`AuthService.reauthenticate()`) applies only when Google is enabled (SYNC-006) and the user has a Google identity; a cancelled popup shows "Your account wasn't deleted." and deletes nothing; (2) delete `users/{uid}` **first** (the marker other devices check, SYNC-053), then every document under `users/{uid}/decks` (tombstones included) and the three `state` documents; the deck list is read before the first delete, so a failed list read deletes nothing; (3) delete the Firebase Auth user; if the provider asks for a recent sign-in again at this point, step 1 runs again (documents are already gone, so the deletion stays unfinished until a retry); (4) clear every local store on this device, as for SYNC-091 "Remove" (collection, tags, decks, locks, printing codes, view state, import Undo snapshot, sync log), so `sessionExpected` is false and no linked uid remains; (5) show "Your account and its data were deleted." If any step fails, stop, say what is left ("Some data couldn't be deleted. Try again."), and allow a retry that continues from where it stopped (a missing account document is not an error for the deleting device); the Auth user is deleted only after every document is gone. A delete that is not acknowledged within 20 s counts as failed. **Retry:** the failure notice has a **Try again** action that reruns the deletion without the confirmation dialog; choosing Delete account and data again shows the SYNC-095 dialog. **Unfinished deletion (`deletingUid`):** after step 1 succeeds and before step 2 starts, the device records `deletingUid` = this uid. While it equals the signed-in uid, the device does **no pull and no push** for that uid, across reloads and after signing in again; the status is Error with "Some data couldn't be deleted. Try again." (so it never treats its own unfinished deletion as SYNC-097's half-deleted account). It is cleared only by a completed deletion (step 4), by **Remove from this device**, and by Cancel deletion below. **Cancel deletion (RJ decision 12, 2026-11-23; pending build, H-076):** if the deletion **removed nothing** (the first delete, `users/{uid}`, failed, or the deck list read failed before it), the error state also offers **Cancel deletion**. It clears `deletingUid`, shows "Your account wasn't deleted.", and resumes normal syncing (account check, pull, push). Once `users/{uid}` or any other document has been deleted, only **Try again** (or **Remove from this device**) is offered. "Removed nothing" must be remembered across reloads and retries; a delete that timed out (`'unconfirmed'`) may have landed, so it counts as removed. **Gap in the current build:** there is no Cancel deletion, so after a failed attempt that deleted nothing the user can only retry or remove this device's copy; and Try again is only on the failure notice, not in the account menu, so after a reload the menu offers no retry (both H-076). | [[ADR-0007 Firebase Accounts and Firestore]]; [[Firestore Data Shape]] ("Delete account and data: N + 4 deletes"); RJ 2026-11-23 (decision 12, board H-074); as built in H-062 ([[Validation H-062]] rounds 2–3) |
+| SYNC-097 | MUST | **Deleted account on another device.** The signals are: the account document is missing on a device whose linked uid is this uid (SYNC-053), an `update()` fails with not-found, a create is denied and the repeated account check finds the account document missing (SYNC-053), or the session cannot be restored. On any of them the device stops writing and calls `AuthService.checkAccount()`, which returns `ok`, `deleted` (the provider reports that the user no longer exists), `signed-out`, or `offline`. **`deleted`:** it removes the synced local data, clears the linked uid, sets `sessionExpected = false`, and shows "This account was deleted. Its data has been removed from this device." (RJ decision 8.) **`ok` with the account document missing** (a deletion in progress or one that stopped half-way): it writes nothing, **signs out** (RJ decision 11): `sessionExpected = false`, linked uid cleared, pending items dropped from the sync log, and keeps this device's data as signed-out data (as "Keep a copy", RJ decision 6). It shows "This account is being deleted, so you've been signed out. Your collection and decks are still on this device." Leftover cloud documents are never imported or changed; the deleting device's retry (SYNC-096) removes them. **`signed-out`:** SYNC-086. **`offline`:** retry on the next SYNC-040 trigger. **Mapping inside the `AuthService` adapter:** `checkAccount()` first forces a token refresh (`getIdToken(true)`), then `reload()`s the user. **Verified on the Auth emulator** (H-062, 2026-11-23, `web/rules-tests/auth.test.ts`): for a deleted user, `reload()` fails with `auth/user-token-expired` and the forced refresh fails with `auth/invalid-refresh-token`; for revoked tokens, `reload()` fails with `auth/user-token-expired` while the refresh still succeeds; for a disabled user, both fail with `auth/user-disabled`. So `reload()` alone cannot tell deleted from revoked, and the refresh runs first. Codes: `auth/invalid-refresh-token` and `auth/user-not-found` → `deleted`; `auth/network-request-failed` → `offline`; every other code (including `auth/user-token-expired` and `auth/user-disabled`) → `signed-out`, so local data is kept. **Production** codes are still `unverified` (the adapter assumes production reports a deleted user as `auth/user-not-found`); any unclear result counts as `signed-out`. The half-deleted sign-out also clears `uploadingUid` (not built yet, H-075). | design decision 8; design rule; Auth emulator codes as verified in H-062 ([[Validation H-062]] round 2) |
 | SYNC-098 | MUST | After deletion, no document remains under `users/{uid}`, and a device that still holds a valid session cannot recreate one: it never writes before the account check (SYNC-053), and the rules refuse to create a `state` or `decks` document unless the account document exists after the write (SYNC-113). A later sign-in with the same provider identity is a new, empty account. **Residual risks** (reported, not prevented): a device in the middle of its own first-sign-in flow when the deletion runs could recreate an account; a device signed out by the half-deleted branch (SYNC-097) keeps its local copy, so if the deletion later completes, that copy stays on that device as signed-out data until the user removes it (COLL-074); and while a deletion stays half-finished, every sign-in to that account signs out again (SYNC-048 f) until the device that started the deletion retries it. | design rule |
 
 ### I. Privacy
@@ -230,14 +243,14 @@ this spec only decides where their records also live and which version wins.
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | SYNC-110 | MUST | **Owner only.** A request may read, list, create, update or delete a document under `users/{uid}` only when `request.auth != null` and `request.auth.uid == uid`. Every other path, and every request without auth, is denied. | [[Firestore Data Shape]] "Security rules"; [[ADR-0007 Firebase Accounts and Firestore]] |
-| SYNC-111 | MUST | **Known paths only.** Allowed: `users/{uid}`; `users/{uid}/state/{doc}` with `doc` one of `collection`, `tags`, `locks`; `users/{uid}/decks/{deckId}` with `deckId` matching a lowercase UUID (`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`). Anything else is denied. | design rule |
-| SYNC-112 | MUST | **Field validation on create and update** (delete needs only SYNC-110): only the listed keys may be present; `schemaVersion == 1` (int); `updatedAt` is a timestamp; `syncedAt == request.time`. Per document: account: `createdAt` timestamp, `lastClientVersion` string ≤ 40. collection: `catalogVersion` string ≤ 100, `cards` map with `size() ≤ 6000`. tags: `tags` map `size() ≤ 400`, `assignments` map `size() ≤ 6000`. locks: `locks` map `size() ≤ 400` (caps: design decision 7). deck (live): exactly the keys `schemaVersion`, `updatedAt`, `syncedAt`, `deletedAt` (`== null`), `createdAt` (timestamp), `name` (string 1–80, DECK-070), `format` (one of the SPEC-002 `FormatId` values, today `'standard'`), `source` (map), `sourceFormat` (one of the SPEC-006 `DeckSourceFormat` values), `notes` (string ≤ 4000, DECK-073), `catalogVersion` (string ≤ 100), `legend`, `champion` (map or null), `main`, `sideboard`, `runes`, `battlefields` (lists, `size() ≤ 150`, DECK-092), and optionally `duplicatedFrom` (string, 36 = UUID length, DECK-084) and `importRemovedLines` (list; no size cap, SPEC-006 sets none: the 1 MiB document limit bounds it, SYNC-124). deck tombstone: exactly `schemaVersion`, `createdAt`, `updatedAt`, `deletedAt` (timestamp), `syncedAt`. The 100-character `catalogVersion` and 40-character `lastClientVersion` caps are design caps: SPEC-001 CARD-068 builds `catalogVersion` as `<schemaVersion>+<lastUpdated>`, e.g. `0.2+2026-11-20T18:04:00Z` (24 characters). A new `FormatId` or `DeckSourceFormat` value needs a rules update in the same change. Map entries inside `cards`, `tags`, `assignments`, `locks` are not checked by rules (SYNC-047 covers them). | [[Firestore Data Shape]] "Security rules", fact 3; [[Deck Import]] DECK-070…073, DECK-084, DECK-092, `DeckSourceFormat`; [[Deck Legality]] `FormatId`; [[Card Data Model]] CARD-068 |
-| SYNC-113 | MUST NOT | Rules use no `get()` or `exists()` lookups (each is billed as a read), with one exception: **creating** a `state` or `decks` document requires `existsAfter(/databases/$(database)/documents/users/$(uid))`, so documents can only be created in an account whose account document exists (or is created in the same batch). Creates are rare (first sign-in, new decks). This spec counts **1 billed read per created document** as an upper bound (SYNC-120). Updates and deletes use no lookup. `unverified` (researcher item to be filed): whether `existsAfter()` is billed when the looked-up document is written in the same batch, whether repeated identical lookups in one batch are billed once, and the per-request limit on rule lookups (it matters for a first-sign-in batch of 3 + N creates; if the limit is lower than that, the batch is split). | [[Firestore Data Shape]] fact 10; design decision 8 |
-| SYNC-114 | MUST | **Rules tests** (Firestore emulator) show at least: user B cannot get, list, create, update or delete any of user A's documents (all five paths); an unauthenticated request is denied on every path; an unknown path (`users/A/other/x`, `users/A/state/views`) is denied for A; a write with an extra key, a wrong `schemaVersion`, a client-set `syncedAt`, or a 151-entry `main` is denied; creating `users/A/decks/<id>` while `users/A` does not exist is denied, and allowed in a batch that also creates `users/A`; each valid document shape of SYNC-012…018 (including both tombstone forms) is allowed for its owner. | board H-062 (rules tested against other-user access) |
+| SYNC-111 | MUST | **Known paths only.** Allowed: `users/{uid}`; `users/{uid}/state/{doc}` with `doc` one of `collection`, `tags`, `locks`; `users/{uid}/decks/{deckId}` with `deckId` matching a lowercase UUID (`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`). Anything else is denied. The name and id checks apply to get, create, update and delete. A `list` (query) of `users/{uid}/state` or `users/{uid}/decks` is allowed for the owner only, because a query cannot name its documents. | design rule; as built in H-062 (`firestore.rules`) |
+| SYNC-112 | MUST | **Field validation on create and update** (delete needs only SYNC-110): only the listed keys may be present; `schemaVersion == 1` (int); `updatedAt` is a timestamp; `syncedAt == request.time`. Per document: account: `createdAt` timestamp, `lastClientVersion` string ≤ 40, and on update `createdAt` must equal the stored value. collection: `catalogVersion` string ≤ 100, `cards` map with `size() ≤ 6000`. tags: `tags` map `size() ≤ 400`, `assignments` map `size() ≤ 6000`. locks: `locks` map `size() ≤ 400` (caps: design decision 7). deck (live): exactly the keys `schemaVersion`, `updatedAt`, `syncedAt`, `deletedAt` (`== null`), `createdAt` (timestamp), `name` (string 1–80, DECK-070), `format` (one of the SPEC-002 `FormatId` values, today `'standard'`), `source` (map), `sourceFormat` (one of the SPEC-006 `DeckSourceFormat` values), `notes` (string ≤ 4000, DECK-073), `catalogVersion` (string ≤ 100), `legend`, `champion` (map or null), `main`, `sideboard`, `runes`, `battlefields` (lists, `size() ≤ 150`, DECK-092), and optionally `duplicatedFrom` (string ≤ 36 characters, 36 = UUID length, DECK-084; the rules check the length only, not the UUID format) and `importRemovedLines` (list; no size cap, SPEC-006 sets none: the 1 MiB document limit bounds it, SYNC-124). deck tombstone: exactly `schemaVersion`, `createdAt`, `updatedAt`, `deletedAt` (timestamp), `syncedAt`. The 100-character `catalogVersion` and 40-character `lastClientVersion` caps are design caps: SPEC-001 CARD-068 builds `catalogVersion` as `<schemaVersion>+<lastUpdated>`, e.g. `0.2+2026-11-20T18:04:00Z` (24 characters). A new `FormatId` or `DeckSourceFormat` value needs a rules update in the same change. Map entries inside `cards`, `tags`, `assignments`, `locks` are not checked by rules (SYNC-047 covers them). | [[Firestore Data Shape]] "Security rules", fact 3; [[Deck Import]] DECK-070…073, DECK-084, DECK-092, `DeckSourceFormat`; [[Deck Legality]] `FormatId`; [[Card Data Model]] CARD-068 |
+| SYNC-113 | MUST NOT | Rules use no `get()` or `exists()` lookups (each is billed as a read), with one exception: **creating** a `state` or `decks` document requires `existsAfter(/databases/$(database)/documents/users/$(uid))`, so documents can only be created in an account whose account document exists (or is created in the same batch). Creates are rare (first sign-in, new decks). This spec counts **1 billed read per created document** as an upper bound (SYNC-120). Updates and deletes use no lookup. `unverified` (researcher item to be filed): whether `existsAfter()` is billed when the looked-up document is written in the same batch, whether repeated identical lookups in one batch are billed once, and the per-request limit on rule lookups (it matters for a first-sign-in upload of 3 + N creates). As built, the first-sign-in upload is always split into batches of at most 10 documents with the account creation in the first batch (SYNC-050), so each create's `existsAfter()` sees the account document, either in its own batch or already committed. A retry of an interrupted upload resumes it (SYNC-048). | [[Firestore Data Shape]] fact 10; design decision 8; batch split as built in H-062 |
+| SYNC-114 | MUST | **Rules tests** (Firestore emulator) show at least: user B cannot get, list, create, update or delete any of user A's documents (all five paths); an unauthenticated request is denied on every path; an unknown path (`users/A/other/x`, `users/A/state/views`) is denied for A; a write with an extra key, a wrong `schemaVersion`, a client-set `syncedAt`, or a 151-entry `main` is denied; creating `users/A/decks/<id>` while `users/A` does not exist is denied, and allowed in a batch that also creates `users/A`; each valid document shape of SYNC-012…018 (including both tombstone forms) is allowed for its owner. The tests run with `cd web; npm run test:rules` (Firestore and Auth emulators). The emulators need **Java 21**. On RJ's PC, Android Studio's bundled JBR works: set `JAVA_HOME` to `C:\Program Files\Android\Android Studio\jbr` for that command. | board H-062 (rules tested against other-user access); [[Validation H-062]] (Java note) |
 | SYNC-115 | MUST | **Indexes.** `firestore.indexes.json` exempts every field except `syncedAt` from single-field indexing (`fieldOverrides` with `indexes: []`): on `state`: `cards`, `catalogVersion`, `tags`, `assignments`, `locks`, `updatedAt`, `schemaVersion`; on `decks`: every `UserDeck` field plus `deletedAt`, `updatedAt`, `createdAt`, `schemaVersion`. `syncedAt` keeps its default index. No composite index is needed. | [[Firestore Data Shape]] "Indexes", fact 4 |
 | SYNC-116 | MUST | The only queries are the two cursor queries of SYNC-040 (and the same without a cursor for SYNC-045 and SYNC-096). | [[Firestore Data Shape]] "Indexes" |
 | SYNC-117 | MUST | `firestore.rules` and `firestore.indexes.json` are deployed with `firebase deploy --only firestore` before the sign-in UI ships; until then the deny-all rules of ADR-0007 stay. | [[ADR-0007 Firebase Accounts and Firestore]] "Rules today" |
-| SYNC-118 | MUST | **Rejected writes.** A write the rules reject (permission denied while the session is valid) keeps its items local and pending, marks them rejected in the sync log, shows Sync error "Some data couldn't be synced: `<area>` (`<deck name>` for a deck)." and is not retried until one of those items changes or the app build changes. Other documents keep syncing. | design rule |
+| SYNC-118 | MUST | **Rejected writes.** A write the rules reject (permission denied while the session is valid) keeps its items local and pending, marks them rejected in the sync log, shows Sync error "Some data couldn't be synced: `<area>` (`<deck name>` for a deck)." and is not retried until one of those items changes or **this device's** app build changes. Other documents keep syncing. The build change is device-local (`StoredSyncLog.lastBuild`, SYNC-012): on the first pull of a session where `lastBuild` differs from this build, the device clears its `rejected` list, so those items are pushed again; it does not matter whether another device already wrote this build to the account. **Note:** the build is the `appVersion` string in the build configuration, which is a fixed value today (`web-0.0.0` in production); it changes only when someone edits it, so a release that should retry rejected items must change `appVersion`. | design rule; device-local build as built in H-062 ([[Validation H-062]] round 2) |
 | SYNC-119 | MUST | **Map caps.** Before writing `state/collection`, `state/tags` or `state/locks`, if the map would exceed its SYNC-112 cap, the client drops tombstones from the write (`deleteField()`), oldest `t` first, even before 30 days, until it fits; dropping a tombstone early can let a device that has not synced since bring the item back (SYNC-044 limits this). If live items alone exceed the cap, the write is not sent and SYNC-124's "This data is too large to sync." applies. | design decision 7 |
 
 ### K. Cost and free tier
@@ -321,57 +334,118 @@ type DeckDoc =
       & { createdAt: Timestamp; deletedAt: null })
   | (DocMeta & { createdAt: Timestamp; deletedAt: Timestamp });                      // tombstone, updatedAt = deletedAt
 
+// Engine form: inside the sync engine every Timestamp above is Ms; the Firebase adapter converts both ways
+// and writes syncedAt with the server timestamp (SYNC-011). Source: web/src/app/shared/sync/sync-types.ts.
+
 // ---- Device-local sync log (SYNC-030..035) ----
+interface ItemStamp { t: Ms; deleted: boolean; h: string }   // h = value hash (SYNC-032); '' for a tombstone
 interface StoredSyncLog {
-  schemaVersion: 1;
+  schemaVersion: 1;                         // the fields marked "optional" were added in H-062; older logs load
   uid: string | null;                       // linked uid: written only when a first sync completes (SYNC-048)
   sessionExpected: boolean;                 // SYNC-004; false after any sign-out, Cancel, deletion
   recordUpdatedAt: { collection: string | null; tags: string | null; locks: string | null }; // SYNC-032
-  knownDecks: Record<string, Ms>;           // deckId → updatedAt last stamped or pulled (SYNC-031/032)
-  rejected: string[];                       // item refs rejected by the rules (SYNC-118)
+  knownDecks: Record<string, Ms>;           // deckId → updatedAt (or deletedAt) last stamped or pulled (SYNC-031/032)
+  rejected: string[];                       // item refs '<list>:<key>' rejected by the rules (SYNC-118)
   cursors: { state: Ms | null; decks: Ms | null };   // largest syncedAt received (server time)
   lastFullSyncAt: Ms | null;                // client time of the last successful full read (SYNC-044/045)
   lastSyncAt: Ms | null;                    // client time of the last successful pull
   clockOffsetMs: number | null;             // SYNC-063
-  cards: Record<CardKey, { t: Ms; deleted: boolean; h: string }>;      // h = value hash (SYNC-032)
-  tags: Record<TagId, { t: Ms; deleted: boolean; h: string }>;
-  assignments: Record<TagTarget, { t: Ms; deleted: boolean; h: string }>;
-  locks: Record<string, { t: Ms; unlocked: boolean }>;
-  deckTombstones: Record<string, { deletedAt: Ms; pushAfter: Ms }>; // pushAfter = delete + 10 s (SYNC-035)
+  cards: Record<CardKey, ItemStamp>;
+  tags: Record<TagId, ItemStamp>;
+  assignments: Record<TagTarget, ItemStamp>;
+  locks: Record<string, { t: Ms; unlocked: boolean; h: string }>;  // h = lockedAt of the live lock, '' when
+                                                                   // unlocked: lets reconcile see a re-lock (SYNC-032)
+  deckTombstones: Record<string, {
+    deletedAt: Ms;
+    pushAfter: Ms;                          // delete + 10 s, the Undo window (SYNC-035); 0 when pulled from the cloud
+    createdAt: Ms;                          // the deck's createdAt, needed by the tombstone document (SYNC-018)
+    wasPending: boolean;                    // the deck was pending before the delete: an Undo keeps it pending (SYNC-035)
+  }>;
   pending: { account: boolean; cards: CardKey[]; tags: TagId[]; assignments: TagTarget[];
-             locks: string[]; decks: string[] };
+             locks: string[]; decks: string[];
+             collectionReplace?: boolean }; // next collection write is a Replace import: one set() (SYNC-014)
+  cloudDocs: string[];                      // cloud documents known to exist: 'collection' | 'tags' | 'locks' |
+                                            // 'deck:<id>'; decides set() vs update() and create detection (SYNC-053)
+  deckCreated?: Record<string, Ms>;         // deckId → createdAt, so a reconciled tombstone carries it (SYNC-018)
+  lastBuild?: string | null;                // this device's appVersion when it last synced: a change retries
+                                            // rejected items (SYNC-118) and updates the account once (SYNC-012)
+  uploadingUid?: string | null;             // first-sign-in upload into this uid started, may be partly written:
+                                            // a retry resumes it as case (b) without asking (SYNC-048, SYNC-050)
+  deletingUid?: string | null;              // account deletion of this uid started here, not finished: no pull or
+                                            // push for it; cleared by a completed deletion, Remove, or Cancel
+                                            // deletion (SYNC-096)
+  deletingRemovedAny?: boolean;             // PENDING BUILD (H-076): this deletion removed (or may have removed,
+                                            // 'unconfirmed') at least one document; false → Cancel deletion offered
 }
 interface SyncLogStore { load(): Promise<StoredSyncLog | null>; save(s: StoredSyncLog): Promise<void> }
+// emptySyncLog() resets every field, so Remove, own deletion and the 'deleted' paths clear all of the above.
 
 // ---- Adapters (SYNC-130) ----
+type AccountCheck = 'ok' | 'deleted' | 'signed-out' | 'offline';
+type AuthProviderId = 'email-link' | 'google';
 interface AuthService {
   currentUid(): string | null;
-  providers(): { id: 'email-link' | 'google'; label: string }[]; // from build config authProviders, default ['email-link'] (SYNC-006)
-  signIn(providerId: string): Promise<{ uid: string } | 'cancelled'>;
+  restore(): Promise<string | null>;        // waits for the persisted session at start-up (SYNC-004); null = none
+  providers(): { id: AuthProviderId; label: string }[]; // from build config authProviders, default ['email-link'] (SYNC-006)
+  signIn(providerId: string, email?: string): Promise<{ uid: string } | 'cancelled'>;
+                                            // Google: popup. Email link: completes the link in the page URL;
+                                            // `email` is needed when the link is opened on another device (SYNC-006).
+                                            // A provider not enabled throws without calling Firebase.
+  sendEmailLink(email: string): Promise<void>;   // SYNC-006: sends the link, keeps the address on this device
+  isEmailLinkReturn(): boolean;             // the page URL is an email sign-in link waiting to be completed
   signOut(): Promise<void>;
-  reauthenticate(): Promise<'ok' | 'cancelled' | 'needs-sign-in'>; // SYNC-096 step 1; Google popup only when enabled,
-                                                              // email link → 'needs-sign-in' (sign out, sign in again)
-  checkAccount(): Promise<'ok' | 'deleted' | 'signed-out' | 'offline'>; // SYNC-097; unclear → 'signed-out'
+  needsRecentSignIn(): boolean;             // SYNC-096 step 1: last sign-in more than 5 minutes ago or unknown
+  reauthenticate(): Promise<'ok' | 'cancelled' | 'needs-sign-in'>; // SYNC-096 step 1; Google popup only when enabled
+                                            // and the user has a Google identity; otherwise (email link)
+                                            // 'needs-sign-in': the user signs out and signs in again
+  checkAccount(): Promise<AccountCheck>;    // SYNC-097: forced token refresh, then reload; unclear → 'signed-out'
   deleteUser(): Promise<'ok' | 'needs-recent-sign-in'>;
 }
+type RemoteErrorCode =
+  | 'offline' | 'quota' | 'permission-denied' | 'not-found' | 'too-large' | 'unauthenticated' | 'unknown'
+  | 'unconfirmed';                          // sent but not acknowledged within 20 s; may still land: kept pending,
+                                            // confirmed by the next pull (SYNC-080)
+class RemoteError extends Error { readonly code: RemoteErrorCode }
+interface PullResult {
+  account?: AccountDoc | null;              // present only with withAccount or on a full read; null = missing
+  collection?: CollectionDoc; tags?: TagsDoc; locks?: LocksDoc;
+  decks: Record<string, DeckDoc>;
+  cursors: StoredSyncLog['cursors'];
+}
+interface PushChanges {                     // one push (SYNC-043); Ms timestamps; the adapter adds syncedAt
+  account?: { create: boolean; createdAt: Ms; updatedAt: Ms; lastClientVersion: string };
+                                            // create: set() in the first-sign-in flow only; else update() (SYNC-012)
+  collection?: { replace: boolean;          // set() of the whole document (Replace import, or not in cloudDocs),
+                 updatedAt: Ms;             // else update() with one FieldPath per card (SYNC-014)
+                 cards: CollectionDoc['cards']; purge: CardKey[]; catalogVersion: string };
+  tags?: { replace: boolean; updatedAt: Ms; tags: TagsDoc['tags']; assignments: TagsDoc['assignments'];
+           purgeTags: string[]; purgeAssignments: string[] };
+  locks?: { replace: boolean; updatedAt: Ms; locks: LocksDoc['locks']; purge: string[] };
+  decks?: Record<string, DeckDoc>;          // one set() each, without merge (SYNC-018)
+  hardDelete?: string[];                    // deck tombstones older than 30 days (SYNC-034)
+  batch?: boolean;                          // first sign-in: batches of at most 10, account creation first (SYNC-050)
+}
+// Outcome per document ref: 'account' | 'collection' | 'tags' | 'locks' | 'deck:<id>' | 'delete:<id>'.
+type PushOutcome = Record<string, 'ok' | RemoteErrorCode>;
 interface RemoteStore {
-  pull(uid: string, cursors: StoredSyncLog['cursors'] | null): Promise<{
-    account: AccountDoc | null; collection?: CollectionDoc; tags?: TagsDoc; locks?: LocksDoc;
-    decks: Record<string, DeckDoc>; cursors: StoredSyncLog['cursors'] }>;   // null cursors = full read
-  push(uid: string, changes: {
-    account?: AccountDoc;
-    collection?: { replace: boolean; cards: CollectionDoc['cards']; purge: CardKey[]; catalogVersion: string };
-    tags?: { tags: Partial<TagsDoc['tags']>; assignments: Partial<TagsDoc['assignments']>; purge: string[] };
-    locks?: { locks: Partial<LocksDoc['locks']>; purge: string[] };
-    decks?: Record<string, DeckDoc>; hardDelete?: string[];
-  }): Promise<void>;                                          // rejects per document; failed items stay pending
-  deleteAll(uid: string): Promise<'ok' | { remaining: number }>;
+  pull(uid: string, cursors: StoredSyncLog['cursors'] | null,   // null cursors = full read (SYNC-045)
+       opts?: { withAccount?: boolean }): Promise<PullResult>;  // withAccount adds the account get (SYNC-053);
+                                                                // throws RemoteError when the reads fail
+  getAccount(uid: string): Promise<AccountDoc | null>;          // the account check alone, 1 read (SYNC-053)
+  push(uid: string, changes: PushChanges): Promise<PushOutcome>; // never throws for one document: each
+                                                                // document's result is in the outcome (SYNC-043, 118)
+  deleteAll(uid: string): Promise<'ok' | { remaining: number }>; // SYNC-096 step 2: account, decks, state
+  // PENDING BUILD (H-076): the failure result also says whether anything was (or may have been) removed:
+  //   Promise<'ok' | { remaining: number; removedAny: boolean }>
 }
 
-type SyncStatus =
-  | { kind: 'signed-out' } | { kind: 'synced'; at: Ms } | { kind: 'syncing' }
-  | { kind: 'offline' } | { kind: 'paused' } | { kind: 'error'; message: string };
-// + pendingCount: number on every signed-in status (SYNC-084)
+type SyncStatus =                           // pendingCount on every signed-in status (SYNC-084)
+  | { kind: 'signed-out' }
+  | { kind: 'synced'; at: Ms; pendingCount: number }
+  | { kind: 'syncing'; pendingCount: number }
+  | { kind: 'offline'; pendingCount: number }
+  | { kind: 'paused'; pendingCount: number }
+  | { kind: 'error'; message: string; pendingCount: number };
 
 // Pure (SYNC-131):
 // stamp(prev, next, log, now): StoredSyncLog                       — SYNC-031
@@ -388,9 +462,10 @@ Unless stated: user RJ has uid `uA`; a second user has uid `uB`; devices are "la
    **Given** a fresh browser with no linked uid **When** the user imports 40 cards, imports a deck and locks
    it **Then** everything works, the network log shows no request to Firebase Auth or Firestore, and no
    `firebase` chunk was loaded. **When** the user clicks Sign in (build with `signInEnabled: true`) **Then** the
-   chunk loads and the dialog shows the SYNC-003 text with exactly one button per provider in `authProviders`:
-   with the default config (`['email-link']`) only "Sign in with an email link"; with `['email-link', 'google']`
-   also "Continue with Google" (SYNC-006).
+   dialog shows the SYNC-003 text with exactly one button per provider in `authProviders`, and still no
+   `firebase` chunk has loaded: with the default config (`['email-link']`) only "Sign in with an email link";
+   with `['email-link', 'google']` also "Continue with Google" (SYNC-006). **When** he enters an address and
+   presses Send link **Then** the `firebase` chunk loads and "Check your email for a sign-in link." shows.
 2. **Stamping while signed out** (SYNC-031, SYNC-032)
    **Given** signed out, `hextech ray` quantity 2 with stamp `t = 1000` **When** the user presses + at a clock
    of `900` (clock behind) **Then** the stamp is `1001` and `hextech ray` is pending; **When** the user removes
@@ -398,7 +473,8 @@ Unless stated: user RJ has uid `uA`; a second user has uid `uB`; devices are "la
 3. **First sign-in, empty account** (SYNC-048 b, SYNC-050, SYNC-120)
    **Given** laptop signed out with 350 cards, 20 tags, 10 decks and 3 locks, and `uA` has no documents **When**
    RJ signs in **Then** no Combine dialog appears, at most 16 billed reads (3 + 13 rule lookups for 3 `state` and
-   10 `decks` creates, an upper bound, SYNC-113) and 14 writes are made, the cloud holds
+   10 `decks` creates, an upper bound, SYNC-113) and 14 writes are made in 2 batches (the first of 10 documents
+   starting with `users/uA`, the second of 4), the cloud holds
    `users/uA`, three `state` documents and 10 `decks` documents, and the notice "Your collection and decks are
    now saved to your account." shows.
 4. **Second device downloads** (SYNC-048 c, SYNC-045)
@@ -502,8 +578,10 @@ Unless stated: user RJ has uid `uA`; a second user has uid `uB`; devices are "la
     **Given** the emulator with documents for `uA` **When** a client signed in as `uB` gets, lists, creates,
     updates or deletes `users/uA`, `users/uA/state/collection`, `…/state/tags`, `…/state/locks` and
     `users/uA/decks/0b7c…` **Then** every request is denied; **When** `uA` writes `state/collection` with
-    `syncedAt` set to a client time, or a deck with 151 `main` entries, or a field `email` on `users/uA` **Then**
-    it is denied; **When** `uA` writes each valid shape **Then** it is allowed.
+    `syncedAt` set to a client time, or a deck with 151 `main` entries, or a deck whose `duplicatedFrom` has 37
+    characters, or a field `email` on `users/uA`, or an update of `users/uA` with a different `createdAt` **Then**
+    it is denied; **When** `uA` writes each valid shape **Then** it is allowed. The run is `npm run test:rules`
+    with Java 21 (SYNC-114).
 23. **Indexes** (SYNC-115)
     **Given** the deployed `firestore.indexes.json` **When** inspected **Then** every field of `state` and
     `decks` except `syncedAt` has `indexes: []`, and the SYNC-040 queries run without a missing-index error.
@@ -544,11 +622,11 @@ Unless stated: user RJ has uid `uA`; a second user has uid `uB`; devices are "la
     runs the SYNC-053 account check rather than the SYNC-118 rejected-write path.
 29. **Rejected write and large deck** (SYNC-112, SYNC-118, SYNC-124)
     **Given** a deck `Big Paste` whose `importRemovedLines` has 2,000 entries (≈ 60 KB) **When** it syncs **Then**
-    the rules accept it (no list cap). **Given** an **existing** deck (in `knownDecks`, so the write is an update)
-    whose `format` is a value the deployed rules don't know **When** it is pushed **Then** the write is denied, the
+    the rules accept it (no list cap). **Given** an **existing** deck (`deck:<id>` in `cloudDocs`, so the write is
+    an update) whose `format` is a value the deployed rules don't know **When** it is pushed **Then** the write is denied, the
     deck stays local and pending, the status shows "Some data couldn't be synced: decks (`<deck name>`).", other
-    documents keep syncing, and it is not retried until the deck changes. **Given** instead a **new** deck (no
-    `knownDecks` entry, never written by this device) with that `format` and `users/uA` present **When** it is
+    documents keep syncing, and it is not retried until the deck changes. **Given** instead a **new** deck (not in
+    `cloudDocs`: never pulled and never written by this device) with that `format` and `users/uA` present **When** it is
     pushed **Then** the create is denied, the client repeats the account check once, finds `users/uA`, and handles
     the deck as SYNC-118 (rejected, not retried; no further account checks for it).
 30. **Invalid pulled item** (SYNC-047)
@@ -579,8 +657,12 @@ Unless stated: user RJ has uid `uA`; a second user has uid `uB`; devices are "la
     reconcile stamps nothing and no write is made.
 35. **Sign-in hidden by the build flag** (SYNC-007, SYNC-002)
     **Given** a production build with `signInEnabled: false` **When** any page opens **Then** no Sign in action
-    appears in the header or Settings and no `firebase` chunk loads. **Given** a preview build with
-    `signInEnabled: true` **When** it opens **Then** the Sign in action is shown.
+    appears in the header or Settings and no `firebase` chunk loads. **Given** a build made with
+    `ng build --configuration preview` (`signInEnabled: true`) **When** it opens **Then** the Sign in action is
+    shown. **Given** the repo as it is **When** a preview channel is deployed with `firebase hosting:channel:deploy`
+    **Then** the hosting `predeploy` rebuilds with the production configuration and the channel shows no Sign in
+    (the SYNC-007 gap: checking the preview half on a deployed channel needs a deploy path that keeps the preview
+    build).
 36. **First sign-in edge cases** (SYNC-048 e, f)
     **Given** `users/uA` exists with `createdAt` Nov 1 and no `state` or `decks` documents, and the phone has 40
     cards **When** RJ signs in **Then** the cards are uploaded, `users/uA` keeps `createdAt` Nov 1 (no `set()` over
@@ -604,6 +686,52 @@ Unless stated: user RJ has uid `uA`; a second user has uid `uB`; devices are "la
     instead RJ signed in with an email link more than 5 minutes ago (default config, email link only) **When** he
     confirms **Then** nothing is deleted, the app shows "To delete your account, sign out, sign in again, then
     choose Delete account and data within 5 minutes.", and no Google popup is offered.
+39. **Email-link return** (SYNC-002, SYNC-005, SYNC-006)
+    **Given** a laptop with `signInEnabled: true`, `sessionExpected: false`, where RJ pressed Send link for
+    `rj@example.com` **When** he opens the link on the laptop (URL with `mode=signIn` and `oobCode`) **Then**
+    `firebase` loads at start-up, the sign-in completes with no question, the first-sign-in flow runs, and the
+    URL no longer holds `oobCode`. **Given** instead he opens the same link on the phone, which never sent it
+    **When** the page loads **Then** the app asks "Confirm your email address to finish signing in."; **When** he
+    gives no address **Then** he is not signed in, no message shows, and the phone's data is unchanged. **Given**
+    an ordinary URL and `sessionExpected: false` **When** the page loads **Then** no `firebase` chunk loads.
+40. **Resuming this device's own upload** (SYNC-048, SYNC-050, SYNC-113)
+    **Given** the laptop has 350 cards, 20 tags and 25 decks, `uA` has no documents, and RJ signs in **When** the
+    first batch (`users/uA` and 9 decks) commits and the second batch fails **Then** the linked uid and
+    `lastFullSyncAt` are not written and `uploadingUid` is `uA`; **When** he retries (Sync now or the next open)
+    **Then** no Combine dialog appears, the remaining documents are written, the cloud holds `users/uA`, three
+    `state` documents and 25 decks, `uploadingUid` is cleared, and "Your collection and decks are now saved to your
+    account." shows. **Given** instead the phone, with 40 cards of its own and `uploadingUid` unset, signs in to
+    `uA` after the partial upload **When** the full read finds data **Then** the Combine dialog shows.
+41. **Unconfirmed write** (SYNC-080, SYNC-061, SYNC-042)
+    **Given** signed in, nothing pending, and RJ sets `hextech ray` to 4 (`t` 12:00) **When** the collection write
+    is not acknowledged within 20 s **Then** `hextech ray` stays pending, the status is not `Error`, and it reads
+    "Synced · `<time>` · 1 change not synced yet" (SYNC-084); **When** about 60 s later the device pulls and the
+    write had landed **Then** the pull returns `hextech ray` with `t` 12:00, it leaves the pending set, and no
+    second collection write is made. **When** instead the write had not landed **Then** the push after that pull
+    writes it again.
+42. **Build change is device-local** (SYNC-012, SYNC-118)
+    **Given** the phone on build `web-0.1.0` (`lastBuild` `web-0.1.0`) has deck `Big Paste` in `rejected`, and the
+    account's `lastClientVersion` is `web-0.1.0` **When** the laptop opens build `web-0.2.0` first **Then** the
+    laptop updates `users/uA` once (`lastClientVersion` `web-0.2.0`); **When** the phone then opens `web-0.2.0`
+    **Then** its first pull clears `rejected` and pushes `Big Paste` again, sets `lastBuild` to `web-0.2.0`, and makes
+    no account write (the account already shows `web-0.2.0`); **When** either device reopens on `web-0.2.0`
+    **Then** neither writes the account again.
+43. **Unfinished deletion stops sync; Cancel deletion** (SYNC-096; the Cancel parts are **pending build, H-076**)
+    **Given** signed in as `uA` with a recent sign-in **When** RJ confirms Delete account and the first delete
+    (`users/uA`) fails **Then** nothing was deleted, `deletingUid` is `uA`, the notice "Some data couldn't be
+    deleted. Try again." shows with Try again, the status is `Error` with that text, and no pull or push runs,
+    also after a reload. *(H-076)* **When** he opens the account menu in that state **Then** it offers Try again
+    and **Cancel deletion**; **When** he chooses Cancel deletion **Then** `deletingUid` is cleared, "Your account
+    wasn't deleted." shows, the account check finds `users/uA`, and a pending card edit is pushed. *(H-076)*
+    **Given** instead `users/uA` was deleted and the deck deletes then failed **When** he opens the account menu
+    **Then** only Try again is offered (and Remove from this device in the Sign out dialog), not Cancel deletion,
+    also after a reload; **When** he chooses Try again **Then** the deletion continues and completes as in AC 21.
+44. **Auth codes for a deleted account** (SYNC-097)
+    **Given** the Auth emulator and a signed-in client for `uA` **When** `uA` is deleted on the emulator and the
+    client calls `checkAccount()` **Then** the forced refresh fails with `auth/invalid-refresh-token` and the
+    result is `deleted`. **When** instead `uA`'s tokens are revoked **Then** `reload()` fails with
+    `auth/user-token-expired` and the result is `signed-out`. **When** instead `uA` is disabled **Then** the result
+    is `signed-out` (`auth/user-disabled`). **When** the network is down **Then** the result is `offline`.
 
 ## Out of scope
 - Sharing decks or collections with other users, public profiles, friends.
@@ -660,10 +788,16 @@ RJ's answers to the 11 open questions of v0.1–v0.4, quoted, and where they app
     (`checkAccount()` = `deleted`). In the half-deleted state the account still exists and the deletion may have
     failed for good. Wiping could then destroy the only copy, while keeping matches decision 6. The cost is in SYNC-098:
     if the deletion later completes, this device keeps a signed-out copy until the user removes it.
+12. **Cancelling an unfinished deletion** (RJ, 2026-11-23, board H-074; RJ chose "Cancel if nothing removed"; the rest is a paraphrase of that option): if the deletion removed nothing (the
+    first delete, `users/{uid}`, failed), the error state offers Cancel deletion, which clears `deletingUid` and
+    resumes normal syncing. Once `users/{uid}` (or anything) has been deleted, only Try again (or Remove from this
+    device) is offered (SYNC-096, AC 43). Not built yet: H-076.
 
 ## Open questions
-None for RJ. Research: SYNC-101 privacy-notice content (H-069). Unverified technical points for H-062 and the
-researcher: the `existsAfter()` billing and limits (SYNC-113), and the provider error that means `deleted` (SYNC-097).
+None for RJ. Research: SYNC-101 privacy-notice content (H-069). Unverified technical points for the researcher:
+the `existsAfter()` billing and limits (SYNC-113), and the **production** Auth error that means `deleted`
+(SYNC-097; the emulator codes are verified). Build gaps: Cancel deletion (H-076); a deploy path for the preview
+build (SYNC-007, AC 35).
 
 ## Changelog
-Current: 0.6 (2026-11-23, email link only at launch; Google behind `authProviders`). Full history: [[Accounts and Sync changelog]] (archived). New entries go in the archive note.
+Current: 0.7 (2026-11-23, H-074: spec matches the H-062 build; RJ decision 12 on Cancel deletion, pending build H-076). Full history: [[Accounts and Sync changelog]] (archived). New entries go in the archive note.

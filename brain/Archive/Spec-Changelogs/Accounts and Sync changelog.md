@@ -9,6 +9,35 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.7 (2026-11-23, H-074: the spec documents the H-062 build, [[Validation H-062]] rounds 1–3; RJ decision 12):
+  **Data contract:** `RemoteStore.getAccount`, `pull(..., { withAccount })`, `push()` returns a per-document
+  `PushOutcome`; `PushChanges` with `account { create, createdAt, updatedAt, lastClientVersion }`, `replace` and
+  `updatedAt` per state document, `purgeTags`/`purgeAssignments`, `batch`; `AuthService.restore`, `signIn(id,
+  email?)`, `sendEmailLink`, `isEmailLinkReturn`, `needsRecentSignIn`, `reauthenticate` → `'ok' | 'cancelled' |
+  'needs-sign-in'`; `RemoteErrorCode` incl. `'unconfirmed'`; `StoredSyncLog` fields `cloudDocs`,
+  `pending.collectionReplace`, `locks[id].h`, `deckTombstones[id].createdAt` / `.wasPending`, `deckCreated`,
+  `lastBuild`, `uploadingUid`, `deletingUid`; `SyncStatus` carries `pendingCount`. SYNC-030 lists the new log
+  fields. **SYNC-002:** three load triggers (starting a sign-in, an expected session, an email sign-in link in
+  the URL); opening the dialog loads nothing (AC 1 updated). **SYNC-006:** email-link flow as built; a link opened
+  on another device asks "Confirm your email address to finish signing in." **SYNC-003:** interim placement:
+  Delete account and data in the account menu until Settings exists. **SYNC-007:** preview vs production builds;
+  `firebase.json` predeploy rebuilds production, so no deploy path ships the preview build (gap; AC 35 updated).
+  **SYNC-012 / SYNC-118:** "build changed" is device-local (`lastBuild`); the account is updated at most once per
+  build change and only if `lastClientVersion` differs; `appVersion` is a fixed string today. **SYNC-048 /
+  SYNC-050 / SYNC-113:** first-sign-in writes in batches of at most 10, account creation first; this device's own
+  partial upload (`uploadingUid`) resumes as case (b). **SYNC-053:** create detection via `cloudDocs`.
+  **SYNC-080:** an `'unconfirmed'` write (20 s) stays pending and is checked by a pull about 60 s later.
+  **SYNC-084:** singular "1 change not synced yet". **SYNC-096:** email-link re-auth = sign in again (exact
+  message); Google popup cancel "Your account wasn't deleted."; Try again; `deletingUid` stops all sync until the
+  deletion completes; **RJ decision 12:** Cancel deletion only when the deletion removed nothing, then only Try
+  again (or Remove from this device); pending build H-076 (`deletingRemovedAny`, `deleteAll` `removedAny`).
+  **SYNC-097:** Auth emulator codes recorded (`auth/user-token-expired`, `auth/invalid-refresh-token`), mapping
+  listed, production still `unverified`; the half-deleted sign-out clears `uploadingUid` (H-075). **SYNC-111 /
+  SYNC-112:** owner-only `list`, id checks on every operation, account `createdAt` immutable, `duplicatedFrom` ≤ 36.
+  **SYNC-114:** Java 21 for `npm run test:rules` (Android Studio JBR via `JAVA_HOME`). New ACs 39–44 (email-link
+  return, resumed upload, unconfirmed write, device-local build, unfinished deletion and Cancel deletion, Auth
+  codes); ACs 1, 3, 22, 29, 35 updated. Still 89 requirements (81 MUST, 3 SHOULD, 5 MUST NOT); 44 ACs.
+
 - 0.6 (2026-11-23, RJ: "i did email. update the specs to work in google later but stick with email for now"):
   SYNC-006 and RJ decision 1: email link is the only launch provider; Google stays specified but off; enabled
   providers come from build config `authProviders` (default `['email-link']`), so adding `'google'` needs only

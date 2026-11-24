@@ -7,6 +7,11 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: H-074 SPEC-010 follow-ups (spec-writer + validator)
+- SPEC-010 [[Accounts and Sync]] v0.7 brought in line with the H-062 build (data contract, batches of 10 with resume via `uploadingUid`, `cloudDocs` create detection, `'unconfirmed'` writes, email-link return trigger, device-local `lastBuild`, emulator Auth codes, interim Delete placement, `duplicatedFrom` ≤ 36, preview-build gap, Java 21). 89 rows, 44 ACs.
+- RJ decision 12: a deletion that removed nothing offers Cancel deletion → builder H-076.
+- Validator PASS round 1 ([[Validation H-074]]). New items H-076…H-079 (cancel deletion, first-sign-in extra writes, `appVersion` stamping + preview deploy, clean-ups). No code. Committed on `loop/H-074-spec010-followups`.
+
 ## 2026-11-23: H-061 accounts and sync spec (spec-writer + validator)
 - New SPEC-010 [[Accounts and Sync]] v0.4 (88 rows, 36 ACs): optional sign-in behind `signInEnabled`, the [[Firestore Data Shape]] layout, device-local sync log with 30-day tombstones, latest change wins per card count / tag target / lock / deck (monotonic stamps), first sign-in Combine or Cancel, offline, sign-out, delete account, owner-only rules with field validation. Locks sync (`state/locks`, `{lockedAt|null, updatedAt}`).
 - Validator FAIL ×3 (rounds 1–3: 6 + 4 + 2 blockers), PASS round 4 ([[Validation H-061]]). Spec Index and Current State rows added.
