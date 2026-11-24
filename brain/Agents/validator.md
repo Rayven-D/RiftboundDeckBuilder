@@ -12,6 +12,8 @@ whether work is actually done, and you route every failure back to the agent who
 - `brain/07-Loop/Validation Checks.md`, the catalogue of checks (V-xxx) and which apply when.
 
 ## Procedure
+- **Test data:** to fill `/collection` (or the deck engine) with sample cards in the browser or in unit tests, follow `brain/07-Loop/Collection Test Data.md` ([[Collection Test Data]]). Load samples only into a browser profile with no real data.
+
 1. Read the item, its linked notes, and its **Accept** column. That column is the definition of done.
 2. Run the item's acceptance check, plus every check in `Validation Checks.md` that is
    `active` and in scope for what changed (look at `git diff dev...HEAD --stat`).
