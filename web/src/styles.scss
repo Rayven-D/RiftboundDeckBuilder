@@ -252,11 +252,35 @@ a {
   outline-offset: 2px;
 }
 
-/* Material icon buttons get the app's focus ring instead of only Material's faint grey state
-   layer (H-095 fix 6). */
-.mat-mdc-icon-button.mat-mdc-button-base:focus-visible {
+/* H-139 (also covers icon buttons; replaces the icon-only rule of H-095 fix 6): Material sets
+ * `outline: none` on its buttons (.mdc-button, .mat-mdc-icon-button: 0,1,0) and
+ * `outline: 0` on .mat-mdc-menu-item:focus (0,2,0). Its component styles load after this file, so the
+ * global ring above never showed on them; .mdc-button:active (0,2,0) also hid it while Space is held.
+ * The button class is doubled and the menu rules are scoped to the panel, so every selector here is
+ * (0,3,0) and wins whatever the load order, without !important.
+ * Ring vs what it touches (brain/04-UI/Brief H-139.md), dark teal / light teal: page bg 8.90 / 5.05,
+ * surface 7.78 / 5.47, raised 6.76 / 4.65. On the accent fill it is
+ * only 1.34 / 1.00, so buttons keep the 2px OUTSIDE offset (ring sits on the page/dialog bg); never
+ * inset it on a filled button. Menu items are flush with the panel edge, so their ring is inset.
+ * Not animated: outline stays out of the button transition list. */
+.mat-mdc-button-base.mat-mdc-button-base:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
+}
+
+/* cdk-keyboard-focused: a keyboard-opened menu focuses its first item; mouse-opened stays ringless. */
+.mat-mdc-menu-panel .mat-mdc-menu-item:focus-visible,
+.mat-mdc-menu-panel .mat-mdc-menu-item.cdk-keyboard-focused {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+@media (forced-colors: active) {
+  .mat-mdc-button-base.mat-mdc-button-base:focus-visible,
+  .mat-mdc-menu-panel .mat-mdc-menu-item:focus-visible,
+  .mat-mdc-menu-panel .mat-mdc-menu-item.cdk-keyboard-focused {
+    outline-color: Highlight;
+  }
 }
 
 h1,

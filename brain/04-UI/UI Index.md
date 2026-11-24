@@ -20,6 +20,7 @@ Owner: **builder** with RJ. Record agreed screens and design decisions here.
 | Date | Note | Scope |
 |---|---|---|
 | 2026-11-24 | [[UI Review 2026-11-24]] | `loop/SPEC-010-v0.9-build`: sign-in gate, account menu, sign-in / sign-out / delete dialogs, notices, header and phone tab bar. 23 findings; top three: invisible keyboard focus on Material buttons, snack bars over the phone tab bar, Delete account styled as primary |
+| 2026-11-24 | [[Brief H-139]] | Brief for finding #1: focus ring on Material buttons (2px outside) and menu items (inset), plain CSS in `styles.scss`, contrast table, Playwright accept list |
 
 ## Design decisions
 See [[Design Direction]]: candidate visual directions awaiting RJ's choice, and the decisions taken in the H-009 scaffold.

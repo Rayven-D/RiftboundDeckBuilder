@@ -7,6 +7,11 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: H-139 focus ring on Material buttons and menu items (builder, chain step 1)
+- `loop/H-139-focus-ring` from `loop/SPEC-010-v0.9-build` @ `49e3f8d` (started as H-100 on `259484b`, renumbered and rebased). ui-engineer [[Brief H-139]] → builder → two Playwright runs at 1440/375, dark/light, keyboard, plus green preview.
+- `styles.scss`: Material's `outline: none` / `outline: 0` / `.mdc-button:active` beat the global `:focus-visible` ring; new (0,3,0) rules for buttons (+2px outside, never inset on fills: ring vs fill 1.00–1.83) and menu items (inset), forced colors `Highlight`, no transition; replaces dev's H-095 icon-only rule. Sign-in dialog `.email` gets 4 px bottom room (Send link ring was clipped at 375; also removes the 4 px scroll of H-124).
+- Held-Space check in Playwright: ring stays while `:active`. Tests: 4 new in `focus-ring.spec.ts`; lint, build, 527 web, 34 rules green. Validator PASS round 1 ([[Validation H-139]]); code review: tests tightened (transition `all`, menu forced-colors selector). No new board IDs (`next_id` 140).
+
 ## 2026-11-24: UI review of the SPEC-010 v0.9 sign-in UI (ui-ux-engineer)
 - Reviewed `loop/SPEC-010-v0.9-build` live on :4201 (`signInEnabled: true`, no emulator) at 1440 / 1024 / 375, dark and light, keyboard; signed-in states rendered by setting `SyncService` signals. Wrote [[UI Review 2026-11-24]] (23 findings), linked from [[UI Index]].
 - Top: invisible keyboard focus on Material buttons, snack bars over the phone tab bar, Delete account styled as the teal primary. No board items filed (the orchestrator files them); no code, spec or board edits.

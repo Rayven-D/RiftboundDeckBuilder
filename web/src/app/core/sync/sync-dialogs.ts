@@ -90,7 +90,8 @@ export const SIGN_IN_INTRO =
   `,
   styles: `
     .providers { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0; }
-    .email { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+    /* H-139: room below Send link (48px touch target on a 40px button) so its focus ring is not clipped. */
+    .email { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-bottom: var(--space-1); }
     .note { color: var(--color-text-muted); }
   `,
 })
