@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.10
+version: 1.12
 ---
 # API Contracts
 
@@ -153,8 +153,8 @@ Notes for the UI:
 `services/`. The engine lives in `web/src/app/core/decks/` (barrel `index.ts`, shapes in `types.ts`)
 because its only consumer is the browser, `services/` isn't hosted (ADR-0004) and `web/` can't import
 from `services/`. It is pure: no Angular, no storage, no network, no clock. Shapes follow the specs'
-data contracts: [[Shared Cards and Lock-in]] v0.2, [[Runes Assumed Owned]] v0.2,
-[[Your Decks Ownership View]] v0.4, plus the parts of SPEC-001/002/003/006/007 they read.
+data contracts: [[Shared Cards and Lock-in]] v0.4 and [[Your Decks Ownership View]] v0.5 (runes are
+cards: counted, shared and locked like any card, SHARE-006 / OWN-028), plus the parts of SPEC-001/002/003/006/007 they read.
 
 | Group | Types |
 |---|---|
@@ -163,10 +163,10 @@ data contracts: [[Shared Cards and Lock-in]] v0.2, [[Runes Assumed Owned]] v0.2,
 | Read from other specs | SPEC-006 `UserDeck`, `DeckCard`, `DeckZone`, `DeckSource`; SPEC-007 `DeckOwnershipInput`, `DeckOwnership`, `CollectionCatalogView`, `StoredTags`, `Tag`, `StoredPrintingCodes`; SPEC-003 `StoredCollection`; SPEC-002 `BanListFile`, `BanStatus`; SPEC-001 `PlayableCard`, `Printing`, `CardSet` (subset: no `collector` / `extra`) |
 
 ```ts
-isRuneEntry(zone: DeckZone, card: PlayableCard | null): boolean                    // RUNE-001
 computeSharedPool(input: SharedPoolInput): SharedPool                              // SHARE-070
 availability(pool: SharedPool, deckId: string, cardKey: CardKey): CardAvailability // SHARE-010/011/015
-canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boolean): LockCheck     // SHARE-020; null = ownership unavailable
+canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boolean): LockCheck     // SHARE-020; null = ownership unavailable; no-cards = no entry at all
+countedEntries(deck: UserDeck): { zone; entry }[]                                  // every entry of COUNTED_ZONES (= ZONE_ORDER, runes included)
 lockedShortfalls(before: SharedPool, after: SharedPool): LockedShortfall[]         // SHARE-034
 computeDeckOwnership(deck, ownership: CollectionOwnership, catalog | null, banData | null, today): DeckOwnershipView // OWN-025
 summarizeDeck(deck, view, legality: { verdict; asOf } | null, format: { id; name } | null): DeckTileSummary
@@ -185,8 +185,9 @@ Notes for the UI:
 - Treat `BanListFile` as an immutable snapshot too: `banStatus` builds its banned/upcoming lookup
   once per (file object, format, region, asOf) (OWN-080), so load a new object when the ban data
   changes.
-- Rune detection (RUNE-001) in `computeDeckOwnership` uses `ownership.input.catalog` when ownership
-  is ok, the same catalog as `computeSharedPool`. Deck entries must be DECK-096-valid (`qty` 1..999).
+- No rune exception anywhere in the engine (SHARE-006, OWN-028): `COUNTED_ZONES` = `ZONE_ORDER`, rune
+  entries are allocated, summed, listed as missing (`Rune Pool:` in `missingText`) and held by locks
+  like any entry. `OwnershipCard` has no rune flag. Deck entries must be DECK-096-valid (`qty` 1..999).
 - Compute one `SharedPool` per input change and pass it to every deck view and tile (SHARE-071).
 - Lock order (SHARE-030) is a total order: parsed `lockedAt` ascending with unparseable values
   after every parseable one, then the raw `lockedAt` string, then `deckId`.
@@ -278,6 +279,32 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   creates) and `firestore.indexes.json` (every field but `syncedAt` exempt). Not deployed: deploy with
   `firebase deploy --only firestore` before sign-in ships (SYNC-117).
 
+## Collection page (H-086)
+Not an endpoint: the first web consumer of `GET /api/sets` and `GET /api/cards`, plus the pure
+Collection view model. TypeScript source of truth: `web/src/app/shared/collection/`.
+- **Catalog load** (`web/src/app/core/cards/card-data.ts`, `CardData`): `GET /api/sets`, then
+  `GET /api/cards?page=N&pageSize=200` until `total` is reached, folded into the SPEC-007
+  `CollectionCatalogView` (`printings` keyed by `printingId`; the `CardWithPrintings.printings`
+  array is split off). Once per session; `reload()` retries. Any failure → `{ status: 'error' }`
+  (page state S10). In production this fails until ADR-0004 hosts the API or a static snapshot.
+- **Ban data:** `CardData.loadBans()` resolves `null` (no `banlist.json` is built or served yet), so
+  every card's `EntryBan` is `unknown` ("Ban status unknown", COLL-008). Swap the body when a source exists.
+- **Printing order:** `printing-sort.ts` ports CARD-037 `collectorKey` and the CARD-070 comparator
+  from `services/src/domain/` (keep them in step); it reads `collectorNumber`, not the API's `collector`.
+- **View model** (`collection-view.ts`): `buildCollectionView({ ownership: DeckOwnershipInput, decks,
+  locks | null, banData | null, today })` → `CollectionView` (`tiles` in COLL-031/033 order, one per
+  `deckOwnership()` entry; `cards` per cardKey with `locked` holds from `computeSharedPool()`, never
+  per printing; `unresolved` (COLL-015); `totals`; `pool`). `queryTiles(tiles, q, 'set'|'name'|'copies')`,
+  `cardDetail(view, entryId)` (dialog; Could fit in = unlocked uses with `availability()`), URL helpers
+  for `q` / `sort` only. The page mirrors them with `Location.replaceState` (no router navigation, so no
+  route view transition and no history entry; H-095). Stored view state keeps SPEC-007 `CollectionQuery` fields `text` and `sort`
+  (`{ field: 'default'|'name'|'quantity', dir }`) and leaves the rest of a stored query untouched.
+- **Export** (`export-csv.ts`): `exportCollectionCsv(input)` → `{ csv, copies, cards, notices }`
+  per SPEC-003 IMP-055 rules 1–10. The rule 6 self-check uses the shared parser plus nameKey, the
+  exact-name guard and per-code printing order, not a catalog resolver (none in web yet, H-057).
+- **Dev only:** `localStorage['rift.dev.sample'] = 'large'` makes `CardData` return a generated
+  5,000-entry catalog (`sample-data.ts`), set by the `/styleguide` sample loader.
+
 ## Builds and deploys (SPEC-010 SYNC-007, SYNC-012, H-078)
 - **`appVersion` per build (SYNC-012).** `web/scripts/build.mjs` computes it and passes it to `ng build` as the
   define `APP_VERSION` (nothing is written into the source tree). Format `web-<prod|preview>-<id>`: `<id>` is
@@ -313,7 +340,7 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
 - v1.1 (2026-11-23, H-055): no endpoint change. Base URL is `/api` in dev and prod (dev via the
   `ng serve` proxy); production `/api/**` returns `404` until ADR-0004 picks an API host.
 - v1.2 (2026-11-23, H-059): no endpoint change. Added "Browser-side shared types": the pure deck
-  ownership engine in `web/src/app/core/decks/` (SPEC-005 v0.4, SPEC-008 v0.2, SPEC-009 v0.2).
+  ownership engine in `web/src/app/core/decks/` (SPEC-005 v0.4, SPEC-008 v0.2, and the rune spec withdrawn on 2026-11-24).
 - v1.3 (2026-11-23, H-059 review): no endpoint change. Engine notes: SHARE-030 total lock order,
   `canLock(null, …)` caller duty, new `DeckOwnershipInput` per change (H-060), and the
   ownership-unavailable view values pending spec.
@@ -324,13 +351,20 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   store, sync-log and adapter contracts in `web/`, and the additions the build needed.
 - v1.6 (2026-11-24, H-058 family merge): no endpoint change. The engine's stored-record types now come
   from `shared/storage/records.ts` (one source; `StoredTags` schema 3); ownership-unavailable values → H-076.
-- v1.7 (2026-11-24, H-127; numbered v1.3 on its branch): no endpoint change. `RemoteStore.deleteAll` reports `removedAny`; sync log
+- v1.7 (2026-11-24, H-086): no endpoint change. New section "Collection page": the web catalog load
+  over `/api/sets` + `/api/cards`, the ban-data seam (null), the ported CARD-070 order, the Collection
+  view model and the IMP-055 exporter.
+- v1.8 (2026-11-24, H-098): no endpoint change. Runes are cards: the rune test function and the rune
+  flag on `OwnershipCard` and `CardSummary` are removed; `COUNTED_ZONES` includes `runes`;
+  `countedEntries(deck)` no longer takes a catalog; `canLock` returns `no-cards` only for a deck with no
+  entries ("Lock in needs at least one card").
+- v1.9 (2026-11-24, H-127; numbered v1.3 on its branch, then v1.7): no endpoint change. `RemoteStore.deleteAll` reports `removedAny`; sync log
   `deletingRemovedAny`; engine/service `unfinishedDeletion()` and `cancelDeletion()` (SYNC-096).
-- v1.8 (2026-11-24, H-081; numbered v1.4 on its branch): no endpoint change. Account-required mode: sync log `sessionLostUid`,
+- v1.10 (2026-11-24, H-081; numbered v1.4 on its branch, then v1.8): no endpoint change. Account-required mode: sync log `sessionLostUid`,
   `uploadingUid` no longer written, the gate (`gateState`, `SignInGate`, `LocalSyncLogStore.peek()`), sign-out
   without a mode, Combine and upload paths removed.
-- v1.9 (2026-11-24, H-077; numbered v1.5 on its branch): no endpoint change. `PushChanges.batch` and `PlanOptions.batch` removed (the adapter
+- v1.11 (2026-11-24, H-077; numbered v1.5 on its branch, then v1.9): no endpoint change. `PushChanges.batch` and `PlanOptions.batch` removed (the adapter
   no longer uses `writeBatch`); new pure `planAccountPush(account)`; the first-sign-in flow pushes the account
   write only (SYNC-050).
-- v1.10 (2026-11-24, H-078; numbered v1.6 on its branch): no endpoint change. New section "Builds and deploys": per-build `appVersion`
+- v1.12 (2026-11-24, H-078; numbered v1.6 on its branch, then v1.10): no endpoint change. New section "Builds and deploys": per-build `appVersion`
   (SYNC-012) and the preview deploy command `npm run deploy:preview -- <channel> [expires]` (SYNC-007).

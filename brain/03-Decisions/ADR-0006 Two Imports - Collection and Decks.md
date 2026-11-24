@@ -81,6 +81,12 @@ Note: RJ's row-layout answer said "per card name + expand", but his detailed ans
 - **Shared cards:** every deck shows when a card is also used by other decks, which decks, and how many each needs.
 - **Lock in:** when a deck is complete the user can lock it. Its cards don't count toward other decks until it is unlocked or deleted. Example: 3 Hextech Ray owned, two decks need 3, deck 1 locked → deck 2 shows 0 of 3 available (with 4 owned, 1 of 3). Clicking the card shows which decks locked it and how many each holds.
 - **Scope:** every physical section counts: Legend, Chosen Champion, Main Deck, Sideboard and Battlefields, one pool per card name across all printings ([[Physical Copies Across Decks]]). Unlocked decks don't reserve copies from each other.
-- **Runes are ignored:** the user is assumed to have the runes. They never count as missing, never block completion or lock in, and are not needed in the Collection.
+- ~~**Runes are ignored:** the user is assumed to have the runes. They never count as missing, never block completion or lock in, and are not needed in the Collection.~~ **Reversed by RJ on 2026-11-24**, see "Runes are cards" below.
 - Defaults chosen by Claude in [[Shared Cards and Lock-in]], **accepted by RJ 2026-11-23**: when locked decks together need more than the user owns, the **earliest lock is served first**; a lock never gives copies to an unlocked deck; a locked deck that falls short **stays locked and is flagged short**; a locked deck's cards can't be edited until it is unlocked; Undo after a delete restores the deck **unlocked**. No force lock: a deck short only because of copies locked elsewhere can't be locked (RJ, 2026-11-23).
+
+## Runes are cards (RJ, 2026-11-24, H-097)
+- RJ: **"Let's change the rune specifications. Allow users to import runes as well and treat them like any other card."**
+- Runes are imported with Owned Cards Import and Deck Import, counted in the Collection and in deck ownership (full / partial / missing), shared across decks and held by locked decks, shown in Collection like any card, and included in the CSV export. This replaces "Runes are ignored" above.
+- [[Runes Assumed Owned]] (SPEC-009) is withdrawn. The rules now live in SPEC-003 IMP-071, SPEC-005 OWN-028/029, SPEC-007 COLL-089 and SPEC-008 SHARE-006. Legality (SPEC-002) is unchanged.
+- No data migration and no one-time notice; runes the user hasn't imported show as missing. RJ confirmed **"No notice"** on 2026-11-24 (SPEC-005 OWN-029, open question 7 resolved).
 

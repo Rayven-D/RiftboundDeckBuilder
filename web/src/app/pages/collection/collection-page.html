@@ -1,0 +1,279 @@
+<header class="page-header head">
+  <div class="title-row">
+    <h1>Collection</h1>
+    @if (phase() === 'ready') {
+      @if (isPhone()) {
+        <button
+          matIconButton
+          type="button"
+          class="more"
+          aria-label="More"
+          [matMenuTriggerFor]="moreMenu"
+        >
+          <app-icon name="more_vert" />
+        </button>
+        <mat-menu #moreMenu="matMenu" xPosition="before">
+          <button mat-menu-item type="button" (click)="exportCsv()">
+            <app-icon name="download" class="menu-icon" />Export CSV
+          </button>
+        </mat-menu>
+      } @else {
+        <button
+          type="button"
+          class="button button--outlined"
+          title="Exports your whole collection."
+          (click)="exportCsv()"
+        >
+          <app-icon name="download" />Export CSV
+        </button>
+      }
+    }
+  </div>
+  @switch (phase()) {
+    @case ('empty') {
+      <p class="page-lede">Every card you own.</p>
+    }
+    @case ('ready') {
+      <p id="count-line" class="count-line" role="status" aria-live="polite">{{ countText() }}</p>
+    }
+    @case ('loading') {
+      <p class="count-line">
+        @if (showSkeleton()) {
+          <span class="count-placeholder" aria-hidden="true"></span>
+        }
+      </p>
+    }
+  }
+</header>
+
+@if (phase() === 'unreadable') {
+  <div class="banner banner--danger" role="alert">
+    <app-icon name="error" />
+    <p>
+      Your collection couldn't be read. It may have been saved by a newer version of Rift Builder.
+      Nothing was changed or deleted.
+    </p>
+    <button type="button" class="button button--outlined" (click)="reload()">Reload</button>
+  </div>
+}
+
+@if (phase() === 'catalog-error') {
+  <!-- S10: wording pending H-087 (missing catalog). -->
+  <div class="banner banner--warning" role="alert">
+    <app-icon name="warning" />
+    <p>Card data couldn't load. Your cards are safe. Names and images will show once it loads.</p>
+    <button type="button" class="button button--outlined" (click)="retryCatalog()">
+      Try again
+    </button>
+  </div>
+}
+
+@if (phase() === 'empty') {
+  <app-empty-state
+    heading="Your collection is empty"
+    message="Import the cards you own and they will appear here."
+  >
+    <a class="button" routerLink="/import" [queryParams]="{ type: 'collection' }"
+      >Import collection</a
+    >
+  </app-empty-state>
+}
+
+@if (phase() === 'ready' || phase() === 'loading') {
+  @if (view(); as v) {
+    <div class="notices">
+      @if (urlNotice(); as notice) {
+        <p class="notice" role="status">
+          <app-icon name="help" /><span>{{ notice }}</span>
+          <button
+            matIconButton
+            type="button"
+            class="dismiss"
+            aria-label="Dismiss"
+            (click)="urlNotice.set(null)"
+          >
+            <app-icon name="close" />
+          </button>
+        </p>
+      }
+      @if (v.locksIgnored && !locksDismissed()) {
+        <p class="notice" role="status">
+          <app-icon name="help" /><span
+            >Locked decks couldn't be read, so locked copies aren't shown.</span
+          >
+          <button
+            matIconButton
+            type="button"
+            class="dismiss"
+            aria-label="Dismiss"
+            (click)="locksDismissed.set(true)"
+          >
+            <app-icon name="close" />
+          </button>
+        </p>
+      }
+      @if (v.decksUnreadable && !decksDismissed()) {
+        <p class="notice" role="status">
+          <app-icon name="help" /><span>{{ decksUnreadable }}</span>
+          <button
+            matIconButton
+            type="button"
+            class="dismiss"
+            aria-label="Dismiss"
+            (click)="decksDismissed.set(true)"
+          >
+            <app-icon name="close" />
+          </button>
+        </p>
+      }
+      @if (v.banUnknown && !banDismissed()) {
+        <p class="notice" role="status">
+          <app-icon name="help" /><span>The ban list couldn't load, so ban status is unknown.</span>
+          <button
+            matIconButton
+            type="button"
+            class="dismiss"
+            aria-label="Dismiss"
+            (click)="banDismissed.set(true)"
+          >
+            <app-icon name="close" />
+          </button>
+        </p>
+      }
+    </div>
+  }
+
+  <div #sentinel class="sentinel" aria-hidden="true"></div>
+  <div class="toolbar" [class.toolbar--stuck]="stuck()">
+    <div class="search">
+      <app-icon name="search" class="search-icon" />
+      <input
+        #search
+        type="search"
+        placeholder="Search by name"
+        aria-label="Search by name"
+        autocomplete="off"
+        [value]="text()"
+        [disabled]="phase() !== 'ready'"
+        (input)="onSearchInput(search.value)"
+        (keydown)="onSearchKey($event)"
+      />
+      @if (text()) {
+        <button type="button" class="clear" aria-label="Clear search" (click)="clearSearch()">
+          <app-icon name="close" />
+        </button>
+      }
+    </div>
+    @if (isPhone()) {
+      <button
+        type="button"
+        class="sort-button"
+        aria-label="Sort by"
+        aria-haspopup="menu"
+        [disabled]="phase() !== 'ready'"
+        [matMenuTriggerFor]="sortMenu"
+      >
+        <app-icon name="sort" />
+      </button>
+      <mat-menu #sortMenu="matMenu" xPosition="before">
+        @for (s of sorts; track s.value) {
+          <button
+            mat-menu-item
+            type="button"
+            role="menuitemradio"
+            [attr.aria-checked]="sort() === s.value"
+            (click)="setSort(s.value)"
+          >
+            <span class="check" aria-hidden="true">{{ sort() === s.value ? '✓' : '' }}</span>{{
+              s.label
+            }}
+          </button>
+        }
+      </mat-menu>
+    } @else {
+      <div class="sort">
+        <span class="sort-label" id="sort-label">Sort by</span>
+        <mat-select
+          class="sort-select"
+          aria-labelledby="sort-label"
+          [value]="sort()"
+          [disabled]="phase() !== 'ready'"
+          (valueChange)="setSort($event)"
+        >
+          @for (s of sorts; track s.value) {
+            <mat-option [value]="s.value">{{ s.label }}</mat-option>
+          }
+        </mat-select>
+      </div>
+    }
+  </div>
+
+  @if (phase() === 'loading') {
+    @if (showSkeleton()) {
+      <div class="skeleton" aria-busy="true">
+        <span class="visually-hidden">Loading your collection…</span>
+        @for (i of skeleton; track i) {
+          <div class="skeleton-tile"></div>
+        }
+      </div>
+    }
+  } @else if (view(); as v) {
+    @if (results().length === 0 && unresolved().length === 0 && query().trim()) {
+      <app-empty-state [heading]="'No cards match “' + query().trim() + '”.'">
+        <button type="button" class="button" (click)="clearSearch()">Clear search</button>
+      </app-empty-state>
+    }
+    <div
+      #gridHost
+      class="grid-host"
+      [style.--cols]="cols()"
+      [style.--gap.px]="isDesktop() ? 16 : 12"
+    >
+      @if (results().length > 0) {
+        <cdk-virtual-scroll-viewport
+          scrollWindow
+          role="list"
+          aria-label="Your cards"
+          aria-describedby="count-line"
+          [itemSize]="rowHeight()"
+          [minBufferPx]="rowHeight() * 2"
+          [maxBufferPx]="rowHeight() * 4"
+          (keydown)="onGridKey($event)"
+          (focusin)="onGridFocus($event)"
+        >
+          <div
+            *cdkVirtualFor="let row of rows(); let r = index; templateCacheSize: 0"
+            class="grid-row"
+            [style.height.px]="rowHeight()"
+          >
+            @for (tile of row; track tile.entryId; let c = $index) {
+              <app-collection-tile
+                [tile]="tile"
+                [card]="v.cards.get(tile.cardKey)"
+                [setSize]="results().length"
+                [posInSet]="r * cols() + c + 1"
+                [focusable]="r * cols() + c === activeIndex()"
+                [eager]="r < eagerRows()"
+                (open)="openCard(tile.entryId)"
+              />
+            }
+          </div>
+        </cdk-virtual-scroll-viewport>
+      }
+    </div>
+
+    @if (unresolved().length > 0) {
+      <section class="unresolved" aria-labelledby="unresolved-heading">
+        <h2 id="unresolved-heading">Unresolved cards</h2>
+        <p>These cards aren't in the current card data. Import them again to match them.</p>
+        <ul>
+          @for (u of unresolved(); track u.cardKey) {
+            <li>
+              <span class="key">{{ u.cardKey }}</span> · ×{{ u.quantity.toLocaleString('en-US') }}
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  }
+}

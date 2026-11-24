@@ -326,7 +326,7 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
     ]);
   });
 
-  it('AC 12 (SHARE-014, RUNE-004) runes the user does not own never block lock in', () => {
+  it('AC 12 (SHARE-006, SHARE-014, SHARE-020) runes the user does not own block lock in like any card', () => {
     const d = makeDeck('r1', 'Rune Deck', {
       main: [['Tempo Card', 2]],
       runes: [
@@ -335,8 +335,15 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
       ],
     });
     const p = pool([d], [], {});
-    expect(p.byDeck['r1'].complete).toBe(true);
-    expect(canLock(p, d, false)).toEqual({ ok: true });
+    expect(p.byDeck['r1'].complete).toBe(false);
+    expect(p.byDeck['r1'].cardsShort).toEqual(['chaos rune', 'order rune']);
+    const check = canLock(p, d, false);
+    expect(check).toEqual({ ok: false, reason: 'incomplete', cardsShort: 2 });
+    expect(lockCheckMessage(check)).toBe('Lock in needs every card available: 2 cards short');
+    // After an Add import of 9 Chaos Rune and 3 Order Rune: complete, Lock in enabled.
+    const after = pool([d], [], { 'Chaos Rune': 9, 'Order Rune': 3 });
+    expect(after.byDeck['r1'].complete).toBe(true);
+    expect(canLock(after, d, false)).toEqual({ ok: true });
   });
 
   it('AC 13 (SHARE-061) unreadable lock store: counts ignore locks and Lock in is disabled', () => {
@@ -371,7 +378,7 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
     expect(localStorage.length).toBe(storageBefore);
   });
 
-  describe('AC 15: empty and runes-only decks; one ownership group per deck (SHARE-014, SHARE-020, SHARE-050, SHARE-051)', () => {
+  describe('AC 15: empty and runes-only decks; one ownership group per deck (SHARE-006, SHARE-014, SHARE-020, SHARE-050, SHARE-051)', () => {
     const runeTest = makeDeck('rt', 'Rune Test', {
       runes: [
         ['Chaos Rune', 9],
@@ -393,14 +400,17 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
       );
     const isLocked = (d: UserDeck) => shared.byDeck[d.id].locked;
 
-    it('SHARE-050 Rune Test and Empty Draft read "No cards to count", no badge, group none', () => {
-      for (const d of [runeTest, emptyDraft]) {
-        expect(summary(d)).toMatchObject({
-          ownershipLine: 'No cards to count',
-          lockBadge: null,
-          ownershipFilter: 'none',
-        });
-      }
+    it('SHARE-050 Rune Test reads "0 of 12 copies available", Empty Draft "No cards to count"; no badge, group none', () => {
+      expect(summary(runeTest)).toMatchObject({
+        ownershipLine: '0 of 12 copies available',
+        lockBadge: null,
+        ownershipFilter: 'none',
+      });
+      expect(summary(emptyDraft)).toMatchObject({
+        ownershipLine: 'No cards to count',
+        lockBadge: null,
+        ownershipFilter: 'none',
+      });
     });
 
     it('SHARE-051 Ray Only (locked, holds 0) reads "0 of 3 copies locked in", "Locked · 1 card short", group none', () => {
@@ -426,12 +436,10 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
       expect(isLocked(deck1)).toBe(true);
     });
 
-    it('SHARE-020 canLock returns no-cards for Rune Test and Empty Draft; rune tiles read "Assumed owned"', () => {
-      for (const d of [runeTest, emptyDraft]) {
-        const check = canLock(shared, d, false);
-        expect(check).toEqual({ ok: false, reason: 'no-cards' });
-        expect(lockCheckMessage(check)).toBe('Lock in needs at least one card besides runes');
-      }
+    it('SHARE-020 Rune Test is incomplete (2 cards short) with darkened 0-of rune tiles; Empty Draft is no-cards', () => {
+      const runeCheck = canLock(shared, runeTest, false);
+      expect(runeCheck).toEqual({ ok: false, reason: 'incomplete', cardsShort: 2 });
+      expect(lockCheckMessage(runeCheck)).toBe('Lock in needs every card available: 2 cards short');
       const v = computeDeckOwnership(
         runeTest,
         { status: 'ok', input, shared },
@@ -439,7 +447,29 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
         null,
         TODAY,
       );
-      expect(v.sections[4].cards.map((c) => c.label)).toEqual(['Assumed owned', 'Assumed owned']);
+      expect(v.sections[4].cards.map((c) => [c.label, c.state])).toEqual([
+        ['0 of 9 available', 'none'],
+        ['0 of 3 available', 'none'],
+      ]);
+      const emptyCheck = canLock(shared, emptyDraft, false);
+      expect(emptyCheck).toEqual({ ok: false, reason: 'no-cards' });
+      expect(lockCheckMessage(emptyCheck)).toBe('Lock in needs at least one card');
+    });
+
+    it('SHARE-006 owning Chaos Rune ×9 and Order Rune ×3 makes Rune Test ready and lockable', () => {
+      const owned = makeInput(catalog, {
+        owned: { ...others, [RAY]: 3, 'Chaos Rune': 9, 'Order Rune': 3 },
+      });
+      const p = computeSharedPool({ decks, locks, ownership: owned });
+      const v = computeDeckOwnership(
+        runeTest,
+        { status: 'ok', input: owned, shared: p },
+        catalog,
+        null,
+        TODAY,
+      );
+      expect(summarizeDeck(runeTest, v, null, null).ownershipFilter).toBe('ready');
+      expect(canLock(p, runeTest, false)).toEqual({ ok: true });
     });
   });
 

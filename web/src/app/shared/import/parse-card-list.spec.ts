@@ -717,3 +717,32 @@ describe('review fixes', () => {
     },
   );
 });
+
+describe('SPEC-003 AC 42: runes are imported like any card (IMP-071, IMP-057)', () => {
+  const text = 'Rune Pool:\n9 Chaos Rune\nRunes\n3 Order Rune\n2 Chaos Rune';
+
+  it('IMP-071 rune lines parse under either rune label with no rune-specific issue', () => {
+    const r = parseCardText(text);
+    expect(r.issues).toEqual([]);
+    expect(r.entries.map((e) => [e.line, e.quantity, e.name, e.section])).toEqual([
+      [2, 9, 'Chaos Rune', 'runes'],
+      [4, 3, 'Order Rune', 'runes'],
+      [5, 2, 'Chaos Rune', 'runes'],
+    ]);
+    expect(r.summary).toMatchObject({
+      linesRead: 5,
+      entriesParsed: 3,
+      distinctNames: 2,
+      totalCopies: 14,
+    });
+  });
+
+  it('IMP-071 the same lines without any label parse the same way (section null)', () => {
+    const r = parseCardText('9 Chaos Rune\n3 Order Rune');
+    expect(r.issues).toEqual([]);
+    expect(r.entries.map((e) => [e.quantity, e.name, e.section])).toEqual([
+      [9, 'Chaos Rune', null],
+      [3, 'Order Rune', null],
+    ]);
+  });
+});

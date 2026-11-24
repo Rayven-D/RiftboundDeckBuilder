@@ -12,7 +12,9 @@ import { DeckMark } from './deck-mark';
     <section class="empty-state" [attr.aria-label]="heading()">
       <app-deck-mark class="mark" />
       <h2>{{ heading() }}</h2>
-      <p>{{ message() }}</p>
+      @if (message()) {
+        <p>{{ message() }}</p>
+      }
       <div class="actions"><ng-content /></div>
     </section>
   `,
@@ -52,5 +54,5 @@ import { DeckMark } from './deck-mark';
 })
 export class EmptyState {
   readonly heading = input.required<string>();
-  readonly message = input.required<string>();
+  readonly message = input<string>('');
 }

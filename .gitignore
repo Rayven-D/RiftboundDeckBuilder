@@ -42,3 +42,6 @@ desktop.ini
 # Card snapshot written by ingest:cards / ingest:fixture (regenerable)
 data/cards.json
 data/cards.report.json
+
+# Playwright MCP screenshots (agent review artifacts)
+.playwright-mcp/

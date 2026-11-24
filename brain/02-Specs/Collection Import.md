@@ -1,12 +1,12 @@
 ---
 tags: [spec]
 id: SPEC-003
-version: 0.8
+version: 0.9
 status: draft
 depends_on: [SPEC-001, SPEC-008]
 related: ["[[Deck Import]]", "[[My Collection]]", "[[Your Decks Ownership View]]", "[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
-research: ["[[Collection Import Formats]]", "[[Card Data & Images]]", "[[Sets]]", "[[Deck Construction Rules]]"]
-as_of: 2026-11-23
+research: ["[[Collection Import Formats]]", "[[Card Data & Images]]", "[[Sets]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]"]
+as_of: 2026-11-24
 ---
 # SPEC-003: Collection Import
 
@@ -32,10 +32,11 @@ as_of: 2026-11-23
 - IMP-053/054: browser storage behind `CollectionStore`, recording `catalogVersion`.
 - IMP-055 (v0.7, H-045): CSV export `Quantity,Card Name` only (no Tags column); one row `<qty>,<name> <SET> <NUM>` per printing, one name-only row for unassigned, missing-printing and no-code copies; export → Replace import gives the same `quantity` and `byPrinting` (AC 35).
 - IMP-058: the committed collection feeds Collection; Decks reads SPEC-007 `deckOwnership()`.
+- IMP-071 (v0.9, RJ 2026-11-24): **runes are imported like any card**: resolved, merged, committed and exported with no rune-specific skip, filter or warning, in any section, `Rune Pool:` included (SPEC-009 withdrawn).
 - Part A preamble: not applicable to decks: IMP-009 and IMP-015 only (= DECK-013). Since v0.4 CSV/Excel is shared with decks.
 
 **Shared types:** `CardKey`, `PrintingId`, `PrintingCode` (keys) · `ImportResult` / `ParsedLine` / `PrintingHint` / `ImportIssue` / `UploadInfo` (parser output, reused by SPEC-006) · `SourceFormat` · `StoredCollection` (`cardKey` → quantity + `byPrinting`) · `CollectionStore`.
-**Depends on:** [[Card Data Model]] v0.3; [[Shared Cards and Lock-in]] v0.3 (IMP-050a locked-deck warning only). **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
+**Depends on:** [[Card Data Model]] v0.3; [[Shared Cards and Lock-in]] v0.4 (IMP-050a locked-deck warning only). **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
 **BLOCKED (needs research):**
 - Piltover deck-code set indexes beyond SFD and what `ARC` is (IMP-032); variant letters a/s/b (IMP-033).
 - Real deck codes with known contents for fixtures (AC 16).
@@ -259,6 +260,7 @@ These requirements apply only to the Owned Cards Import. SPEC-006 defines its ow
 | IMP-004 | MUST | Owned-card import MUST NOT check deck legality or bans. A banned card (e.g. `Nocturne, Horrifying`, banned as of 2026-11-23) is imported like any other owned card. Legality (format `standard`) is SPEC-002's concern. | [[Deck Construction Rules]], [[Ban List]] |
 | IMP-058 | MUST | The committed collection is the single source of ownership for [[My Collection]] (SPEC-007) and for the ownership view in [[Your Decks Ownership View]] (SPEC-005). Total owned is looked up by `cardKey` (`cards[cardKey].quantity`, 0 if absent). **Decks does not read this total directly:** it uses SPEC-007's `deckOwnership(input, cardKey)` (COLL-081), which leaves out printings carrying an "exclude from decks" tag (ADR-0006, H-036). | [[ADR-0006 Two Imports - Collection and Decks]]; [[ADR-0005 MVP Product Defaults]] #2; [[Card Data Model]] CARD-013 |
 | IMP-060 | MUST | This flow starts from the **Owned Cards Import** option card on `/import` ("List of cards and their quantity you own"). The **Deck Import** option card starts SPEC-006 and never writes to the collection. | [[Design Direction]] RJ feedback 2026-11-23; [[ADR-0006 Two Imports - Collection and Decks]] |
+| IMP-071 | MUST | **Runes are imported like any card** (v0.9). A line or row naming a rune card (`category: 'rune'`, e.g. `Chaos Rune`), under any section label (`Rune Pool:`, `Runes`, `Rune Deck`, IMP-017) or none, is parsed, resolved (IMP-025…030, IMP-064…070), merged by `cardKey` (IMP-047, IMP-048) and committed (IMP-049) exactly like any other card. The parser and the commit have no rune-specific skip, filter, warning or issue code, and the preview counts rune copies in its totals (IMP-057). The CSV export (IMP-055) writes rune rows by the same rules as any card. | RJ decision 2026-11-24 ("Allow users to import runes as well and treat them like any other card."); [[Physical Copies Across Decks]] facts 10, 11 |
 
 #### Merging, variants, commit
 | ID | Level | Requirement | Source |
@@ -658,6 +660,10 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 
 41. **Catalog-free summary** (IMP-057, 066) **Given** lines 1–7 `3 Lightning Rush`, `1 lightning rush`, `2 Kennen, Heart of the Tempest`, `1 RAD 001/167`, `2 rad 001 / 167`, `Gust`, `0 Gust`, then a blank line 8 followed by a final line break **When** parsed before the catalog has loaded **Then** `summary = {linesRead: 8, entriesParsed: 5, errors: 1, distinctNames: 3, totalCopies: 9}` (the two code-only lines count as one name, `RAD001/167`; `0 Gust` is a warning, not an error), and `resolvedExact`, `needsReview` and `catalogVersion` are absent.
 
+**AC 42 (v0.9)** needs a catalog with `Chaos Rune` and `Order Rune` (`category: 'rune'`), e.g. fixture F1 extended, until H-020.
+
+42. **Runes are imported and exported like any card** (IMP-047, IMP-049, IMP-055, IMP-057, IMP-071) **Given** an empty collection and the lines `Rune Pool:` / `9 Chaos Rune` / `Runes` / `3 Order Rune` / `2 Chaos Rune` **When** parsed **Then** lines 1 and 3 are labels (section `runes`), lines 2, 4 and 5 are `resolved` with no issue, `merged` holds `Chaos Rune ×11` (source lines 2 and 5) and `Order Rune ×3`, and `summary.totalCopies = 14`; **When** committed with Add **Then** `cards["chaos rune"] = {quantity: 11, byPrinting: {}}` and `cards["order rune"] = {quantity: 3, byPrinting: {}}`, and SPEC-007 `deckOwnership(input, 'chaos rune').ownedForDecks = 11`. **When** the collection is exported **Then** the file holds the rows `11,Chaos Rune` and `3,Order Rune` (name-only, no printing), in rule 9 order among the other rows; **When** that file is re-imported with Replace **Then** both quantities are unchanged.
+
 ## Out of scope
 - Deck legality, bans, copy limits (SPEC-002). Deck lists the user wants to build: [[Deck Import]] (SPEC-006). Per-card owned/required display: [[Your Decks Ownership View]] (SPEC-005). Tags, sorting and filtering of owned cards: [[My Collection]] (SPEC-007).
 - Curated alias tables or any card data source other than the Riot API ([[ADR-0005 MVP Product Defaults]] #4).
@@ -685,6 +691,8 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 - **Bound** — A2: printing lookup is SPEC-001 CARD-036 (MUST in SPEC-001 v0.2) with its collector-number normalization. The variant-suffix part stays BLOCKED with CARD-040 (IMP-033).
 - **Open** — whether parsing runs in the Angular app or the API is an implementation choice; with local-only storage and the catalog needed for resolution, it likely belongs in shared TypeScript ([[ADR-0001 Tech Stack]]). Not decided here.
 - **Open** — fuzzy thresholds (0.85 / 0.60 / 0.05 margin) are initial values; tune against real typo samples.
+- **Resolved (v0.9)** — RJ decision 2026-11-24: runes are imported and exported like any card (IMP-071); SPEC-009 withdrawn.
+- **Needs research (H-099, needs H-020)** — whether rune cards in the Riot API have their own printings with set codes and collector numbers (and foil / alt-art rune printings, [[Physical Copies Across Decks]] fact 11), so a rune line with a printing code (IMP-064) can resolve to one. Until then AC 42 uses name-only lines.
 
 ## Changelog
-Current: 0.8 (2026-11-23, H-049; numbered 0.7 on its branch, renumbered at merge because H-045 is 0.7). Full history: [[Collection Import changelog]] (archived). New entries go in the archive note.
+Current: 0.9 (2026-11-24, H-097: runes are imported like any card). Full history: [[Collection Import changelog]] (archived). New entries go in the archive note.

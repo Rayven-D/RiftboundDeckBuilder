@@ -20,6 +20,8 @@ import { FakeAuth, FakeFirestore, FakeRemote } from '../shared/sync/testing/fake
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 const buttons = (el: Element) => Array.from(el.querySelectorAll('button')).map(text);
 const SYNCED: StoredSyncLog = { ...emptySyncLog(), uid: 'uA', sessionExpected: true, lastFullSyncAt: 1, lastSyncAt: 1, cursors: { state: 1, decks: 1 } };
+/** A gated page's content: an empty state, the Import options, or dev's Collection page (H-086), which loads its data asynchronously. */
+const CONTENT = 'app-empty-state, .import-options, app-collection-page';
 const GATED: [string, string][] = [
   ['/collection', GATE_HEADINGS.collection],
   ['/decks', GATE_HEADINGS.decks],
@@ -95,7 +97,7 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-008, SYNC-009)', () => {
       expect(GATE_TEXT.signedOut).toBe('You need a free account to import cards or decks.'); // RJ decision 14
       expect(text(el.querySelector('app-sign-in-panel p'))).toBe(GATE_TEXT.signedOut); // no other sentence
       expect(buttons(el)).toEqual(['Sign in']);
-      expect(el.querySelector('app-empty-state, .import-options')).toBeNull();
+      expect(el.querySelector(CONTENT)).toBeNull();
       expect(adapterLoads).toBe(0); // no firebase chunk (SYNC-002)
     });
 
@@ -149,7 +151,7 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-008, SYNC-009)', () => {
       const { el } = await open('/collection');
       expect(text(el)).toContain('Getting your collection and decks from your account…');
       expect(buttons(el)).toEqual([]);
-      expect(el.querySelector('app-empty-state')).toBeNull();
+      expect(el.querySelector(CONTENT)).toBeNull();
       expect(TestBed.inject(SignInGate).deckControls()).toBe(false);
     });
 
@@ -166,7 +168,7 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-008, SYNC-009)', () => {
       gate.set('open'); // the flow completed: content without a reload
       await harness.fixture.whenStable();
       expect(el.querySelector('app-sign-in-panel')).toBeNull();
-      expect(el.querySelector('app-empty-state')).not.toBeNull();
+      expect(el.querySelector(CONTENT)).not.toBeNull();
     });
 
     it('SYNC-003 the panel Sign in opens the Sign in dialog with the v0.8 text and loads no Firebase', async () => {
@@ -237,7 +239,7 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-008, SYNC-009)', () => {
       const { el } = await open(url);
       expect(el.querySelector('app-sign-in-panel')).toBeNull();
       expect(text(el)).not.toMatch(/Sign in/);
-      expect(el.querySelector('app-empty-state, .import-options')).not.toBeNull();
+      expect(el.querySelector(CONTENT)).not.toBeNull();
       expect(adapterLoads).toBe(0);
     });
 
@@ -253,11 +255,17 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-008, SYNC-009)', () => {
 
     it('SYNC-008 / AC 45 nothing is cleared: local data stays in the browser across a reload', async () => {
       storeLegacyData();
-      const before = JSON.stringify({ ...localStorage });
+      // The user's data, byte for byte. The sync log is bookkeeping: dev's Collection page (H-086)
+      // reads the collection, and a local-only read restamps the seeded test hash, so it is only
+      // required to still be there.
+      const userData = () =>
+        JSON.stringify(Object.entries({ ...localStorage }).filter(([k]) => k !== STORAGE_KEYS.syncLog));
+      const before = userData();
       setup(false);
       const { el } = await open('/collection');
-      expect(el.querySelector('app-empty-state')).not.toBeNull();
-      expect(JSON.stringify({ ...localStorage })).toBe(before);
+      expect(el.querySelector(CONTENT)).not.toBeNull();
+      expect(userData()).toBe(before);
+      expect(localStorage.getItem(STORAGE_KEYS.syncLog)).not.toBeNull();
     });
 
     it('SYNC-007 / AC 45 the app shell shows no Sign in and loads no Firebase', async () => {
@@ -298,7 +306,7 @@ describe('Gate opens after sign-in without a reload (SPEC-010 SYNC-009, AC 46 / 
     await vi.waitFor(() => expect(gate.state()).toBe('open'));
     await harness.fixture.whenStable();
     expect(el.querySelector('app-sign-in-panel')).toBeNull();
-    expect(el.querySelector('app-empty-state')).not.toBeNull();
+    expect(el.querySelector(CONTENT)).not.toBeNull();
     expect(gate.deckControls()).toBe(true);
     // the first sign-in cleared the legacy data and uploaded nothing
     expect(localStorage.getItem(STORAGE_KEYS.collection)).toBeNull();

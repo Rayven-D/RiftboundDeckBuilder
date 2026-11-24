@@ -1,13 +1,13 @@
 ---
 tags: [spec]
 id: SPEC-007
-version: 0.7
+version: 0.8
 status: draft
-depends_on: ["SPEC-001", "SPEC-002", "SPEC-003", "SPEC-008", "SPEC-009"]
+depends_on: ["SPEC-001", "SPEC-002", "SPEC-003", "SPEC-008"]
 research: ["[[Sets]]", "[[Card Data & Images]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]", "[[Ban List]]", "[[Collection Import Formats]]"]
 decisions: ["[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
-board: H-034
-as_of: 2026-11-23
+board: H-034, H-097
+as_of: 2026-11-24
 ---
 # SPEC-007: My Collection
 
@@ -27,10 +27,11 @@ as_of: 2026-11-23
 - COLL-060/061: the query is remembered per browser and mirrored in the URL.
 - COLL-070: browser-only stores (`CollectionStore`, `TagStore`, `PrintingCodeStore`, view state).
 - COLL-080/081: "exclude from decks" tag flag; `deckOwnership(input, cardKey)` → `owned`, `ownedForDecks`, `ownedExcluded`, per-entry breakdown.
-- COLL-086…088 (v0.4): one per-name pool for decks: `ownedForDecks` sums every printing of a name, and SPEC-008 subtracts locked decks from it (Collection itself is unchanged by locks); runes are never needed (SPEC-009); changes that make a locked deck short warn first, inside their confirmation (v0.5: also inside the SPEC-003 Replace confirmation; v0.7: also inside the Undo of an import, which asks for a confirmation only then unless COLL-058 already gives one, and is followed by a "… is now `<n>` cards short." notice once confirmed).
+- COLL-086…088 (v0.4): one per-name pool for decks: `ownedForDecks` sums every printing of a name, and SPEC-008 subtracts locked decks from it (Collection itself is unchanged by locks); changes that make a locked deck short warn first, inside their confirmation (v0.5: also inside the SPEC-003 Replace confirmation; v0.7: also inside the Undo of an import, which asks for a confirmation only then unless COLL-058 already gives one, and is followed by a "… is now `<n>` cards short." notice once confirmed).
+- COLL-089 (v0.8, RJ 2026-11-24): **runes are cards**: listed, tagged, edited, exported and counted toward decks like any card, with no rune-specific text or section (COLL-087 withdrawn; SPEC-009 withdrawn).
 
 **Shared types:** `DeckOwnership` / `DeckOwnershipInput` (read by SPEC-005, SPEC-008) · `CollectionCatalogView` (catalog view read by the pure functions) · `Tag`, `TagTarget`, `StoredTags` · `CollectionEntry`, `EntryBan` · `CollectionQuery`, `CollectionQueryInput`.
-**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3, [[Collection Import]] v0.8, [[Shared Cards and Lock-in]] v0.3 (`lockedShortfalls()`, SHARE-034), [[Runes Assumed Owned]] v0.2 (RUNE-008). **Consumers:** [[Your Decks Ownership View]], [[Shared Cards and Lock-in]].
+**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3, [[Collection Import]] v0.9, [[Shared Cards and Lock-in]] v0.4 (`lockedShortfalls()`, SHARE-034). **Consumers:** [[Your Decks Ownership View]], [[Shared Cards and Lock-in]].
 **BLOCKED (needs research):**
 - Whether a foil is its own Riot API printing (COLL-011/016/020).
 - Rarity order (COLL-034); domain list (CARD-025); variant representation (CARD-040/041); API set order (CARD-071).
@@ -250,8 +251,9 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 | COLL-084 | MUST | Turning the flag on or off, assigning or removing an excluded tag, and merging or deleting a tag take effect on the next read of COLL-081, without re-import. Toggling the flag asks for confirmation stating the effect, e.g. "2 copies of 1 card will no longer count in your decks". | design rule |
 | COLL-085 | SHOULD | The summary (COLL-010) shows "N copies excluded from decks" when N > 0. | design rule |
 | COLL-086 | MUST | **Per-printing Collection, per-name pool for decks.** Collection stays per printing (COLL-011) and tags stay on printings (COLL-020), but decks see one number per card name: `ownedForDecks(cardKey)` sums every non-excluded printing, unassigned and missing-printing entry of that `cardKey` (COLL-081). SPEC-008 builds its cross-deck pool on that number and subtracts copies held by locked decks; the exclude-from-decks tag applies first, so an excluded copy is never available to any deck, locked or not (SHARE-004). Locks never change quantities, entries or tags here. | [[Physical Copies Across Decks]] facts 2, 14; [[Shared Cards and Lock-in]] SHARE-002, SHARE-004; [[ADR-0006 Two Imports - Collection and Decks]] "Shared cards, lock in and runes" |
-| COLL-087 | MUST | **Runes are never needed.** Collection never asks for runes or warns that runes are missing; runes the user imports are listed, tagged and edited like any card, but never affect Decks (SPEC-009 RUNE-008). | [[Runes Assumed Owned]] RUNE-008 |
+| COLL-087 | — | **Withdrawn in v0.8 (2026-11-24).** "Runes are never needed": imported runes were listed but never affected Decks (SPEC-009 RUNE-008). Replaced by COLL-089. | RJ decision 2026-11-24 |
 | COLL-088 | SHOULD | When an edit would lower what a **locked deck** holds (− on an entry, a typed lower quantity (COLL-053), Remove card, turning on an exclude flag, assigning an excluded tag), SPEC-008's warning "'`<deck name>`' (locked) will be `<n>` cards short. It stays locked." is shown **before** the edit, inside its confirmation (COLL-084, COLL-054); an edit with no confirmation of its own (−, typed quantity, tag assignment, Remove card with Undo) asks for one only in that case, and Cancel leaves everything unchanged. A **Replace** Owned Cards Import shows the same warning inside its SPEC-003 IMP-050 confirmation, computed on the parsed import; an **Undo** of an import commit (IMP-052), computed on the snapshot it would restore, shows it inside the COLL-058 undo confirmation when manual edits followed the import, and otherwise asks for a confirmation only in that case, like the edits above (v0.7; SHARE-034, IMP-050a). After a confirmed Undo (only), the notice "'`<deck name>`' (locked) is now `<n>` cards short." follows; Cancel shows no notice. No change shows the warning only after it has run. | [[Shared Cards and Lock-in]] SHARE-033, SHARE-034; [[Collection Import]] IMP-050, IMP-050a, IMP-052; RJ decision 2026-11-23 (H-049 follow-up: Undo warns before and notifies after) |
+| COLL-089 | MUST | **Runes are cards** (v0.8). A rune card (`category: 'rune'`) and its printings get entries, count badges, tags, "exclude from decks", sort, filter, search, edits and the CSV export (SPEC-003 IMP-055, IMP-071) exactly like any card. Its copies count toward decks through `deckOwnership()` (COLL-081) like any card, so SPEC-008 holds, locked-deck warnings (COLL-088) and the card's deck information (locked decks holding it, unlocked decks using it) cover runes too. Nothing in Collection says runes are assumed, untracked or not needed, and Collection never warns that runes are missing (it has no missing-card warnings for any card). | RJ decision 2026-11-24 ("Allow users to import runes as well and treat them like any other card."); [[Physical Copies Across Decks]] facts 10, 11, 14 |
 
 ## Data contract
 ```ts
@@ -589,6 +591,17 @@ catalog printing (open question 1).
     entry ×2, one unassigned `Lightning Rush` entry ×3 (the missing-printing entry is gone; its copy is
     now unassigned) and the `RAD 001a` entry; `deckOwnership(input, 'lightning rush').owned = 6`; `Binder page 4` is still
     on the unassigned entry, because tags are kept by the import (COLL-057), not restored from the file.
+25. **Runes are listed and counted like any card** (COLL-081, COLL-088, COLL-089; v0.8)
+    **Given** an Owned Cards Import of `9 Chaos Rune` and `3 Order Rune` (by name, no printing code) committed
+    with Add, and `KENNEN_1` ([[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]]) in Decks, locked, with every
+    other card owned in full **When** Collection is shown **Then** `Chaos Rune` has an unassigned entry `×9`
+    and `Order Rune` one with `×3`, in `printingSortKey` order at their `defaultPrintingId` (COLL-012), and
+    the card information for `Chaos Rune` names `KENNEN_1` as a locked deck holding 9 copies; nothing on the
+    screen says "Runes are assumed owned"; `deckOwnership(input, 'chaos rune')` gives `owned = 9`,
+    `ownedForDecks = 9`. **When** the user tags the `Chaos Rune` entry with an "Exclude from decks" tag
+    **Then** before the change the confirmation warns "'`<KENNEN_1 name>`' (locked) will be 1 card short. It
+    stays locked." (COLL-088, SHOULD), and after confirming `ownedForDecks = 0`. **Given** a collection with
+    no runes **When** Collection opens **Then** it shows no rune warning of any kind.
 
 ## Out of scope
 - Importing cards (SPEC-003) and decks (SPEC-006); deck ownership visuals (SPEC-005).
@@ -621,6 +634,12 @@ catalog printing (open question 1).
 7. **BLOCKED: needs research:** whether the API returns `sets[]` in release order (SPEC-001 CARD-071,
    open question 13); the default order of COLL-031 depends on it.
 8. **Time zone of "today"** for ban status follows SPEC-002's open question (LEGAL-R02).
+9. **Research (H-099, needs H-020):** whether the Riot API lists rune cards with their own printings, set
+   codes and collector numbers, and the foil / alt-art rune printings ([[Physical Copies Across Decks]]
+   fact 11). Until then a rune imported by name is an unassigned entry (COLL-012), like any card imported
+   without a code. COLL-089 doesn't depend on the answer.
+10. **Resolved 2026-11-24 (RJ):** runes are cards ("Allow users to import runes as well and treat them like
+   any other card."): COLL-087 withdrawn, COLL-089 added, SPEC-009 withdrawn.
 
 ## Changelog
-Current: 0.7 (2026-11-23, H-049; numbered 0.6 on its branch, renumbered at merge because H-045 is 0.6). Full history: [[My Collection changelog]] (archived). New entries go in the archive note.
+Current: 0.8 (2026-11-24, H-097: runes are cards). Full history: [[My Collection changelog]] (archived). New entries go in the archive note.
