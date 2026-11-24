@@ -11,6 +11,7 @@ Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 - SPEC-010 [[Accounts and Sync]] v0.7 brought in line with the H-062 build (data contract, batches of 10 with resume via `uploadingUid`, `cloudDocs` create detection, `'unconfirmed'` writes, email-link return trigger, device-local `lastBuild`, emulator Auth codes, interim Delete placement, `duplicatedFrom` ≤ 36, preview-build gap, Java 21). 89 rows, 44 ACs.
 - RJ decision 12: a deletion that removed nothing offers Cancel deletion → builder H-076.
 - Validator PASS round 1 ([[Validation H-074]]). New items H-076…H-079 (cancel deletion, first-sign-in extra writes, `appVersion` stamping + preview deploy, clean-ups). No code. Committed on `loop/H-074-spec010-followups`.
+- RJ then changed the model: an account is required to import cards or decks (Tournaments open to all); sign-out clears the device; signed out = Home + Tournaments; production keeps no-account imports until sign-in is on; old browser data ignored. Filed H-080 (ADR-0007 + SPEC-010 v0.8) and H-081 (build).
 
 ## 2026-11-23: H-061 accounts and sync spec (spec-writer + validator)
 - New SPEC-010 [[Accounts and Sync]] v0.4 (88 rows, 36 ACs): optional sign-in behind `signInEnabled`, the [[Firestore Data Shape]] layout, device-local sync log with 30-day tombstones, latest change wins per card count / tag target / lock / deck (monotonic stamps), first sign-in Combine or Cancel, offline, sign-out, delete account, owner-only rules with field validation. Locks sync (`state/locks`, `{lockedAt|null, updatedAt}`).

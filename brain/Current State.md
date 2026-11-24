@@ -19,6 +19,7 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
   missing ones darkened, partly owned ones filled left to right (1 of 3 → ⅓). Ban status is shown on
   every card.
 - **Tournaments:** recent events, Top 8 with published placings. Its job is a source of winning constructed decks to add as a goal (RJ, 2026-11-23), not a feature of its own. No meta statistics, ever (ADR-0003).
+- **Account required to import (RJ 2026-11-24, H-080, specs not updated yet):** importing cards or decks needs an account; Tournaments and Home need none; sign-out clears the device. Production keeps no-account imports until sign-in is turned on.
 - **Constraints:** free, browser storage by default (optional sign-in and sync planned, ADR-0007), Riot API is
   the only card data source, no Riot logos, key server-side only, Riot data only (no curated alias or date tables).
 

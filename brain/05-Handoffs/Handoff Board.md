@@ -1,6 +1,6 @@
 ---
 tags: [handoffs, loop]
-next_id: 80
+next_id: 82
 ---
 # Handoff Board
 
@@ -12,6 +12,8 @@ The loop's state. See [[Loop Protocol]]. One row per item. Take the next ID from
 ## Open
 | ID | Pri | Owner | Status | Depends | From | Request | Accept | Tries | Link |
 |---|---|---|---|---|---|---|---|---|---|
+| H-080 | P1 | spec-writer | todo | H-074 | RJ | **Account required to import** (RJ 2026-11-24): importing cards or decks needs an account; Tournaments needs none. RJ's answers: (a) sign-out clears this device (no Keep a copy, so no signed-out data and no Combine dialog); (b) signed out = Home + Tournaments only; Decks, Collection, Import and Tournaments' Add to your decks ask to sign in; (c) production keeps today's no-account imports until sign-in is turned on (privacy notice, H-069), then switches; (d) browser data saved without an account is ignored and cleared on first sign-in. Amend ADR-0007 (RJ approves) and rewrite SPEC-010 to v0.8 (supersedes decisions 5, 6 and SYNC-002/003/048/049/090/091, H-077's resumed-Combine question becomes moot); list impacts on SPEC-003/006/007/008 and H-071; update Current State constraints | ADR-0007 amended and accepted by RJ; SPEC-010 v0.8; V-009 | 0 | [[Accounts and Sync]] |
+| H-081 | P1 | builder | todo | H-080 | RJ | Build SPEC-010 v0.8 account-required mode (sign-in gate on Decks / Collection / Import / Add to your decks, sign-out clears device, no Combine, old browser data cleared on first sign-in) behind `signInEnabled`, so production keeps no-account imports until sign-in is on | SPEC-010 v0.8 ACs pass; tests | 0 | [[Accounts and Sync]] |
 | H-076 | P2 | builder | todo | H-074 | validator | SPEC-010 v0.7 Cancel deletion (RJ decision 12): `deleteAll` reports `removedAny`, the log keeps `deletingRemovedAny`; while nothing was removed the error state offers Cancel deletion (clears `deletingUid`, "Your account wasn't deleted.", resumes syncing); once anything is removed only Try again / Remove. Also a Try again in the account menu that survives a reload (today only on the failure snackbar) | SYNC-096 / AC 43 pass; tests | 0 | [[Accounts and Sync]] |
 | H-077 | P2 | builder | todo | H-074 | spec-writer | SPEC-010 SYNC-050 vs build: first sign-in always pushes `batch: true` and `planPush` then sends every logged item, so cases (c) and (d) rewrite every non-empty state doc (up to 3 extra writes, `syncedAt` bumped, other devices re-read). Limit to changed docs and count writes in the case (c)/(d) tests. Also confirm with RJ: a resumed interrupted Combine (`uploadingUid` set in case d) skips the dialog and shows the case (b) notice (spec v0.7 documents this) | SYNC-050 / AC 4 pass with write counts; RJ answer recorded | 0 | [[Accounts and Sync]] |
 | H-078 | P3 | builder | todo | H-074 | spec-writer | SPEC-010 build/deploy gaps: `appVersion` is a fixed string (`web-0.0.0`), so SYNC-118 retry and SYNC-012 once-per-build update never fire; stamp the build. No deploy path for a preview build with `signInEnabled: true` (hosting predeploy rebuilds production, SYNC-007 / AC 35) | SYNC-012/118 and AC 35 pass | 0 | [[Accounts and Sync]] |
