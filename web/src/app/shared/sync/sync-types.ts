@@ -19,7 +19,7 @@ import type {
 
 export type Ms = number;
 
-/** Every document type is at `schemaVersion: 1` in SPEC-010 v0.5 (SYNC-011). */
+/** Every document type is at `schemaVersion: 1` (SPEC-010 SYNC-011). */
 export const KNOWN_DOC_SCHEMA = 1;
 
 // ---- Firestore documents (SYNC-010..018), engine form ----

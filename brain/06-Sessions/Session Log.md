@@ -7,6 +7,10 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: H-079 H-062 clean-ups (builder)
+- [[Accounts and Sync]] AC 22 on `loop/H-079-rules-cleanups` (from H-078 tip `c1ae411`): rules test for a 37-character `duplicatedFrom` (denied; 36 allowed); stale comments fixed in `sync-types.ts` (`KNOWN_DOC_SCHEMA`, no spec version) and `firebase-adapters.ts` (`WRITE_TIMEOUT_MS` → `'unconfirmed'`, `withTimeout` SYNC-042 → SYNC-080). The `PushChanges.batch` comment was moot after H-077.
+- H-084 overlap check (`dev` board row): none. Tests: 376 web unit, 34 emulator (Java 21 prepended to PATH for `test:rules`; Java 17 is still first in agent shells). Validator PASS round 1 ([[Validation H-079]]); code review: no findings. No new board IDs (`next_id` 100); SYNC-113 spec text already filed as H-097.
+
 ## 2026-11-24: H-078 per-build appVersion and preview deploy path (builder)
 - [[Accounts and Sync]] SYNC-012 / SYNC-007 on `loop/H-078-appversion-preview`: `web/scripts/build.mjs` computes `web-<prod|preview>-<first 7 hex of HEAD>` (git, then `GITHUB_SHA`, else UTC build time) and passes it to `ng build` as the define `APP_VERSION`; `npm run build` / `build:preview`. Preview deploy: `npm run deploy:preview -- <channel> [expires]` (from `web/`) → `firebase hosting:channel:deploy <channel> --config firebase.preview.json`, whose predeploy builds `preview` into `web/dist/web-preview` and refuses to run unless `deploy:preview` started it. Production paths unchanged. Notes in the root README and [[API Contracts]] v1.6.
 - Tests: 28 new (`web/src/tooling/*.spec.ts`, SYNC-012 / SYNC-007 / AC 35 / AC 42); 376 web unit tests and 33 emulator tests green; lint and both builds clean; bundles grepped (`web-prod-d029bd4` + `signInEnabled:!1`, `web-preview-d029bd4` + `signInEnabled:!0`, time fallback `web-prod-20261124T174845Z`). No real deploy: RJ runs the first preview deploy.

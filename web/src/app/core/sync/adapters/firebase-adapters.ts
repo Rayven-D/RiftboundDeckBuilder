@@ -78,7 +78,7 @@ export interface FirebaseWebConfig {
 
 /** Email kept on this device between "send link" and opening it (Firebase's recommended flow). */
 const EMAIL_KEY = 'rift.emailForSignIn';
-/** Firestore keeps unacknowledged writes queued while offline; a write this slow counts as offline (SYNC-080). */
+/** A write not acknowledged within this time is reported as `'unconfirmed'` (it may still land; items stay pending until a pull confirms them, SYNC-080). */
 const WRITE_TIMEOUT_MS = 20_000;
 /** Firebase asks for a recent sign-in before deleting a user (SYNC-096 step 1). */
 const RECENT_SIGN_IN_MS = 5 * 60_000;
@@ -295,7 +295,7 @@ export async function deleteInOrder(count: number, del: (i: number) => Promise<v
 
 /**
  * A write not acknowledged in time is `unconfirmed`, not failed: the SDK keeps it queued and may still
- * commit it, so the engine keeps its items pending and lets the next pull confirm them (SYNC-042).
+ * commit it, so the engine keeps its items pending and lets the next pull confirm them (SYNC-080).
  * The timer is cleared when the write settles.
  */
 export function withTimeout<T>(p: Promise<T>, ms = WRITE_TIMEOUT_MS): Promise<T> {
