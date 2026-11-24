@@ -1,4 +1,155 @@
 {
   "indexes": [],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "state",
+      "fieldPath": "cards",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "state",
+      "fieldPath": "catalogVersion",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "state",
+      "fieldPath": "tags",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "state",
+      "fieldPath": "assignments",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "state",
+      "fieldPath": "locks",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "state",
+      "fieldPath": "updatedAt",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "state",
+      "fieldPath": "schemaVersion",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "name",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "format",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "source",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "sourceFormat",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "notes",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "catalogVersion",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "duplicatedFrom",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "importRemovedLines",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "legend",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "champion",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "main",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "sideboard",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "runes",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "battlefields",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "deletedAt",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "updatedAt",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "createdAt",
+      "ttl": false,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "decks",
+      "fieldPath": "schemaVersion",
+      "ttl": false,
+      "indexes": []
+    }
+  ]
 }

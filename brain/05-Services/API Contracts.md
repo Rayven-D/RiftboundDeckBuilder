@@ -148,6 +148,45 @@ Notes for the UI:
 - Data files behind the API: `data/cards.json` (`CardSnapshot`) and `data/cards.report.json`
   (`IngestionReport`), written by `npm run ingest:cards`.
 
+## Browser stores and sync (SPEC-010, H-062)
+Not an HTTP API: the browser talks to Firestore directly ([[ADR-0007 Firebase Accounts and Firestore]]).
+Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source of truth:
+`web/src/app/shared/storage/records.ts` (store records) and `web/src/app/shared/sync/sync-types.ts`
+(documents, `StoredSyncLog`, `AuthService`, `RemoteStore`, `SyncStatus`).
+- **Stores features use** (`AppStores.stores`, `web/src/app/core/storage/`): `collection`, `tags`, `decks`,
+  `locks` implement the SPEC-003/006/007/008 interfaces unchanged and stamp every save in the sync log
+  (SYNC-031), signed in or not. Storage: `localStorage`, keys `rift.*` (one key per deck,
+  `rift.deck.<id>`). Unreadable or newer records throw `UnreadableRecordError` and are never overwritten.
+- **Behaviour callers must know:** `DeckStore.create/update` make `updatedAt` monotonic
+  (`max(now, previous + 1 ms)`, SYNC-031), so read the deck back with `get()` after saving.
+  `DeckStore.create(record)` of a deck deleted less than 10 s ago is the Undo and cancels the pending
+  tombstone (SYNC-035). `CollectionStore.save(c, { replace: true, snapshotPrevious: true })` marks an
+  Owned Cards Import in Replace mode (one `set()`, SYNC-014) and keeps the Undo snapshot (IMP-052).
+  Saves to an area whose cloud document is newer throw `ReadOnlyAreaError` (SYNC-046 message).
+  `TagStore.load()` migrates long tag ids to `t_` + 6 base-62 (`schemaVersion: 3`, SYNC-016).
+- **Engine form of documents:** every Firestore `Timestamp` is milliseconds inside the engine; the adapter
+  (`web/src/app/core/sync/adapters/firebase-adapters.ts`, the only Firebase import, lazy-loaded) converts
+  and writes `syncedAt` with `serverTimestamp()`.
+- **Additions to the SPEC-010 contract** (needed to build it; listed for the spec): `RemoteStore.getAccount(uid)`
+  (the 1-read account check), `pull(..., { withAccount })`, `push()` returns a per-document `PushOutcome`
+  instead of `void`; `PushChanges` carries `replace` per state document, `updatedAt`, `batch`, and the account
+  write as `{ create, createdAt, updatedAt, lastClientVersion }`; `AuthService.restore()`,
+  `sendEmailLink(email)`, `isEmailLinkReturn()`, `needsRecentSignIn()`, `signIn(providerId, email?)`;
+  `StoredSyncLog.cloudDocs` (documents known to exist, for create vs update), `pending.collectionReplace`,
+  `locks[id].h` (lockedAt), `deckTombstones[id].createdAt` and `.wasPending`; after H-062 round 1 also
+  `deckCreated` (deck createdAt for tombstones), `lastBuild` (this device's build: SYNC-118 retry and the
+  once-per-build account update), `uploadingUid` (an interrupted first-sign-in upload resumes without
+  Combine), `deletingUid` (this device's unfinished deletion: sync stopped, Delete retryable);
+  `AuthService.reauthenticate()` may return `'needs-sign-in'` (email link); `RemoteErrorCode` adds
+  `'unconfirmed'` (a write not acknowledged in 20 s: kept pending, confirmed by the next pull).
+- **SYNC-097 Auth codes (verified on the Auth emulator, 2026-11-23):** deleted user → `reload()`
+  `auth/user-token-expired`, forced refresh `auth/invalid-refresh-token`; revoked → `reload()`
+  `auth/user-token-expired` (refresh still works in the emulator); disabled → `auth/user-disabled`.
+  `checkAccount()` forces a refresh first; `auth/invalid-refresh-token` / `auth/user-not-found` → `deleted`.
+- **Rules and indexes:** `firestore.rules` (owner only, known paths, field validation, `existsAfter()` on
+  creates) and `firestore.indexes.json` (every field but `syncedAt` exempt). Not deployed: deploy with
+  `firebase deploy --only firestore` before sign-in ships (SYNC-117).
+
 ## Changelog
 - v0: created
 - v1 (2026-11-23, H-008): first endpoints: `GET /api/health`, `GET /api/sets`, `GET /api/cards`
@@ -155,3 +194,5 @@ Notes for the UI:
   wrappers over the SPEC-001 v0.2 types; CORS for `http://localhost:4200` in development only.
 - v1.1 (2026-11-23, H-055): no endpoint change. Base URL is `/api` in dev and prod (dev via the
   `ng serve` proxy); production `/api/**` returns `404` until ADR-0004 picks an API host.
+- v1.2 (2026-11-23, H-062): no endpoint change. New section "Browser stores and sync": the SPEC-010
+  store, sync-log and adapter contracts in `web/`, and the additions the build needed.
