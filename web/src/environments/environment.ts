@@ -12,10 +12,10 @@ export const environment = {
   appVersion: 'web-0.0.0',
   firebase: {
     // H-063: RJ fills in the web app config from the Firebase console (Project settings → Your apps).
-    apiKey: '',
+    apiKey: 'AIzaSyDR1geWEP0jhSLW4pmbBcWDQsLjj-Vtnw8',
     authDomain: 'riftbound-deckbuilder.firebaseapp.com',
     projectId: 'riftbound-deckbuilder',
-    appId: '',
+    appId: '1:252141620918:web:12d5bbb924a37d354ee017',
     useEmulators: false,
   },
 };

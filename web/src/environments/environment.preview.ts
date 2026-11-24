@@ -7,10 +7,10 @@ export const environment = {
   signInEnabled: true,
   appVersion: 'web-0.0.0-preview',
   firebase: {
-    apiKey: '', // H-063: same web app config as environment.ts
+    apiKey: 'AIzaSyDR1geWEP0jhSLW4pmbBcWDQsLjj-Vtnw8', // same web app config as environment.ts
     authDomain: 'riftbound-deckbuilder.firebaseapp.com',
     projectId: 'riftbound-deckbuilder',
-    appId: '',
+    appId: '1:252141620918:web:12d5bbb924a37d354ee017',
     useEmulators: false,
   },
 };
