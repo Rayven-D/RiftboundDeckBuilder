@@ -5,7 +5,7 @@ date: 2026-11-23
 ---
 # Design Direction
 
-Owner: **ui-builder** with RJ. Status: **decided 2026-11-23: direction A (Table Tool), blue accent `#378ADD`** (changed from teal the same day), with the changes listed under "Decision" below.
+Owner: **builder** with RJ. Status: **decided 2026-11-23: direction A (Table Tool), blue accent `#378ADD`** (changed from teal the same day), with the changes listed under "Decision" below.
 
 Hard limits for every direction ([[Riot Developer Rules]], [[Product Vision]]): our own visual
 identity, **no Riot or Riftbound logos**, nothing designed to look like Riot's official site or

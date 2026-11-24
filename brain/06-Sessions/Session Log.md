@@ -7,6 +7,12 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-23: One `builder` agent replaces service-builder and ui-builder (with RJ)
+- Checked whether spec-writer had been building. Its definition never said to, and it has no Bash, but spec-writer items still shipped code: H-058 (8 `web/` files for the "available" label), H-029 (page text, routes), and H-048 (spec work and parser in one commit). Much UI work also ran in the main session without a builder.
+- RJ chose to replace both builders with one [[builder]] agent for UI, browser business logic and services. It keeps the RJ review gate for screens and the API Contracts rule, and must run lint, build and tests before it reports.
+- [[spec-writer]] now has a "You don't write code" rule: spec changes that need code become `builder` board items. `/loop` dispatches only `builder` for code. Validator routes code bugs to `builder`.
+- Open board items H-047, H-057, H-059, H-060, H-062 and H-064 moved to `builder`. Done rows keep their old owners as history. Updated CLAUDE.md, [[Loop Protocol]], [[Home]], the [[Agents/README|Agents README]], and the owner lines in UI Index, Design Direction and API Contracts. `.claude/` copies refreshed. Nothing committed.
+
 ## 2026-11-23: Home page copy pass (ui-builder, with RJ)
 - Rewrote `/` copy shorter and more casual; RJ picked the headline "Know what you own. Own what you need." and approved the rest from a before/after table. Unbuilt features (deck view, Tournaments) now say "coming soon". American spelling ("color").
 - Ownership section: title "Collect the cards each deck needs.", text "Know what you need at a glance. Collect every copy you need of a card to fill it with color."

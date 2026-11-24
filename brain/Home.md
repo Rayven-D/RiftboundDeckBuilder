@@ -12,8 +12,8 @@ tags: [moc]
 - [[Research Index]]: rules, bans, meta, tournaments, card data (researcher)
 - [[Spec Index]]: buildable specifications (spec-writer)
 - [[Decision Log]]: architecture decisions / ADRs
-- [[UI Index]]: screens & design decisions (ui-builder + RJ)
-- [[API Contracts]]: service ↔ UI contract (service-builder)
+- [[UI Index]]: screens & design decisions (builder + RJ)
+- [[API Contracts]]: service ↔ UI contract (builder)
 - [[Handoff Board]]: requests between agents
 - [[Session Log]]: what happened, when
 - [[Loop Protocol]] · [[Validation Checks]] · [[Change Feed]]: the closed dev loop
@@ -25,8 +25,8 @@ tags: [moc]
 | `01-Research` | Sourced, dated game facts | researcher |
 | `02-Specs` | Testable requirements | spec-writer |
 | `03-Decisions` | ADRs | RJ approves |
-| `04-Product` / `04-UI` | Vision, screens, design | RJ + ui-builder |
-| `05-Services` / `05-Handoffs` | API contracts, agent requests | service-builder / all |
+| `04-Product` / `04-UI` | Vision, screens, design | RJ + builder |
+| `05-Services` / `05-Handoffs` | API contracts, agent requests | builder / all |
 | `06-Sessions` | Session log | all |
 | `07-Loop` | Loop protocol, validation checks & runs | validator |
 | `Templates` | Note templates | — |
@@ -36,11 +36,10 @@ tags: [moc]
 ```mermaid
 flowchart LR
   R[researcher] -->|01-Research| S[spec-writer]
-  S -->|02-Specs| B[service-builder]
-  B -->|API Contracts| U[ui-builder]
-  U <-->|builds with| RJ((RJ))
-  B -.questions.-> H[[Handoff Board]]
-  U -.requests.-> H
+  S -->|02-Specs| B[builder]
+  B <-->|builds UI with| RJ((RJ))
+  B -.spec questions.-> H[[Handoff Board]]
+  S -.builder items.-> H
   S -.needs research.-> H
   H -.-> R
 ```

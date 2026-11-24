@@ -11,7 +11,7 @@ The loop's state is the [[Handoff Board]]. The `/loop` command runs this protoco
 ```mermaid
 flowchart LR
   Sense[Sense<br/>researcher] --> Spec[Specify<br/>spec-writer]
-  Spec --> Build[Build<br/>service / ui]
+  Spec --> Build[Build<br/>builder]
   Build --> Verify{Verify<br/>validator}
   Verify -- PASS --> Merge[merge → dev]
   Verify -- FAIL --> Board[(Handoff Board)]
@@ -38,8 +38,7 @@ Status `todo`, every `depends` item `done`, an agent owner (not RJ), highest pri
 |---|---|---|
 | researcher | `riftbound-researcher` | game facts, decklists, card data sources |
 | spec-writer | `spec-writer` | requirements, data contracts, acceptance criteria |
-| service-builder | `service-builder` | `services/`, data pipeline, API contracts |
-| ui-builder | `ui-builder` | `web/`, screens (each finished screen goes to a `needs-RJ` review gate) |
+| builder | `builder` | all code: `web/` screens and components, browser business logic, `services/`, data pipeline, API contracts (each finished screen goes to a `needs-RJ` review gate). Only `builder` changes code; other owners file a `builder` item |
 | validator | `validator` | re-runs checks, regression sweeps |
 | RJ | you | gates: ADRs, UI reviews, spec approvals, merging `dev` → `main` |
 
