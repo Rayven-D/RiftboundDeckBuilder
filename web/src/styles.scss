@@ -4,7 +4,8 @@
 @use '@fontsource-variable/archivo/wdth';
 
 /*
- * Design direction A, "Table Tool" (RJ, 2026-11-23): quiet slate surfaces, one blue accent (#378ADD),
+ * Design direction A, "Table Tool" (RJ, 2026-11-23): quiet slate surfaces, one teal accent (#14B8A6,
+ * RJ 2026-11-24; a green alternative is previewed with html[data-accent='green'] on /styleguide),
  * system font for body text, Archivo for headlines, dense lists, slight 4/6/8px corners. Card art
  * supplies the colour. Angular Material (M3) is themed from the same accent.
  * See brain/04-UI/Design Direction.md.
@@ -87,14 +88,15 @@ html {
   --color-border: #343c45;
   --color-text: #e6e8eb;
   --color-text-muted: #9aa3ad;
-  --color-accent: #378add;
-  --color-accent-hover: #4f9be4;
-  --color-accent-contrast: #031a33;
-  /* Accent as text on slate: #378ADD is 4.0:1 on the surface, so text uses a lighter tint (AA). */
-  --color-accent-text: #85b7eb;
-  --color-owned: #378add;
+  /* Teal accent (RJ, 2026-11-24). Ratios (WCAG): fill on bg 6.65, on surface 5.82; label
+     #042f2e on the fill 5.81; accent text #2dd4bf on bg 8.90, on surface 7.78. */
+  --color-accent: #14b8a6;
+  --color-accent-hover: #2dd4bf;
+  --color-accent-contrast: #042f2e;
+  --color-accent-text: #2dd4bf;
+  --color-owned: #14b8a6;
   --color-missing: #9aa3ad;
-  --color-focus: #85b7eb;
+  --color-focus: #2dd4bf;
   --color-danger: #f09595;
   --color-warning: #ef9f27;
 
@@ -127,6 +129,20 @@ html {
 
   /* Layout */
   --content-max-width: 72rem;
+  /* Side padding shared by the header row and <main>, so both start and end on the same edges. */
+  --content-gutter: max(var(--space-4), env(safe-area-inset-left), env(safe-area-inset-right));
+  --header-height: 4rem;
+  /* Phone bottom tab bar (below 40rem), without the safe-area inset. */
+  --tabbar-height: 4rem;
+
+  /* Motion (RJ, 2026-11-24, "fluid, but doesn't hinder"): one UI ease-out, one entrance curve. */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur-med: 220ms;
+  --dur-slow: 600ms;
+  --shadow-rest: 0 1px 2px rgb(0 0 0 / 20%);
+  --shadow-lift: 0 6px 18px rgb(0 0 0 / 28%);
 
   /* Card images: placeholder ratio (standard TCG card 63x88mm). Confirm against the API's images. */
   --card-aspect-ratio: 63 / 88;
@@ -146,15 +162,44 @@ html {
     --color-border: #d3d9e0;
     --color-text: #1a1f24;
     --color-text-muted: #56606b;
-    --color-accent: #185fa5;
-    --color-accent-hover: #0c447c;
-    --color-accent-text: #185fa5;
+    /* Light teal: fill #0f766e on bg 5.05, on surface 5.47; white label on it 5.47. */
+    --color-accent: #0f766e;
+    --color-accent-hover: #115e59;
+    --color-accent-text: #0f766e;
     --color-accent-contrast: #ffffff;
-    --color-owned: #185fa5;
+    --color-owned: #0f766e;
     --color-missing: #56606b;
-    --color-focus: #185fa5;
+    --color-focus: #0f766e;
     --color-danger: #a32d2d;
     --color-warning: #854f0b;
+    --shadow-rest: 0 1px 2px rgb(15 23 42 / 10%);
+    --shadow-lift: 0 6px 18px rgb(15 23 42 / 14%);
+  }
+}
+
+/*
+ * Green alternative (RJ, 2026-11-24), for comparing on /styleguide only: nothing else sets
+ * data-accent. Dark: fill #22a559 on bg 5.20, on surface 4.55; label #04210f on it 5.36; text
+ * #4ade80 on bg 9.50, on surface 8.31. Light: fill #15803d on bg 4.63, on surface 5.02, white
+ * label 5.02; text #166534 on bg 6.58, on surface 7.13.
+ */
+html[data-accent='green'] {
+  --color-accent: #22a559;
+  --color-accent-hover: #3ec06e;
+  --color-accent-contrast: #04210f;
+  --color-accent-text: #4ade80;
+  --color-owned: #22a559;
+  --color-focus: #4ade80;
+  /* Material's own primary (form field outlines, caret) follows the preview too. */
+  --mat-sys-primary: var(--color-accent-text);
+
+  @media (prefers-color-scheme: light) {
+    --color-accent: #15803d;
+    --color-accent-hover: #166534;
+    --color-accent-contrast: #ffffff;
+    --color-accent-text: #166534;
+    --color-owned: #15803d;
+    --color-focus: #166534;
   }
 }
 
@@ -162,6 +207,21 @@ html {
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+@media (max-width: 40rem) {
+  :root {
+    --header-height: 3.5rem;
+  }
+}
+
+/* Keep focused and anchored elements clear of the sticky header (and the phone tab bar). */
+html {
+  scroll-padding-top: calc(var(--header-height) + var(--space-2));
+
+  @media (max-width: 40rem) {
+    scroll-padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--space-2));
+  }
 }
 
 body {
@@ -222,7 +282,7 @@ h1 {
 
   &::after {
     content: '\2192';
-    transition: transform 120ms ease;
+    transition: transform var(--dur-fast) var(--ease-out);
   }
 
   &:hover {
@@ -250,7 +310,9 @@ h1 {
 }
 
 .button {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-md);
   background: var(--color-accent);
@@ -260,6 +322,132 @@ h1 {
 
   &:hover {
     background: var(--color-accent-hover);
+  }
+}
+
+/* ---- Motion layer (RJ, 2026-11-24) ----
+ * Buttons step up 1px on hover and press in on click; linked cards (.lift) rise 2px with a deeper
+ * shadow; art in a .zoom-art frame scales 1.03 inside it. Focus rings are never transitioned.
+ * Hover moves only for a fine pointer, so a tap on a phone doesn't leave things raised. */
+.button,
+.mat-mdc-button-base {
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+
+  &:active {
+    transform: translateY(1px) scale(0.98);
+    transition-duration: 90ms;
+  }
+}
+
+.lift {
+  transition:
+    background-color var(--dur-med) var(--ease-out),
+    border-color var(--dur-med) var(--ease-out),
+    box-shadow var(--dur-med) var(--ease-out),
+    transform var(--dur-med) var(--ease-out);
+
+  &:active {
+    transform: translateY(0);
+    transition-duration: 90ms;
+  }
+}
+
+.zoom-art {
+  /* The card-art frame clips the zoom; other frames set their own overflow (top-eight-panel). */
+  .art {
+    overflow: hidden;
+    border-radius: var(--radius-md);
+  }
+
+  .card-image,
+  .legend-art {
+    transition: transform var(--dur-slow) var(--ease-out);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .button:hover:not(:active),
+  .mat-mdc-button-base:hover:not(:active, [disabled]) {
+    transform: translateY(-1px);
+  }
+
+  .lift:hover:not(:active) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lift);
+  }
+
+  .zoom-art:hover {
+    .card-image,
+    .legend-art {
+      transform: scale(1.03);
+    }
+  }
+}
+
+/* Route changes: a short cross-fade with a slight rise of <main> only. The header and the phone tab
+ * bar have their own view-transition-name and stay still (see app.scss). */
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-group(main) {
+  animation: none;
+}
+
+::view-transition-old(main) {
+  animation: route-out var(--dur-fast) var(--ease-out) both;
+}
+
+::view-transition-new(main) {
+  animation: route-in var(--dur-med) var(--ease-enter) both;
+}
+
+::view-transition-group(site-header),
+::view-transition-group(tab-bar) {
+  animation: none;
+  z-index: 1;
+}
+
+@keyframes route-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes route-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Reduced motion: everything rests. Animations jump to their end state (nothing stays hidden),
+ * transitions are instant, and hover/press moves are gone. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+
+  .button,
+  .mat-mdc-button-base,
+  .lift,
+  .zoom-art .card-image,
+  .zoom-art .legend-art {
+    transform: none !important;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }
 

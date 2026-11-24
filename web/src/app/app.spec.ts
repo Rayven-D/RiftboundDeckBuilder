@@ -22,14 +22,14 @@ describe('App', () => {
     await fixture.whenStable();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('.wordmark')?.textContent).toContain('Rift Builder');
-    const links = Array.from(el.querySelectorAll('nav a')).map((a) => a.getAttribute('href'));
+    const links = Array.from(el.querySelectorAll('.site-nav a')).map((a) => a.getAttribute('href'));
     expect(links).toEqual(['/decks', '/collection', '/tournaments']);
   });
 
   it('should show Import as the last item in the header, outside the tabs', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
-    const header = (fixture.nativeElement as HTMLElement).querySelector('header')!;
+    const header = (fixture.nativeElement as HTMLElement).querySelector('header .header-row')!;
     const last = header.lastElementChild as HTMLAnchorElement;
     expect(last.classList).toContain('import-action');
     expect(last.getAttribute('href')).toBe('/import');
@@ -48,6 +48,59 @@ describe('App', () => {
 
 @Component({ template: '<h1>Stub page</h1>' })
 class StubPage {}
+
+describe('App phone tab bar', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [App],
+      providers: [provideRouter(routes)],
+    }).compileComponents();
+  });
+
+  it('lists Decks, Collection, Tournaments and Import, each with an icon and a label', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const bar = (fixture.nativeElement as HTMLElement).querySelector('nav.tab-bar')!;
+    expect(bar.getAttribute('aria-label')).toBe('Main');
+    const links = Array.from(bar.querySelectorAll('a'));
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([
+      '/decks',
+      '/collection',
+      '/tournaments',
+      '/import',
+    ]);
+    expect(links.map((a) => a.querySelector('.tab-label')?.textContent?.trim())).toEqual([
+      'Decks',
+      'Collection',
+      'Tournaments',
+      'Import',
+    ]);
+    for (const a of links) expect(a.querySelector('app-icon')).not.toBeNull();
+    expect(links[3].classList).toContain('tab--action');
+  });
+
+  it('marks only the current page with aria-current="page"', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    const bar = () => (fixture.nativeElement as HTMLElement).querySelector('nav.tab-bar')!;
+    const current = () =>
+      Array.from(bar().querySelectorAll('a'))
+        .filter((a) => a.getAttribute('aria-current') === 'page')
+        .map((a) => a.getAttribute('href'));
+
+    await router.navigateByUrl('/collection');
+    await fixture.whenStable();
+    expect(current()).toEqual(['/collection']);
+
+    await router.navigateByUrl('/import');
+    await fixture.whenStable();
+    expect(current()).toEqual(['/import']);
+
+    await router.navigateByUrl('/');
+    await fixture.whenStable();
+    expect(current()).toEqual([]);
+  });
+});
 
 describe('App skip link', () => {
   beforeEach(async () => {
