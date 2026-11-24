@@ -9,6 +9,36 @@ superseded_by: "[[Collection Import]]"
 
 Moved out of [[Collection Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.8 (2026-11-23, H-049; numbered 0.7 on its branch, renumbered at merge because H-045 is 0.7): follow-ups from H-040/H-043/H-046/H-048/H-053/H-058 validation; builder-defined
+  behaviour of `parse-card-list.ts` / `import-dialog.ts` written into the spec as built. IMP-058 cites
+  `deckOwnership(input, cardKey)`. IMP-042: RJ's interim delimiter rule (H-053): first non-empty line, outside
+  quotes only, `;` or tab beats `,`, `;` vs tab by count (tie → `;`). IMP-061 rewritten as an ordered list of
+  checks: other extensions (`FILE_REJECTED` "… can’t be imported. Use a .txt, .csv or .xlsx file."), `.xls`
+  ("aren’t", typographic, as built), `.txt` over 1 MiB rejected before reading with the IMP-006 message, 5 MiB
+  for `.csv`/`.xlsx`, converted text over IMP-006 rejects the upload, no lines ("… has no lines to import.").
+  IMP-062: the upload is dropped when the box is emptied or a paste/drop replaces it all. IMP-010: invalid
+  UTF-8 rejects the upload (`INPUT_ENCODING`, "… isn’t UTF-8 text. …"). IMP-007: limits measured on the
+  text-box line, messages quoted. IMP-008: decimal comma/point → `BAD_QUANTITY`, `2. Gust` → `MISSING_QUANTITY`
+  (IMP-024 lists non-integer). IMP-006 paste message quoted. IMP-001: extension any case, others rejected.
+  IMP-040 rule (c): a label cell followed by the entry becomes `<label>: <entry>`. IMP-057 and the data
+  contract: catalog-free summary vs fields added by resolution (`resolvedExact`, `needsReview`, `catalogVersion`
+  now optional); new `UploadRejection`. Line grammar: `DEC_LEAD`, `DEC_TRAIL`, `QTY_SECOND`; step 3 earliest
+  split (longest code) wins; step 5 "ends with, or is, `[xX]` + number". **IMP-050 split:** IMP-050 (MUST)
+  keeps the Replace confirmation; new **IMP-050a** (SHOULD) holds the locked-deck warning, now also for Undo
+  (inside the COLL-058 confirmation, or a confirmation asked for only when a locked deck would go short;
+  replaces the v0.6 "is now `<n>` cards short" notice after Undo), agreeing with SPEC-008 0.3 SHARE-034 and
+  SPEC-007 0.7 COLL-058/088. ACs: 14 (delimiter cases), 15a (typographic apostrophe, `.csv` for 5 MB), 27
+  (line 9 `3x RAD 001 x2`), 28 (**Given**; earliest-split row); new ACs 36–41. Pin: SPEC-008 0.3. One
+  requirement added (IMP-050a).
+  RJ decision 2026-11-23 (H-049 follow-up): UI messages use the straight apostrophe `'` (house style added to
+  IMP-061); IMP-010, IMP-061, the `UploadRejection` comment, AC 15a and AC 38 changed from `’` to `'` (the
+  "typographic apostrophe" note above no longer applies; `’` stays only as name-folding test input, AC 4);
+  open question resolved.
+  RJ decision 2026-11-23 (H-049 follow-up): Undo warns before **and** notifies after. IMP-050a's warning
+  string gains "It stays locked." (SHARE-033); a confirmed Undo is followed by the notice "'`<deck name>`'
+  (locked) is now `<n>` cards short." (Undo only; this restores the notice the line above says was replaced,
+  now in addition to the warning). Summary updated.
+
 - 0.7 (2026-11-23, H-045): RJ decision 2026-11-23 (H-045). IMP-055 rewritten: the collection CSV export is
   `Quantity,Card Name` only (no Tags column; tags expected to survive through sign-in sync, ADR-0007) and
   writes printing codes so `byPrinting` round-trips. New normative block "Collection CSV export" under the

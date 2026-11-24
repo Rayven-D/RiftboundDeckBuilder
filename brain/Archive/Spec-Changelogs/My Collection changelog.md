@@ -9,6 +9,18 @@ superseded_by: "[[My Collection]]"
 
 Moved out of [[My Collection]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.7 (2026-11-23, H-049 item 19; numbered 0.6 on its branch, renumbered at merge because H-045 is 0.6): Undo of an import warns **before** it runs, like every other change:
+  COLL-088 puts SPEC-008's "'`<deck name>`' (locked) will be `<n>` cards short." inside the COLL-058 undo
+  confirmation when manual edits followed the import, and otherwise asks for a confirmation only when a
+  locked deck would go short (computed on the snapshot the undo would restore). The v0.5 notice "… is now
+  `<n>` cards short." after Undo is removed. COLL-058 points to COLL-088 for the warning (its own MUST text is
+  unchanged). Agrees with SPEC-008 0.3 SHARE-034 and SPEC-003 0.8 IMP-050/IMP-050a. Summary updated. Pins:
+  SPEC-003 0.8, SPEC-008 0.3 (Depends line, data contract). 80 requirements (COLL-059 withdrawn in 0.6).
+  RJ decision 2026-11-23 (H-049 follow-up): Undo warns before **and** notifies after. COLL-088's warning
+  string gains "It stays locked." (SPEC-008 SHARE-033/034); a confirmed Undo of an import is followed by the
+  notice "'`<deck name>`' (locked) is now `<n>` cards short." (restored, now in addition to the warning; the
+  "is removed" line above no longer applies). Cancel shows no notice. Summary updated; COLL-058 unchanged.
+
 - 0.6 (2026-11-23, H-045): RJ decision 2026-11-23 (H-045). COLL-059 (Tags column in the collection CSV
   export) **withdrawn**: under SPEC-003's positional row rule the extra column broke the round trip; the
   export is `Quantity,Card Name` only, tags and exclude flags are not in the CSV backup (expected to survive
