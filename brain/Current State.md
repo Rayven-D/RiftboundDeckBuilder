@@ -56,6 +56,8 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 - **H-011:** apply for the production key once there's a demo ([[Riot App Application]]).
 
 ## Next for the loop
+**First thing next session (RJ, 2026-11-24):** start the builder session for SPEC-010 v0.8: H-076 → H-081 → H-077 → H-078 → H-079, one at a time, from `loop/H-074-spec010-followups` (`6263eec`) on a new `loop/H-081-account-required` branch. RJ also owes H-083 (2 questions, defaults specced).
+
 Code fixes H-046, H-053, H-054, H-055 PASS (2026-11-23). Next: **DB sizing and shape** for Firestore (its own session), then H-061 (accounts and sync spec) → H-062 (build). Spec work: H-045 (export Tags column vs positional CSV), H-049 (follow-ups incl. the interim CSV delimiter rule), H-050 (version bumps); H-058 shared cards / lock-in PASS (validated + code review); next H-059 engine, then H-060 UI. Then the Collection page, Tournaments from `data/events/` and the Decks layout on the fixture. Card search, name matching and printing-code resolution (H-057) wait on H-020.
 
 ## Biggest unknowns
