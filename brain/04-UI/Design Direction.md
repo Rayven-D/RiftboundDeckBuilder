@@ -108,3 +108,4 @@ fantasy-UI styling.
 - 2026-11-23: Renamed tabs "Your decks" → "Decks" and "My collection" → "Collection".
 - 2026-11-23: Headline changed to "Know what you own. See what you need."
 - 2026-11-23: Home copy pass (casual, shorter, phone-first). Headline "Know what you own. / Own what you need." (RJ's own wording). Lede states the loop: add cards → add decks → see what you can build and what's missing. Step tiles "Add your cards" / "Paste any deck list" / "Card by card, for every deck". Ownership text mentions shared cards and says deck view is coming soon; Tournaments text starts "Coming soon:". No copy promises Copy-missing or Top 8 import until those are built.
+- 2026-11-23: RJ: tournaments are a source of winning constructed decks to add as a goal, not a feature of their own. The home section is now "Winning decks": "Pick a winning deck to work towards.", button "See winning decks" (still links to Tournaments). Keep tournament copy small and goal-focused.
