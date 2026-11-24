@@ -14,6 +14,9 @@ export interface FanCard {
   readonly color: string;
 }
 
+/** The hero entrance plays once per page load: on the first home visit, not on every return. */
+let heroEntrancePlayed = false;
+
 interface StepTile {
   readonly icon: IconName;
   readonly title: string;
@@ -34,6 +37,13 @@ interface StepTile {
   styleUrl: './home-page.scss',
 })
 export class HomePage {
+  /** First visit this page load: play the hero entrance (text rise, deal-in, ownership fill). */
+  protected readonly enter = !heroEntrancePlayed;
+
+  constructor() {
+    heroEntrancePlayed = true;
+  }
+
   protected readonly steps: readonly StepTile[] = [
     {
       icon: 'stacks',

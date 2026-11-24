@@ -1,11 +1,14 @@
 :host {
   display: block;
+
+  /* Vertical rhythm shared by every band below the hero (RJ, 2026-11-24: one section per screen). */
+  --band-space: clamp(3rem, 2rem + 6vh, 6.5rem);
 }
 
 /* ---- Hero ---- */
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-6);
   padding: var(--space-5) 0 var(--space-7);
@@ -13,21 +16,23 @@
 
 .hero-title {
   margin: 0 0 var(--space-4);
-  /* Sized so each line fits on one row at desktop widths (≈48px at 1280px). */
-  font-size: clamp(2rem, 1rem + 2.6vw, 3rem);
+  font-size: clamp(2rem, 1rem + 2.6vw, 3.25rem);
   line-height: 1.02;
   letter-spacing: -0.025em;
 
-  .accent {
+  .line {
     display: block;
+  }
+
+  .accent {
     color: var(--color-accent-text);
   }
 }
 
 .hero-lede {
   max-width: 34rem;
-  margin: 0 0 var(--space-5);
-  font-size: 1.0625rem;
+  margin: 0 0 var(--space-6);
+  font-size: 1.125rem;
   color: var(--color-text-muted);
 }
 
@@ -40,76 +45,131 @@
 }
 
 .hero-actions a[matButton] {
+  --mat-button-filled-container-height: 48px;
+  --mat-button-outlined-container-height: 48px;
+}
+
+.feature-actions a[matButton] {
   --mat-button-filled-container-height: 44px;
   --mat-button-outlined-container-height: 44px;
 }
 
+/* "Free": a quiet note beside the buttons. */
 .hero-note {
-  margin: var(--space-3) 0 var(--space-4);
-  font-size: var(--font-size-xs);
+  margin: 0 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
-.hero-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-5);
+/* The hero fills the first screen on desktop and tablet, content centered. */
+@media (min-width: 52.01rem) and (min-height: 36rem) {
+  .hero {
+    min-height: calc(100svh - var(--header-height) - var(--space-5));
+    padding: 0 0 var(--space-6);
+  }
 }
 
-/* ---- Step tiles ---- */
+/*
+ * One-time entrance (first home visit per load): the headline lines, lede and actions rise in with
+ * a short stagger while the fan deals in (ownership-fan.scss). Opacity and transform only; the
+ * resting style is the end state, so the copy shows if the animation never runs.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .hero--enter {
+    .hero-title .line,
+    .hero-lede,
+    .hero-actions {
+      animation: rise-in var(--dur-slow) var(--ease-enter) backwards;
+    }
+
+    .hero-title .line:nth-child(2) {
+      animation-delay: 80ms;
+    }
+
+    .hero-lede {
+      animation-delay: 180ms;
+    }
+
+    .hero-actions {
+      animation-delay: 260ms;
+    }
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* ---- Bands below the hero: same content edges, same rhythm ---- */
+.band {
+  padding: var(--band-space) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+/* ---- Step tiles ("How it works") ---- */
 .steps {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-top: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
+  gap: var(--space-4);
 }
 
 .step {
   display: grid;
-  gap: 2px;
-  padding: var(--space-4) var(--space-4) var(--space-5);
+  align-content: start;
+  gap: var(--space-1);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-rest);
   color: var(--color-text);
   text-decoration: none;
-  transition: background 120ms ease;
-
-  & + & {
-    border-left: 1px solid var(--color-border);
-  }
 
   &:hover {
-    background: var(--color-surface);
+    border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
 
     .step-arrow {
       color: var(--color-accent-text);
-      transform: translateX(2px);
+      transform: translateX(3px);
     }
   }
 }
 
 .step-top {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-2);
-  font-size: 22px;
+  margin-bottom: var(--space-4);
 }
 
 .step-icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
   color: var(--color-accent-text);
+  font-size: 26px;
 }
 
 .step-arrow {
+  font-size: 24px;
   color: var(--color-text-muted);
   transition:
-    color 120ms ease,
-    transform 120ms ease;
+    color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 
 .step-title {
+  font-size: var(--font-size-lg);
   font-weight: 600;
 }
 
 .step-subtitle {
-  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
@@ -119,10 +179,12 @@
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   align-items: center;
   gap: var(--space-6);
-  padding: var(--space-7) 0;
+}
 
-  & + & {
-    border-top: 1px solid var(--color-border);
+/* Desktop: each feature reads as about one screen, its content centered in it. */
+@media (min-width: 52.01rem) and (min-height: 36rem) {
+  .feature {
+    min-height: min(calc(80svh - var(--header-height)), 44rem);
   }
 }
 
@@ -153,6 +215,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
+  box-shadow: var(--shadow-lift);
 }
 
 .panel-bar {
@@ -181,11 +244,7 @@
   }
 
   .hero {
-    padding-bottom: var(--space-6);
-  }
-
-  .feature {
-    padding: var(--space-6) 0;
+    padding: var(--space-2) 0 var(--space-6);
   }
 
   .feature--flip .feature-copy {
@@ -194,11 +253,23 @@
 
   .steps {
     grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
   }
 
-  .step + .step {
-    border-left: 0;
-    border-top: 1px solid var(--color-border);
+  .step {
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--space-4);
+    padding: var(--space-4);
+  }
+
+  /* Icon on the left of the title and subtitle; the whole tile is the link, so no arrow. */
+  .step-top {
+    grid-row: span 2;
+    margin-bottom: 0;
+  }
+
+  .step-arrow {
+    display: none;
   }
 
   .panel-tiles {

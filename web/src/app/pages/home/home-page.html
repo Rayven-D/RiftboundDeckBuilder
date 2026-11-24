@@ -1,8 +1,8 @@
-<section class="hero" aria-labelledby="hero-title">
+<section class="hero" [class.hero--enter]="enter" aria-labelledby="hero-title">
   <div class="hero-copy">
     <h1 id="hero-title" class="hero-title">
-      Know what you own.
-      <span class="accent">Own what you need.</span>
+      <span class="line">Know what you own.</span>
+      <span class="line accent">Own what you need.</span>
     </h1>
     <p class="hero-lede">
       Add the cards you own. Add the decks you want. See which ones you can build and what's
@@ -16,32 +16,30 @@
       <a matButton="outlined" routerLink="/import" [queryParams]="{ type: 'deck' }"
         >Import a deck</a
       >
+      <p class="hero-note">Free</p>
     </div>
-    <p class="hero-note">Free</p>
-    <nav class="hero-links" aria-label="Go to">
-      <a class="arrow-link" routerLink="/decks">Decks</a>
-      <a class="arrow-link" routerLink="/collection">Collection</a>
-      <a class="arrow-link" routerLink="/tournaments">Tournaments</a>
-    </nav>
   </div>
 
-  <app-ownership-fan class="hero-visual" />
+  <app-ownership-fan class="hero-visual" [deal]="enter" />
 </section>
 
-<nav class="steps" aria-label="How it works">
-  @for (step of steps; track step.title) {
-    <a class="step" [routerLink]="step.link" [queryParams]="step.query ?? null">
-      <span class="step-top">
-        <app-icon class="step-icon" [name]="step.icon" />
-        <app-icon class="step-arrow" name="chevron_right" />
-      </span>
-      <span class="step-title">{{ step.title }}</span>
-      <span class="step-subtitle">{{ step.subtitle }}</span>
-    </a>
-  }
-</nav>
+<section class="band steps-band" aria-labelledby="steps-title">
+  <p id="steps-title" class="eyebrow">How it works</p>
+  <nav class="steps" aria-labelledby="steps-title">
+    @for (step of steps; track step.title) {
+      <a class="step lift" [routerLink]="step.link" [queryParams]="step.query ?? null">
+        <span class="step-top">
+          <span class="step-icon"><app-icon [name]="step.icon" /></span>
+          <app-icon class="step-arrow" name="chevron_right" />
+        </span>
+        <span class="step-title">{{ step.title }}</span>
+        <span class="step-subtitle">{{ step.subtitle }}</span>
+      </a>
+    }
+  </nav>
+</section>
 
-<section class="feature" aria-labelledby="ownership-title">
+<section class="band feature" aria-labelledby="ownership-title">
   <div class="feature-copy">
     <p class="eyebrow"><app-icon name="contrast" />Ownership</p>
     <h2 id="ownership-title" class="feature-title">Collect the cards each deck needs.</h2>
@@ -61,6 +59,7 @@
     <div class="panel-tiles">
       @for (card of showcase; track card.name; let i = $index) {
         <app-card-tile
+          class="zoom-art"
           [name]="card.name"
           zone="Main Deck"
           [owned]="card.owned"
@@ -72,7 +71,7 @@
   </figure>
 </section>
 
-<section class="feature feature--flip" aria-labelledby="tournaments-title">
+<section class="band feature feature--flip" aria-labelledby="tournaments-title">
   <div class="feature-copy">
     <p class="eyebrow"><app-icon name="playing_cards" />Winning decks</p>
     <h2 id="tournaments-title" class="feature-title">Pick a winning deck to work towards.</h2>

@@ -14,7 +14,12 @@ import { OwnershipState } from './ownership';
 @Component({
   selector: 'app-card-art',
   template: `
-    <div class="art" [class]="'art art--' + state()" [style.--fill]="fill()">
+    <div
+      class="art"
+      [class]="'art art--' + state()"
+      [class.art--fill-in]="animateFill()"
+      [style.--fill]="fill()"
+    >
       @if (imageUrl(); as url) {
         <img class="card-image" [src]="url" [alt]="altText()" loading="lazy" />
         <img class="card-image dimmed" [src]="url" alt="" loading="lazy" aria-hidden="true" />
@@ -63,6 +68,35 @@ import { OwnershipState } from './ownership';
       font-size: var(--font-size-sm);
       text-align: center;
     }
+    /*
+     * Optional one-time fill (home hero, RJ 2026-11-24): the color fills left to right from the
+     * dimmed state to the owned fraction. CSS only, and the end state is the resting style, so the
+     * art is correct if the animation never runs. Timing comes from --fill-delay / --fill-duration.
+     */
+    @media (prefers-reduced-motion: no-preference) {
+      .art--fill-in .dimmed {
+        animation: fill-in var(--fill-duration, 600ms) var(--ease-out) var(--fill-delay, 0ms) backwards;
+      }
+      .art--fill-in.art--full .dimmed {
+        display: block;
+        clip-path: inset(0 0 0 100%);
+      }
+      .art--fill-in.art--partial::after {
+        animation: divider-in var(--fill-duration, 600ms) var(--ease-out) var(--fill-delay, 0ms)
+          backwards;
+      }
+    }
+    @keyframes fill-in {
+      from {
+        clip-path: inset(0 0 0 0);
+      }
+    }
+    @keyframes divider-in {
+      from {
+        left: 0;
+        opacity: 0;
+      }
+    }
     @media (forced-colors: active) {
       .art--partial::after {
         background: CanvasText;
@@ -80,6 +114,8 @@ export class CardArt {
   readonly alt = input<string>();
   /** The name is already shown or announced nearby: render the image with `alt=""`. */
   readonly decorative = input(false, { transform: booleanAttribute });
+  /** Play the left-to-right fill once when first shown (decorative use on the home page). */
+  readonly animateFill = input(false, { transform: booleanAttribute });
 
   protected readonly altText = computed(() =>
     this.decorative() ? '' : (this.alt() ?? this.name()),
