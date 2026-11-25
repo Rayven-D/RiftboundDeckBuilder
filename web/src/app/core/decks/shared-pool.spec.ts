@@ -273,7 +273,7 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
       ]) {
         const s = lockedShortfalls(before, after);
         expect(s).toEqual([{ deckId: 'd3', deckName: 'Kennen Aggro', cardsShort: 1 }]);
-        expect(shortfallWarning(s[0])).toBe("'Kennen Aggro' (locked) will be 1 card short.");
+        expect(shortfallWarning(s[0])).toBe("'Kennen Aggro' (locked) will be 1 card short. It stays locked.");
       }
     });
 
@@ -489,7 +489,7 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
       });
       const s = lockedShortfalls(before, afterReplace);
       expect(s).toEqual([{ deckId: 'd1', deckName: 'Kennen Tempo', cardsShort: 1 }]);
-      expect(shortfallWarning(s[0])).toBe("'Kennen Tempo' (locked) will be 1 card short.");
+      expect(shortfallWarning(s[0])).toBe("'Kennen Tempo' (locked) will be 1 card short. It stays locked.");
       // Cancel: nothing was committed, so the current pool is unchanged.
       expect(pool(decks, locks, { [RAY]: 3 })).toEqual(before);
       // Confirm: Deck 1 stays locked, flagged short.
@@ -675,7 +675,7 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
       const s = lockedShortfalls(before, after);
       expect(s).toEqual([{ deckId: 'd1', deckName: 'Kennen Tempo', cardsShort: 1 }]);
       expect(after.byDeck['d1'].cardsShort).toEqual(['hextech ray']);
-      expect(shortfallWarning(s[0])).toBe("'Kennen Tempo' (locked) will be 1 card short.");
+      expect(shortfallWarning(s[0])).toBe("'Kennen Tempo' (locked) will be 1 card short. It stays locked.");
     });
 
     it('SHARE-034 3 Hextech Ray and 2 Gust: no hold drops, no warning', () => {

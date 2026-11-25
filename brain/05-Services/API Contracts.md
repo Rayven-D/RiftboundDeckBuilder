@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.25
+version: 1.27
 ---
 # API Contracts
 
@@ -199,8 +199,8 @@ Notes for the UI:
   reads the lock from the pool for this check. Show Unlock (no reason line) for `already-locked`.
 - `lockedShortfalls(before, after)` (SHARE-034 v0.4.2): a deck locked in both pools is listed when, for **any**
   `cardKey`, its hold in `after` is lower than in `before` (a Σ that stays equal does not hide it); `cardsShort` =
-  the deck's number of short cardKeys in `after`; order = `after`'s lock order. The caller appends " It stays locked."
-  in confirmations (`collection-import.ts`).
+  the deck's number of short cardKeys in `after`; order = `after`'s lock order. `shortfallWarning(s)` already ends
+  with " It stays locked." (v1.26; callers no longer append it); render both through `app-shortfall-warning`.
 - Ownership unavailable (OWN-062/063, SHARE-053, OWN-065): `CollectionOwnership` `{ status: 'unavailable', locks? }`
   carries the stored locks (`readonly DeckLock[]`; `null` = lock store unreadable; omitted = no lock known, treated
   like `null`). **The page must pass the stored locks** so locked decks keep their badge. Then:
@@ -244,6 +244,9 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   Owned Cards Import in Replace mode (one `set()`, SYNC-014) and keeps the Undo snapshot (IMP-052).
   With no record yet, `snapshotPrevious` keeps an **empty** snapshot stamped `EMPTY_SNAPSHOT_AT`
   (`1970-01-01T00:00:00.000Z`, `shared/storage/records.ts`), so the first import can be undone (v1.22).
+  `DeckStore.newerDecks()` (v1.26, DECK-091): the deck records with `schemaVersion` above 1 that still have the v1
+  shape, for read-only display only (`list()` skips them; never written). The lock store counts them as existing
+  decks, so a lock on a read-only deck is not dropped as an orphan (SHARE-062).
   `TrackedCollectionStore.clearPrevious()` / `RawCollectionStore.clearPrevious()` remove the snapshot (an Undo
   spends it, IMP-075 b); not stamped, the snapshot is a cache record only.
   Saves to an area whose cloud document is newer throw `ReadOnlyAreaError` (SYNC-046 message).
@@ -558,6 +561,90 @@ writes nothing (DECK-003).
 - **Not built:** legality in the review (DECK-050…056, no SPEC-002 engine or ban data in `web/`), fuzzy suggestions
   (DECK-043, IMP-026…030, H-272), the optional leading article (CARD-034), deck codes / TTS (DECK-012, DECK-039, H-047).
 
+## Decks list and shared lock pieces (SPEC-005 OWN-002…008, OWN-084, OWN-100…105; SPEC-008 SHARE-020…029, SHARE-050…063; H-060)
+Not an endpoint. `/decks` lists every deck (no pagination, OWN-084) in a 3 / 2 / 1 column grid
+(`minmax(min(var(--deck-tile-min, 22rem), 100%), 1fr)`). The lock pieces live in `web/src/app/shared/deck/` so the
+Deck detail header (H-254) uses the same ones. Writes: only `stores.locks` (through `DeckLocks`).
+- **Pure list logic** (`shared/deck/deck-list.ts`): `buildDeckList({ decks, locks, collection, catalog, banData,
+  today, format, legality? })` → `DeckListModel { entries: { deck, view, summary }[], pool, collectionUnreadable,
+  catalogMissing, locksUnreadable, banUnknown }`: one `computeSharedPool` when collection and catalog are both
+  readable, else `CollectionOwnership { status: 'unavailable', locks }` with the **stored** locks (`null` = lock store
+  unreadable). `DeckListQuery { text, own, lock, legality, source, sort }`, `DEFAULT_DECK_QUERY`,
+  `parseDeckQuery(params)` → `{ query, ignored }` (unknown values ignored and counted, OWN-105 (e)),
+  `deckQueryParams(q)` (defaults left out; keys `q`, `own`, `lock`, `legality`, `source`, `sort`),
+  `queryDecks(entries, q)` (OWN-005 default order, ties `createdAt` desc then `id`; `name` = `Intl.Collator('en',
+  base, numeric)`; `added` = `createdAt` desc; search = accent-folded substring of the name),
+  `ownershipCounts` (faceted: every filter but ownership), `hiddenLockedCount`, `deckCountLine(shown, total,
+  filtered)` ("3 decks" / "Showing 1 of 3 decks"), `activeFilters`, `clearFilters` (keeps the search),
+  `menuFilterCount`, option lists `DECK_SORTS`, `OWN_OPTIONS`, `LOCK_OPTIONS`, `SOURCE_OPTIONS`,
+  `legalityOptions(formatName)`.
+- **Pure lock logic** (`shared/deck/deck-locks.ts`): `deckLockCheck({ pool, deck, readOnly, lock, locksUnreadable })`
+  wraps `canLock` (`isLocked` = `view.lock` unless the store is unreadable; `ownership-unavailable` becomes
+  `locks-unreadable` when it is); `readLocks(store)` → `DeckLock[]` (`[]` when none) or `null` (unreadable, never
+  overwritten); `withLock`, `withoutLock`, `saveLock(store, deckId, now)`, `saveUnlock`; `otherDecksLine(view)`
+  (SHARE-021, at most 3 names then "and r more"); texts `LOCK_TEXT`, `lockInTitle`, `lockedInNotice`,
+  `unlockedNotice`.
+- **Service** `DeckLocks` (`shared/deck/deck-locks.service.ts`, root): `load(): Promise<DeckLock[] | null>`,
+  `lockIn(deckId)`, `unlock(deckId)` (reject on a failed or refused save, nothing changed), `changed: Subject<void>`
+  after each save this tab wrote. Uses `AppStores.stores.locks`.
+- **Components** (standalone; all text from the helpers above):
+
+| Selector | Inputs | Outputs | Needs |
+|---|---|---|---|
+| `app-deck-tile` | `summary: DeckTileSummary` (required), `eager: boolean` | none | Router. One link to `/decks/<id>` (whole tile), Legend art with the completion fill or the deck mark, "51%" + hidden "51 percent of copies available / locked in", status chip, source, pilot, legality, ban flags, Updated date, "Read-only" tag |
+| `app-deck-status-chip` | `filter: OwnershipFilter` (required), `lockBadge: string \| null` | none | `lockBadge` wins (warning style when it says "short"); `unavailable` without a badge shows nothing |
+| `app-lock-badge` | `lock: DeckLockState \| null`, `label: string \| null` (= `summary.lockBadge`), `showDate` (default true) | none | "Locked · Locked in on <MMM D, YYYY>" (date left out when `lockedAt` doesn't parse) |
+| `app-lock-actions` | `deck: UserDeck` (required), `view: DeckOwnershipView` (required), `pool: SharedPool \| null`, `readOnly: boolean`, `locksUnreadable: boolean` | `changed: void` | `DeckLocks`, `MatDialog`, `MatSnackBar`. Lock in (`aria-disabled` + reason line as `aria-describedby`, SHARE-020) → `LockInDialog` confirmation (SHARE-021) → "Locking in…" → snack "<name> is locked in."; Unlock at once (SHARE-023); failure snack "Couldn't save the lock. Try again." (SHARE-063). The host re-reads on `DeckLocks.changed` and passes the new `view` |
+| `app-shortfall-warning` | `items: readonly LockedShortfall[]` (required), `mode: 'before' \| 'after'` | none | `shortfallWarning` (before a change) or `shortfallNotice` (after) lines, no `role="alert"` (the host dialog or snack announces) |
+
+- `CardArt` gains `animateChange` (fill transition `var(--dur-fill, 180ms)`, OWN-035). Global tokens
+  `--deck-tile-min: 22rem`, `--dur-fill: 180ms`.
+- `ImportConfirmData.shortfalls: readonly LockedShortfall[]` replaces `warnings: string[]` (the dialog renders
+  `app-shortfall-warning`).
+- **Not built:** legality verdicts (no SPEC-002 engine in `web/`: every deck reads "Not fully checked" and the
+  Legality filter only matches that); the format name in filter labels is the constant "Standard".
+
+## Deck detail (SPEC-005 OWN-010…119, SPEC-006 DECK-081…085, SPEC-008 SHARE-024/025; H-254)
+Not an endpoint. `/decks/:id` reads and writes through the **tracked** stores only; no new stored shape.
+- **Pure logic** (`web/src/app/shared/deck-detail/detail-view.ts`): `headerSummary(view)` → `{ copies, percent, cards }`
+  (`percent` is `view.summary.completionPercent` as it is, `null` → no percentage at all; locked decks read
+  "… copies locked in"); `sectionCounts`, `navLabel` (Legend and Champion show no count); `cardId(card)` =
+  `` `${zone}:${cardKey}` ``, `deckCards`, `firstCardId` (OWN-111 (b)), `findCard`, `neighbourId`; card text
+  `labelParts`, `banText`, `cardAccessibleName`, `allocationLine`, `breakdownLines`, `printingRowText/Label`,
+  `otherUseText`, `cardFacts`, `fullArtUrl`; missing list `missingGroups`, `missingCopies`, `mergedMissingText`
+  ("Copy as one list": one line per card, sections merged, Riot order); `exportDeckText(deck, catalog)` /
+  `exportFileName` (DECK-085); `duplicateDeck(deck, id, now)` (DECK-084: `<name> (copy)` within 80 characters,
+  the name is shortened to keep the suffix, `duplicatedFrom`, never locked); `applyRename(deck, form, sourceOf)` →
+  `{ status: 'ok', deck, changed: { name, other } } | { status: 'invalid', errors }` (OWN-118: name, description,
+  and for user decks source text and URL via `deckSource()`; tournament sources never change; lock untouched);
+  `isReadOnlyDeck`, `newerDeckRecord(raw, id)` (OWN-064: a record with a newer `schemaVersion` the store refuses
+  is shown read-only); `ruleCheckContent`; `DECK_VIEW_KEY = 'deck-view'` + `parseViewMode` (OWN-114, a device
+  setting outside `rift.*`, so not synced and not cleared on sign-out). Copy strings in `DETAIL_TEXT`,
+  `RENAME_TEXT`, `RULE_CHECK_TEXT`.
+- **Page** (`web/src/app/pages/deck-detail/deck-detail.ts`, `DeckDetail`): reads deck, all decks, locks
+  (unreadable → `locksIgnored`), collection + tags (unreadable → ownership unavailable, OWN-062), printing codes,
+  catalog (`CardData.loadCatalog`, error → banner + stored names, OWN-063) and bans (`CardData.loadBans`, null or
+  error → one page notice, OWN-015); `computeSharedPool` over every deck, then `computeDeckOwnership` and
+  `summarizeDeck`. Re-reads on `storage` events for `rift.*` keys (not view state), `DeckImport.saved`,
+  `CollectionImport.written`, and on focus/visibility when the date changed (OWN-119 (d)). Injection tokens
+  `RAW_DECK_RECORD: (id) => string | null` (raw read for the read-only path) and `DEVICE_STORAGE` (view mode),
+  replaceable in tests.
+- **Writes:** Rename → `stores.decks.update(deck, basedOnUpdatedAt)` (`'conflict'` → `DETAIL_TEXT.saveConflict`, the
+  dialog stays open); Duplicate → `stores.decks.create(copy)`, snack "Deck duplicated." / Open; Delete →
+  `stores.decks.delete(id)`, then the deck's lock is removed (`DeckLocks.unlock`), navigate to `/decks`, snack "Deck
+  deleted." / Undo for 10 s; Undo → `stores.decks.create(removed)` (unlocked, SHARE-024) then
+  `DeckImport.saved.next(removed)` so an open list re-reads. Read-only decks: Rename, Duplicate and Delete disabled.
+- **Lock pieces (H-060):** the header uses `app-lock-badge [lock]="view.lock" [label]="tile.lockBadge"` and
+  `app-lock-actions [deck] [view] [pool] [readOnly] [locksUnreadable]` (its own reason line, confirmation and
+  SHARE-029 snack bars). `Loaded` carries `pool` (the `SharedPool`, null while ownership is unavailable) and
+  `locksUnreadable`. The page re-reads on `DeckLocks.changed` and on the component's `(changed)` (coalesced), so
+  a lock written in this tab updates the badge, copies line and tiles without a storage event. Delete removes the
+  deck's lock through `DeckLocks.unlock` (only when one is stored; an unreadable lock store is never overwritten).
+  No `app-shortfall-warning` on this page: SHARE-034 warnings live in Collection's confirmations ([[Decks]] §9);
+  a short locked deck shows the warning badge "Locked · n cards short" (SHARE-033, D8).
+- **Not built here:** legality (no SPEC-002 engine in `web/`: always "Not fully checked"), real ban data
+  (`loadBans()` is null).
+
 ## Test data on live (SPEC-013, H-205)
 Not an endpoint and no new Firestore field: test data is ordinary account data told apart by reserved values
 ([[Test Data]] TEST-030). No `firestore.rules` change (rules test `web/rules-tests/test-data.test.ts`).
@@ -705,6 +792,15 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.27 (2026-11-25, H-254, SPEC-005 0.10.2, SPEC-006 0.11.1): no endpoint change and no stored-shape change. New section
+  "Deck detail": the pure helpers in `shared/deck-detail/detail-view.ts`, the page's reads, reload triggers and writes
+  (rename, duplicate, delete + Undo), and the device setting `deck-view`; the header uses H-060's `app-lock-badge`
+  and `app-lock-actions` and re-reads on `DeckLocks.changed`. (v1.26 is H-060's.)
+- v1.26 (2026-11-25, H-060, SPEC-005 0.10.2, SPEC-008 0.4.6): no endpoint change and no stored-shape change. New
+  section "Decks list and shared lock pieces": `deck-list.ts`, `deck-locks.ts`, `DeckLocks`, `app-deck-tile`,
+  `app-deck-status-chip`, `app-lock-badge`, `app-lock-actions` (+ `LockInDialog`), `app-shortfall-warning`;
+  `shortfallWarning` ends with " It stays locked."; `ImportConfirmData.shortfalls` replaces `warnings`;
+  `DeckStore.newerDecks()`; the lock store's orphan check counts read-only decks; `CardArt.animateChange`.
 - v1.25 (2026-11-25, H-311, SPEC-005 0.10.2): no endpoint change and no stored-shape change. `DeckOwnershipView.summary`
   gains `completionFill` and `completionPercent` (OWN-101); `DeckTileSummary` gains `legend`, `completionFill`,
   `completionPercent`, `bans` (`DeckTileBans`), `pilot` and `readOnly` (OWN-100…104); new pure `completionPercent(a, r)`.

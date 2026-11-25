@@ -332,9 +332,12 @@ export function lockedShortfalls(before: SharedPool, after: SharedPool): LockedS
   return out;
 }
 
-/** SHARE-034 warning inside a confirmation: "'Kennen Aggro' (locked) will be 1 card short." */
+/**
+ * SHARE-034 warning inside a confirmation, the one string every confirmation uses (H-060: the helper now ends with
+ * " It stays locked."): "'Kennen Aggro' (locked) will be 1 card short. It stays locked."
+ */
 export function shortfallWarning(s: LockedShortfall): string {
-  return `'${s.deckName}' (locked) will be ${cardsShortText(s.cardsShort)}.`;
+  return `'${s.deckName}' (locked) will be ${cardsShortText(s.cardsShort)}. It stays locked.`;
 }
 
 /** SHARE-034 notice after an import Undo: "'Kennen Tempo' (locked) is now 1 card short." */

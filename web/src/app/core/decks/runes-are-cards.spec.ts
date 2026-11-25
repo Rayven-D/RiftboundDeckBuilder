@@ -260,7 +260,7 @@ describe('Runes are cards (SPEC-005 OWN-028/029, SPEC-008 SHARE-006, SPEC-007 CO
     const after = computeSharedPool({ decks: [kennen1], locks, ownership: tagged });
     const s = lockedShortfalls(before, after);
     expect(s.map(shortfallWarning)).toEqual([
-      "'Kennen: ASC Evansrhim' (locked) will be 1 card short.",
+      "'Kennen: ASC Evansrhim' (locked) will be 1 card short. It stays locked.",
     ]);
   });
 });
