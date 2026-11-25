@@ -9,6 +9,31 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+## 0.15.1 (2026-11-25, H-200, H-181, H-208, H-209; was 0.14.2 before the merge with 0.15.0)
+Applied on top of 0.15.0 (patch, wording only). Later fixes folded in: H-208 removed the card-image host blank from
+the draft; H-209 narrowed SYNC-101 check 1 to a scan of the file holding the notice text for the case-sensitive
+substrings `[RJ` and `[builder` (markdown links and template bindings are not matched), and made the third-party image
+host line a manual release step under AC 70 (SYNC-103 item 9, SYNC-007 condition 2), with no automated check.
+RJ's H-182 answers applied to the privacy notice (wording only, no other requirement changed). SYNC-103: item 1
+controller "Rift Builder, an independent fan project", contact `riftbuilder.support@gmail.com`, no personal name; item 2
+date is the placeholder `[set on release: date dev → main ships sign-in]`; item 3 changes announced in the public
+changelog (H-201), no in-app notice promised; item 5 replies go to the support inbox (H-063 sets the reply-to; was
+"replies are not read", H-181 3); item 6 names Firebase Hosting request logs (H-181 2); item 9 includes them; item 12
+"no cookies" unverified until the AC 70 DevTools check (H-181 1); item 20 age 16, no age check. SYNC-104 f age line "For
+ages 16 and over." SYNC-101: placeholder rule, two checks: `[RJ:` fails every build (SPEC-010's existing rule, H-180),
+`[set on release` fails only the production deploy and the release step, and preview / development builds show it as
+written. SYNC-007 condition 2 adds "release-day date filled". ACs 66 (strings, both checks), 67 (age line), 70 (no
+cookies recorded; production rule not met while the marker stands); Open question 12 reworded. [[Privacy Notice Draft]]
+0.3. Spec Index pin 0.15.1.
+
+## 0.15.0 (2026-11-25, H-206, RJ: "limit usernames to 20 characters and not include emojis")
+SYNC-153: NFC, at most 20 code points, allowed set `^[\p{L}\p{Nd}][\p{L}\p{Mn}\p{Mc}\p{Nd} ._'’-]*$` with no
+variation selectors and no emoji, two new error strings, counter `n / 20`; SYNC-154 counter; SYNC-156 (a); SYNC-112
+username `size()` 1 to 80 (worst case 20 × U+1D400 = 40 UTF-16 units = 80 UTF-8 bytes; unchanged names not re-checked;
+character set not checked in rules); data contract comment; ACs 22, 71, 74, 76; Impacts item 4; decision 20; Open
+questions 13 (b) and 14 (allowed set awaits RJ). Minor bump (behaviour change); build H-207. The `size()` unit keeps its
+status: UTF-16 units on the emulator (verified 2026-11-25, H-183), production `unverified`.
+
 ## 0.14.1 (2026-11-25, H-183)
 Username length mismatch from [[Validation H-174]] follow-up 1: SYNC-153 allowed 24 graphemes (a worst-case name of 24
 family emoji with skin tones is 264 code points, 456 UTF-16 units, 984 UTF-8 bytes) but the SYNC-112 rules backstop was

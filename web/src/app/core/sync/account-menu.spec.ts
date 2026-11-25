@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { Router, provideRouter } from '@angular/router';
 import { AccountMenu } from './account-menu';
 import * as dialogs from './sync-dialogs';
 import { DeleteAccountDialog, SignInDialog, SignOutDialog } from './sync-dialogs';
@@ -27,6 +28,7 @@ describe('Sign-in UI (SPEC-010)', () => {
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         {
           provide: SYNC_ADAPTERS,
           useValue: async () => {
@@ -294,6 +296,7 @@ describe('AccountMenu delete outcomes (SPEC-010 SYNC-096)', () => {
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         {
           provide: SyncService,
           useValue: {
@@ -353,6 +356,7 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         {
           provide: SyncService,
           useValue: {
@@ -466,6 +470,7 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote }) },
         {
           provide: MatSnackBar,
@@ -517,7 +522,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
         const items = Array.from(el.querySelectorAll('button')).map(text).join(',');
         return `group:${text(el.querySelector('p')!)}(${items})`;
       }
-      return tag === 'button' ? `item:${text(el)}` : `text:${text(el)}`;
+      return tag === 'button' || tag === 'a' ? `item:${text(el)}` : `text:${text(el)}`;
     });
 
   const trigger = (fixture: ComponentFixture<AccountMenu>) =>
@@ -546,6 +551,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote: new FakeRemote(db) }) },
         {
           provide: MatSnackBar,
@@ -733,6 +739,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([{ path: 'changelog', children: [] }]),
         {
           provide: SyncService,
           useValue: {
@@ -767,6 +774,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
       'divider',
       'item:Account Information',
       'group:Theme(System,Light,Dark)',
+      "item:What's new",
       'divider',
       'item:Sign out',
     ]);
@@ -783,6 +791,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
       'divider',
       'item:Account Information',
       'group:Theme(System,Light,Dark)',
+      "item:What's new",
       'divider',
       'item:Sign out',
     ]);
@@ -806,6 +815,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
       'divider',
       'item:Account Information',
       'group:Theme(System,Light,Dark)',
+      "item:What's new",
       'divider',
       'item:Sign out',
     ]);
@@ -817,6 +827,30 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     expect(l[1]).toBe("text:You're offline.");
     expectCleanDividers(l);
   });
+
+  it.each([
+    ['online', { deletion: null, online: true }],
+    ['offline', { deletion: null, online: false }],
+    ['during an unfinished deletion', { deletion: { canCancel: true }, online: true }],
+  ] as const)("SPEC-012 LOG-011 / LOG-012 / AC 3 %s: What's new is an enabled same-tab link to /changelog, right before the last divider", async (_l, opts) => {
+    const l = await stubMenu({ ...opts, email: 'rj@example.com' });
+    expect(l.slice(-3)).toEqual(["item:What's new", 'divider', 'item:Sign out']);
+    expectCleanDividers(l);
+    const link = Array.from(panel().querySelectorAll<HTMLAnchorElement>('a[mat-menu-item]')).find((a) => text(a) === "What's new")!;
+    expect(link.getAttribute('href')).toBe('/changelog');
+    expect(link.getAttribute('target')).toBeNull();
+    expect(link.getAttribute('aria-disabled')).not.toBe('true');
+    expect(link.classList.contains('mat-mdc-menu-item-disabled')).toBe(false);
+  });
+
+  it("SPEC-012 LOG-011 / AC 3 choosing What's new opens /changelog and closes the menu", async () => {
+    await stubMenu({ deletion: null, online: true, email: 'rj@example.com' });
+    const router = TestBed.inject(Router);
+    const link = Array.from(panel().querySelectorAll<HTMLAnchorElement>('a[mat-menu-item]')).find((a) => text(a) === "What's new")!;
+    link.click();
+    await vi.waitFor(() => expect(router.url).toBe('/changelog'));
+    await vi.waitFor(() => expect(document.querySelector('.mat-mdc-menu-content')).toBeNull());
+  });
 });
 
 describe('AccountMenu header trigger (H-123)', () => {
@@ -825,6 +859,7 @@ describe('AccountMenu header trigger (H-123)', () => {
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         {
           provide: SyncService,
           useValue: {

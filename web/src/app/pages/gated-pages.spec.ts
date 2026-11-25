@@ -383,6 +383,28 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-009)', () => {
       expect(adapterLoads).toBe(0);
     });
 
+    it('SPEC-012 LOG-001 / LOG-003 / AC 1 signed out with empty storage, /changelog shows its page, no panel, no Firebase, no storage key', async () => {
+      setup();
+      const cookies = document.cookie;
+      const session = Object.keys({ ...sessionStorage });
+      const { el } = await open('/changelog');
+      expect(TestBed.inject(Router).url).toBe('/changelog');
+      expect(text(el.querySelector('h1'))).toBe("What's new");
+      expect(text(el)).toContain("What's changed in Rift Builder, newest first.");
+      expect(el.querySelector('app-sign-in-panel')).toBeNull();
+      expect(adapterLoads).toBe(0);
+      expect(Object.keys({ ...localStorage })).toEqual([]);
+      expect(Object.keys({ ...sessionStorage })).toEqual(session);
+      expect(document.cookie).toBe(cookies);
+    });
+
+    it('SPEC-012 LOG-001 / AC 1 signed in and synced, /changelog shows the same page', async () => {
+      setup(SYNCED);
+      const { el } = await open('/changelog');
+      expect(text(el.querySelector('h1'))).toBe("What's new");
+      expect(el.querySelector('app-sign-in-panel')).toBeNull();
+    });
+
     it('AC 35 / SYNC-007 / SYNC-002 the app shell shows Sign in to a signed-out visitor and loads no Firebase', async () => {
       setup();
       TestBed.configureTestingModule({ imports: [App] });

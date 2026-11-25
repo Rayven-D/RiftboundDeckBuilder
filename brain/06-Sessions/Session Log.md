@@ -7,6 +7,10 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-25: H-202 builder, `/changelog` "What's new" (SPEC-012 0.1)
+- Built the public `/changelog` page (no Firebase, no storage), `core/changelog/changelog.json` with `0.0.1` (date `null` → "Coming soon"), pure rules in `shared/changelog/changelog.ts`, the footer link (new `.footer-row` next to the theme switch) and the account-menu link (after Theme, before the last divider), `check:changelog-release` plus a step in the `main` deploy workflow, and the release step in README and [[API Contracts]] v1.17. Lint, build, preview build and the web unit tests green. Nothing deployed.
+- Choices to specify: the run-time skip check is the full per-entry rule set (LOG-031 + LOG-022 + hash guard), so AC 5's empty-bullets entry is skipped (H-220 item 2); script messages for invalid JSON and a non-array.
+
 ## 2026-11-25: H-207 username 20 characters, no emoji (builder)
 - Built SPEC-010 v0.15.0 SYNC-153/156/112: the client normalizes (NFC, trim, collapse `\p{Zs}`), counts code points (at most 20, marks count, no `Intl.Segmenter` for counting), accepts only the SYNC-153 (4) set with no variation selector; length error before the character error; counter `n / 20` turns to the error colour with an icon above 20. `firestore.rules`: username `size()` 1–80, checked only when the request changes it (create still denied). [[API Contracts]] v1.17.
 - Chosen behaviour (for spec): a Save of the unchanged value closes before the check runs, so a v0.14 name that breaks the new rules is not re-checked until changed. AC 74's "`Zoë` typed as `e` + U+0301" names the wrong mark (U+0301 gives `é`; `ë` is U+0308); tests cover both.

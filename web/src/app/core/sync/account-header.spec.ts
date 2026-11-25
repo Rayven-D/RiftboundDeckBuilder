@@ -11,6 +11,7 @@ import { MatMenuTrigger } from '@angular/material/menu';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { provideRouter } from '@angular/router';
 import { Subject } from 'rxjs';
 import { STORAGE_KEYS } from '../storage/local-stores';
 import { ThemeService } from '../theme/theme.service';
@@ -68,6 +69,7 @@ describe('Header account control, menu and Account Information (SPEC-010 SYNC-15
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote: new FakeRemote(db) }) },
         { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
         { provide: InteractivityChecker, useClass: VisibleInteractivityChecker },
@@ -160,7 +162,7 @@ describe('Header account control, menu and Account Information (SPEC-010 SYNC-15
       localStorage.setItem(STORAGE_KEYS.syncLog, JSON.stringify(synced({ username: 'RJ Smith' })));
       TestBed.configureTestingModule({
         imports: [AccountMenu],
-        providers: [{ provide: SYNC_ADAPTERS, useValue: () => slow }],
+        providers: [provideRouter([]), { provide: SYNC_ADAPTERS, useValue: () => slow }],
       });
       void db;
       const fixture = TestBed.createComponent(AccountMenu);
