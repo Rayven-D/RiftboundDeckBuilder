@@ -1,6 +1,6 @@
 # Privacy notice
 
-Effective [set on release: date dev → main ships sign-in] · Last updated [set on release: date dev → main ships sign-in]
+Effective 2026-11-25 · Last updated 2026-11-25
 
 ## Who we are
 

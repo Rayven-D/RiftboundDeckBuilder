@@ -1,6 +1,7 @@
 /** SPEC-012 "What's new" page (LOG-020…LOG-025, LOG-070; ACs 4, 5, 6). */
 import { TestBed } from '@angular/core/testing';
 import { CHANGELOG_DATA } from '../../core/changelog/changelog-data';
+import CHANGELOG_JSON from '../../core/changelog/changelog.json';
 import { ChangelogPage } from './changelog-page';
 
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -82,14 +83,28 @@ describe('SPEC-012 ChangelogPage', () => {
     expect(text(el.querySelector('h2'))).toBe('<b>Bold</b>');
   });
 
-  it('LOG-050 / LOG-052 / AC 6 with the shipped file the only entry is Version 0.0.1, Coming soon, Accounts are here, 5 bullets', async () => {
+  it('LOG-050 / LOG-052 / AC 6 with the shipped (released) file the only entry is Version 0.0.1, November 25, 2026, Accounts are here, 5 bullets', async () => {
     const el = await render();
+    const items = el.querySelectorAll('ol.entries > li');
+    expect(items).toHaveLength(1);
+    expect(text(items[0].querySelector('h2'))).toBe('Accounts are here');
+    const meta = items[0].querySelector('.meta');
+    expect(text(meta)).toContain('Version 0.0.1');
+    expect(text(meta)).not.toContain('Coming soon');
+    const time = items[0].querySelector('time')!;
+    expect(time.getAttribute('datetime')).toBe('2026-11-25');
+    expect(text(time)).toBe('November 25, 2026');
+    expect(items[0].querySelectorAll('ul > li')).toHaveLength(5);
+  });
+
+  it('LOG-052 / AC 6 before release (the shipped 0.0.1 with a null date) the same entry shows "Coming soon" and no <time>', async () => {
+    const el = await render([{ ...CHANGELOG_JSON[0], date: null }]);
     const items = el.querySelectorAll('ol.entries > li');
     expect(items).toHaveLength(1);
     expect(text(items[0].querySelector('h2'))).toBe('Accounts are here');
     expect(text(items[0].querySelector('.meta'))).toContain('Version 0.0.1');
     expect(text(items[0].querySelector('.meta'))).toContain('Coming soon');
-    expect(items[0].querySelectorAll('ul > li')).toHaveLength(5);
+    expect(items[0].querySelector('time')).toBeNull();
   });
 
   it('LOG-025 shows no appVersion, build id or statistic', async () => {

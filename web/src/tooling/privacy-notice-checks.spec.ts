@@ -18,6 +18,14 @@ import {
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
 const notice = () => read(NOTICE_PATH);
 const DATE_MARKER = '[set on release: date dev → main ships sign-in]';
+/** The date line as the sign-in release step left it (2026-11-25). */
+const RELEASED_LINE = 'Effective 2026-11-25 · Last updated 2026-11-25';
+/** The notice text with the release-day markers put back, as it was before the release step. */
+const unreleased = () => {
+  const text = notice();
+  expect(text).toContain(RELEASED_LINE);
+  return text.replace(RELEASED_LINE, `Effective ${DATE_MARKER} · Last updated ${DATE_MARKER}`);
+};
 
 describe('SPEC-010 SYNC-101 check 1: no RJ or builder blank in the notice text (every build)', () => {
   it('SYNC-101 / AC 66 the scanned file is the notice text source the /privacy page renders from', () => {
@@ -59,19 +67,24 @@ describe('SPEC-010 SYNC-101 check 1: no RJ or builder blank in the notice text (
 });
 
 describe('SPEC-010 SYNC-101 check 2: the release-day date is filled (release step and production deploy only)', () => {
-  it('SYNC-101 / AC 66 fails and names the marker while "[set on release" remains (the shipped text today)', () => {
+  it('SYNC-101 / AC 66 fails and names the marker while "[set on release" remains (the notice with the markers put back)', () => {
     expect(RELEASE_MARKER).toBe('[set on release');
-    expect(notice()).toContain(DATE_MARKER);
-    expect(checkPrivacyRelease(notice())).toEqual({ ok: false, message: RELEASE_MESSAGE });
+    expect(checkPrivacyRelease(unreleased())).toEqual({ ok: false, message: RELEASE_MESSAGE });
     expect(RELEASE_MESSAGE).toContain('"[set on release"');
   });
 
-  it("SYNC-101 / AC 66 passes once the release step replaced both markers with the day's date; one left still fails", () => {
-    expect(checkPrivacyRelease(notice().replaceAll(DATE_MARKER, '2026-12-02'))).toEqual({ ok: true });
-    expect(checkPrivacyRelease(notice().replace(DATE_MARKER, '2026-12-02'))).toEqual({
+  it("SYNC-101 / AC 66 passes once both markers are replaced with the day's date; one left still fails", () => {
+    expect(checkPrivacyRelease(unreleased().replaceAll(DATE_MARKER, '2026-12-02'))).toEqual({ ok: true });
+    expect(checkPrivacyRelease(unreleased().replace(DATE_MARKER, '2026-12-02'))).toEqual({
       ok: false,
       message: RELEASE_MESSAGE,
     });
+  });
+
+  it('SYNC-101 / AC 66 the shipped notice is released: both dates are 2026-11-25, no marker left, and check 2 passes', () => {
+    expect(notice()).toContain(RELEASED_LINE);
+    expect(notice()).not.toContain(RELEASE_MARKER);
+    expect(checkPrivacyRelease(notice())).toEqual({ ok: true });
   });
 
   it('SYNC-101 check 2 is an npm script run by the main deploy workflow and the firebase.json hosting predeploy, never by build, test, lint or the preview deploy', () => {

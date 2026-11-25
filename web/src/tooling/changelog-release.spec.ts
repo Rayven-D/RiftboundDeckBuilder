@@ -17,9 +17,15 @@ describe('SPEC-012 check:changelog-release (LOG-053)', () => {
     }
   });
 
-  it('LOG-053 / AC 8 fails with the exact message while the shipped file has its null date', () => {
+  it('LOG-053 / AC 8 fails with the exact message on a null date (the shipped file with its date set back to null)', () => {
     expect(UNDATED_MESSAGE).toBe('Changelog has an undated entry: set its date before releasing.');
-    expect(checkChangelogRelease(JSON.stringify(changelog))).toEqual({ ok: false, message: UNDATED_MESSAGE });
+    const undated = (changelog as { date: string | null }[]).map((e, i) => (i === 0 ? { ...e, date: null } : e));
+    expect(checkChangelogRelease(JSON.stringify(undated))).toEqual({ ok: false, message: UNDATED_MESSAGE });
+  });
+
+  it('LOG-053 / AC 8 passes on the shipped file now that the sign-in release dated 0.0.1', () => {
+    expect((changelog as { date: string | null }[])[0].date).toBe('2026-11-25');
+    expect(checkChangelogRelease(JSON.stringify(changelog))).toEqual({ ok: true });
   });
 
   it('LOG-053 / AC 8 passes once every date is filled', () => {

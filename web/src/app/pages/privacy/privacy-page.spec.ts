@@ -6,6 +6,8 @@ import { PrivacyPage } from './privacy-page';
 
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 const DATE_MARKER = '[set on release: date dev → main ships sign-in]';
+/** The date line as the sign-in release step left it (2026-11-25). */
+const RELEASED_LINE = 'Effective 2026-11-25 · Last updated 2026-11-25';
 /** AC 66 (v0.17.2, H-249): case-sensitive strings the notice text must not contain. */
 const ABSENT = ['Dallas', 'Texas', 'us-south1', 'Firestore', 'Firebase Authentication', 'Firebase Hosting', 'or system'];
 
@@ -27,20 +29,22 @@ describe('SPEC-010 PrivacyPage (SYNC-104)', () => {
     const el = await render();
     expect(Array.from(el.querySelectorAll('h1')).map(text)).toEqual(['Privacy notice']);
     const dates = el.querySelector('h1 + p.dates');
-    expect(text(dates)).toBe(`Effective ${DATE_MARKER} · Last updated ${DATE_MARKER}`);
+    expect(text(dates)).toBe(RELEASED_LINE);
   });
 
-  it('SYNC-103 / AC 66 a preview or development build shows the release-day date marker as written, nothing invented', async () => {
-    const el = await render();
+  it('SYNC-103 / AC 66 a notice still holding the release-day date marker shows it as written, nothing invented', async () => {
+    const real = TestBed.inject(PRIVACY_NOTICE_TEXT);
+    TestBed.resetTestingModule();
+    expect(real).toContain(RELEASED_LINE);
+    const el = await render(real.replace(RELEASED_LINE, `Effective ${DATE_MARKER} · Last updated ${DATE_MARKER}`));
     expect(text(el).split(DATE_MARKER)).toHaveLength(3); // exactly twice
     expect(text(el)).not.toMatch(/Effective \d{4}-\d{2}-\d{2}/);
   });
 
-  it("SYNC-101 / AC 66 once the release step replaced the marker with the day's date, the page shows it twice", async () => {
-    const real = TestBed.inject(PRIVACY_NOTICE_TEXT);
-    TestBed.resetTestingModule();
-    const el = await render(real.replaceAll(DATE_MARKER, '2026-12-02'));
-    expect(text(el.querySelector('p.dates'))).toBe('Effective 2026-12-02 · Last updated 2026-12-02');
+  it("SYNC-101 / AC 66 the release step replaced the marker with the day's date: the shipped page shows 2026-11-25 twice and no marker", async () => {
+    const el = await render();
+    expect(text(el.querySelector('p.dates'))).toBe(RELEASED_LINE);
+    expect(text(el).split('2026-11-25')).toHaveLength(3); // exactly twice
     expect(text(el)).not.toContain('[set on release');
   });
 

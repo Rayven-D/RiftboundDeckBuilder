@@ -20,15 +20,19 @@ const entry = (over: Partial<ChangelogEntry> = {}): ChangelogEntry => ({
 });
 
 describe('SPEC-012 changelog.json (LOG-041 data test)', () => {
-  it('LOG-041 / AC 7 the shipped file passes every rule, with the null date on 0.0.1', () => {
+  it('LOG-041 / AC 7 the shipped file passes every rule, with 0.0.1 dated by the sign-in release', () => {
     expect(validateChangelog(changelog)).toEqual([]);
   });
 
-  it('LOG-050 / LOG-052 / AC 6 the file ships with exactly the sign-in release entry, undated', () => {
+  it('LOG-041 / LOG-052 / AC 7 the same file before release, with a null date on 0.0.1, also passes every rule', () => {
+    expect(validateChangelog(changelog.map((e) => ({ ...e, date: null })))).toEqual([]);
+  });
+
+  it('LOG-050 / LOG-052 / AC 6 the file ships with exactly the sign-in release entry, dated 2026-11-25', () => {
     expect(changelog).toEqual([
       {
         version: '0.0.1',
-        date: null,
+        date: '2026-11-25',
         title: 'Accounts are here',
         bullets: [
           'Create a free account with just your email. We send you a sign-in link, no password needed.',
