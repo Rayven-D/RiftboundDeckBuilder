@@ -7,6 +7,12 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-25: H-213 builder, the Firestore rules check the username (SPEC-010 v0.16.0 SYNC-160)
+- Built `validUsername` in `firestore.rules` as SYNC-160 (c), run only when the request changes `username` (unchanged legacy names pass; create still denies it). The allowed pattern is a **double-quoted** rules string: the rules compiler refused the spec's single-quoted `\'` (`Error compiling rules: L71:74 Unexpected ']'`), which SYNC-160 (c) allows. Shared test data `web/src/app/shared/account/username-cases.ts` (AC 22 lists) runs through `username.spec.ts` and the rules tests, with the SYNC-160 (f) invariant asserted.
+- **The four SYNC-160 (g) proofs pass on the emulator:** 20 × U+1D400 allowed, 21 denied (code points); `नमस्ते` allowed; `O’Neil` allowed (literal `’`, no `\x{2019}` needed); `a` + U+FE0F denied (with the variation-selector clause removed it is allowed, so the clause does the work). Line feeds denied. Production check not done (no deploy in this item): `unverified` until the orchestrator's post-deploy check.
+- Chosen: the H-183 `size()` probe moved to `lastClientVersion` (≤ 40), since no allowed name can exceed 80 in any unit; added `a` + U+E0100 and `RJ` + LF + `Smith` to the denied list.
+- Checks: rules 85/85 (JDK 21), web unit 878/878, lint clean, build OK. [[API Contracts]] v1.19. Not committed or deployed.
+
 ## 2026-11-25: H-202 builder, `/changelog` "What's new" (SPEC-012 0.1)
 - Built the public `/changelog` page (no Firebase, no storage), `core/changelog/changelog.json` with `0.0.1` (date `null` → "Coming soon"), pure rules in `shared/changelog/changelog.ts`, the footer link (new `.footer-row` next to the theme switch) and the account-menu link (after Theme, before the last divider), `check:changelog-release` plus a step in the `main` deploy workflow, and the release step in README and [[API Contracts]] v1.17. Lint, build, preview build and the web unit tests green. Nothing deployed.
 - Choices to specify: the run-time skip check is the full per-entry rule set (LOG-031 + LOG-022 + hash guard), so AC 5's empty-bullets entry is skipped (H-220 item 2); script messages for invalid JSON and a non-array.

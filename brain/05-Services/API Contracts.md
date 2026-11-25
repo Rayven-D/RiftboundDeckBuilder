@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.18
+version: 1.19
 ---
 # API Contracts
 
@@ -343,18 +343,36 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   creates) and `firestore.indexes.json` (every field but `syncedAt` exempt). Not deployed: deploy with
   `firebase deploy --only firestore` before sign-in ships (SYNC-117).
 
-- **Header account, username, theme, imports from their pages (SPEC-010 v0.14 SYNC-150…159, H-176; username limits v0.15, H-207):**
+- **Header account, username, theme, imports from their pages (SPEC-010 v0.14 SYNC-150…159, H-176; username limits v0.15, H-207; rules check v0.16, H-213):**
   - **Account document:** `AccountDoc.username?: string` (SYNC-156): absent until chosen, never written at creation.
     Rules (`firestore.rules`): `validAccount` (create) allows exactly the five keys, so a `username` on create is
-    denied; `validAccountUpdate(d, resource.data)` (update) allows `username` as a string with `size()` 1 to **80**
-    (SYNC-112, v0.15 H-206 / H-207), and runs the length test **only when the request changes `username`**: an update
-    that leaves the stored name as it is (or absent) passes without it, so a name saved under v0.14 (up to 456 UTF-16
-    units) never blocks the per-build `lastClientVersion` update. The rules check no character set (the client does,
-    SYNC-153). **`string.size()` counts UTF-16 code units on the Firestore emulator** (verified 2026-11-25 by the
-    H-183 probe in `web/rules-tests/firestore.rules.test.ts`, re-run for the 80 cap in H-207: 30 × U+1F600 = 60 units
-    allowed, 50 × U+1F600 = 100 units denied; production `unverified`). The client caps a name at 20 code points
-    (worst case 20 × U+1D400 = 40 UTF-16 units = 80 UTF-8 bytes), so the backstop never rejects a name the client
-    accepted, whichever unit production counts.
+    denied; `validAccountUpdate(d, resource.data)` (update) allows `username` when the request has no `username`
+    key, **or** it equals the stored one (unchanged, not re-checked), **or** `validUsername(d.username)` holds
+    (SPEC-010 v0.16 SYNC-160, SYNC-112; H-213). `validUsername(u)`, cheapest test first: `u is string`;
+    `u.size()` 1 to 80 (a bound that keeps long strings away from the pattern, not the user limit);
+    `u.matches("^[\\p{L}\\p{Nd}][\\p{L}\\p{Mn}\\p{Mc}\\p{Nd} ._'’-]{0,19}$")` (the SYNC-153 (4) allowed set and
+    **1 to 20 code points**: RE2 repetitions count code points); `!u.matches('.*[\\x{FE00}-\\x{FE0F}\\x{E0100}-\\x{E01EF}].*')`
+    (no variation selector; they are `Mn`, so the class admits them); `!u.matches('.* $')` (no trailing space);
+    `!u.matches('.*  .*')` (no two spaces in a row). The first pattern is a **double-quoted** rules string: the rules
+    compiler refuses `\'` inside a single-quoted one (`Unexpected ']'`, H-213; SYNC-160 (c) allows either). Only
+    U+0020 is a space for the rules (U+00A0 is denied); line terminators are refused by the first pattern. The rules
+    cannot check NFC: an NFD name (`Zoe` + U+0301) passes them; the client always sends NFC (SYNC-160 (f)). An update
+    that leaves the stored name as it is (or absent) passes without any username test, so a name saved under v0.14
+    (emoji, up to 456 UTF-16 units) never blocks the per-build `lastClientVersion` update; setting a *different*
+    name that breaks the rules (e.g. `😀`) is denied. **Verified on the Firestore emulator 2026-11-25 (H-213,
+    `web/rules-tests/firestore.rules.test.ts`): `\p{L}`, `\p{Nd}`, `\p{Mn}`, `\p{Mc}` and `\x{..}` (BMP and
+    supplementary) work, `{0,19}` counts code points (20 × U+1D400 allowed, 21 denied; 20 × `a` allowed, 21
+    denied), the literal `’` in the rules source works (`O’Neil` allowed), and `a` + U+FE0F is denied by the
+    variation-selector clause (with that clause removed it is allowed). Production: `unverified` until the SYNC-160
+    (g) production check after the deploy.** **`string.size()` counts UTF-16 code units on the Firestore emulator**
+    (verified 2026-11-25 by the H-183 probe; since H-213 the probe runs on `lastClientVersion` (≤ 40), because no name
+    the pattern allows can exceed 80 in any unit: 15 × U+1F600 = 30 units allowed, 25 × U+1F600 = 50 units denied;
+    production `unverified`).
+  - **Shared username test data** (`web/src/app/shared/account/username-cases.ts`, test-only, not imported by the
+    app): `ALLOWED_USERNAMES`, `DENIED_USERNAMES` (`{ label, value }[]`, the AC 22 lists plus `a` + U+E0100 and
+    `RJ` + line feed + `Smith`), `BOLD_A`. `username.spec.ts` runs them through `checkUsername`; the rules tests run
+    them through the rules, and assert the SYNC-160 (f) invariant: every name with `normalizeUsername(n) === n` gets
+    the same verdict from both.
   - **`RemoteStore.setUsername(uid, username): Promise<'ok' | RemoteErrorCode>`** (SYNC-155): one `updateDoc` of
     `users/{uid}` with `username`, `updatedAt` (client ms) and `syncedAt: serverTimestamp()`; never a `set()` (a missing
     account is `not-found`, not recreated); 20 s timeout as other writes (`'unconfirmed'`); never throws.
@@ -514,6 +532,10 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.19 (2026-11-25, H-213, SPEC-010 v0.16.0): no endpoint change. Firestore rules: `validUsername` (SYNC-160)
+  checks the allowed set and 1 to 20 code points with RE2 `matches()` when `username` changes (unchanged names
+  pass, create still denies it); replaces the v0.15 length-only check. Shared test data `username-cases.ts`; the
+  H-183 `size()` probe moved to `lastClientVersion`. Emulator-verified; production `unverified`.
 - v1.18 (2026-11-25, H-202, SPEC-012 0.1): no endpoint change. New "Release changelog" section: `ChangelogEntry`,
   `CHANGELOG_DATA`, the pure changelog rules, the `/changelog` page, `check:changelog-release` and the release step.
 - v1.17 (2026-11-25, H-207, SPEC-010 v0.15.0): no endpoint change. Username: client 20 NFC code points and the
