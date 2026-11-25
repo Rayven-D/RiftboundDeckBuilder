@@ -1,32 +1,46 @@
 <header class="page-header head">
   <div class="title-row">
     <h1>Collection</h1>
-    @if (phase() === 'ready') {
-      @if (isPhone()) {
-        <button
-          matIconButton
-          type="button"
-          class="more"
-          aria-label="More"
-          [matMenuTriggerFor]="moreMenu"
-        >
-          <app-icon name="more_vert" />
-        </button>
-        <mat-menu #moreMenu="matMenu" xPosition="before">
-          <button mat-menu-item type="button" (click)="exportCsv()">
-            <app-icon name="download" class="menu-icon" />Export CSV
+    @if (phase() === 'ready' || showMore()) {
+      <div class="header-actions">
+        @if (phase() === 'ready' && !isPhone()) {
+          <button
+            type="button"
+            class="button button--outlined"
+            title="Exports your whole collection."
+            (click)="exportCsv()"
+          >
+            <app-icon name="download" />Export CSV
           </button>
-        </mat-menu>
-      } @else {
-        <button
-          type="button"
-          class="button button--outlined"
-          title="Exports your whole collection."
-          (click)="exportCsv()"
-        >
-          <app-icon name="download" />Export CSV
-        </button>
-      }
+        }
+        @if (showMore()) {
+          <button
+            matIconButton
+            type="button"
+            class="more"
+            aria-label="More"
+            [matMenuTriggerFor]="moreMenu"
+          >
+            <app-icon name="more_vert" />
+          </button>
+          <mat-menu #moreMenu="matMenu" xPosition="before">
+            @if (phase() === 'ready' && isPhone()) {
+              <button mat-menu-item type="button" (click)="exportCsv()">
+                <app-icon name="download" class="menu-icon" />Export CSV
+              </button>
+            }
+            @if (offerDelete) {
+              <!-- COLL-074: local-only mode only (SYNC-052). Set apart like the account menu's H-102 item. -->
+              @if (phase() === 'ready' && isPhone()) {
+                <mat-divider />
+              }
+              <button mat-menu-item type="button" class="danger" (click)="confirmDeleteData()">
+                {{ deleteText.action }}
+              </button>
+            }
+          </mat-menu>
+        }
+      </div>
     }
   </div>
   @switch (phase()) {

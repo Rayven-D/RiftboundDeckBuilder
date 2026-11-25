@@ -17,6 +17,7 @@ import {
   LocalTagStore,
   LocalViewStateStore,
   STORAGE_KEYS,
+  clearCollectionData,
   clearLocalData,
 } from './local-stores';
 
@@ -57,6 +58,12 @@ export interface BrowserStores {
   raw: LocalAdapters;
   log: LocalSyncLogStore;
   queue: SerialQueue;
+  /**
+   * SPEC-007 COLL-074 (local-only mode only; account-required mode doesn't offer it, SYNC-052): deletes the
+   * collection, its import Undo snapshot, tags, printing codes and view state from this browser. Runs on the
+   * store queue, after any save already in flight. Decks, locks and the sync log stay.
+   */
+  clearCollectionData(): Promise<void>;
 }
 
 export interface BrowserStoreOptions {
@@ -95,6 +102,7 @@ export function createBrowserStores(backend: KeyValueBackend, opts: BrowserStore
     viewState,
     log,
     queue,
+    clearCollectionData: () => queue.run(async () => clearCollectionData(backend)),
     raw: {
       collection: rawCollection,
       tags: rawTags,
