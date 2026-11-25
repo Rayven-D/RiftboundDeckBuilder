@@ -2,7 +2,7 @@
 tags: [research]
 area: cards
 status: unverified
-as_of: 2026-11-23
+as_of: 2026-11-24
 sources:
   - url: https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/861752822d217edf37d9febaeaf77a7d924c1bb6.pdf
     tier: official
@@ -49,6 +49,8 @@ Official public codes look like `OGN-001`, with variant suffixes and Showcase co
 | 2 | Riot's "Products and Sets into 2027" (2026-08-03) gives Radiance 167 cards (61 Showcase), Legacy 239 (93 Showcase), Reckoning 264 (67 Showcase) and PG2 on 2027-02-19, plus Sets 8 and 9 in Q3/Q4 2027. | https://playriftbound.com/en-us/news/announcements/products-and-sets-into-2027/ | 2026-11-23 |
 | 3 | **From Legacy, card templating changes** ("When you play me" becomes "When I enter", tokens are "Created"), and boosters swap one common for a Legend-or-Battlefield slot. This affects text search and parsing. | same | 2026-11-23 |
 | 4 | Release dates for OGN, SFD, UNL and VEN come from mobalytics (last updated 2026-02-13) and StarCityGames (2026-08-03). These are community sources and agree where they overlap. | mobalytics; SCG | 2026-11-23 |
+| 5 | **Release dates OGN to VEN, official-ish (H-022, 2026-11-24):** Riot-issued press releases (distributed by TriplePoint PR / gamespress) confirm **OGN 2025-10-31** ("now available", dated that day), **SFD 2026-02-13** (release dated that day; Riot's site itself says only "February 2026" and "December 2025" for China), **UNL 2026-05-08** and **VEN 2026-07-31** (both in Riot press releases; Vendetta/Radiance dates first announced 2026-03-05). RAD 2026-10-23 is in the Tournament Rules. These are tier "official publisher press release", better than the community sources in fact 4, but no playriftbound.com page prints all four. OGS shipped with Origins (Proving Grounds, 2025-10-31). | https://pressreleases.triplepointpr.com/2025/10/31/riftbound-league-of-legends-trading-card-game-first-set-origins-now-available/ ; https://pressreleases.triplepointpr.com/md/what-you-wield-defines-you-in-riftbound-spiritforged-available-now.md ; https://www.gamespress.com/Step-Into-The-Jungle-In-Riftbound-Unleashed-Available-Now ; https://www.gamespress.com/Rivalries-Ignite-as-Riot-Reveals-New-Details-for-Riftbound-Vendetta-an | 2026-11-24 |
+| 6 | **Piltover Archive set IDs (npm 1.5.0, 2026-09-19):** OGN 0, OGS 1 ("Proving Grounds"), **ARC 2 ("Arcane Box Set")**, SFD 3, UNL 4, VEN 5, RAD 6. ARC is the Arcane box set, a set code that is **not** on the Standard list and not in Riftcodex's `/sets`. Details in [[Collection Import Formats]]. | https://app.unpkg.com/@piltoverarchive/riftbound-deck-codes@1.5.0/files/README.md (community-db) | 2026-11-24 |
 
 ## Conflicts / uncertainties
 - Card counts for OGN, SFD, UNL and VEN come from Riftcodex and include alt-art, overnumbered and signature printings, so they're **not** official base-set sizes. Get them from the Riot API once we have a key.

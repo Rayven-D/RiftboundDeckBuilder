@@ -2,8 +2,10 @@
 tags: [research]
 area: rules
 status: verified
-as_of: 2026-11-23
+as_of: 2026-11-24
 sources:
+  - url: https://app.riftjudge.com/rules/tournament/601
+    tier: community-db
   - url: https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/5c7946f7c3b8c6e0faff85ab6dadc6d2e721ea94.pdf
     tier: official
   - url: https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/861752822d217edf37d9febaeaf77a7d924c1bb6.pdf
@@ -39,6 +41,9 @@ Sources: Core Rules and Tournament Rules, both "last updated 2026-10-09" (no ver
 | 13 | A reprint numbered outside a set's normal range (for example 300/250) **does not automatically become legal** with that set. (TR 601.2.c) | Tournament Rules PDF | 2026-11-23 |
 | 14 | **Limited (Sealed):** 6 boosters, **main deck at least 25**, **no copy limit**, domain identity of any three domains (or a domain plus the Legend's domains), and runes matching it. **Draft:** 3 boosters, **main deck at least 20**. Basic runes and blank battlefields can come from any source. (TR 602) | Tournament Rules PDF | 2026-11-23 |
 | 15 | **Card types by section:** Legends and Battlefields are separate card types and are never Main Deck cards (Core 133.6, 170, 174). Runes aren't Main Deck cards either (161.1). There are six basic runes (164.1), and the 3-copy limit (103.3.b) covers only the Main Deck, so runes have no per-name limit. The Chosen Champion is a normal Champion Unit, and same-name copies count as it (103.3.a.3). Tokens aren't cards (185.1). Detail and cross-deck implications: [[Physical Copies Across Decks]]. | Core Rules 2026-10-09 via riftjudge.com transcription (community-db) | 2026-11-23 |
+| 16 | **Signature cap and the sideboard (H-022, status partial):** the cap is Core 103.3.d: a *deck* may hold only 3 Signature cards in total (103.3.d.1: regardless of name) that share the Legend's Champion tag. Core 103 defines "deck" as Main Deck + Rune Deck + Legend + Battlefields, so the **sideboard is not named** in it. TR 601.1 (sideboard) names only the per-name copy limit as spanning main + sideboard, and says every sideboard card must be a valid Main Deck card. No Riot text says Signature cards in the sideboard count toward the 3. **Safe reading:** the cap binds whatever is in the Main Deck at any time, and a swap may not push it over 3. Not settled by an official FAQ. | https://app.riftjudge.com/rules/core/103 ; https://app.riftjudge.com/rules/tournament/601 (community-db transcriptions of the 2026-10-09 PDFs) | 2026-11-24 |
+| 17 | **Promos:** TR 601.2 says a card is legal if it comes from a legal set or **shares a name with a card from a legal set**, and the out-of-range reprint rule (fact 13) is the only caveat. Promo printings (OPP, JDG, PR) are therefore legal **by name** when the name exists in a legal set. Riot's Organized Play article adds that "SAMPLE" cards are not legal. Neither the Rules Hub nor the Tournament Rules page lists promos separately. | https://app.riftjudge.com/rules/tournament/601 ; https://playriftbound.com/en-us/news/organizedplay/riftbound-organized-play/ | 2026-11-24 |
+| 18 | **Battlefield domains:** Core 103.5.b: Battlefields are "subject to Domain Identity if applicable", and 103.2.b.5 lets a card with no domain into any identity. In Riftcodex every sampled Battlefield (The Dreaming Tree, Obelisk of Power, Seat of Power, Treasure Hoard, Bandle Tree) has `domain: ["Colorless"]`, i.e. no domain, so **battlefields fit any Legend**. Only a full pass over the live payload (H-020) can confirm no battlefield has a domain. | https://app.riftjudge.com/rules/core/103 ; https://api.riftcodex.com/cards/name?fuzzy=Dreaming%20Tree (community-db) | 2026-11-24 |
 
 ## Validation checklist (for [[Deck Legality]])
 1. Exactly 1 Legend. 2. Main = 40 (constructed), including 1 Chosen Champion whose tag matches the Legend's.
@@ -49,6 +54,7 @@ Sources: Core Rules and Tournament Rules, both "last updated 2026-10-09" (no ver
 ## Conflicts / uncertainties
 - Core "at least 40" vs. tournament "exactly 40". For constructed meta decks use **exactly 40** (TR governs sanctioned play).
 - Whether Signature cards also count toward the per-name limit isn't spelled out beyond the total cap of 3. Treat both limits as applying.
+- Signature cap vs. sideboard: see fact 16 (unverified by Riot; transcription only). Core rule numbering differs by version (one source cites 103.2.d, the 2026-10-09 transcription 103.3.d).
 - The PDFs were read via an extraction tool and only partly paraphrased. Re-read 103.x and 601.x directly when writing the spec.
 
 ## Impacts
