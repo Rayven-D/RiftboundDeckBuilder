@@ -73,6 +73,25 @@
   }
 }
 
+// SPEC-013 TEST-010: the test-data banner; its text buttons sit after the sentence and wrap under it on phones.
+.banner--test {
+  gap: var(--space-2) var(--space-3);
+}
+
+.banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-inline-end: calc(-1 * var(--space-2));
+}
+
+// SPEC-013 TEST-002: Load test data on its own line under "Add to your collection".
+.test-load {
+  flex-basis: 100%;
+  display: flex;
+  justify-content: center;
+}
+
 .notices:empty {
   display: none;
 }
