@@ -25,6 +25,7 @@ export {
   zoneEntries,
 } from './shared-pool';
 export {
+  completionPercent,
   computeDeckOwnership,
   formatIsoDate,
   sourceLine,

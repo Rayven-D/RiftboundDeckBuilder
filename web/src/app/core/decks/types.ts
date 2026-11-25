@@ -330,6 +330,16 @@ export interface DeckOwnershipView {
     cardsTotal: number;
     cardsFullyAvailable: number;
     copiesExcludedRelevant: number;
+    /**
+     * A / R exact, 0..1 (OWN-100, OWN-101 (e)); null when R = 0 or ownership is unavailable
+     * (OWN-101 (c)). In a locked deck A is the copies locked in (OWN-100 (c)).
+     */
+    completionFill: number | null;
+    /**
+     * OWN-101 (b): 0 when A = 0, 100 when A = R, else min(99, max(1, floor(100·A/R))); null as
+     * `completionFill`. The deck tile and the Deck detail header both read this (OWN-010 (f)).
+     */
+    completionPercent: number | null;
   };
   missing: MissingLine[];
   missingText: string;
@@ -348,4 +358,25 @@ export interface DeckTileSummary {
   ownershipFilter: OwnershipFilter;
   lockBadge: string | null;
   updatedAt: IsoDateTime;
+  // SPEC-005 v0.9 (OWN-100…104); all from the same DeckOwnershipView, never stored (OWN-026, OWN-073).
+  /** The deck's Legend card (OWN-100 (a)); null = no Legend, unknown card or catalog not loaded (OWN-100 (d)). */
+  legend: { name: string; imageUrl: string | null } | null;
+  /** = view.summary.completionFill (OWN-100 (b)). */
+  completionFill: number | null;
+  /** = view.summary.completionPercent (OWN-101). */
+  completionPercent: number | null;
+  /** OWN-103: distinct cardKeys banned / upcoming, earliest upcoming `effective`; null = ban data not loaded. */
+  bans: DeckTileBans | null;
+  /** OWN-104: `source.pilot` verbatim for a tournament deck, else null. */
+  pilot: string | null;
+  /** DECK-091: the record has a newer `schemaVersion` than this app knows (OWN-002 "Read-only" tag). */
+  readOnly: boolean;
+}
+
+/** OWN-103 ban flag counts on a deck tile. */
+export interface DeckTileBans {
+  banned: number;
+  upcoming: number;
+  /** Earliest `effective` among the upcoming bans; null when `upcoming` is 0. */
+  upcomingFrom: IsoDate | null;
 }

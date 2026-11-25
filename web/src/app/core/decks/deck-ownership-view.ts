@@ -21,6 +21,7 @@ import type {
   DeckOwnership,
   DeckOwnershipInput,
   DeckOwnershipView,
+  DeckTileBans,
   DeckTileSummary,
   DeckZone,
   FormatId,
@@ -269,10 +270,24 @@ export function computeDeckOwnership(
       cardsTotal: counted.size,
       cardsFullyAvailable,
       copiesExcludedRelevant,
+      // OWN-101 (c): no value when R = 0 or ownership is unavailable.
+      completionFill: ok && copiesRequired > 0 ? copiesAvailable / copiesRequired : null,
+      completionPercent: ok ? completionPercent(copiesAvailable, copiesRequired) : null,
     },
     missing,
     missingText: missingText(missing),
   };
+}
+
+/**
+ * SPEC-005 OWN-101 (b) completion percentage of A available copies out of R required: 0 when
+ * A = 0, 100 when A = R, else `min(99, max(1, floor(100·A/R)))`; null when R = 0 (OWN-101 (c)).
+ */
+export function completionPercent(a: number, r: number): number | null {
+  if (r <= 0) return null;
+  if (a <= 0) return 0;
+  if (a >= r) return 100;
+  return Math.min(99, Math.max(1, Math.floor((100 * a) / r)));
 }
 
 /**
@@ -284,7 +299,14 @@ function unavailableLock(deckId: string, ownership: CollectionOwnership): DeckLo
   if (ownership.status === 'unavailable') return storedLockState(ownership.locks ?? null, deckId);
   const s = ownership.shared.byDeck[deckId];
   if (ownership.shared.locksIgnored || !s?.locked) return null;
-  return { deckId, locked: true, lockedAt: s.lockedAt, complete: false, short: false, cardsShort: [] };
+  return {
+    deckId,
+    locked: true,
+    lockedAt: s.lockedAt,
+    complete: false,
+    short: false,
+    cardsShort: [],
+  };
 }
 
 function cardBan(
@@ -386,7 +408,43 @@ export function summarizeDeck(
     ownershipFilter,
     lockBadge,
     updatedAt: deck.updatedAt,
+    legend: tileLegend(view),
+    completionFill: view.summary.completionFill,
+    completionPercent: view.summary.completionPercent,
+    bans: tileBans(view),
+    pilot: deck.source.kind === 'tournament' ? deck.source.pilot : null,
+    // DECK-091: a record newer than schemaVersion 1 is shown read-only.
+    readOnly: (deck.schemaVersion as number) > 1,
   };
+}
+
+/** OWN-100 (a), (d): the Legend tile of the view; null when none, unknown or catalog not loaded. */
+function tileLegend(view: DeckOwnershipView): DeckTileSummary['legend'] {
+  const legend = view.sections.find((s) => s.zone === 'legend')?.cards[0];
+  if (!legend?.card) return null;
+  return { name: legend.name, imageUrl: legend.imageUrl };
+}
+
+/**
+ * OWN-103: distinct cardKeys with status `banned` / `upcoming` (a card in several zones counts
+ * once), and the earliest upcoming `effective`. null when ban data is not loaded (any card
+ * 'unknown', OWN-015).
+ */
+function tileBans(view: DeckOwnershipView): DeckTileBans | null {
+  const byCard = new Map<CardKey, CardBan>();
+  for (const s of view.sections) for (const c of s.cards) byCard.set(c.cardKey, c.banStatus);
+  let banned = 0;
+  let upcoming = 0;
+  let upcomingFrom: IsoDate | null = null;
+  for (const b of byCard.values()) {
+    if (b.status === 'unknown') return null;
+    if (b.status === 'banned') banned += 1;
+    if (b.status === 'upcoming') {
+      upcoming += 1;
+      if (upcomingFrom === null || b.effective < upcomingFrom) upcomingFrom = b.effective;
+    }
+  }
+  return { banned, upcoming, upcomingFrom };
 }
 
 /** OWN-003 source line. */
