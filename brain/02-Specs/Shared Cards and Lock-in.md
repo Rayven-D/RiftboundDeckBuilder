@@ -57,8 +57,8 @@ in and runes").
 **Shared types:** `DeckLock`, `StoredDeckLocks`, `DeckLockStore`, `SharedPoolInput`, `SharedPool`,
 `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck`. Functions `computeSharedPool()`,
 `availability()`, `canLock()`, `lockedShortfalls()` (all pure).
-**Depends on:** [[Card Data Model]] v0.3, [[Collection Import]] v0.11, [[Your Decks Ownership View]] v0.6,
-[[Deck Import]] v0.8, [[My Collection]] v0.11. **Consumers:**
+**Depends on:** [[Card Data Model]] v0.3, [[Collection Import]] v0.12, [[Your Decks Ownership View]] v0.7,
+[[Deck Import]] v0.9, [[My Collection]] v0.12. **Consumers:**
 [[Your Decks Ownership View]] (pool, labels, breakdown), [[My Collection]] and [[Collection Import]]
 (shortfall warnings), [[Deck Import]] (edit/delete/duplicate rules).
 **Open:** two choices for RJ (H-076, recommended defaults written in): SHARE-053 (locked decks while ownership
@@ -487,4 +487,4 @@ card of every deck is owned in full.
    import that moves copies between cards at the same total).
 
 ## Changelog
-Current: 0.4.4 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: SHARE-060 without modes; pins SPEC-003 0.11, SPEC-005 0.6, SPEC-006 0.8, SPEC-007 0.11; status stays `review`). Previous: 0.4.3 (2026-11-25, H-160). Earlier: 0.4.2 (2026-11-24, H-076: SHARE-020 `isLocked` input, SHARE-030 unparseable `lockedAt`, SHARE-034 per-card, SHARE-051 group `unavailable`, new SHARE-053; AC 19–21; status `review` for the RJ choices). Earlier: 0.4.1 (2026-11-24, H-071: SHARE-060 browser by default, synced when signed in; accounts/lock sync no longer out of scope). Pin-only fix 2026-11-24 (H-071 attempt 2, no version bump): "Depends on" and import comments now pin SPEC-003 0.9.1, SPEC-006 0.7, SPEC-007 0.9. Full history: [[Shared Cards and Lock-in changelog]] (archived). New entries go in the archive note.
+Pin-only fix 2026-11-25 (H-174, no version bump): "Depends on" now pins SPEC-003 0.12, SPEC-005 0.7, SPEC-006 0.9, SPEC-007 0.12; no lock rule changed. Current: 0.4.4 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: SHARE-060 without modes; pins SPEC-003 0.11, SPEC-005 0.6, SPEC-006 0.8, SPEC-007 0.11; status stays `review`). Previous: 0.4.3 (2026-11-25, H-160). Earlier: 0.4.2 (2026-11-24, H-076: SHARE-020 `isLocked` input, SHARE-030 unparseable `lockedAt`, SHARE-034 per-card, SHARE-051 group `unavailable`, new SHARE-053; AC 19–21; status `review` for the RJ choices). Earlier: 0.4.1 (2026-11-24, H-071: SHARE-060 browser by default, synced when signed in; accounts/lock sync no longer out of scope). Pin-only fix 2026-11-24 (H-071 attempt 2, no version bump): "Depends on" and import comments now pin SPEC-003 0.9.1, SPEC-006 0.7, SPEC-007 0.9. Full history: [[Shared Cards and Lock-in changelog]] (archived). New entries go in the archive note.
