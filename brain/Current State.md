@@ -66,6 +66,8 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 - **H-011:** apply for the production key once there's a demo ([[Riot App Application]]).
 
 ## Next for the loop
+**Decks catch-up (RJ-requested 2026-11-25, Decks to Collection's level):** H-251 ui-engineer brief → RJ → H-252 spec pass → builds H-253 (save imported decks, after H-158), H-155, H-060 (Decks UI), H-254 (Deck detail) → H-255 review. H-157 (RJ) still blocks H-155.
+
 **After `/board 5` (2026-11-25, third run, split into parallel sessions):** merged H-200 (+H-181/H-208/H-209), H-201, H-204, H-206, H-212, H-220 (loop) and H-202, H-205, H-207, H-222 (RJ); open for RJ: PR #53 (H-213), PR #54 (H-180). Next: **H-241** (after #54), **H-211**, **H-210**, **H-233** (after H-158), then the normal order: **H-165** attempt 2, **H-186**, H-166, H-167, H-190, H-184, H-192, H-195, H-196; H-188 after H-186 + H-187; H-194 after H-193. Also open: ui-engineer H-173, H-191; spec-writer H-161, H-136, H-137, H-128…H-131, H-096; researcher H-169, H-070; builder H-158, H-148, H-149, H-132, H-133, H-155; then the Decks UI (H-060), Tournaments, card search (H-057, waits on H-020).
 
 ## Biggest unknowns
