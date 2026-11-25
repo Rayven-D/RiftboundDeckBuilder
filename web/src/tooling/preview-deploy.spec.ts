@@ -119,11 +119,12 @@ describe('SYNC-007 build and hosting configuration', () => {
     expect(strip(previewHosting)).toEqual(strip(prodHosting));
   });
 
-  it('SYNC-007 the preview configuration swaps in environment.preview.ts; production keeps environment.ts', () => {
-    expect(ngBuild.configurations.preview.fileReplacements).toEqual([
-      { replace: 'src/environments/environment.ts', with: 'src/environments/environment.preview.ts' },
-    ]);
+  it('SYNC-007 / AC 35 / AC 63 production and preview both build environment.ts (no sign-in flag): they differ only in appVersion and output path', () => {
+    expect('fileReplacements' in ngBuild.configurations.preview).toBe(false);
     expect('fileReplacements' in ngBuild.configurations.production).toBe(false);
+    const { outputPath, ...previewRest } = ngBuild.configurations.preview;
+    expect(outputPath).toBe('dist/web-preview');
+    expect(previewRest).toEqual(ngBuild.configurations.production);
     expect(packageJson.scripts['build:preview']).toBe('node scripts/build.mjs preview');
     expect(packageJson.scripts['deploy:preview']).toBe('node scripts/deploy-preview.mjs');
   });

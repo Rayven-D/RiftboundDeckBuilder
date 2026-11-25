@@ -14,10 +14,10 @@
         }
       </ul>
     </nav>
-    @if (signInEnabled) {
-      @defer (on immediate) {
-        <app-account-menu />
-      }
+    <!-- SPEC-010 SYNC-003 / SYNC-007: the account control is always there (no sign-in flag). Deferred, so the
+         sync code stays out of the initial bundle; it loads no Firebase until a SYNC-002 trigger. -->
+    @defer (on immediate) {
+      <app-account-menu />
     }
     <a
       class="import-action"

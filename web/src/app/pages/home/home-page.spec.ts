@@ -1,13 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { SIGN_IN_ENABLED } from '../../core/sync/sign-in-flag';
+import { environment } from '../../../environments/environment';
+import { environment as devEnvironment } from '../../../environments/environment.development';
 import { HomePage } from './home-page';
 
 describe('HomePage', () => {
-  async function render(signInEnabled = false) {
+  async function render() {
     TestBed.configureTestingModule({
       imports: [HomePage],
-      providers: [provideRouter([]), { provide: SIGN_IN_ENABLED, useValue: signInEnabled }],
+      providers: [provideRouter([])],
     });
     const fixture = TestBed.createComponent(HomePage);
     await fixture.whenStable();
@@ -59,13 +60,15 @@ describe('HomePage', () => {
     }
   });
 
-  it('H-126: local-only mode (signInEnabled false) shows the hero note "Free"', async () => {
-    const el = await render(false);
-    expect(el.querySelector('.hero-note')?.textContent?.trim()).toBe('Free');
+  it('H-126 / SPEC-010 AC 63: the hero note reads "Free account" (every build is account-only)', async () => {
+    const el = await render();
+    expect(el.querySelector('.hero-note')?.textContent?.trim()).toBe('Free account');
   });
 
-  it('H-126: account-required mode (signInEnabled true) shows the hero note "Free account"', async () => {
-    const el = await render(true);
-    expect(el.querySelector('.hero-note')?.textContent?.trim()).toBe('Free account');
+  it('SPEC-010 AC 35 / AC 63: no environment has a sign-in flag; production and development differ only in build settings', () => {
+    const keys = ['apiBaseUrl', 'appVersion', 'authProviders', 'firebase', 'production'];
+    expect(Object.keys(environment).sort()).toEqual(keys);
+    expect(Object.keys(devEnvironment).sort()).toEqual(keys);
+    expect(devEnvironment.authProviders).toEqual(environment.authProviders);
   });
 });

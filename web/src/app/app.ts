@@ -1,8 +1,7 @@
-import { Component, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, signal, viewChild } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AccountMenu } from './core/sync/account-menu';
-import { SIGN_IN_ENABLED } from './core/sync/sign-in-flag';
 import { Icon, IconName } from './shared/icon';
 
 interface NavItem {
@@ -43,9 +42,6 @@ export class App {
   protected readonly scrolled = signal(false);
 
   private readonly main = viewChild.required<ElementRef<HTMLElement>>('main');
-
-  /** SPEC-010 SYNC-007: the account control (and the sync code) loads only when sign-in is enabled. */
-  protected readonly signInEnabled = inject(SIGN_IN_ENABLED);
 
   protected onScroll(): void {
     this.scrolled.set(window.scrollY > 4);

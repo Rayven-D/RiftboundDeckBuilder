@@ -190,11 +190,11 @@ export class SyncEngine {
   }
 
   /**
-   * SYNC-009: the sign-in gate (account-required mode; the engine runs only when `signInEnabled` is on).
+   * SYNC-009: the sign-in gate.
    * Decided from the sync log plus what only this session knows (a failed first sync, a lost session).
    */
   gate(): GateState {
-    return gateState(true, this.lastLog, { firstSyncFailed: this.firstSyncFailed, sessionLost: this.stopped });
+    return gateState(this.lastLog, { firstSyncFailed: this.firstSyncFailed, sessionLost: this.stopped });
   }
 
   /** Start-up (SYNC-002, SYNC-004): loads Firebase only when a session is expected. */

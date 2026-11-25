@@ -3,8 +3,6 @@
 export const environment = {
   production: false,
   apiBaseUrl: '/api',
-  /** SYNC-007: on in local builds, against the Firebase emulators (`firebase emulators:start --only auth,firestore`). */
-  signInEnabled: true,
   appVersion: 'web-dev',
   /** SYNC-006: as environment.ts (email link only until Google is enabled in the console). */
   authProviders: ['email-link'] as ('email-link' | 'google')[],

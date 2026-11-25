@@ -3,7 +3,7 @@ import { MatSnackBar, MatSnackBarConfig } from '@angular/material/snack-bar';
 import { Subject } from 'rxjs';
 import { MESSAGES } from '../../shared/sync/sync-engine';
 import { AccountMenu } from './account-menu';
-import { SIGN_IN_ENABLED, SYNC_ADAPTERS, SyncService } from './sync.service';
+import { SYNC_ADAPTERS, SyncService } from './sync.service';
 
 /** H-116 (Brief H-113 H-116 H-123 H-126, WCAG 2.2.1): what the snack bar is opened with, per notice kind. */
 describe('H-116 SyncService notices', () => {
@@ -14,7 +14,6 @@ describe('H-116 SyncService notices', () => {
     localStorage.clear();
     TestBed.configureTestingModule({
       providers: [
-        { provide: SIGN_IN_ENABLED, useValue: true },
         {
           provide: SYNC_ADAPTERS,
           useValue: async () => {

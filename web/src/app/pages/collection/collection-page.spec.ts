@@ -10,8 +10,9 @@ import { AppStores } from '../../core/storage/app-stores';
 import { BrowserStores, createBrowserStores } from '../../core/storage/browser-stores';
 import { MemoryBackend } from '../../core/storage/kv-backend';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
-import { SIGN_IN_ENABLED } from '../../core/sync/sign-in-flag';
-import { DELETE_COLLECTION_DATA } from './delete-collection-data-dialog';
+import { provideOpenGate } from '../../core/sync/testing/open-gate';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { of } from 'rxjs';
 import { generateLargeSample, sampleDeck } from '../../shared/collection/sample-data';
 import type { SampleData } from '../../shared/collection/sample-data';
 
@@ -22,6 +23,8 @@ interface Setup {
   corruptLocks?: boolean;
   decksError?: boolean;
   bans?: BanListFile | null;
+  /** Phone width (below 40rem): the BreakpointObserver reports the phone query as matching. */
+  phone?: boolean;
 }
 
 let backend: MemoryBackend;
@@ -59,8 +62,19 @@ async function setup(url: string, s: Setup = {}) {
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       { provide: AppStores, useValue: { stores } },
       { provide: CardData, useValue: cardData },
-      // Local-only mode (SPEC-010 SYNC-008): no sign-in gate. The gate is covered in pages/gated-pages.spec.ts.
-      { provide: SIGN_IN_ENABLED, useValue: false },
+      // Signed in and synced: the gate is open (SPEC-010 SYNC-009). The gate is covered in pages/gated-pages.spec.ts.
+      provideOpenGate(),
+      ...(s.phone
+        ? [
+            {
+              provide: BreakpointObserver,
+              useValue: {
+                observe: (q: string) => of({ matches: q.includes('max-width'), breakpoints: {} }),
+                isMatched: (q: string) => q.includes('max-width'),
+              },
+            },
+          ]
+        : []),
     ],
   });
   const harness = await RouterTestingHarness.create(url);
@@ -357,92 +371,72 @@ describe('CollectionPage (H-086)', () => {
     expect((await real())?.query['text']).toBe('ashen');
   });
 
-  describe('COLL-074 Delete all local collection data (local-only mode, H-154)', () => {
+  describe('SPEC-010 AC 31: no delete-all-local action (SPEC-007 COLL-074 withdrawn)', () => {
     const overlay = () => document.querySelector('.cdk-overlay-container') as HTMLElement;
-    const seedExtras = () => {
-      backend.set(STORAGE_KEYS.collectionPrevious, backend.get(STORAGE_KEYS.collection) ?? '{}');
-      backend.set(
-        STORAGE_KEYS.tags,
-        JSON.stringify({ schemaVersion: 3, updatedAt: '', tags: [], assignments: {} }),
-      );
-      backend.set(
-        STORAGE_KEYS.printingCodes,
-        JSON.stringify({ schemaVersion: 1, updatedAt: '', codes: {} }),
-      );
-    };
-    async function openDialog(h: RouterTestingHarness) {
+
+    it('AC 31 desktop: Export CSV in the header, no More menu, no delete action', async () => {
+      const h = await setup('/collection');
+      expect(text(h, 'button.button--outlined')).toContain('Export CSV');
+      expect(el(h).querySelector('button[aria-label="More"]')).toBeNull();
+      expect(el(h).textContent).not.toMatch(/Delete all local|local collection data/i);
+    });
+
+    it('AC 31 phone: the More menu holds Export CSV only', async () => {
+      const h = await setup('/collection', { phone: true });
       el(h).querySelector<HTMLButtonElement>('button[aria-label="More"]')!.click();
       await settle(h);
-      const item = [...overlay().querySelectorAll<HTMLButtonElement>('.mat-mdc-menu-item')].find(
-        (b) => b.textContent?.trim() === DELETE_COLLECTION_DATA.action,
+      const items = [...overlay().querySelectorAll('.mat-mdc-menu-item')].map((b) =>
+        b.textContent?.trim(),
       );
-      expect(item).toBeDefined();
-      expect(item!.classList).toContain('danger');
-      item!.click();
-      await settle(h);
-      return overlay().querySelector('app-delete-collection-data-dialog') as HTMLElement;
-    }
-
-    it('COLL-074 SPEC-010 AC 31: the More menu offers it; the confirmation has no SPEC-010 text and Cancel deletes nothing', async () => {
-      const h = await setup('/collection');
-      seedExtras();
-      const before = [...backend.data.entries()];
-      const dialog = await openDialog(h);
-      expect(dialog.querySelector('h2')?.textContent?.trim()).toBe(DELETE_COLLECTION_DATA.title);
-      expect(dialog.textContent).toContain(DELETE_COLLECTION_DATA.body);
-      expect(dialog.textContent).toContain(DELETE_COLLECTION_DATA.hint); // cards to export
-      // SYNC-052: no account wording (the withdrawn "Your account keeps its copy…" line, or anything else)
-      expect(dialog.textContent).not.toMatch(/account|sign in|sign out|cloud|sync/i);
-      expect(document.activeElement?.textContent?.trim()).toBe('Cancel');
-      [...dialog.querySelectorAll<HTMLButtonElement>('button')]
-        .find((b) => b.textContent?.trim() === 'Cancel')!
-        .click();
-      await settle(h, 50);
-      expect(overlay().querySelector('app-delete-collection-data-dialog')).toBeNull();
-      expect([...backend.data.entries()]).toEqual(before);
-      expect(el(h).querySelector('app-collection-tile')).not.toBeNull();
+      expect(items).toEqual(['Export CSV']);
+      expect(overlay().querySelector('.danger')).toBeNull();
     });
 
-    it('COLL-074 SPEC-010 AC 31: confirming deletes collection, Undo snapshot, tag, printing-code and view data; decks and locks stay; the page shows the empty state', async () => {
-      const h = await setup('/collection?q=a&sort=name');
-      await settle(h, 50);
-      seedExtras();
-      expect(backend.get(STORAGE_KEYS.viewState)).not.toBeNull(); // the query was remembered
-      const decksBefore = backend.keys().filter((k) => k.startsWith(STORAGE_KEYS.deckPrefix));
-      const locksBefore = backend.get(STORAGE_KEYS.locks);
-      expect(decksBefore.length).toBeGreaterThan(0);
-      const dialog = await openDialog(h);
-      dialog.querySelector<HTMLButtonElement>('button.danger')!.click();
-      await settle(h, 50);
-      for (const k of [
-        STORAGE_KEYS.collection,
-        STORAGE_KEYS.collectionPrevious,
-        STORAGE_KEYS.tags,
-        STORAGE_KEYS.printingCodes,
-        STORAGE_KEYS.viewState,
-      ])
-        expect(backend.get(k)).toBeNull();
-      expect(backend.keys().filter((k) => k.startsWith(STORAGE_KEYS.deckPrefix))).toEqual(
-        decksBefore,
-      );
-      expect(backend.get(STORAGE_KEYS.locks)).toBe(locksBefore);
-      expect(text(h, 'app-empty-state h2')).toBe('Your collection is empty');
-      expect(TestBed.inject(Location).path()).toBe('/collection'); // q and sort reset, not saved again
-      await settle(h, 300);
-      expect(backend.get(STORAGE_KEYS.viewState)).toBeNull();
-      expect(overlay().textContent).toContain(DELETE_COLLECTION_DATA.done);
-    });
-
-    it('COLL-074: it stays offered on an empty collection (no Export CSV hint there)', async () => {
+    it('AC 31 empty collection: no More menu and no delete action', async () => {
       const h = await setup('/collection', { sample: null });
-      seedExtras();
-      expect(el(h).querySelector('button.button--outlined')).toBeNull(); // no Export CSV
-      const dialog = await openDialog(h);
-      expect(dialog.textContent).not.toContain(DELETE_COLLECTION_DATA.hint);
-      dialog.querySelector<HTMLButtonElement>('button.danger')!.click();
-      await settle(h, 50);
-      expect(backend.get(STORAGE_KEYS.tags)).toBeNull();
-      expect(backend.get(STORAGE_KEYS.printingCodes)).toBeNull();
+      expect(el(h).querySelector('button[aria-label="More"]')).toBeNull();
+      expect(el(h).textContent).not.toMatch(/Delete all local|local collection data/i);
+    });
+  });
+
+  describe('COLL-093 smooth scrolling, no pagination (SPEC-010 SYNC-145)', () => {
+    it('COLL-093 a / f / SPEC-007 AC 28: 3,000 entries, no page controls or Load more, the total is visible, virtual rows only', async () => {
+      const h = await setup('/collection', {
+        sample: { ...generateLargeSample(3000), decks: [], locks: [] },
+      });
+      expect(text(h, '#count-line')).toMatch(/\d/); // the summary total (COLL-010)
+      expect(el(h).textContent).not.toMatch(/\bPage\b|\bNext\b|\bPrevious\b|Load more|Show more|per page/i);
+      expect(el(h).querySelector('cdk-virtual-scroll-viewport')).not.toBeNull();
+      // Only the rows near the viewport are rendered (COLL-066); each tile still states its position and the total.
+      const tiles = el(h).querySelectorAll('app-collection-tile');
+      expect(tiles.length).toBeGreaterThan(0);
+      expect(tiles.length).toBeLessThan(3000);
+      expect(tiles[0].getAttribute('aria-posinset')).toBe('1');
+      expect(tiles[0].getAttribute('aria-setsize')).toBe('3000');
+    });
+
+    it('COLL-093 d: a sort or search change shows the result from the top of the list', async () => {
+      const h = await setup('/collection', {
+        sample: { ...generateLargeSample(300), decks: [], locks: [] },
+      });
+      const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+      const scrolled = vi.spyOn(window, 'scrollY', 'get').mockReturnValue(5000);
+      try {
+        await TestBed.inject(Router).navigateByUrl('/collection?sort=name');
+        await settle(h, 50);
+        expect(scrollTo).toHaveBeenCalled();
+        const top = (scrollTo.mock.calls.at(-1)![0] as ScrollToOptions).top!;
+        expect(top).toBeLessThan(5000);
+        scrollTo.mockClear();
+        const input = el(h).querySelector<HTMLInputElement>('input[type="search"]')!;
+        input.value = 'ash';
+        input.dispatchEvent(new Event('input'));
+        await settle(h, 400);
+        expect(scrollTo).toHaveBeenCalled();
+      } finally {
+        scrolled.mockRestore();
+        scrollTo.mockRestore();
+      }
     });
   });
 });

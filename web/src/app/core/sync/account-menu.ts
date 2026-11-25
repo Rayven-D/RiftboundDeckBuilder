@@ -24,57 +24,54 @@ let accountMenuSeq = 0;
  * identity line "Signed in as {email}" (H-141, read from Auth as it renders), the sync status (SYNC-084),
  * Sync now, Sign out and Delete account and data. During this device's unfinished deletion it offers Try
  * deleting again and, while nothing was removed, Cancel deletion, instead of Sync now (SYNC-096, H-142).
- * Renders nothing while the `signInEnabled` build flag is off (SYNC-007).
  */
 @Component({
   selector: 'app-account-menu',
   imports: [Icon, MatButton, MatDivider, MatMenu, MatMenuItem, MatMenuTrigger],
   template: `
-    @if (sync.enabled) {
-      @if (!sync.signedIn()) {
-        <button matButton="outlined" type="button" class="header-account" aria-haspopup="dialog" (click)="openSignIn($event)">
-          Sign in
-        </button>
-      } @else {
-        <button matButton="outlined" type="button" class="header-account" [matMenuTriggerFor]="menu" aria-label="Account and sync">
-          Account
-        </button>
-        <!-- H-110 groups (Brief H-141 H-142 H-110): [identity, status, offline] / [deletion actions] or [Sync now] /
-             [Sign out] / [Delete]. The middle groups never show together: always 3 dividers, never first or last. -->
-        <mat-menu #menu="matMenu" [aria-describedby]="describedBy()">
-          @if (sync.currentEmail(); as email) {
-            <p class="menu-text identity" [id]="identityId">Signed in as <span class="address">{{ email }}</span></p>
+    @if (!sync.signedIn()) {
+      <button matButton="outlined" type="button" class="header-account" aria-haspopup="dialog" (click)="openSignIn($event)">
+        Sign in
+      </button>
+    } @else {
+      <button matButton="outlined" type="button" class="header-account" [matMenuTriggerFor]="menu" aria-label="Account and sync">
+        Account
+      </button>
+      <!-- H-110 groups (Brief H-141 H-142 H-110): [identity, status, offline] / [deletion actions] or [Sync now] /
+           [Sign out] / [Delete]. The middle groups never show together: always 3 dividers, never first or last. -->
+      <mat-menu #menu="matMenu" [aria-describedby]="describedBy()">
+        @if (sync.currentEmail(); as email) {
+          <p class="menu-text identity" [id]="identityId">Signed in as <span class="address">{{ email }}</span></p>
+        }
+        <p class="menu-text" [class.error]="sync.status().kind === 'error'" [id]="statusId" role="status" aria-live="polite">
+          @if (sync.status().kind === 'error') {
+            <app-icon name="error" />
           }
-          <p class="menu-text" [class.error]="sync.status().kind === 'error'" [id]="statusId" role="status" aria-live="polite">
-            @if (sync.status().kind === 'error') {
-              <app-icon name="error" />
-            }
-            <span>{{ sync.statusLine() }}</span>
-          </p>
-          @if (!sync.online()) {
-            <p class="menu-text">{{ offline }}</p>
-          }
-          <mat-divider />
-          @if (sync.deletion(); as deletion) {
-            <!-- SYNC-096 (H-142): no Sync now while pull and push are blocked; the notice keeps "Try again". -->
-            <button mat-menu-item type="button" [disabled]="!sync.online() || busy()" (click)="runDelete()">
-              Try deleting again
-            </button>
-            @if (deletion.canCancel) {
-              <button mat-menu-item type="button" [disabled]="busy()" (click)="cancelDeletion()">Cancel deletion</button>
-            }
-          } @else {
-            <button mat-menu-item type="button" [disabled]="!sync.online()" (click)="sync.syncNow()">Sync now</button>
-          }
-          <mat-divider />
-          <button mat-menu-item type="button" [disabled]="!sync.online()" (click)="openSignOut()">Sign out</button>
-          <!-- H-102: the destructive item is set apart. -->
-          <mat-divider />
-          <button mat-menu-item type="button" class="danger" [disabled]="!sync.online()" (click)="openDelete()">
-            Delete account and data
+          <span>{{ sync.statusLine() }}</span>
+        </p>
+        @if (!sync.online()) {
+          <p class="menu-text">{{ offline }}</p>
+        }
+        <mat-divider />
+        @if (sync.deletion(); as deletion) {
+          <!-- SYNC-096 (H-142): no Sync now while pull and push are blocked; the notice keeps "Try again". -->
+          <button mat-menu-item type="button" [disabled]="!sync.online() || busy()" (click)="runDelete()">
+            Try deleting again
           </button>
-        </mat-menu>
-      }
+          @if (deletion.canCancel) {
+            <button mat-menu-item type="button" [disabled]="busy()" (click)="cancelDeletion()">Cancel deletion</button>
+          }
+        } @else {
+          <button mat-menu-item type="button" [disabled]="!sync.online()" (click)="sync.syncNow()">Sync now</button>
+        }
+        <mat-divider />
+        <button mat-menu-item type="button" [disabled]="!sync.online()" (click)="openSignOut()">Sign out</button>
+        <!-- H-102: the destructive item is set apart. -->
+        <mat-divider />
+        <button mat-menu-item type="button" class="danger" [disabled]="!sync.online()" (click)="openDelete()">
+          Delete account and data
+        </button>
+      </mat-menu>
     }
   `,
   styles: `
@@ -119,8 +116,8 @@ export class AccountMenu {
   private readonly trigger = viewChild(MatMenuTrigger, { read: ElementRef<HTMLElement> });
 
   constructor() {
-    // The app shell loads this component (deferred) only while signInEnabled is on; it starts sync,
-    // which restores an expected session and otherwise loads no Firebase (SYNC-002).
+    // The app shell loads this component (deferred) in every build; it starts sync, which restores an
+    // expected session and otherwise loads no Firebase (SYNC-002).
     this.sync.start();
   }
 
