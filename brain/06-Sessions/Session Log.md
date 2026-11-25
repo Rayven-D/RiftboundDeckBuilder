@@ -7,6 +7,10 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-25: H-248 one phone-boundary wording, superseded pointer (spec-writer)
+- Phone = **40rem and below**, desktop = **above 40rem** (agrees with `max-width: 40rem` in `web/src/app/app.scss`, which I did not re-read; the board row and [[Validation H-244]] are the source). [[Accounts and Sync]] **0.17.0 to 0.17.1** (wording only): SYNC-003, 104 e, 150, 158, ACs 71 and 81 (81 now tests 640 and 641), summary and changelog lines. Same wording in [[My Collection]] COLL-094, [[Your Decks Ownership View]] OWN-094, [[Changelog]] LOG-010 and AC 2 with **no version bump** (flagged for the validator). [[Brief H-245 H-246 H-247]]: boundary symbols only (`<`/`≥` 40rem became `≤`/`>`), plus 640 added to its phone test widths. Pins moved to 0.17.1 in Spec Index, Test Data, My Collection, ADR-0006 and [[Current State]].
+- [[Brief H-175]] got a one-line "superseded" pointer (decision 22, ADR-0006 amendment 2026-11-25); its history is untouched. H-248 row set to `verify`. Nothing committed. No builder item: H-246 and H-247 already say to build to the spec.
+
 ## 2026-11-25: H-244 spec text for the FAB, theme toggle, phone account tab and slim footer (spec-writer)
 - Wrote RJ's 2026-11-25 decisions into the specs from [[Brief H-245 H-246 H-247]]: [[Accounts and Sync]] **0.17.0** (SYNC-157, 158, 150 g, 151 item 6 withdrawn, 104 d and e, 003, ACs 54, 68, 69, 71, 72, 77, 79 reworded, 81 and 82 new, decision 22, Open question 15), [[My Collection]] **0.14** (COLL-094 d, e, AC 31), [[Your Decks Ownership View]] **0.8** (OWN-094, AC 22), [[Changelog]] **0.1.2** (LOG-010, LOG-013, ACs 2 and 3). Pins updated in Shared Cards and Lock-in, Test Data, Spec Index.
 - RJ's four brief choices were answered mid-task: three accepted, the fourth changed (signed in on the phone tab: the letter avatar alone, no label, 40 px, my reading of "a little bigger"). Recorded as decisions in the specs, the brief and the H-246 row. H-244 row set to `verify`.

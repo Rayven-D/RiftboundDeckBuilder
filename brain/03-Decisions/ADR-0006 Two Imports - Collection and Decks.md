@@ -135,4 +135,4 @@ usernames are display names, not unique; editable in settings; theme is per devi
 - **Theme is light / dark only.** There is no System option. Until the user picks a theme, the app follows the OS theme behind the scenes; once they pick, the choice is stored per device and wins.
 - **Where:** a light/dark toggle in the header next to sign-in / account. It is no longer in the account menu or the footer.
 - **Phones:** the account moves to a 4th bottom tab after Tournaments; the theme toggle takes the header's top-right corner.
-- Specified in [[Accounts and Sync]] 0.17.0 (decision 22, SYNC-150 g, SYNC-151, SYNC-157, SYNC-158) and [[Brief H-245 H-246 H-247]]; built in H-246.
+- Specified in [[Accounts and Sync]] 0.17.1 (decision 22, SYNC-150 g, SYNC-151, SYNC-157, SYNC-158) and [[Brief H-245 H-246 H-247]]; built in H-246.
