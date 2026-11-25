@@ -48,12 +48,14 @@ export type PreparedImport = PreparedOk | { status: 'error'; message: string };
 export type CommitOutcome = { status: 'written' } | { status: 'cancelled' } | { status: 'error'; message: string };
 
 /**
- * The seam between the shared import dialog and a save (H-158 Owned Cards; H-253 builds Deck Import's on the same
- * pattern): the dialog calls `prepare` on Continue and `commit` on its action, and closes only on `written`.
+ * The seam between the shared import dialog and a save (H-158 Owned Cards; H-253 Deck Import): the dialog calls
+ * `prepare` on Continue and `commit` on its action, and closes only on `written`. `P` is what the review step shows,
+ * `C` what its action passes (Owned Cards: Add / Replace; Deck Import: the deck to save). `text` is the text box as
+ * parsed, for a save that keeps lines as written (DECK-042).
  */
-export interface ImportCommitter {
-  prepare(result: ParseResult): Promise<PreparedImport>;
-  commit(prepared: PreparedOk, mode: CommitMode): Promise<CommitOutcome>;
+export interface ImportCommitter<P extends { readonly status: 'ok' } = PreparedOk, C = CommitMode> {
+  prepare(result: ParseResult, text: string): Promise<P | { status: 'error'; message: string }>;
+  commit(prepared: P, choice: C): Promise<CommitOutcome>;
 }
 
 export type PrintingLookup =

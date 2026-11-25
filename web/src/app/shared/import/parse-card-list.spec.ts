@@ -5,6 +5,7 @@ import {
   parseCardText,
   readImportFile,
   rowsToText,
+  sectionLabelOf,
 } from './parse-card-list';
 
 /** The dialog's upload path: file → text box (IMP-062) → the same parse as pasted text. */
@@ -744,5 +745,25 @@ describe('SPEC-003 AC 42: runes are imported like any card (IMP-071, IMP-057)', 
       [9, 'Chaos Rune', null],
       [3, 'Order Rune', null],
     ]);
+  });
+});
+
+describe('IMP-016 bold section labels (v0.14, H-166; H-253)', () => {
+  it('IMP-016: **Legend:**, **Legend**: and **Main Deck** are labels; an entry may follow the colon (IMP-023)', () => {
+    const r = parseCardText('**Legend:**\n1 Kennen\n**Main Deck**:\n3 Gust\n**Rune Pool**\n9 Chaos Rune\n**Champion:** 1 Kennen, Storm');
+    expect(r.entries.map((e) => [e.name, e.section])).toEqual([
+      ['Kennen', 'legend'],
+      ['Gust', 'main'],
+      ['Chaos Rune', 'runes'],
+      ['Kennen, Storm', 'champion'],
+    ]);
+    expect(r.issues).toEqual([]);
+    expect(r.format).toBe('riot-text');
+  });
+
+  it('IMP-016: a * inside the text is kept, so the line is not a label', () => {
+    expect(sectionLabelOf('**Main*Deck**')).toBeNull();
+    expect(sectionLabelOf('## **Sideboard:**')).toBe('sideboard');
+    expect(sectionLabelOf('3 Gust')).toBeNull();
   });
 });
