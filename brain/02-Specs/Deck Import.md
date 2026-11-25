@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-006
-version: 0.9.1
+version: 0.10
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-003, SPEC-004, SPEC-008]
 consumers: [SPEC-005, SPEC-008]
@@ -23,7 +23,8 @@ as_of: 2026-11-23
 - DECK-010/013: reuses SPEC-003 Part A, incl. CSV/Excel (v0.4); only IMP-009 and IMP-015 are not applicable to decks.
 - DECK-011: CSV/Excel rows follow the same line rule; section labels work in one-cell rows.
 - DECK-014/015 (v0.5): `x3 Name` / `Name x3` and printing codes on a line (`3 Lightning Rush RAD 001/167`, SPEC-003 IMP-020, IMP-064…070) are accepted; the code only resolves the `cardKey` and is then dropped.
-- DECK-020/021: section labels (any case, with or without spaces) map to zones; the same card in two zones stays separate.
+- DECK-020/021: section labels (any case, with or without spaces; v0.10: `*` bold marks and a trailing `:` are stripped, SPEC-003 IMP-016, official) map to zones; the same card in two zones stays separate.
+- DECK-010/039 (v0.10, H-166): Piltover code tables and variant letters (IMP-031…033) and the TTS **art number** (IMP-036, IMP-036a: not a copy count; 1 = base, above 1 = alternate art) are reused from SPEC-003 and are **community**-sourced; they only resolve the `cardKey`, the printing is dropped (DECK-096).
 - DECK-030/032: zones are never guessed silently: inferred from SPEC-001 `category` or asked as zone questions.
 - DECK-026: token cards are rejected with a warning.
 - DECK-041: a deck can't be saved while any name is unresolved (fix or remove the line).
@@ -36,9 +37,9 @@ as_of: 2026-11-23
   Undo and Duplicate give unlocked decks. Locks live in SPEC-008's `DeckLockStore`, not in `UserDeck`.
 
 **Shared types:** `UserDeck` · `DeckCard` (`cardKey`, name, qty) · `DeckSource` = `UserDeckSource | TournamentDeckSource` · `DeckZone` (= SPEC-002 `Zone`) · `DeckImportResult` · `ZoneQuestion` · `DeckStore`.
-**Depends on:** [[Card Data Model]] v0.4, [[Deck Legality]] v0.4, [[Collection Import]] v0.13, [[Tournament Deck Catalog]] v0.7, [[Shared Cards and Lock-in]] v0.4.4 (lock rules for DECK-080/082…084). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
+**Depends on:** [[Card Data Model]] v0.4.1, [[Deck Legality]] v0.4, [[Collection Import]] v0.14, [[Tournament Deck Catalog]] v0.7, [[Shared Cards and Lock-in]] v0.4.4 (lock rules for DECK-080/082…084). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
 **BLOCKED (needs research):**
-- Whether Piltover deck codes encode Legend, champion, runes and battlefields (DECK-039).
+- Which zone each Piltover group maps to: whether codes carry the Legend and battlefields, and how V3+ chosen champion, runes and additional legends groups are tagged (DECK-039; V3…V6 named by fact 7, layout not in research).
 - API type strings and champion/signature fields (via SPEC-001), so inference mostly asks zone questions.
 - Whether token cards can ever be in a deck (DECK-026, via SPEC-001).
 
@@ -107,7 +108,7 @@ without parsing.
 ### B. Input formats (shared parsing)
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| DECK-010 | MUST | Deck import reuses SPEC-003 **Part A** (shared parsing), as SPEC-003 states, with only the exceptions in DECK-013. Reused unchanged: flow **IMP-001, IMP-002, IMP-003, IMP-005, IMP-061, IMP-062, IMP-063**; limits and encoding **IMP-006, IMP-007, IMP-008, IMP-010**; detection **IMP-011, IMP-012, IMP-013, IMP-014**; text grammar **IMP-016 … IMP-024** and the Line grammar (IMP-018 for its parser part: labels are not entries, each line keeps its section, nothing is merged across sections); printing codes in text lines **IMP-064 … IMP-070** (v0.5); CSV/Excel **IMP-040 … IMP-046** (v0.4); name resolution **IMP-025 … IMP-030, IMP-059**; Piltover deck codes **IMP-031 … IMP-035**; TTS **IMP-036 … IMP-039**; error reporting **IMP-056, IMP-057**. If SPEC-003 renumbers or relabels these, the reference follows the requirement, not the number. | [[Collection Import]]; [[Collection Import Formats]] |
+| DECK-010 | MUST | Deck import reuses SPEC-003 **Part A** (shared parsing), as SPEC-003 states, with only the exceptions in DECK-013. Reused unchanged: flow **IMP-001, IMP-002, IMP-003, IMP-005, IMP-061, IMP-062, IMP-063**; limits and encoding **IMP-006, IMP-007, IMP-008, IMP-010**; detection **IMP-011, IMP-012, IMP-013, IMP-014**; text grammar **IMP-016 … IMP-024** and the Line grammar (IMP-018 for its parser part: labels are not entries, each line keeps its section, nothing is merged across sections); printing codes in text lines **IMP-064 … IMP-070** (v0.5); CSV/Excel **IMP-040 … IMP-046** (v0.4); name resolution **IMP-025 … IMP-030, IMP-059**; Piltover deck codes **IMP-031 … IMP-035** (v0.10: set table to RAD, variant letters and the `SP` prefix, IMP-032, IMP-033); TTS **IMP-036, IMP-036a, IMP-037 … IMP-039** (v0.10: the trailing number is an art number, IMP-036a); error reporting **IMP-056, IMP-057**. If SPEC-003 renumbers or relabels these, the reference follows the requirement, not the number. | [[Collection Import]]; [[Collection Import Formats]] |
 | DECK-011 | MUST | Accepted source formats: `riot-text`, `plain-text`, `piltover-code`, `tts`, and `csv` (a `.csv` or `.xlsx` upload). CSV/Excel rows follow SPEC-003 IMP-040 … IMP-043: one cell `3x Name`, or a quantity cell then the name; a first row of column titles is skipped. **Section labels work in one-cell rows** (e.g. a row `Main Deck:`), so a spreadsheet laid out like Riot text keeps its sections and zones (DECK-020). *(v0.3 refused CSV with `FORMAT_NOT_FOR_DECKS`; removed in v0.4.)* | RJ decision 2026-11-23 (H-043) |
 | DECK-012 | MUST | IMP-015 (several deck codes as one import) does **not** apply. More than one deck code in the input gives input-level error `MULTIPLE_DECKS` ("Paste one deck at a time"). | DECK-002 |
 | DECK-013 | MUST | **Part A requirements not applicable to decks** (the same exceptions SPEC-003's Part A preamble lists): **IMP-009** (collection total cap after merging), replaced by DECK-092; **IMP-015** (several deck codes), replaced by DECK-012. No other Part A requirement is excepted; since v0.4 the CSV/Excel parts (IMP-001 `.csv`/`.xlsx`, IMP-011 step 1, IMP-040 … IMP-046) apply to decks too (RJ decision 2026-11-23 (H-043)). SPEC-003 **Part B** (IMP-004, IMP-047 … IMP-055, IMP-058, IMP-060) is collection-specific and is not reused; sections C–J of this spec define the deck behaviour instead. | [[Collection Import]] Part A preamble; [[ADR-0006 Two Imports - Collection and Decks]] |
@@ -117,7 +118,7 @@ without parsing.
 ### C. Sections to deck zones
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| DECK-020 | MUST | Unlike owned-card import, **sections matter**. Section labels (IMP-016, IMP-017: any case, with or without spaces, optional leading `#`, optional trailing colon, optional entry after the colon per IMP-023) map to zones: `Legend`/`Legends` → `legend`; `Champion`/`Champions` → `champion`; `Main Deck`/`MainDeck`/`Main` → `main`; `Battlefields`/`Battlefield` → `battlefields`; `Rune Pool`/`RunePool`/`Runes`/`Rune Deck`/`RuneDeck` → `runes`; `Sideboard` → `sideboard`. Each entry under a label (including one on the label line itself) is assigned that zone with `method: 'section'`. | [[Collection Import Formats]] fact 1 (official); [[Deck Construction Rules]] #1, #11; RJ decision 2026-11-23 (H-043) (spacing, aliases) |
+| DECK-020 | MUST | Unlike owned-card import, **sections matter**. Section labels (IMP-016, IMP-017: any case, with or without spaces, optional leading `#`, optional `*` bold marks and optional trailing colon (v0.10: `**Legend:**` = `Legend:`, IMP-016), optional entry after the colon per IMP-023) map to zones: `Legend`/`Legends` → `legend`; `Champion`/`Champions` → `champion`; `Main Deck`/`MainDeck`/`Main` → `main`; `Battlefields`/`Battlefield` → `battlefields`; `Rune Pool`/`RunePool`/`Runes`/`Rune Deck`/`RuneDeck` → `runes`; `Sideboard` → `sideboard`. Each entry under a label (including one on the label line itself) is assigned that zone with `method: 'section'`. | [[Collection Import Formats]] fact 1 (official); [[Deck Construction Rules]] #1, #11; RJ decision 2026-11-23 (H-043) (spacing, aliases) |
 | DECK-021 | MUST | Within one zone, entries with the same `cardKey` are merged (quantities summed, source lines kept). Across zones they stay **separate**: `1 An Offer You Can't Refuse` in Main Deck and again in Sideboard is 1 in `main` and 1 in `sideboard`, not 2 in one place. | [[Deck Construction Rules]] #9 (copy limit counted across zones by SPEC-002, not by merging) |
 | DECK-022 | MUST | A section label is the user's (or author's) statement and **wins over card data**. If an entry's known card data disagrees with its section, the entry stays in the labelled zone and gets warning `ZONE_CATEGORY_MISMATCH` naming the expected zone from the DECK-032 table. Disagreement means: a `legend`, `rune` or `battlefield` outside its own zone (e.g. `Zaun Warrens`, a battlefield, under `Main Deck`); a known non-`legend` under `Legend`; a known non-Champion Unit under `Champion`; a `unit`, `spell`, `gear` or `champion` under `Runes` or `Battlefields`. `category: 'unknown'` or a `null` attribute never produces this warning. SPEC-002 then reports it (LEGAL-015 / LEGAL-014). | design rule; [[Deck Legality]] LEGAL-014, LEGAL-015 |
 | DECK-023 | SHOULD | A `ZONE_CATEGORY_MISMATCH` warning offers a one-click "Move to <zone>". Nothing moves without that click. | design rule |
@@ -141,7 +142,7 @@ have no Legend or Champion section).
 | DECK-036 | MUST | No Legend in the input at all → zone question `PICK_LEGEND` with a catalog search limited to `category = 'legend'`. The user may answer **Leave empty**; the deck then saves without a Legend (SPEC-002 LEGAL-001 fails). | [[Deck Construction Rules]] #1; DECK-050 (never block on legality) |
 | DECK-037 | MUST | A **sideboard is never inferred**. Unsectioned `unit`, `spell`, `gear` and `champion` cards (other than the Chosen Champion) all go to `main`. If `main` then exceeds 39 (+ champion), the result carries info `NO_SIDEBOARD_SECTION`: "This list has no Sideboard section, so all cards are in the Main Deck. Move sideboard cards if needed." | [[Deck Construction Rules]] #3, #9 |
 | DECK-038 | MUST | Every zone question must be **answered** (a choice or the explicit "Leave empty" / "Keep in Main Deck") before Save is enabled. Answering never requires the deck to be legal. | DECK-030; DECK-050 |
-| DECK-039 | MUST | Piltover deck codes: the decoded **sideboard** maps to `sideboard`; the decoded **main deck** is treated as unsectioned (DECK-032…037). TTS input is entirely unsectioned. **BLOCKED: needs research**: whether Piltover codes carry the Legend, runes and battlefields, and where. | [[Collection Import Formats]] table ("only main deck + sideboard") |
+| DECK-039 | MUST | Piltover deck codes: the decoded **sideboard** maps to `sideboard`; the decoded **main deck** is treated as unsectioned (DECK-032…037). TTS input is entirely unsectioned (v0.10: its trailing art number only picks a printing, IMP-036a, and is then dropped, DECK-096). *(v0.10, H-166)* Research (fact 7, **community**) says code V3 adds a chosen champion, V4 runes, V6 additional legends, but not how those groups are laid out; until that is known, a card from such a group is treated as unsectioned like the main part (DECK-032…037), never placed in a zone by guess. **BLOCKED: needs research**: which groups a Piltover code carries (Legend, battlefields) and where. | [[Collection Import Formats]] table ("only main deck + sideboard"); fact 7 (community, 2026-11-24) |
 
 ### E. Unknown and unresolved names
 | ID | Level | Requirement | Source |
@@ -518,6 +519,14 @@ shown in the display format (`Nov 23, 2026`).
     **When** they open `/import` **Then** the app shows Home. No text in the app calls this flow "Deck Import" or
     "Import" alone.
 
+25. **Bold Riot labels and TTS art numbers in a deck** (DECK-010, DECK-020, DECK-039, DECK-096; SPEC-003 IMP-016, IMP-036a; v0.10, H-166)
+    **Given** the paste `**Legend:**` / `1 Kennen, Heart of the Tempest` / `**Main Deck:**` / `3 Gust` / `**Rune Pool:**` /
+    `9 Chaos Rune` / `**Sideboard:**` / `2 Decree of Unity` **When** parsed **Then** format is `riot-text`, the four
+    label lines are not entries, and the zones are `legend`, `main`, `runes`, `sideboard`, all `zoneMethod: 'section'`.
+    **Given** instead (SPEC-003 fixture F1) the TTS paste `RAD-001-1 RAD-001-1 RAD-001-2` **Then** the deck has
+    `Lightning Rush` ×3 (one `cardKey`, three tokens = three copies, the art number is not a count), unsectioned
+    (`main` by inference, DECK-032), and the saved `DeckCard` has only `cardKey`, `name` and `qty: 3`.
+
 ## Out of scope
 - **Fetching URLs** or importing from a deck site by link or API (DECK-072; IMP-005).
 - **Sharing decks with other users, public deck pages, and any storage outside the user's own account.** Accounts, sync and the browser cache are in scope and specified by SPEC-010 ([[ADR-0007 Firebase Accounts and Firestore]] amendment 2026-11-24 (2); ADR-0005 #1 is superseded).
@@ -528,9 +537,10 @@ shown in the display format (`Nov 23, 2026`).
 - Deck statistics, curves, ratings, or any metagame number ([[ADR-0003 Tournament Results Only]]).
 
 ## Open questions / BLOCKED
-- **BLOCKED: needs research**: whether Piltover Archive deck codes encode the Legend, Chosen
-  Champion, runes and battlefields, and in which group (DECK-039); plus a real code with known
+- **BLOCKED: needs research**: which groups Piltover Archive deck codes carry (Legend, battlefields) and in which group the V3+ chosen champion, runes and additional legends sit (DECK-039; fact 7 names the versions, community, but not the layout); plus a real code with known
   contents as a fixture. Until then a code is treated as an unsectioned main deck + sideboard.
+- **Community, one tool's reading (H-166, v0.10)**: the TTS trailing number is an art number, not a copy count (SPEC-003 IMP-036, IMP-036a; [[Collection Import Formats]] fact 8). Art 3 or more has no documented mapping (Open question in SPEC-003); a deck saves with the base printing's card either way, since only the `cardKey` is stored (DECK-096).
+- **Unverified**: CSV and TXT export samples (H-022 fact 10); no columns are specified for deck CSV beyond the positional row rule (IMP-040).
 - **BLOCKED: needs research (via SPEC-001)**: the API type strings for spells, gear, champion units and
   tokens (CARD-024 mapping table) and the API sources for `isChampionUnit`, `championTag`,
   `isSignature` (CARD-026, CARD-027). Until they exist, those cards are `category: 'unknown'` or carry
@@ -550,4 +560,4 @@ shown in the display format (`Nov 23, 2026`).
   and the label "Not fully checked".
 
 ## Changelog
-Pin-only 2026-11-25 (H-167, no version bump): SPEC-004 pin 0.7; the RC Europe event name in the DECK-061, DECK-062 and AC 11 / 11a examples is now `Riftbound Regional Championship: Europe`. Current: 0.9.1 (2026-11-25, H-165, RJ decision 2026-11-25: DECK-040 follows SPEC-003 IMP-025 (optional leading "a" / "the", CARD-034) and says the deck editor's catalog search uses CARD-038; no other rule changed; pin SPEC-003 0.13). Previous: 0.9 (2026-11-25, H-174, RJ 2026-11-24 header decision / gate H-178: DECK-001 is the "Import deck" entry point (FAB on Decks, empty-state button, `/decks?import=1`; a saved deck stays on Decks; no import page, `/import` goes to Home); DECK-097 gate note names the Decks page; Purpose wording; AC 24 new; no parsing or deck rule changed; pins SPEC-003 0.12, SPEC-010 0.14). Previous: 0.8 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: DECK-090 and DECK-097 without modes; DECK-087 restore wording; pins SPEC-003 0.11, SPEC-004 0.6, SPEC-008 0.4.4). Previous: 0.7.1 (2026-11-25, H-160). Earlier: 0.7 (2026-11-24, H-071: DECK-074 monotonic `updatedAt`). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.
+Pin-only 2026-11-25 (H-167, no version bump): SPEC-004 pin 0.7; the RC Europe event name in the DECK-061, DECK-062 and AC 11 / 11a examples is now `Riftbound Regional Championship: Europe`. Current: 0.10 (2026-11-25, H-166, [[Collection Import Formats]] facts 7 to 9: DECK-010 cites SPEC-003 IMP-036a (TTS trailing number is an art number, community) and the Piltover set / variant tables to RAD (IMP-032, IMP-033, community); DECK-020 labels may carry `*` bold marks (IMP-016, official); DECK-039 records what the code versions V3…V6 add (community) and keeps the zone mapping BLOCKED; AC 25 new; Open questions updated; pins SPEC-001 0.4.1, SPEC-003 0.14). Previous: 0.9.1 (2026-11-25, H-165, RJ decision 2026-11-25: DECK-040 follows SPEC-003 IMP-025 (optional leading "a" / "the", CARD-034) and says the deck editor's catalog search uses CARD-038; no other rule changed; pin SPEC-003 0.13). Previous: 0.9 (2026-11-25, H-174, RJ 2026-11-24 header decision / gate H-178: DECK-001 is the "Import deck" entry point (FAB on Decks, empty-state button, `/decks?import=1`; a saved deck stays on Decks; no import page, `/import` goes to Home); DECK-097 gate note names the Decks page; Purpose wording; AC 24 new; no parsing or deck rule changed; pins SPEC-003 0.12, SPEC-010 0.14). Previous: 0.8 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: DECK-090 and DECK-097 without modes; DECK-087 restore wording; pins SPEC-003 0.11, SPEC-004 0.6, SPEC-008 0.4.4). Previous: 0.7.1 (2026-11-25, H-160). Earlier: 0.7 (2026-11-24, H-071: DECK-074 monotonic `updatedAt`). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.
