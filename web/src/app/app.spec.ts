@@ -61,6 +61,24 @@ describe('App', () => {
     expect(TestBed.inject(Router).url).toBe('/changelog');
   });
 
+  it("SPEC-012 LOG-070 / H-222 the footer What's new link has aria-current=\"page\" on /changelog only", async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    const link = () =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>('.footer-links a')).find(
+        (a) => a.textContent?.trim() === "What's new",
+      )!;
+    await router.navigateByUrl('/');
+    await fixture.whenStable();
+    expect(link().getAttribute('aria-current')).toBeNull();
+    await router.navigateByUrl('/changelog');
+    await fixture.whenStable();
+    expect(link().getAttribute('aria-current')).toBe('page');
+    await router.navigateByUrl('/decks');
+    await fixture.whenStable();
+    expect(link().getAttribute('aria-current')).toBeNull();
+  });
+
   it("SPEC-012 LOG-012 What's new is not in the main tabs or the phone tab bar", async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();

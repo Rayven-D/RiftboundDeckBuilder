@@ -151,11 +151,12 @@
   list-style: none;
 }
 
-/* LOG-071: each link at least 44px tall to tap. */
+/* LOG-071: each link at least 44px tall to tap. H-222: side padding so the focus ring clears the text. */
 .footer-links a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  padding-inline: var(--space-1);
   font-size: var(--font-size-sm);
 }
 

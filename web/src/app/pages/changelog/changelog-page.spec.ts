@@ -44,6 +44,12 @@ describe('SPEC-012 ChangelogPage', () => {
     expect(Array.from(el.querySelectorAll('h1, h2, h3, h4')).map((h) => h.tagName)).toEqual(['H1', 'H2', 'H2', 'H2']);
   });
 
+  it('LOG-070 / H-222 the nested bullet list uses filled disc markers, not the second-level hollow circle', async () => {
+    const el = await render(AC4);
+    const bullets = el.querySelector('ol.entries ul.bullets')!;
+    expect(getComputedStyle(bullets).listStyleType).toBe('disc');
+  });
+
   it('LOG-021 / LOG-052 / AC 4 a null date shows "Coming soon" and no <time> element', async () => {
     const el = await render(AC4);
     const last = el.querySelectorAll('ol.entries > li')[2];
