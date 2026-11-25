@@ -9,6 +9,11 @@ superseded_by: "[[Collection Import]]"
 
 Moved out of [[Collection Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.10.1 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11 "Impacts"): IMP-053 reworded by mode
+  (local-only mode: browser only; account-required mode: a browser cache of the signed-in account, cleared on
+  sign-out), replacing "browser by default; synced when signed in"; new IMP-076 (SYNC-009 gate note: the Import
+  page is behind the sign-in gate in account-required mode; the IMP-052 Undo snapshot is cleared on sign-out and
+  first sign-in). Summary and the resolved storage note follow. No behaviour change in local-only mode.
 - 0.10 (2026-11-24, H-087): new IMP-072 (a commit lands on `/collection`; a failed write stays in the
   dialog), IMP-073 (snack bar strings: "Added <copies> of <cards>." / "Collection replaced: <cards>.",
   singular `1 copy` / `1 card`, with Undo), IMP-074 (the notice is app-level, 10 s default, no other Undo

@@ -9,6 +9,11 @@ superseded_by: "[[Shared Cards and Lock-in]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.4.3 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11 "Impacts", status stays `review`): SHARE-060
+  reads by mode (local-only mode: browser only; account-required mode: a browser cache of the signed-in account,
+  cleared on sign-out; locks synced), replacing "in the browser by default; also synced when signed in". No gate
+  note here (locks are only reachable through Decks, SPEC-005 OWN-066). Pins: SPEC-003 0.10.1, SPEC-005 0.5.2,
+  SPEC-006 0.7.1, SPEC-007 0.10.1.
 - 0.4.2 (2026-11-24, H-076, status `review`, 2 choices for RJ): settles what the H-059 engine had to choose. SHARE-020: `canLock` takes `isLocked` from the lock store so `already-locked` works with ownership unavailable. SHARE-030: unparseable `lockedAt` sorts after parseable ones, then raw string, then `deckId` (engine behaviour, as built). SHARE-034: per-card rule (a locked deck is warned about when it holds fewer of any one `cardKey`); v0.4.1 compared the Σ of holds and missed Replace imports that move copies at the same total (RJ to confirm). SHARE-051: new group `unavailable`; new SHARE-053: locked decks shown while ownership is unavailable, tile line "Ownership unavailable" (RJ to confirm). AC 19–21; open questions 5, 6. Builder follow-up: see Handoff Board.
 - 0.4.1 (2026-11-24, H-071, SPEC-010 Impacts): SHARE-060 reads "browser by default, synced to the account when
   signed in" (SYNC-017, SYNC-070…077). The Out of scope line "Accounts, syncing locks between browsers, sharing

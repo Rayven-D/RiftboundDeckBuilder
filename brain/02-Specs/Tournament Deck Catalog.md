@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-004
-version: 0.5
+version: 0.5.1
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-006]
 research: ["[[Tournament Results]]", "[[Ban List]]", "[[Formats]]", "[[Riot Developer Rules]]", "[[Collection Import Formats]]", "[[Deck Construction Rules]]"]
@@ -25,6 +25,7 @@ as_of: 2026-11-23
 - CAT-040/041: historical lists shown by default, labelled `Contains cards banned since <date>`.
 - CAT-045: legality label mapping (historical, illegal, incomplete, legal).
 - CAT-070…074: one-click "Add to your decks" via SPEC-006 (DECK-060…065); default name trimmed to 80; "In your decks" / "Add another copy".
+- CAT-077/078 (v0.5.1): the copy is stored by mode (local-only mode browser only; account-required mode a browser cache of the signed-in account, cleared on sign-out); in account-required mode the deck controls are hidden while the SYNC-009 gate is not open (Tournaments stays public).
 - CAT-060…064 (MUST NOT): no play/win rates, tiers, shares, aggregates or player ratings.
 
 **Shared types:** `TournamentEvent` · `CatalogDecklist` · `CardEntry` · `EventFile` (one file) · `DecklistLegality` (computed legality view) · `BannedCardRef` · `TournamentDeckSource` (defined in SPEC-006, mirrored here).
@@ -60,7 +61,7 @@ stored or shown. Legality of each list is **computed** by [[Deck Legality]] (SPE
   today** (it contains a card, battlefield or Legend banned after the event). Other rule failures or
   `incomplete` verdicts do not make a list historical.
 - **Tournaments screen**: the screen that shows the catalog (events and their Top 8).
-- **Decks**: the screen with the user's own deck list (SPEC-005/SPEC-006), stored in the browser. It never
+- **Decks**: the screen with the user's own deck list (SPEC-005/SPEC-006), stored by mode (CAT-077). It never
   lists catalog decklists automatically ([[ADR-0006 Two Imports - Collection and Decks]]).
 - **Tournament deck copy**: a deck in Decks created by "Add to your decks" (CAT-070…CAT-077).
 - **Riot decklist text**: Riot's sectioned decklist layout (Legend / Champion / Main Deck /
@@ -157,7 +158,8 @@ The IDs are retired and not reused.
 | CAT-074 | MUST | **Duplicates.** A decklist is "already added" when Decks holds a deck whose `source.decklistId` equals its `id`. Then the button reads `In your decks` and opens that deck, and a separate `Add another copy` link creates a further copy named with a ` (2)`, ` (3)`… suffix. One click on the primary action never creates a second copy. Editing a copy does not change this; deleting every copy makes "Add to your decks" available again. Identical lists from different pilots (CAT-050) have different ids, so each can be added once on its own. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 2 |
 | CAT-075 | MUST | The copy is independent: later edits to the user deck never change the catalog, and later catalog corrections never change existing copies. No legality is copied; Decks computes legality and ban status itself via SPEC-002 (SPEC-005). | [[Deck Legality]]; [[ADR-0006 Two Imports - Collection and Decks]] |
 | CAT-076 | MUST | After adding, the user sees a neutral confirmation `Added to your decks` with a link to open the deck. For a historical list the confirmation also shows the CAT-041 label. | [[ADR-0005 MVP Product Defaults]] decision 3 |
-| CAT-077 | MUST NOT | The action stores the copy in the browser only ([[ADR-0005 MVP Product Defaults]] decision 1) and MUST NOT send, count or display how many times a deck was added (no popularity data). | [[ADR-0003 Tournament Results Only]]; V-010 |
+| CAT-077 | MUST NOT | The action stores the copy by mode ([[Accounts and Sync]] SPEC-010, `signInEnabled`): **local-only mode: in the browser only** ([[ADR-0005 MVP Product Defaults]] decision 1); **account-required mode: in the user's decks, a browser cache of the signed-in account** (synced to it, cleared on sign-out). It MUST NOT send, count or display how many times a deck was added (no popularity data); the account copy is the user's own deck, not a count (SYNC-102). | [[ADR-0003 Tournament Results Only]]; V-010; [[Accounts and Sync]] SYNC-018, SYNC-102 |
+| CAT-078 | MUST | **Sign-in gate (SYNC-009, account-required mode only).** Tournaments itself stays public in both modes. While the gate is not open (signed out, session lost, or first sync running), Tournaments shows **no** "Add to your decks" (CAT-070), "In your decks" or "Add another copy" (CAT-074) control, and the CAT-074 "already added" check reads nothing from the local stores (a legacy local deck never shows as "In your decks"). Everything else on Tournaments shows as usual. When the gate opens the controls appear without a reload, with the CAT-074 state computed from the account's decks. In local-only mode there is no gate. | [[Accounts and Sync]] SYNC-009 (RJ decision 13 h) |
 
 ### ADR-0003 prohibitions
 | ID | Level | Requirement | Source |
@@ -257,7 +259,7 @@ interface CatalogEventView {
 
 // "Add to your decks" (CAT-072): the tournament variant of SPEC-006's DeckSource.
 // SPEC-006 owns the single definition; it must be identical to this field for field.
-// Stored in the browser with the user deck (ADR-0005); never sent to a server.
+// Stored with the user deck, by mode (CAT-077): browser only, or a browser cache of the signed-in account (SPEC-010).
 interface TournamentDeckSource {
   kind: 'tournament';
   eventId: string;                  // '2026-11-rc-europe'
@@ -447,4 +449,4 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
   Confirm, or use the full Legend name.
 
 ## Changelog
-Current: 0.5 (2026-11-23). Full history: [[Tournament Deck Catalog changelog]] (archived). New entries go in the archive note.
+Current: 0.5.1 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11: CAT-077 per-mode storage wording; new CAT-078 SYNC-009 gate note). Previous: 0.5 (2026-11-23). Full history: [[Tournament Deck Catalog changelog]] (archived). New entries go in the archive note.

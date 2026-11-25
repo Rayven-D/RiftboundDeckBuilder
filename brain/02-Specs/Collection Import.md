@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-003
-version: 0.10
+version: 0.10.1
 status: draft
 depends_on: [SPEC-001, SPEC-008]
 related: ["[[Deck Import]]", "[[My Collection]]", "[[Your Decks Ownership View]]", "[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
@@ -30,14 +30,14 @@ as_of: 2026-11-24
 - IMP-047/048: merged by `cardKey`; per-printing counts (deck code, TTS, or a text/CSV/Excel line resolved by its printing code) are kept for display only.
 - IMP-049/050: commit as Add (default) or Replace (with confirmation). IMP-050a (v0.8, split out of IMP-050): when a Replace or an Undo would leave a locked deck short, the warning ("… will be `<n>` cards short. It stays locked.") is shown inside the confirmation before the change; an Undo without one asks for one only then, and a confirmed Undo is followed by the notice "… is now `<n>` cards short." (SPEC-008 SHARE-034; RJ 2026-11-23).
 - IMP-052, IMP-072…075 (v0.10, H-087): a commit lands on `/collection` with a snack bar ("Added 42 copies of 30 cards." / "Collection replaced: 412 cards.", singular `1 copy` / `1 card`) and **Undo**; the notice lasts 10 s across routes, Undo confirms only for COLL-058 / IMP-050a, works once, then "Import undone."; no other Undo entry point.
-- IMP-053/054: browser storage by default (synced when signed in, SPEC-010) behind `CollectionStore`, recording `catalogVersion`.
+- IMP-053/054: `CollectionStore`, recording `catalogVersion`; by mode (SPEC-010): local-only mode browser only, account-required mode a browser cache of the signed-in account, cleared on sign-out. IMP-076 (v0.10.1): the Import page is behind the SYNC-009 sign-in gate in account-required mode.
 - IMP-055 (v0.7, H-045): CSV export `Quantity,Card Name` only (no Tags column); one row `<qty>,<name> <SET> <NUM>` per printing, one name-only row for unassigned, missing-printing and no-code copies; export → Replace import gives the same `quantity` and `byPrinting` (AC 35).
 - IMP-058: the committed collection feeds Collection; Decks reads SPEC-007 `deckOwnership()`.
 - IMP-071 (v0.9, RJ 2026-11-24): **runes are imported like any card**: resolved, merged, committed and exported with no rune-specific skip, filter or warning, in any section, `Rune Pool:` included (SPEC-009 withdrawn).
 - Part A preamble: not applicable to decks: IMP-009 and IMP-015 only (= DECK-013). Since v0.4 CSV/Excel is shared with decks.
 
 **Shared types:** `CardKey`, `PrintingId`, `PrintingCode` (keys) · `ImportResult` / `ParsedLine` / `PrintingHint` / `ImportIssue` / `UploadInfo` (parser output, reused by SPEC-006) · `SourceFormat` · `StoredCollection` (`cardKey` → quantity + `byPrinting`) · `CollectionStore`.
-**Depends on:** [[Card Data Model]] v0.3; [[Shared Cards and Lock-in]] v0.4.2 (IMP-050a locked-deck warning only). **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
+**Depends on:** [[Card Data Model]] v0.3; [[Shared Cards and Lock-in]] v0.4.3 (IMP-050a locked-deck warning only). **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
 **BLOCKED (needs research):**
 - Piltover deck-code set indexes beyond SFD and what `ARC` is (IMP-032); variant letters a/s/b (IMP-033).
 - Real deck codes with known contents for fixtures (AC 16).
@@ -281,7 +281,8 @@ These requirements apply only to the Owned Cards Import. SPEC-006 defines its ow
 #### Storage (MVP)
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| IMP-053 | MUST | The collection is stored **in the user's browser by default**, behind a `CollectionStore` interface; when the user is signed in it is **also synced to their account** ([[Accounts and Sync]] SPEC-010, SYNC-010…019). Signed out, there is no account or server-side copy. Sync never changes import behavior: the browser store stays the working copy. **Confirmed** by RJ ([[ADR-0005 MVP Product Defaults]] #1; accounts: [[ADR-0007 Firebase Accounts and Firestore]]). | [[ADR-0005 MVP Product Defaults]]; [[ADR-0001 Tech Stack]] (storage behind interfaces); [[Accounts and Sync]] |
+| IMP-053 | MUST | The collection is stored behind a `CollectionStore` interface, by mode ([[Accounts and Sync]] SPEC-010, `signInEnabled`): **local-only mode: browser only**, no account or server-side copy ([[ADR-0005 MVP Product Defaults]] #1 holds in this mode only); **account-required mode: a browser cache of the signed-in account** (synced to it, SYNC-010…019), **cleared on sign-out**. In both modes the browser store is the working copy and sync never changes import behavior. **Confirmed** by RJ ([[ADR-0005 MVP Product Defaults]] #1; accounts: [[ADR-0007 Firebase Accounts and Firestore]] amendment 2026-11-24). | [[ADR-0005 MVP Product Defaults]]; [[ADR-0001 Tech Stack]] (storage behind interfaces); [[Accounts and Sync]] |
+| IMP-076 | MUST | **Sign-in gate (SYNC-009, account-required mode only).** While the gate is not open (signed out, session lost, or first sync running) the Import page, and so Owned Cards Import, is replaced below its page header by the SPEC-010 sign-in panel and reads nothing from the local stores; nothing can be committed. In local-only mode there is no gate. The IMP-052 Undo snapshot is cleared on sign-out and on first sign-in (SYNC-090, SYNC-091). The panel text and gate rules are SPEC-010's, not repeated here. | [[Accounts and Sync]] SYNC-009, SYNC-090; RJ 2026-11-24 (decision 13) |
 | IMP-054 | MUST | The stored record carries `schemaVersion`, `updatedAt`, and the `catalogVersion` (SPEC-001) it was resolved against, so a later catalog/name-key change can trigger re-resolution. | design decision; [[Card Data Model]] |
 | IMP-055 | SHOULD | **Collection CSV export** (v0.7). The user can export the stored collection as a CSV file that round-trips through this importer. The file has exactly **two columns**, title row `Quantity,Card Name`, and no other columns: tags, "exclude from decks" flags and other SPEC-007 data are **not** in the file (any cell after the name would be joined into the name, IMP-040); they are expected to survive through the planned sign-in sync ([[ADR-0007 Firebase Accounts and Firestore]]). Each printing with a count ≥ 1 is written as one row `<qty>,<name> <SET> <NUM>` (its printing code inside the name cell), the card's other copies as one name-only row `<qty>,<name>`; the exact rows, code form, self-check and fallbacks are the **Collection CSV export** rules below this table. When implemented, those rules and the round-trip guarantee there are MUST. *(v0.4–v0.6: name-only rows, `byPrinting` not round-tripped.)* | design decision (backup, since local storage can be cleared); RJ decision 2026-11-23 (H-043); RJ decision 2026-11-23 (H-045) |
 
@@ -699,7 +700,7 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 - **Open (H-053, v0.8)** — IMP-042's delimiter rule (`;` or tab outside quotes beats `,`) is RJ's **interim** rule of 2026-11-23; revisit with IMP-046 once real export files exist.
 - **Resolved (v0.8)** — RJ decision 2026-11-23: UI messages use the straight apostrophe `'` (house style in IMP-061; IMP-010, IMP-061, AC 15a and AC 38 quote it). The shipped messages were changed to match (H-049 follow-up).
 - **Unverified** — TTS `COPY` suffix semantics; we treat each token as one copy per research (IMP-036).
-- **Resolved** — storage is the browser by default, synced when signed in (IMP-053, SPEC-010; MVP was browser only) and variants count as the same card (IMP-048, former A3): [[ADR-0005 MVP Product Defaults]].
+- **Resolved** — storage is by mode (IMP-053, SPEC-010: local-only mode browser only; account-required mode a browser cache of the account; MVP was browser only) and variants count as the same card (IMP-048, former A3): [[ADR-0005 MVP Product Defaults]].
 - **Resolved** — A1: name key = SPEC-001 CARD-030 `nameKey`, ownership by `cardKey`. Side effects noted: hyphen/spacing differences fall to fuzzy suggestions (AC23); the comma-prefix check in IMP-029 uses canonical names.
 - **Bound** — A2: printing lookup is SPEC-001 CARD-036 (MUST in SPEC-001 v0.2) with its collector-number normalization. The variant-suffix part stays BLOCKED with CARD-040 (IMP-033).
 - **Open** — whether parsing runs in the Angular app or the API is an implementation choice; with local-only storage and the catalog needed for resolution, it likely belongs in shared TypeScript ([[ADR-0001 Tech Stack]]). Not decided here.
@@ -709,4 +710,4 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 - **Needs research (H-099, needs H-020)** — whether rune cards in the Riot API have their own printings with set codes and collector numbers (and foil / alt-art rune printings, [[Physical Copies Across Decks]] fact 11), so a rune line with a printing code (IMP-064) can resolve to one. Until then AC 42 uses name-only lines.
 
 ## Changelog
-Current: 0.10 (2026-11-24, H-087: IMP-072…075 where a commit lands, the Undo snack bar, its lifetime and behaviour; ACs 43–45). Previous: 0.9.1 (2026-11-24, H-071: IMP-053 "browser by default, synced when signed in", SPEC-010). Full history: [[Collection Import changelog]] (archived). New entries go in the archive note.
+Current: 0.10.1 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11: IMP-053 per-mode storage wording; new IMP-076 SYNC-009 gate note; no behaviour change in local-only mode). Previous: 0.10 (2026-11-24, H-087: IMP-072…075 where a commit lands, the Undo snack bar, its lifetime and behaviour; ACs 43–45). Earlier: 0.9.1 (2026-11-24, H-071: IMP-053 "browser by default, synced when signed in", SPEC-010). Full history: [[Collection Import changelog]] (archived). New entries go in the archive note.
