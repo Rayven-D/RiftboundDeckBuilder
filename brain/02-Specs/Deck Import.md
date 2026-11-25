@@ -36,7 +36,7 @@ as_of: 2026-11-23
   Undo and Duplicate give unlocked decks. Locks live in SPEC-008's `DeckLockStore`, not in `UserDeck`.
 
 **Shared types:** `UserDeck` · `DeckCard` (`cardKey`, name, qty) · `DeckSource` = `UserDeckSource | TournamentDeckSource` · `DeckZone` (= SPEC-002 `Zone`) · `DeckImportResult` · `ZoneQuestion` · `DeckStore`.
-**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.4, [[Collection Import]] v0.12, [[Tournament Deck Catalog]] v0.6, [[Shared Cards and Lock-in]] v0.4.4 (lock rules for DECK-080/082…084). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
+**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.4, [[Collection Import]] v0.12, [[Tournament Deck Catalog]] v0.7, [[Shared Cards and Lock-in]] v0.4.4 (lock rules for DECK-080/082…084). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
 **BLOCKED (needs research):**
 - Whether Piltover deck codes encode Legend, champion, runes and battlefields (DECK-039).
 - API type strings and champion/signature fields (via SPEC-001), so inference mostly asks zone questions.
@@ -186,7 +186,7 @@ information about a deck the user wants to build, so it never blocks (DECK-050).
 |---|---|---|---|
 | DECK-060 | MUST | Every catalog decklist in Tournaments has a one-click **Add to your decks** (CAT-070). It creates a `UserDeck` whose zones are a copy of the `CatalogDecklist` (`legend`, `champion`, `mainDeck` → `main`, `runes`, `battlefields`, `sideboard`), same quantities, each `DeckCard` taking the entry's `cardKey` and the SPEC-001 canonical name for that `cardKey` (CAT-071). `sourceFormat: 'tournament'`, `format` = the decklist's `format` (`standard`). | [[ADR-0006 Two Imports - Collection and Decks]] follow-up decisions; [[Tournament Deck Catalog]] CAT-010, CAT-070, CAT-071 |
 | DECK-061 | MUST | `source` is a `TournamentDeckSource` (Data contract; **defined once here**, referenced by SPEC-004 CAT-072): `kind: 'tournament'`, `eventId` (= `TournamentEvent.id`), `eventName` (= `TournamentEvent.name`), `eventStartDate`, `eventEndDate` (= `startDate`, `endDate`), `region`, `decklistId` (= `CatalogDecklist.id`), `publishedRank`, `placingLabel`, `pilot`, `sourceUrl` (= `CatalogDecklist.sourceUrl`) and `addedAt` (ISO 8601 date-time of the click). Values are copied verbatim (CAT-011, CAT-012); no placing is re-bucketed or scored. | [[Tournament Deck Catalog]] CAT-011, CAT-012, CAT-062, CAT-072; [[ADR-0003 Tournament Results Only]] |
-| DECK-062 | MUST | Default name (RJ, Gate H-036 #1; same rule as CAT-073): `<Legend>: <pilot> (<placingLabel>, <event name>)`, where `<Legend>` is the Legend's canonical name up to its first `, ` (the whole name if it has no comma), `<pilot>` and `<placingLabel>` are copied verbatim, and `<event name>` is `eventName`. Example: `Kennen: ASC Evansrhim (1st, Regional Championship: Europe)`. Trimmed to 80 characters (DECK-070). Wording stays neutral (CAT-035). | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 #1; [[Tournament Deck Catalog]] CAT-035, CAT-073; [[Riot Developer Rules]] rule 8 |
+| DECK-062 | MUST | Default name (RJ, Gate H-036 #1; same rule as CAT-073): `<Legend>: <pilot> (<placingLabel>, <event name>)`, where `<Legend>` is the Legend's canonical name up to its first `, ` (the whole name if it has no comma), `<pilot>` and `<placingLabel>` are copied verbatim, and `<event name>` is `eventName`. Example: `Kennen: ASC Evansrhim (1st, Riftbound Regional Championship: Europe)`. Trimmed to 80 characters (DECK-070). Wording stays neutral (CAT-035). | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 #1; [[Tournament Deck Catalog]] CAT-035, CAT-073; [[Riot Developer Rules]] rule 8 |
 | DECK-063 | MUST | The copy is a **snapshot**: later edits to the catalog or to the user deck do not affect each other. Banned cards are copied like any card (decks with banned cards are shown, labelled; ADR-0005 #3). | design rule; [[ADR-0005 MVP Product Defaults]] #3 |
 | DECK-064 | MUST | **Duplicates (same rule as CAT-074).** A decklist is "already added" when Decks holds a deck whose `source.kind === 'tournament'` and `source.decklistId` equals the decklist's `id`. Then the primary button reads **"In your decks"** and opens that deck (the most recently created one if several); one click on it never creates a deck. A separate **"Add another copy"** creates a further copy named `<default name> (n)`, where n is the smallest integer ≥ 2 not already used by a deck with the same `decklistId` (`… (2)`, `… (3)`…). Editing or renaming a copy does not change this; deleting every copy makes "Add to your decks" available again. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 #2; [[Tournament Deck Catalog]] CAT-074 |
 | DECK-065 | MUST | **No name parsing on this path (CAT-071).** Catalog decklists already carry `cardKey`s, so the Add path copies them directly: it runs no text parsing, no name resolution and no fuzzy suggestions, raises no zone questions, and **cannot fail on names**. If a copied `cardKey` is not in the current card data (e.g. a card removed per CARD-066), the deck is still created with that `cardKey` and the catalog entry's name, and is then handled like any stored deck by DECK-088. | [[Tournament Deck Catalog]] CAT-071; [[Card Data Model]] CARD-066 |
@@ -247,7 +247,7 @@ interface UserDeckSource {      // DECK-071; text and url both null = no source
 interface TournamentDeckSource {  // DECK-061; "Add to your decks" (SPEC-004 CAT-072)
   kind: 'tournament';
   eventId: string;                  // '2026-11-rc-europe'
-  eventName: string;                // 'Regional Championship: Europe'
+  eventName: string;                // 'Riftbound Regional Championship: Europe'
   eventStartDate: IsoDate;
   eventEndDate: IsoDate;
   region: string;
@@ -411,21 +411,21 @@ shown in the display format (`Nov 23, 2026`).
     pre-selected; **When** the user picks `Kennen, Storm of Shuriken` **Then** it is in `champion`.
 
 11. **Add to your decks from Tournaments** (DECK-060…062, 065) **Given** the RC Europe 1st-place decklist
-    by ASC Evansrhim (`2026-11-rc-europe-1`, event `2026-11-rc-europe` "Regional Championship: Europe",
+    by ASC Evansrhim (`2026-11-rc-europe-1`, event `2026-11-rc-europe` "Riftbound Regional Championship: Europe",
     `publishedRank: 1`, `placingLabel: "1st"`) and an empty Decks screen **When** the user clicks "Add to your
     decks" **Then** one `UserDeck` exists with `source = {kind: 'tournament', eventId: '2026-11-rc-europe',
-    eventName: 'Regional Championship: Europe', eventStartDate, eventEndDate, region: 'Europe',
+    eventName: 'Riftbound Regional Championship: Europe', eventStartDate, eventEndDate, region: 'Europe',
     decklistId: '2026-11-rc-europe-1', publishedRank: 1, placingLabel: '1st', pilot: 'ASC Evansrhim',
     sourceUrl: 'https://playriftbound.com/en-us/news/organizedplay/best-ofs-for-the-european-championship',
     addedAt: <time of click>}` (event fields copied from the catalog event), `sourceFormat: 'tournament'`,
-    name `Kennen: ASC Evansrhim (1st, Regional Championship: Europe)`, zones and `cardKey`s equal to the
+    name `Kennen: ASC Evansrhim (1st, Riftbound Regional Championship: Europe)`, zones and `cardKey`s equal to the
     catalog list, no parse step, no suggestions and no zone questions, and it shows "Contains cards banned
     since Nov 23, 2026".
 
 11a. **Already added** (DECK-064) **Given** the AC 11 deck exists **When** the user views
     `2026-11-rc-europe-1` on Tournaments **Then** the button reads "In your decks" and clicking it opens
     that deck without creating another. **When** the user clicks "Add another copy" **Then** a second deck
-    `Kennen: ASC Evansrhim (1st, Regional Championship: Europe) (2)` exists with the same
+    `Kennen: ASC Evansrhim (1st, Riftbound Regional Championship: Europe) (2)` exists with the same
     `source.decklistId`; another click on it creates `… (3)`. **When** the user deletes all copies
     **Then** "Add to your decks" is shown again.
 
@@ -550,4 +550,4 @@ shown in the display format (`Nov 23, 2026`).
   and the label "Not fully checked".
 
 ## Changelog
-Current: 0.9 (2026-11-25, H-174, RJ 2026-11-24 header decision / gate H-178: DECK-001 is the "Import deck" entry point (FAB on Decks, empty-state button, `/decks?import=1`; a saved deck stays on Decks; no import page, `/import` goes to Home); DECK-097 gate note names the Decks page; Purpose wording; AC 24 new; no parsing or deck rule changed; pins SPEC-003 0.12, SPEC-010 0.14). Previous: 0.8 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: DECK-090 and DECK-097 without modes; DECK-087 restore wording; pins SPEC-003 0.11, SPEC-004 0.6, SPEC-008 0.4.4). Previous: 0.7.1 (2026-11-25, H-160). Earlier: 0.7 (2026-11-24, H-071: DECK-074 monotonic `updatedAt`). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.
+Pin-only 2026-11-25 (H-167, no version bump): SPEC-004 pin 0.7; the RC Europe event name in the DECK-061, DECK-062 and AC 11 / 11a examples is now `Riftbound Regional Championship: Europe`. Current: 0.9 (2026-11-25, H-174, RJ 2026-11-24 header decision / gate H-178: DECK-001 is the "Import deck" entry point (FAB on Decks, empty-state button, `/decks?import=1`; a saved deck stays on Decks; no import page, `/import` goes to Home); DECK-097 gate note names the Decks page; Purpose wording; AC 24 new; no parsing or deck rule changed; pins SPEC-003 0.12, SPEC-010 0.14). Previous: 0.8 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: DECK-090 and DECK-097 without modes; DECK-087 restore wording; pins SPEC-003 0.11, SPEC-004 0.6, SPEC-008 0.4.4). Previous: 0.7.1 (2026-11-25, H-160). Earlier: 0.7 (2026-11-24, H-071: DECK-074 monotonic `updatedAt`). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.
