@@ -4,8 +4,8 @@ id: SPEC-010-NOTICE
 version: 0.3
 status: review   # ready for RJ's final read; becomes `approved` only when RJ writes the date in "Approval gate" below
 spec: "[[Accounts and Sync]] SYNC-101, SYNC-103, SYNC-104 (v0.14.2)"
-research: ["[[Privacy Notice Requirements]]"]
-board: H-152, H-181, H-182, H-200
+research: ["[[Privacy Notice Requirements]]", "[[Card Data & Images]]"]
+board: H-152, H-181, H-182, H-200, H-208
 as_of: 2026-11-25
 ---
 # Privacy Notice Draft (for RJ to approve)
@@ -22,7 +22,10 @@ as_of: 2026-11-25
   `[set on release: …]`. H-181 wording fixes: "no cookies" is marked **Confirm** until the DevTools check (AC 70);
   Firebase Hosting request logs named in "What we do not collect" and "Who receives it"; sign-in email replies go to
   the support inbox (H-063 sets the template's reply-to), not "are not read". The table of RJ-supplied blanks is
-  removed: none is left except the release-day date.
+  removed: none is left except the release-day date. **H-208 fix:** the image-host blank (a bracketed RJ/builder marker with its
+  "Keep only while…" note) is removed from "Who receives it", so no blank can ship; a rule in SYNC-103 item 9 requires
+  the host line to be added before any build loads card images from a third-party host. The only marker left in the
+  page text is `[set on release: …]`.
 - 0.2 (2026-11-25, H-174): username and `device-theme` lines added.
 - 0.1 (2026-11-25, H-152): first draft.
 
@@ -30,7 +33,8 @@ as_of: 2026-11-25
 | Item | State |
 |---|---|
 | Text approved by RJ | **not yet** (RJ: write "approved YYYY-MM-DD" here and set `status: approved`) |
-| RJ-supplied blanks | **none left** (H-182 answers applied, 0.3) |
+| RJ-supplied blanks | **none left** (H-182 answers applied, 0.3); the page text has no image-host blank either (H-208): that line is added only if a build loads card images from a third-party host (SYNC-103 item 9, release condition below) |
+| Card-image host line | **not in the text.** If the build to be released loads card images from any host other than Rift Builder's own hosting, the line naming that host (see "Not in this text on purpose") must be added and RJ re-approves before that build ships; the source is undecided until H-020 |
 | Release-day date | `[set on release: date dev → main ships sign-in]` stays until the release step replaces it with the real date (effective and last-updated) |
 | Built page matches this text | not yet (builder item H-180, see [[Accounts and Sync]] ACs 65-70) |
 
@@ -102,9 +106,6 @@ fact 2).
 ### Who receives it
 Google (Firebase Authentication, Cloud Firestore and Firebase Hosting, including the Hosting request logs above)
 handles the data for us as our service provider. No one else receives it.
-*[Keep only while card images load from a host other than Rift Builder's own (board H-020):]* Card pictures are loaded
-from `[RJ/builder: image host name, e.g. Riot's image servers]`; when your browser fetches them, that host sees your IP
-address and browser user agent, as any web server does.
 
 ### Where it is stored
 Your collection, tags, decks and locks are stored in Google Cloud Firestore in Dallas, Texas, USA. Firebase
@@ -174,6 +175,12 @@ new page).
 "For ages 16 and over." and the link "Privacy notice" under the form.
 
 ## Not in this text on purpose
+- A line naming the card-image host (H-208). The image source is undecided until H-020, and
+  [[Card Data & Images]] only says images are hotlinked from Riot's CDN for prototyping, with no final choice. If a
+  build loads card images from a host other than Rift Builder's own hosting, add a sentence to "Who receives it" before
+  that build ships, naming the real host and saying that when your browser fetches the pictures that host sees your IP
+  address and browser user agent, as any web server does; RJ re-approves (SYNC-103 item 9). It is written with the
+  real host name, never with a blank marker.
 - Google sign-in: not offered at launch (H-063, email link only). Adding it changes this notice (SYNC-103 item 24).
 - A postal address (not required by the sources read, research fact 23).
 - Cookie banner text (none needed, research facts 24 to 26; check DevTools before launch, AC 70).
