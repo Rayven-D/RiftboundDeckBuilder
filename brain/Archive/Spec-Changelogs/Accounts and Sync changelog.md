@@ -9,6 +9,15 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+## 0.14.1 (2026-11-25, H-183)
+Username length mismatch from [[Validation H-174]] follow-up 1: SYNC-153 allowed 24 graphemes (a worst-case name of 24
+family emoji with skin tones is 264 code points, 456 UTF-16 units, 984 UTF-8 bytes) but the SYNC-112 rules backstop was
+200. The rules cap is now `size()` 2000 (SYNC-112, SYNC-156, data contract); the unit `string.size()` counts is still
+`unverified`, and 2000 is safe under UTF-16 units, code points and UTF-8 bytes. SYNC-153 (3) also caps a name at 500
+UTF-16 units on the client (a grapheme has no length bound of its own), same error text. User-facing limit unchanged
+(24 graphemes). AC 22 (2001 denied, worst-case name allowed), AC 74 (worst-case name accepted, 25 emoji and the
+combining-mark name refused), Impacts H-176 list and Open question 13 (b) aligned. Spec Index pin 0.14.1.
+
 ## 0.13 (2026-11-25, H-152)
 SYNC-101 rewritten from [[Privacy Notice Requirements]] (H-069): `BLOCKED: needs research` removed; public `/privacy`;
 RJ approval before production (SYNC-007 condition 2) recorded in [[Privacy Notice Draft]]. New SYNC-103 (24-item
