@@ -8,7 +8,7 @@ updated: 2026-11-24
 > only when your task needs them. Skip `Archive/` (history only). The `/board` run updates this note.
 
 ## Product (ADR-0006)
-Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Decks"). Tabs: **Decks**, **Collection**, **Tournaments**, plus an **Import** button and a home page at `/`.
+Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Decks"). Tabs: **Decks**, **Collection**, **Tournaments** and a home page at `/`. **Header change decided (RJ 2026-11-24, [[ADR-0006 Two Imports - Collection and Decks]], not built yet):** the Import button becomes the account (username top right: account settings with Change username, Theme per device defaulting to system, Delete account and data, Sign out); collection import becomes **"Add to your collection"** (FAB bottom right on Collection), deck import stays **"Import deck"** on Decks, both as dialogs; `/import` is removed. Spec H-174, brief H-175, build H-176.
 - **Collection:** cards the user owns, from **Owned Cards Import**. Every printing is its own
   entry with a count badge. Tags go on printings, and a tag can be marked "exclude from decks".
   Default order is set → collector number.
