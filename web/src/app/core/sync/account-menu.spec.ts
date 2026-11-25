@@ -739,7 +739,10 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
-        provideRouter([{ path: 'changelog', children: [] }]),
+        provideRouter([
+          { path: 'changelog', children: [] },
+          { path: 'privacy', children: [] },
+        ]),
         {
           provide: SyncService,
           useValue: {
@@ -774,6 +777,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
       'divider',
       'item:Account Information',
       'group:Theme(System,Light,Dark)',
+      'item:Privacy notice',
       "item:What's new",
       'divider',
       'item:Sign out',
@@ -791,6 +795,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
       'divider',
       'item:Account Information',
       'group:Theme(System,Light,Dark)',
+      'item:Privacy notice',
       "item:What's new",
       'divider',
       'item:Sign out',
@@ -815,6 +820,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
       'divider',
       'item:Account Information',
       'group:Theme(System,Light,Dark)',
+      'item:Privacy notice',
       "item:What's new",
       'divider',
       'item:Sign out',
@@ -841,6 +847,32 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     expect(link.getAttribute('target')).toBeNull();
     expect(link.getAttribute('aria-disabled')).not.toBe('true');
     expect(link.classList.contains('mat-mdc-menu-item-disabled')).toBe(false);
+  });
+
+  it.each([
+    ['online', { deletion: null, online: true }],
+    ['offline', { deletion: null, online: false }],
+    ['during an unfinished deletion', { deletion: { canCancel: true }, online: true }],
+  ] as const)('SYNC-104 (d) / SYNC-151 (7) / AC 68 %s: Privacy notice is an enabled same-tab link to /privacy, right after Theme and before Sign out', async (_l, opts) => {
+    const l = await stubMenu({ ...opts, email: 'rj@example.com' });
+    const theme = l.indexOf('group:Theme(System,Light,Dark)');
+    expect(l[theme + 1]).toBe('item:Privacy notice');
+    expect(l.slice(-4)).toEqual(['item:Privacy notice', "item:What's new", 'divider', 'item:Sign out']);
+    expectCleanDividers(l);
+    const link = Array.from(panel().querySelectorAll<HTMLAnchorElement>('a[mat-menu-item]')).find((a) => text(a) === 'Privacy notice')!;
+    expect(link.getAttribute('href')).toBe('/privacy');
+    expect(link.getAttribute('target')).toBeNull();
+    expect(link.getAttribute('aria-disabled')).not.toBe('true');
+    expect(link.classList.contains('mat-mdc-menu-item-disabled')).toBe(false);
+  });
+
+  it('SYNC-104 (d) / AC 68 choosing Privacy notice opens /privacy in the same tab and closes the menu', async () => {
+    await stubMenu({ deletion: null, online: true, email: 'rj@example.com' });
+    const router = TestBed.inject(Router);
+    const link = Array.from(panel().querySelectorAll<HTMLAnchorElement>('a[mat-menu-item]')).find((a) => text(a) === 'Privacy notice')!;
+    link.click();
+    await vi.waitFor(() => expect(router.url).toBe('/privacy'));
+    await vi.waitFor(() => expect(document.querySelector('.mat-mdc-menu-content')).toBeNull());
   });
 
   it("SPEC-012 LOG-011 / AC 3 choosing What's new opens /changelog and closes the menu", async () => {

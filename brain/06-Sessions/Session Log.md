@@ -7,6 +7,11 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-25: H-180 builder, `/privacy` page (SPEC-010 v0.15.1 SYNC-101/103/104)
+- Built the public `/privacy` page from `web/src/app/core/privacy/privacy-notice.md` (draft 0.3 text, Confirm markers and RJ notes removed, `[set on release: …]` kept, "the What's new page" linked to `/changelog`), a pure Markdown-subset parser in `shared/privacy/`, links in the footer, the account menu (after Theme, before What's new) and the sign-in dialog (new tab, every state, with "For ages 16 and over."). Check 1 (`[RJ` / `[builder`) runs in `scripts/build.mjs` and a unit test; check 2 `check:privacy-release` runs in the `main` deploy workflow and the `firebase.json` predeploy. [[API Contracts]] v1.19, README release step.
+- Checks: web lint clean, build OK, 885 unit tests (65 files). Not committed or deployed (orchestrator).
+- Choices to specify: Confirm sentences that were notes for RJ (legal basis, Hosting logs, no cookies) are dropped from the page, not just the word; support address is a `mailto:` link; tab title `Privacy notice · Rift Builder`; the link and age line also show before the form is revealed (two providers).
+
 ## 2026-11-25: H-202 builder, `/changelog` "What's new" (SPEC-012 0.1)
 - Built the public `/changelog` page (no Firebase, no storage), `core/changelog/changelog.json` with `0.0.1` (date `null` → "Coming soon"), pure rules in `shared/changelog/changelog.ts`, the footer link (new `.footer-row` next to the theme switch) and the account-menu link (after Theme, before the last divider), `check:changelog-release` plus a step in the `main` deploy workflow, and the release step in README and [[API Contracts]] v1.17. Lint, build, preview build and the web unit tests green. Nothing deployed.
 - Choices to specify: the run-time skip check is the full per-entry rule set (LOG-031 + LOG-022 + hash guard), so AC 5's empty-bullets entry is skipped (H-220 item 2); script messages for invalid JSON and a non-array.

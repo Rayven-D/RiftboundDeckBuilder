@@ -61,6 +61,9 @@ export const SEND_LINK_FAILED = "Couldn't send the link. Check the address and y
 export const SENT_TAIL = 'Open it on this device to finish signing in.';
 export const SPAM_HINT = "Didn't get it? Check your spam folder.";
 
+/** SYNC-104 (f): the sign-in dialog's age line (no age check, no date-of-birth field). */
+export const AGE_LINE = 'For ages 16 and over.';
+
 /**
  * SYNC-003 / SYNC-006 (v0.10, brain/04-UI/Brief H-104 H-106 H-124.md). (a) Email link as the only provider:
  * no provider button, the email form shows at once and `autoFocus: 'first-tabbable'` puts focus in the field.
@@ -168,7 +171,13 @@ export const SPAM_HINT = "Didn't get it? Check your spam folder.";
           </form>
         }
       }
-      <!-- SYNC-101: the privacy notice link goes here once the notice exists (BLOCKED, H-069). -->
+      <!-- SYNC-104 (c, f), H-180: the age line and the Privacy notice link under the form, in every state (form and
+           sent). The link opens a new tab, so a sign-in in progress is not lost. -->
+      <p class="fine-print">
+        {{ ageLine }}
+        <a href="/privacy" target="_blank" rel="noopener" [attr.aria-describedby]="newTabId">Privacy notice</a>
+        <span class="visually-hidden" [id]="newTabId">Opens in a new tab.</span>
+      </p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button matButton type="button" mat-dialog-close>Close</button>
@@ -193,6 +202,9 @@ export const SPAM_HINT = "Didn't get it? Check your spam folder.";
     }
     .error app-icon { flex: none; }
     .note { color: var(--color-text-muted); }
+    /* SYNC-104 (c, f): the age line and the Privacy notice link, small and muted under the form. */
+    .fine-print { margin: var(--space-3) 0 0; color: var(--color-text-muted); font-size: var(--font-size-sm); }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); white-space: nowrap; }
     /* H-140 sent state. */
     .sent-line { outline: none; } /* focused by script only (not a control); the H-139 ring is for controls */
     .sent-line strong { font-weight: 600; overflow-wrap: anywhere; }
@@ -226,6 +238,8 @@ export class SignInDialog {
   protected readonly intro = SIGN_IN_INTRO;
   protected readonly offline = MESSAGES.offline;
   protected readonly errorId = `send-error-${++signInDialogSeq}`;
+  protected readonly newTabId = `privacy-new-tab-${signInDialogSeq}`;
+  protected readonly ageLine = AGE_LINE;
   /**
    * H-106: the field is invalid while the send-failure line shows. MatInput owns `aria-invalid` (its host
    * binding), so the dialog drives MatInput's error state instead of writing the attribute itself: "true"
