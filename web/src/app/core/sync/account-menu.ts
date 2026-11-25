@@ -1,4 +1,15 @@
-import { Component, ElementRef, Injector, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  Injector,
+  TemplateRef,
+  afterNextRender,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatDivider } from '@angular/material/divider';
@@ -9,8 +20,6 @@ import { firstValueFrom } from 'rxjs';
 import { usernameInitial } from '../../shared/account/username';
 import { Icon } from '../../shared/icon';
 import { MESSAGES } from '../../shared/sync/sync-engine';
-import { THEME_CHOICES } from '../../shared/theme/theme';
-import { ThemeService } from '../theme/theme.service';
 import { AccountInfoDialog, AccountInfoDialogData, UsernameDialog, UsernameDialogData } from './account-dialogs';
 import {
   DeleteAccountDialog,
@@ -19,6 +28,7 @@ import {
   SignOutDialog,
   SignOutDialogData,
 } from './sync-dialogs';
+import { AccountTab } from './account-tab';
 import { SyncService, refocusAfterDialog } from './sync.service';
 
 /** A gap larger than this is a real layout choice (a push to stay on screen), not the scrollbar-gutter mismatch. */
@@ -35,7 +45,7 @@ export function menuEdgeCorrection(triggerRight: number, paneRight: number): num
   return gap > 0.5 && gap <= MAX_EDGE_CORRECTION ? gap : 0;
 }
 
-/** Ids for the menu's aria-describedby (username, identity line, status) and the Theme group label. */
+/** Ids for the menu's aria-describedby (username, identity line, status). */
 let accountMenuSeq = 0;
 
 /**
@@ -44,14 +54,20 @@ let accountMenuSeq = 0;
  * Signed out (or a lost session): the outlined Sign in button. Signed in: one ghost button with the initial, the
  * username (or "Account" with a person icon) and a chevron, named "Account: {username}". The menu, top to bottom:
  * the username, "Signed in as {email}" (H-141), the status (SYNC-084) / divider / Sync now, or during an unfinished
- * deletion Try deleting again and Cancel deletion (SYNC-096) / divider / Account Information, the Theme radio group
- * Privacy notice (SYNC-104 d, H-180), What's new (SPEC-012 LOG-011) / divider / Sign out.
- * Exactly 3 dividers (H-110). Delete account and data lives in the Account Information dialog (SYNC-152); there is no Settings item or `/account` link.
+ * deletion Try deleting again and Cancel deletion (SYNC-096) / divider / Account Information, Privacy notice
+ * (SYNC-104 d, H-180), What's new (SPEC-012 LOG-011) / divider / Sign out. No Theme group (v0.17.0: the theme is
+ * the header toggle, SYNC-158). Exactly 3 dividers (H-110). Delete account and data lives in the Account
+ * Information dialog (SYNC-152); there is no Settings item or `/account` link.
+ *
+ * H-246 (SYNC-150 g): below 40rem the same control is the tab bar's fourth tab. This one component (one
+ * `SyncService.start()`, one menu, one set of dialogs) owns both triggers; the tab's template is handed to the app
+ * shell through `AccountTab`. Only one trigger is displayed at any width.
  */
 @Component({
   selector: 'app-account-menu',
   imports: [Icon, MatButton, MatDivider, MatMenu, MatMenuItem, MatMenuTrigger, RouterLink],
   template: `
+    <!-- Header control (40rem and wider; display: none below, SYNC-150 g). -->
     @if (!sync.signedIn()) {
       <button matButton="outlined" type="button" class="header-account" aria-haspopup="dialog" (click)="openSignIn($event)">
         Sign in
@@ -61,9 +77,10 @@ let accountMenuSeq = 0;
         type="button"
         class="account-trigger"
         [matMenuTriggerFor]="menu"
+        #headerButton
         #menuTrigger="matMenuTrigger"
         [class.open]="menuTrigger.menuOpen"
-        (menuOpened)="alignMenu()"
+        (menuOpened)="menuOpened(headerButton, false)"
         [attr.aria-label]="accessibleName()"
       >
         <span class="avatar" aria-hidden="true">
@@ -76,9 +93,56 @@ let accountMenuSeq = 0;
         <span class="name">{{ sync.username() ?? 'Account' }}</span>
         <app-icon class="chevron" name="expand_more" />
       </button>
-      <!-- H-110 groups: [username, identity, status, offline] / [Sync now] or [deletion actions] /
-           [Account Information, Theme, Privacy notice, What's new] / [Sign out]. Always 3 dividers, never first or last. -->
-      <mat-menu #menu="matMenu" xPosition="before" class="account-menu-panel" [aria-describedby]="describedBy()">
+    }
+    <!-- SYNC-150 (g), H-246: the phone tab (below 40rem), rendered by the app shell in the tab bar's 4th column. It is
+         declared here so it shares this component's state and the one menu below. A button, never aria-current;
+         the active-tab look only while its menu or the sign-in dialog is open. -->
+    <ng-template #accountTab>
+      @if (!sync.signedIn()) {
+        <button
+          type="button"
+          class="account-tab"
+          [class.open]="signInOpen()"
+          aria-haspopup="dialog"
+          (click)="openSignInFromTab($event)"
+        >
+          <span class="tab-icon"><app-icon name="person" /></span>
+          <span class="tab-label">Sign in</span>
+        </button>
+      } @else {
+        <!-- RJ 2026-11-25: signed in, only the enlarged letter avatar, no visible label; the name is the label. -->
+        <button
+          type="button"
+          class="account-tab signed-in"
+          [matMenuTriggerFor]="menu"
+          #tabButton
+          #tabTrigger="matMenuTrigger"
+          [class.open]="tabTrigger.menuOpen"
+          (menuOpened)="menuOpened(tabButton, true)"
+          [attr.aria-label]="accessibleName()"
+        >
+          <span class="avatar avatar--tab" aria-hidden="true">
+            @if (initial(); as i) {
+              {{ i }}
+            } @else {
+              <app-icon name="person" />
+            }
+          </span>
+        </button>
+      }
+    </ng-template>
+    <!-- The one menu definition for both triggers. Opens upward from the phone tab (SYNC-150 g).
+         H-110 groups: [username, identity, status, offline] / [Sync now] or [deletion actions] /
+         [Account Information, Privacy notice, What's new] / [Sign out]. Always 3 dividers, never first or last. -->
+    <mat-menu
+      #menu="matMenu"
+      xPosition="before"
+      [yPosition]="phone() ? 'above' : 'below'"
+      class="account-menu-panel"
+      [aria-describedby]="describedBy()"
+    >
+      <!-- The items exist only for a signed-in user (both triggers are signed-in only). -->
+      @if (sync.signedIn()) {
         @if (sync.username(); as name) {
           <p class="menu-text username" [id]="usernameId">{{ name }}</p>
         }
@@ -109,36 +173,14 @@ let accountMenuSeq = 0;
         <mat-divider />
         <!-- SYNC-151 (5): enabled offline (it needs no network). -->
         <button mat-menu-item type="button" aria-haspopup="dialog" (click)="openAccountInfo()">Account Information</button>
-        <!-- SYNC-151 (6): three radio items, exactly one checked (a check mark, not colour alone); choosing one applies
-             it at once and closes the menu (SYNC-157). -->
-        <div role="group" class="theme-group" [attr.aria-labelledby]="themeLabelId">
-          <p class="menu-text group-label" [id]="themeLabelId">Theme</p>
-          @for (c of themeChoices; track c.value) {
-            <button
-              mat-menu-item
-              type="button"
-              role="menuitemradio"
-              class="theme-item"
-              [attr.aria-checked]="theme.choice() === c.value"
-              (click)="theme.set(c.value)"
-            >
-              <span class="check" aria-hidden="true">
-                @if (theme.choice() === c.value) {
-                  <app-icon name="check" />
-                }
-              </span>
-              {{ c.label }}
-            </button>
-          }
-        </div>
         <!-- SYNC-151 (7) / SYNC-104 (d), then LOG-011: same-tab links, enabled offline and during an unfinished
              deletion (they need no network). -->
         <a mat-menu-item routerLink="/privacy">Privacy notice</a>
         <a mat-menu-item routerLink="/changelog">What's new</a>
         <mat-divider />
         <button mat-menu-item type="button" [disabled]="!sync.online()" (click)="openSignOut()">Sign out</button>
-      </mat-menu>
-    }
+      }
+    </mat-menu>
   `,
   styles: `
     :host { display: contents; }
@@ -208,39 +250,105 @@ let accountMenuSeq = 0;
     /* Error status: icon + text, not colour alone (as the dialogs' .error, H-106). */
     .menu-text.error { display: flex; gap: var(--space-1); align-items: flex-start; color: var(--color-danger); }
     .menu-text.error app-icon { flex: none; margin-top: 0.2em; }
-    .menu-text.group-label { padding-top: var(--space-2); padding-bottom: 0; font-size: var(--font-size-xs); font-weight: 600; }
-    /* H-189 finding 8: a fixed 20 x 20 box (the label's line height) on every row, empty on the unselected ones, so
-       the three labels share one baseline and x-position and the check is centred on its label. */
-    .check {
-      display: inline-flex;
+    /* SYNC-150 (g): one account trigger at any width. Below 40rem the header control is gone (display: none, so
+       it's out of the accessibility tree too) and the tab bar's account tab takes over. */
+    @media (max-width: 40rem) {
+      .header-account,
+      .account-trigger { display: none; }
+    }
+    /* SYNC-150 (g) / Brief H-246 Part B: the account tab. Same metrics as the app shell's tabs (app.scss .tab-bar a),
+       the whole column is the hit area; .open gives the active-tab look while its menu or dialog is open. */
+    .account-tab {
+      position: relative;
+      display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      width: 20px;
-      height: 20px;
-      margin-inline-end: var(--space-2);
-      vertical-align: top;
-      font-size: 20px;
-      line-height: 1;
+      gap: 2px;
+      width: 100%;
+      min-height: var(--tabbar-height);
+      padding: var(--space-1) 2px;
+      border: 0;
+      background: transparent;
+      color: var(--color-text-muted);
+      font: inherit;
+      cursor: pointer;
+      transition: color var(--dur-fast) var(--ease-out);
+      -webkit-tap-highlight-color: transparent;
     }
+    .account-tab::before {
+      content: '';
+      position: absolute;
+      top: -1px;
+      left: 50%;
+      width: 2rem;
+      height: 2px;
+      margin-left: -1rem;
+      border-radius: 0 0 2px 2px;
+      background: var(--color-accent);
+      opacity: 0;
+      transform: scaleX(0.4);
+      transition:
+        opacity var(--dur-med) var(--ease-out),
+        transform var(--dur-med) var(--ease-out);
+    }
+    .account-tab.open { color: var(--color-accent-text); }
+    .account-tab.open::before { opacity: 1; transform: none; }
+    .account-tab:focus-visible { outline-offset: -4px; }
+    .account-tab .tab-icon {
+      display: grid;
+      place-items: center;
+      width: 2.75rem;
+      height: 1.75rem;
+      border-radius: var(--radius-md);
+      font-size: 22px;
+      transition: transform 90ms var(--ease-out);
+    }
+    .account-tab:active .tab-icon,
+    .account-tab:active .avatar--tab { transform: scale(0.94); }
+    .account-tab .tab-label {
+      max-width: 100%;
+      overflow: hidden;
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    /* RJ 2026-11-25: signed in, the letter avatar alone, 40px (was 28) in the 64px tab, 12px clear above and below;
+       the letter and the person glyph scale with it. */
+    .avatar--tab {
+      width: 40px;
+      height: 40px;
+      font-size: var(--font-size-lg);
+      transition: transform 90ms var(--ease-out);
+    }
+    .avatar--tab app-icon { font-size: 28px; }
   `,
 })
 export class AccountMenu {
   protected readonly sync = inject(SyncService);
-  protected readonly theme = inject(ThemeService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly injector = inject(Injector);
   protected readonly offline = MESSAGES.offline;
-  protected readonly themeChoices = THEME_CHOICES;
   /** A deletion or Cancel deletion is running (SYNC-096): its menu actions are disabled meanwhile. */
   protected readonly busy = signal(false);
   private readonly seq = ++accountMenuSeq;
   protected readonly usernameId = `account-username-${this.seq}`;
   protected readonly identityId = `account-identity-${this.seq}`;
   protected readonly statusId = `account-status-${this.seq}`;
-  protected readonly themeLabelId = `account-theme-${this.seq}`;
-  /** H-143 / H-122 (Brief decision 8): the Account button. The menu item that opened a dialog is gone by then. */
-  private readonly trigger = viewChild(MatMenuTrigger, { read: ElementRef<HTMLElement> });
+  /**
+   * H-143 / H-122 (Brief decision 8): the Account button (header or phone tab) that opened the menu; dialogs opened
+   * from the menu return focus to it. The menu item that opened a dialog is gone by then.
+   */
+  private openedFrom: HTMLElement | undefined;
+  private readonly headerButton = viewChild<ElementRef<HTMLElement>>('headerButton');
+  /** SYNC-150 (g): below 40rem (the app shell's phone breakpoint) the menu opens upward from the tab. */
+  protected readonly phone = signal(false);
+  /** SYNC-150 (g): the tab shows the active-tab look while the sign-in dialog it opened is open. */
+  protected readonly signInOpen = signal(false);
+  private readonly tabTemplate = viewChild.required<TemplateRef<unknown>>('accountTab');
   /** SYNC-152: the open Account Information dialog, closed by the delete dialog's Sign out and by a deletion. */
   private infoRef: MatDialogRef<AccountInfoDialog> | null = null;
 
@@ -256,6 +364,27 @@ export class AccountMenu {
     // The app shell loads this component (deferred) in every build; it starts sync, which restores an
     // expected session and otherwise loads no Firebase (SYNC-002).
     this.sync.start();
+    const media = typeof matchMedia === 'function' ? matchMedia('(max-width: 40rem)') : null;
+    this.phone.set(media?.matches ?? false);
+    const onMedia = (e: MediaQueryListEvent) => this.phone.set(e.matches);
+    media?.addEventListener?.('change', onMedia);
+    const tab = inject(AccountTab);
+    afterNextRender(() => tab.template.set(this.tabTemplate()));
+    inject(DestroyRef).onDestroy(() => {
+      media?.removeEventListener?.('change', onMedia);
+      if (tab.template() === this.tabTemplate()) tab.template.set(null);
+    });
+  }
+
+  /** The trigger that opened the menu, else the header control (a dialog opened with no menu, e.g. by a test). */
+  private get trigger(): HTMLElement | undefined {
+    return this.openedFrom ?? this.headerButton()?.nativeElement;
+  }
+
+  /** Remembers which trigger opened the menu (dialogs return focus to it), then aligns the menu. */
+  protected menuOpened(trigger: HTMLElement, fromTab: boolean): void {
+    this.openedFrom = trigger;
+    this.alignMenu(trigger, fromTab);
   }
 
   /**
@@ -263,13 +392,15 @@ export class AccountMenu {
    * is reused between openings, so the previous correction is cleared before measuring. CDK repositioning sets only
    * top/left/right, so the margin survives it.
    */
-  protected alignMenu(): void {
+  private alignMenu(trigger: HTMLElement, fromTab: boolean): void {
     afterNextRender(
       () => {
-        const trigger = this.trigger()?.nativeElement;
         const pane = document.querySelector('.account-menu-panel')?.closest<HTMLElement>('.cdk-overlay-pane');
-        if (!trigger || !pane) return;
+        if (!pane) return;
         pane.style.marginRight = '';
+        // SYNC-150 (g): from the phone tab the pane's right edge sits on the content gutter (styles.scss), not on
+        // the tab's edge, so no correction.
+        if (fromTab) return;
         const shift = menuEdgeCorrection(trigger.getBoundingClientRect().right, pane.getBoundingClientRect().right);
         if (shift) pane.style.marginRight = `${-shift}px`;
       },
@@ -291,9 +422,19 @@ export class AccountMenu {
     return this.sync.openSignIn(e.currentTarget as HTMLElement);
   }
 
+  /** SYNC-150 (g): the phone tab's Sign in; focus returns to the tab, which looks active while the dialog is open. */
+  protected async openSignInFromTab(e: Event): Promise<void> {
+    this.signInOpen.set(true);
+    try {
+      await this.sync.openSignIn(e.currentTarget as HTMLElement);
+    } finally {
+      this.signInOpen.set(false);
+    }
+  }
+
   /** SYNC-152: Account Information, a dialog (no route). Focus returns to the account control when it closes. */
   protected openAccountInfo(): void {
-    const trigger = this.trigger()?.nativeElement;
+    const trigger = this.trigger;
     const data: AccountInfoDialogData = {
       username: this.sync.username,
       online: this.sync.online,
@@ -340,7 +481,7 @@ export class AccountMenu {
    * fallback puts it on #main.
    */
   protected async openSignOut(): Promise<void> {
-    const trigger = this.trigger()?.nativeElement;
+    const trigger = this.trigger;
     const data: SignOutDialogData = {
       pending: () => this.sync.pendingCount(),
       online: this.sync.online,

@@ -358,12 +358,15 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-009)', () => {
       const hrefs = (selector: string) =>
         Array.from(el.querySelectorAll(selector)).map((a) => a.getAttribute('href'));
       expect(hrefs('.site-nav a')).toEqual(['/decks', '/collection', '/tournaments']);
-      // The phone tab bar (H-085) has the same three tabs (SYNC-150: no Import tab).
+      // The phone tab bar (H-085) has the same three tabs (SYNC-150: no Import tab), then the account (SYNC-150 g).
       expect(hrefs('.tab-bar a')).toEqual(['/decks', '/collection', '/tournaments']);
       expect(el.querySelector('header .import-action')).toBeNull();
       await vi.waitFor(() => {
         fixture.detectChanges();
-        expect(buttons(el.querySelector('header')!)).toEqual(['Sign in']);
+        // v0.17.0: the theme toggle (icon only, named "Dark theme", SYNC-158), then Sign in
+        expect(buttons(el.querySelector('header')!)).toEqual(['', 'Sign in']);
+        expect(el.querySelector('header button')!.getAttribute('aria-label')).toBe('Dark theme');
+        expect(buttons(el.querySelector('.tab-bar')!)).toEqual(['Sign in']);
       });
     });
 
