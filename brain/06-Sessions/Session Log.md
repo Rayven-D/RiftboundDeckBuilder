@@ -7,6 +7,11 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: H-154 COLL-074 Delete all local collection data (builder)
+- Built SPEC-007 COLL-074 / SPEC-010 SYNC-052, AC 31 on `loop/H-154-coll074-local-delete`. Local-only mode: the Collection page's More menu offers "Delete all local collection data"; a Cancel-first confirmation with no SPEC-010 text; confirming clears collection, import Undo snapshot, tags, printing codes and view state (`BrowserStores.clearCollectionData()`), keeps decks and locks, resets the page's query, shows the empty state. Account-required mode: not offered (`SignInGate.offerDeleteLocalData`). `SyncService.deleteLocalData()` no longer existed, nothing to remove.
+- Placement and copy were builder choices (no settings page exists in local-only mode); recorded in [[Collection]] §9 for RJ. API Contracts v1.14.
+- web: lint clean, build OK, 710 tests pass (51 files).
+
 ## 2026-11-24: `/board 1` (orchestrator, first run with item PRs)
 - Round 1: **H-160** (spec-writer) SPEC-010 v0.11 per-mode storage wording in IMP-053 / CAT-077 / DECK-090 / COLL-070 / SHARE-060, COLL-074 offered in local-only mode only, SYNC-009 gate requirements IMP-076, CAT-078, OWN-066, DECK-097, COLL-092; patch bumps SPEC-003 0.10.1, 004 0.5.1, 005 0.5.2, 006 0.7.1, 007 0.10.1, 008 0.4.3, 010 0.11.2; H-154 request updated. Validator PASS ([[Validation H-160]]). **PR #14** `loop/H-160-v08-impacts` → `dev`: https://github.com/Rayven-D/RiftboundDeckBuilder/pull/14
 - Follow-up filed: H-161 (P2 spec-writer: IMP-076 SYNC cite, first-sync-running wording, Current State).
