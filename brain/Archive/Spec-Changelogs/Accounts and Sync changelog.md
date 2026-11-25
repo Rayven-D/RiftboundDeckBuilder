@@ -9,6 +9,14 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+## 0.13 (2026-11-25, H-152)
+SYNC-101 rewritten from [[Privacy Notice Requirements]] (H-069): `BLOCKED: needs research` removed; public `/privacy`;
+RJ approval before production (SYNC-007 condition 2) recorded in [[Privacy Notice Draft]]. New SYNC-103 (24-item
+contents checklist, launch = email link only, Auth emails from `noreply@riftbound-deckbuilder.firebaseapp.com`,
+contact = dedicated support inbox), SYNC-104 (route, sign-in dialog / account menu / footer links, age line, no
+new data). ACs 65–70. Decision 10 closed; Open question 12 (RJ approval and blanks); note on decision 10 vs Open
+question 10 kept. Account menu order after Brief H-175: Account Information, Theme, Privacy notice, Sign out.
+
 ## Impacts history (moved here from SPEC-010 "Impacts on other specs" in v0.12, H-177; all applied; the per-mode wording is superseded by v0.12)
 - **v0.7 impacts, applied by H-071 (2026-11-24):** IMP-053 (0.9.1), COLL-070 (0.9), DECK-090 (0.7) and SHARE-060
   (0.4.1) read "browser by default; synced to the account when signed in"; SPEC-008's Out of scope line superseded;
