@@ -282,7 +282,7 @@ html {
 /*
  * Light tokens (SYNC-157, Brief H-175 T2). One mixin used twice: for the device's light setting unless this device
  * chose Dark, and for an explicit Light choice on any system. `data-theme` is set before the first paint by the inline
- * script in index.html (device-theme key); no attribute = System.
+ * script in index.html (device-theme key); no attribute = nothing stored, the device decides (SYNC-157 a).
  */
 @mixin light-tokens {
   --color-bg: #f4f6f8;
@@ -325,7 +325,7 @@ html {
 }
 
 /* SYNC-157 (d): an explicit choice also sets the native scheme, so Material's light-dark() tokens, form fields,
-   scrollbars and other native controls follow it. System keeps `dark light` (the device decides). */
+   scrollbars and other native controls follow it. With nothing stored it stays `dark light` (the device decides). */
 html[data-theme='light'] {
   color-scheme: light;
 }
@@ -410,6 +410,22 @@ html {
   }
 }
 
+/* SPEC-010 SYNC-150 (g), H-246: on phones the account menu opens upward from the tab bar's account tab. Its right
+ * edge sits on the content gutter (the tab's own edge is the viewport's) and it scrolls on its own when the screen
+ * is short, never under the header or the tab bar. */
+@media (max-width: 40rem) {
+  .cdk-overlay-pane:has(> .account-menu-panel) {
+    margin-right: var(--content-gutter);
+  }
+
+  .mat-mdc-menu-panel.account-menu-panel {
+    max-height: calc(
+      100dvh - var(--header-height) - var(--tabbar-height) - var(--tabbar-border) - env(safe-area-inset-bottom) -
+        2 * var(--space-2)
+    );
+  }
+}
+
 /*
  * H-176 / H-245 (SPEC-007 COLL-094 d, e; SPEC-005 OWN-094; Brief H-175 F4, F5; Brief H-245 D2, D3): while a page shows
  * its floating button (`app-page-fab` sets html.has-fab), (1) the page reserves the button's room above the footer,
@@ -485,18 +501,8 @@ a {
   outline-offset: -2px;
 }
 
-/* H-189 finding 1 (WCAG 2.4.7): mat-button-toggle segments (the footer Theme switch) set `outline: none` and show
- * only a 12% overlay on focus. The segments touch each other and the group border, so the ring is inset; it sits
- * on the segment fill (dark selected #2d343c, light selected #e9edf1), against which --color-focus is >= 3:1.
- * (0,3,1) beats Material's own rules whatever the load order. */
-.mat-button-toggle-group .mat-button-toggle .mat-button-toggle-button:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: -2px;
-}
-
 @media (forced-colors: active) {
   .mat-mdc-button-base.mat-mdc-button-base:focus-visible,
-  .mat-button-toggle-group .mat-button-toggle .mat-button-toggle-button:focus-visible,
   .mat-mdc-menu-panel .mat-mdc-menu-item:focus-visible,
   .mat-mdc-menu-panel .mat-mdc-menu-item.cdk-keyboard-focused {
     outline-color: Highlight;

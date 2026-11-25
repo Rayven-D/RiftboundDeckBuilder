@@ -263,7 +263,9 @@ export class SyncService {
     });
     await firstValueFrom(ref.afterClosed());
     if (this.destroyed) return;
-    const control = document.querySelector<HTMLElement>('.account-trigger');
+    // SYNC-150 (g): the header control at 40rem and wider, the phone tab below; only one of them is displayed.
+    const controls = Array.from(document.querySelectorAll<HTMLElement>('.account-trigger, .account-tab'));
+    const control = controls.find((el) => el.getClientRects().length > 0) ?? controls[0];
     if (control) control.focus();
     else refocusAfterDialog(undefined);
   }

@@ -67,8 +67,18 @@
 }
 
 .site-nav {
-  /* Pushes the account control to the far right. */
+  /* Pushes the theme toggle and the account control to the far right. */
   margin-right: auto;
+}
+
+/* SYNC-158 (a) / SYNC-150: the theme toggle, then the account control, 8px apart (Brief H-246 T3). The group may
+   shrink so the account control's name gives way first; the toggle never shrinks. */
+.header-actions {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .site-nav ul {
@@ -132,7 +142,7 @@
   text-align: center;
 }
 
-/* SYNC-158 / LOG-010: the theme switch and the footer links share one row, wrapping on narrow screens. */
+/* LOG-010: the footer links row, wrapping on narrow screens. */
 .footer-row {
   display: flex;
   flex-wrap: wrap;
@@ -181,13 +191,12 @@
     font-size: var(--font-size-md);
   }
 
-  /* The tabs move to the bottom bar; the header keeps the wordmark and the account control. */
+  /* The tabs move to the bottom bar; the header keeps the wordmark and the theme toggle (SYNC-150 g). */
   .site-nav {
     display: none;
   }
 
-  /* The account control stays in the header, at the right edge. Its host is display: contents, so the
-     wordmark does the pushing. */
+  /* The theme toggle sits alone at the header's right edge (SYNC-158 a); the wordmark does the pushing. */
   .wordmark {
     margin-right: auto;
   }
@@ -205,7 +214,8 @@
 
     ul {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      /* SYNC-150 (g): Decks, Collection, Tournaments, then the account. */
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       margin: 0;
       padding: 0;
       list-style: none;
