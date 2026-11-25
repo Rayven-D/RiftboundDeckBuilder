@@ -9,6 +9,29 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.11 (2026-11-24, H-146, from [[Validation H-140 H-125 H-108]], [[Validation H-113 H-116 H-123 H-126]] and
+  [[Validation H-145]]; documents the build, no behaviour change): **SYNC-006:** "disabled" for Send link, Send
+  again and Use a different email means Material `disabledInteractive`: `aria-disabled="true"`, a press does
+  nothing, focus stays on the button (not the native `disabled` attribute); Send link is also disabled with no '@'
+  in the field and offline, as built. The other-device confirm is a dialog titled "Finish signing in" with the
+  text "Confirm your email address to finish signing in.", an "Email address" field, and **Cancel** / **Finish
+  sign-in**; Finish stays disabled until the trimmed value has an '@'; Enter submits; Cancel, Escape and the
+  backdrop count as no address. The emulator's continue-URL behaviour (checked in H-145) replaces the
+  `unverified` note; production stays `unverified`. **New SYNC-087 notice kinds** (as built in H-116): `success`
+  closes after 6 s, polite ("Your account and its data were deleted.", "Your account wasn't deleted.", "You're
+  signed in."); `info` stays until OK, polite; `error` stays until OK, assertive (the only assertive kind); a
+  missing kind = `info`; the deleteIncomplete Try again notice is assertive; COLL-054 Undo (at least 8 s) stays
+  outside the 6 s rule; the sync status messages of SYNC-033, SYNC-047, SYNC-083, SYNC-084 and SYNC-118 are
+  account-menu status text, not notices, with no kind ([[Validation H-146]] F1). **SYNC-063:** the clock warning is
+  an `info` notice, as built (was "the account menu shows"). **ACs:** 39 (confirm dialog strings, Finish disabled, Enter, Cancel), 50 and 51
+  (`aria-disabled`, focus kept, no second request), 52 (the URL is `/import?type=deck` when the sign-in completes
+  and "You're signed in." shows; the Import page may drop `?type=` afterwards) reworded; AC 58 new (notice
+  kinds). **Impacts:** the Home page copy bullet now records the built rule (local-only "Free", account-required
+  "Free account", by `signInEnabled`, RJ 2026-11-24, H-126). **RJ 2026-11-24** ("all those look good to me"):
+  Open questions 1–9 and the confirm title confirmed, new decision 16; every "RJ to confirm" marker removed; H-083
+  closed. All v0.10 "pending build" markers now read "built" (H-104, H-106, H-122, H-140…H-145). Builder items:
+  none (the wording matches the build).
+
 - 0.10 (2026-11-24, [[UI Review 2026-11-24]] spec rows H-103, H-105, H-107, H-109, H-111, H-112, H-117, H-118,
   H-119, H-121; RJ decision 15): **SYNC-006:** email link as the only provider shows the email form straight
   away (no provider button; with two providers the reveal moves focus to the field); Send link reads
