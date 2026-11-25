@@ -1,12 +1,12 @@
 ---
 tags: [spec]
 id: SPEC-005
-version: 0.5.1
+version: 0.7
 status: review
 depends_on: [SPEC-001, SPEC-002, SPEC-004, SPEC-006, SPEC-007, SPEC-008]
 research: ["[[Ban List]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]", "[[Card Data & Images]]", "[[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]]", "[[2026-11 RC Europe - 5 - CTCG DZiden - Kai'Sa]]"]
 decisions: ["[[ADR-0003 Tournament Results Only]]", "[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
-board: H-007, H-097, H-076
+board: H-007, H-097, H-076, H-174
 as_of: 2026-11-24
 ---
 # SPEC-005: Your Decks Ownership View
@@ -41,7 +41,10 @@ as_of: 2026-11-24
   `DeckOwnershipInput.tags` (SPEC-007 `TagStore`).
 - **Ownership unavailable (v0.5.1, RJ to confirm, OWN-065):** locked decks keep their badge and lock filter, the
   tile line reads "Ownership unavailable", and the deck is in its own filter group `unavailable`.
-- **Depends on:** SPEC-001 v0.3, SPEC-002 v0.3.1, SPEC-004 v0.5, SPEC-006 v0.7, SPEC-007 v0.10, SPEC-008 v0.4.2.
+- **Sign-in gate (v0.5.2, OWN-066; account-only since v0.6):** the Decks page and deck detail always sit behind the SPEC-010 SYNC-009 gate (sign-in panel under the page header while it is not open); ownership rules unchanged.
+- **Smooth scrolling (v0.6, OWN-084):** the deck list scrolls continuously: no page numbers, no Previous / Next, load as you scroll (rule: SPEC-007 COLL-093).
+- **Import deck entry (v0.7, OWN-008, OWN-094, H-174):** a floating **Import deck** button at the bottom right of Decks (like Collection's, SPEC-007 COLL-094), hidden on the empty state, which has its own **Import deck** button (and a Tournaments link); a saved deck stays on Decks; no `/import` page.
+- **Depends on:** SPEC-001 v0.3, SPEC-002 v0.4, SPEC-004 v0.6, SPEC-006 v0.9, SPEC-007 v0.13, SPEC-008 v0.4.4.
   Nothing is stored by this spec; everything is computed on display.
 - **Blocked / open:** foil as its own printing (SPEC-007 open question 1, H-020); card image aspect
   ratio and battlefield orientation in the API (OWN-081). Unknown card = 0 owned is a Claude default RJ
@@ -128,7 +131,7 @@ card fields are SPEC-001 ([[Card Data Model]]).
 | OWN-005 | MUST | Default order: `updatedAt` descending (most recently changed first); ties by `createdAt` descending, then `id`. | design rule |
 | OWN-006 | SHOULD | Sort options: Last updated (default), Name A–Z (SPEC-007 COLL-034 name comparison), Date added (`createdAt`, newest first). Filters: text search on deck name (case- and accent-insensitive substring); legality (verdict `legal` / `illegal` / `incomplete`, options labelled with the OWN-004 labels without the date: "Legal in Standard", "Not legal in Standard today", "Not fully checked"); source (Imported / From Tournaments); ownership per SPEC-008 SHARE-051 (Ready to build / Partly available / None available, by the deck's `ownershipFilter` group; each deck is in exactly one group, and a locked deck that is not short, or any deck while ownership is unavailable (OWN-065), is in none of the three options) and lock (Locked / Not locked). Sort and filters are reflected in the URL query (e.g. `?sort=name&legality=legal&own=ready`). | design rule; [[Shared Cards and Lock-in]] SHARE-051 |
 | OWN-007 | MUST NOT | The list offers no sort, filter, badge or label based on meta or community data: no play rate, win rate, popularity, tier, "trending", or comparison with other users' ownership. | [[ADR-0003 Tournament Results Only]] |
-| OWN-008 | MUST | Empty state (no decks): "No decks yet" with links to **Import → Deck Import** and **Tournaments**. A filter with no matches shows "No decks match these filters" and a "Clear filters" action. | design rule |
+| OWN-008 | MUST | Empty state (no decks; v0.7): heading "No decks yet", the line "Import a deck list to see which of its cards you own.", a filled button **Import deck** (opens the SPEC-006 dialog, DECK-001) and a link to **Tournaments**; no floating button while it shows (OWN-094). A filter with no matches shows "No decks match these filters" and a "Clear filters" action. | design rule |
 
 ### B. Deck view and card info
 | ID | Level | Requirement | Source |
@@ -200,6 +203,7 @@ card fields are SPEC-001 ([[Card Data Model]]).
 | OWN-063 | MUST | If the catalog is not loaded, tiles show stored names only and the banner "Card data not loaded" is shown. `DeckOwnershipInput.catalog` (a `CollectionCatalogView`) is required by COLL-081, so ownership is not computed: tiles are shown as in OWN-062 (full colour, no count labels, nothing darkened). | [[My Collection]] COLL-081, `DeckOwnershipInput`; design rule |
 | OWN-064 | MUST | A deck record shown read-only by DECK-091 (newer schema) is still shown with ownership; edit actions are disabled. | [[Deck Import]] DECK-091 |
 | OWN-065 | MUST | **Locks and the deck tile when ownership is unavailable** (v0.5.1; RJ to confirm; applies in the OWN-062 and OWN-063 states). Locks come from the lock store, not from ownership: (a) `DeckOwnershipView.lock` is the SPEC-008 SHARE-053 state `{ locked: true, lockedAt, complete: false, short: false, cardsShort: [] }` for a deck with a stored lock, and `null` for a deck without one or when the lock store is unreadable (SHARE-061); it is **not** `null` just because ownership is unavailable. (b) The deck view and tile show the "Locked" badge (never "cards short") and the lock filter OWN-006 lists the deck under Locked. (c) The tile ownership line reads **"Ownership unavailable"** (OWN-002 replaces the "copies available" text; the tile has no count, and a locked deck does not read "locked in"). (d) `ownershipFilter` is **`unavailable`** for every deck (SHARE-051 rule 0): it matches none of Ready to build, Partly available, None available, so those three filters list no deck while ownership is unavailable; with no ownership filter chosen the deck is listed. (e) Lock in is disabled with `ownership-unavailable` and Unlock stays enabled (SHARE-020, SHARE-053). | RJ gate H-076; [[Shared Cards and Lock-in]] SHARE-020, SHARE-051, SHARE-053; OWN-062/063 |
+| OWN-066 | MUST | **Sign-in gate (SYNC-009, always on).** While the gate is not open (signed out, session lost, or first sync running), the Decks page `/decks` and the deck detail `/decks/:id` keep their page header and show the SPEC-010 sign-in panel below it instead of the deck list or deck view, and read nothing from the browser cache (so no deck, tile or ownership is computed or shown). This is a gate, not the OWN-062 / OWN-063 "ownership unavailable" states: it hides the whole page, those keep it. Once the gate opens the page shows its content without a reload. There is no mode without the gate (v0.6). The ownership rules in this spec are unchanged; panel text and gate rules are SPEC-010's. | [[Accounts and Sync]] SYNC-009 (amendment 2) |
 
 ### H. Recalculation
 | ID | Level | Requirement | Source |
@@ -216,6 +220,8 @@ card fields are SPEC-001 ([[Card Data Model]]).
 | OWN-081 | MUST | Card images lazy-load (only tiles near the viewport request images) inside a box with **reserved aspect ratio**, so the layout does not shift when they load. Default ratio 63:88 (portrait). BLOCKED: needs research: the image dimensions the Riot API returns and whether battlefield images are landscape; until then every image is fitted (`contain`) into the 63:88 box. | [[Card Data & Images]]; design rule (no layout shift) |
 | OWN-082 | MUST | The Decks list shows no card images, only text tiles. | design rule |
 | OWN-083 | SHOULD | Recomputation reuses unchanged inputs (e.g. one `deckOwnership(input, cardKey)` call per `cardKey` per `DeckOwnershipInput`), but results are never persisted (OWN-026). | design rule |
+| OWN-084 | MUST | **Smooth scrolling, no pagination (v0.6, RJ 2026-11-24).** The Decks list (OWN-001…008) is one continuous scrolling list: no page numbers, no Previous / Next page controls, no "Page n of m", and no button that must be pressed to reveal more decks. Its default order (OWN-005), sort and filters (OWN-006) apply to the whole list, not to a page of it. The deck view's section lists (OWN-011) are shown whole in one scrolling page with sections in order; the card tiles of a long section render as the user scrolls. The behaviour (load or render as you scroll, placeholders so nothing jumps, scroll position kept on back-navigation, performance target) is defined once in [[My Collection]] COLL-093 and applies here unchanged. Tile summaries (OWN-073, OWN-080) are computed for the whole list before display, so a deck's tile never changes because it scrolled into view. | RJ 2026-11-24 ("No physical pagination, more like an infinite scroll"); [[My Collection]] COLL-093 |
+| OWN-094 | MUST | **"Import deck" entry on Decks** (v0.7, H-174; RJ 2026-11-24, gate H-178 decision 4: "behaves exactly like the collection button"). The Decks page has a floating button **Import deck** (an upload icon and the label) that behaves as [[My Collection]] COLL-094 (a) to (f) say for "Add to your collection": the same form, size, position at the bottom right (above the phone tab bar below 40rem), layering below the header, tab bar, menus, dialogs and snack bars, collapse to an icon-only button while scrolling **down** on phones (accessible name unchanged), clearance so the last deck tile and the footer text end above it, tab order right after the page header and before the list's controls, `aria-haspopup="dialog"`. It is shown only when the gate is open (SYNC-009) and the deck list is shown (not while loading, not on the sign-in panel or the first-sync text, not on the empty state, OWN-008). Pressing it opens the SPEC-006 dialog titled **Import deck** (DECK-001); focus returns to it on close; a saved deck **stays on Decks** (the list updates in place, no navigation). `/decks?import=1` opens the same dialog once when the gate is open and the page is ready (SPEC-010 SYNC-159). Dropping a file on the page behaves as COLL-094 (i) with the overlay text "Drop to import a deck" (SHOULD). | RJ 2026-11-24 ([[ADR-0006 Two Imports - Collection and Decks]] follow-up, H-178); [[Brief H-175]] §7 as changed by RJ decision 4 |
 
 ### J. Shared display rules and neutrality
 | ID | Level | Requirement | Source |
@@ -223,18 +229,18 @@ card fields are SPEC-001 ([[Card Data Model]]).
 | OWN-090 | MUST | Every date shown is `MMM D, YYYY` with an English short month, e.g. `Nov 23, 2026`; event ranges as in CAT-037. Stored data stays ISO. | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #7; [[Tournament Deck Catalog]] CAT-037 |
 | OWN-091 | MUST | An `incomplete` legality result is labelled **"Not fully checked"** everywhere in this spec. | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #7; [[Deck Legality]] LEGAL-R04 |
 | OWN-092 | MUST | Card names, types and rules text are shown verbatim from the catalog; no Riot logos (Current State constraints). | [[Card Data Model]] CARD-031; [[Riot Developer Rules]] |
-| OWN-093 | MUST | Nothing on this screen is sent to a server: decks, collection and ownership stay in the browser. | [[ADR-0005 MVP Product Defaults]] #1; [[Deck Import]] DECK-090 |
+| OWN-093 | MUST | **What this screen sends (v0.6).** Decks, the collection, tags and locks come from the signed-in account through its browser cache ([[Accounts and Sync]] SYNC-140…); this screen only reads them. The **ownership result** (owned, available, missing, locked counts, tile fill) is computed on the device and is never stored or sent anywhere (OWN-026). The screen makes no request of its own for it, and nothing about what the user owns is shared with anyone else (SYNC-102). | [[ADR-0007 Firebase Accounts and Firestore]] amendment 2026-11-24 (2); [[Deck Import]] DECK-090; [[Accounts and Sync]] SYNC-102 |
 
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { UserDeck, DeckCard, DeckZone, DeckSource } from './deck-import';   // SPEC-006 v0.7
+import type { UserDeck, DeckCard, DeckZone, DeckSource } from './deck-import';   // SPEC-006 v0.8
 import type {
   DeckOwnership, DeckOwnershipInput, CollectionCatalogView, StoredTags, Tag, TagId,
-} from './my-collection';                                                       // SPEC-007 v0.10, COLL-081
-import type { SharedPool, CardUse, DeckLockState } from './shared-cards';     // SPEC-008 v0.4.2
+} from './my-collection';                                                       // SPEC-007 v0.11, COLL-081
+import type { SharedPool, CardUse, DeckLockState } from './shared-cards';     // SPEC-008 v0.4.4
 // v0.5: no isRuneEntry() (SPEC-009 withdrawn); rune entries are counted entries (OWN-028)
-import type { BanStatus, BanListFile, LegalityResult, FormatDef } from './deck-legality'; // SPEC-002 v0.3.1
+import type { BanStatus, BanListFile, LegalityResult, FormatDef } from './deck-legality'; // SPEC-002 v0.4
 import type { PlayableCard, Printing, CardCategory } from './card-data-model';   // SPEC-001 v0.3
 type CardKey = string;
 type IsoDate = string;                       // 'YYYY-MM-DD'
@@ -451,8 +457,8 @@ deck uses the cards and no deck is locked, so available = `ownedForDecks`.
     **Then** the fill changes from 1/3 to 2/3 with no animation.
 15. **Purity** (OWN-025, OWN-026)
     **Given** the same deck, ownership, catalog, ban data and today **When** `computeDeckOwnership` runs
-    twice **Then** the outputs are deep-equal, and the stored `UserDeck` and browser storage are
-    unchanged.
+    twice **Then** the outputs are deep-equal, and the stored `UserDeck`, collection, tags and locks (cache and account) are
+    unchanged and nothing is sent anywhere (OWN-093).
 16. **Copies locked by another deck** (OWN-020, OWN-033, OWN-042, OWN-051; SPEC-008 AC 2)
     **Given** two decks that each need `Hextech Ray` ×3 in Main, `ownedForDecks 3`, and the other deck locked
     in **When** this deck's view opens **Then** the Hextech Ray tile is `allocated 0`, `none`, "0 of 3
@@ -480,10 +486,19 @@ deck uses the cards and no deck is locked, so available = `ownedForDecks`.
     in this deck" (partial, fill 8/9); the missing list has `1 Chaos Rune` under Runes; SPEC-002 LEGAL-015
     still reports the rune in Main.
 19. **No migration; unimported runes show as missing** (OWN-029)
-    **Given** a browser whose stored collection, decks, tags and locks were written before v0.5, `KENNEN_1`
+    **Given** a signed-in account (and its cache) whose collection, decks, tags and locks were written before v0.5, `KENNEN_1`
     stored with its `runes` zone and no rune in the collection **When** the deck view opens after the update
     **Then** no stored record is rewritten and no `schemaVersion` changes, the rune tiles read "0 of 9
     available" and "0 of 3 available", the runes are in the missing list, and no one-time notice is shown.
+20. **Deck list scrolls without pages** (OWN-084; v0.6) **Given** a signed-in account with 120 decks (fixture) **When** `/decks`
+    opens **Then** the first decks show at once in OWN-005 order, no element reads "Page", "Next" or "Previous" or
+    shows a page number, and no button exists whose only job is to reveal more decks; **When** the user scrolls to
+    the bottom **Then** the remaining decks appear continuously in the same order, every tile already shows its
+    final ownership line and fill (no tile changes after it scrolls into view), and the tiles already on screen do
+    not move. **When** the user changes the ownership filter **Then** the list shows the matching decks from the top.
+21. **Gate always on** (OWN-066; v0.6) **Given** a signed-out visitor **When** they open `/decks` or `/decks/<id>` **Then** the
+    page header and the SPEC-010 sign-in panel show, no deck or ownership is read or shown, and no setting changes this.
+22. **"Import deck" button** (OWN-094, OWN-008; v0.7) **Given** a signed-in user with 3 decks **When** `/decks` opens at 1440 **Then** a button "Import deck" is fixed at the bottom right and no text on the page says "Import → Deck Import"; **When** they scroll to the end **Then** no deck tile and no footer text is under it; **When** they press it **Then** the dialog titled "Import deck" opens, Escape returns focus to the button, and after Save the new deck is in the list and the page is still `/decks`. **Given** 390 px wide **Then** it sits above the tab bar, collapses to an icon while scrolling down and expands on scrolling up, with the accessible name "Import deck" in both states. **Given** no decks **Then** no floating button shows; the empty state reads "No decks yet" / "Import a deck list to see which of its cards you own." with an **Import deck** button and a Tournaments link. **Given** the sign-in panel or the first-sync text **Then** no button shows. **Given** `/decks?import=1` with the gate open **Then** the dialog opens once and the address becomes `/decks`.
 
 ## Out of scope
 - Prices, buying or shop links, trade suggestions.
@@ -519,4 +534,4 @@ deck uses the cards and no deck is locked, so available = `ownedForDecks`.
    fact 11). OWN-016's default-printing art for rune tiles depends on it; the ownership rules here don't.
 
 ## Changelog
-Current: 0.5.1 (2026-11-24, H-076: OWN-065 ownership unavailable: lock state, tile line, filter group `unavailable`; status `review`, RJ to confirm, SPEC-008 open question 5). Previous: 0.5 (2026-11-24, H-097: runes are cards). Pin-only fix 2026-11-24 (H-071 attempt 2, no version bump): "Depends on" and import comments now pin SPEC-006 0.7, SPEC-007 0.9, SPEC-008 0.4.1. Full history: [[Your Decks Ownership View changelog]] (archived). New entries go in the archive note.
+Current: 0.7 (2026-11-25, H-174, RJ 2026-11-24 header decision / gate H-178: OWN-008 empty state now has an **Import deck** button and the copy "No decks yet" / "Import a deck list to see which of its cards you own." (no "Import → Deck Import" link); new OWN-094 floating **Import deck** button on Decks (as COLL-094; collapses on phones, hidden on the empty state, a saved deck stays on Decks, `/decks?import=1`); AC 22; pins SPEC-006 0.9, SPEC-007 0.12; no ownership rule changed; status stays `review`). Previous: 0.6 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: OWN-066 gate always on; OWN-093 reworded (data comes from the account, ownership result is computed on the device and never sent); new OWN-084 smooth scrolling, no pagination; ACs 20, 21; pins SPEC-004 0.6, SPEC-006 0.8, SPEC-007 0.11, SPEC-008 0.4.4; no ownership rule changed; status stays `review`). Previous: 0.5.2 (2026-11-25, H-160). Earlier: 0.5.1 (2026-11-24, H-076: OWN-065 ownership unavailable: lock state, tile line, filter group `unavailable`; status `review`, RJ to confirm, SPEC-008 open question 5). Earlier: 0.5 (2026-11-24, H-097: runes are cards). Pin-only fix 2026-11-24 (H-071 attempt 2, no version bump): "Depends on" and import comments now pin SPEC-006 0.7, SPEC-007 0.9, SPEC-008 0.4.1. Full history: [[Your Decks Ownership View changelog]] (archived). New entries go in the archive note.

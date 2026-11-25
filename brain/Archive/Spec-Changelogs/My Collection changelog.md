@@ -9,6 +9,48 @@ superseded_by: "[[My Collection]]"
 
 Moved out of [[My Collection]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.13 (2026-11-25, H-091, `status: review`): the Collection page is simplified per [[Collection]] rev 3 (RJ 2026-11-24).
+  **New section K, COLL-100…109:** page scope (owned cards only, always full colour, the deferral rule); image-only tile
+  with the accessible-name composition; card-level lock band (Σ `hold` per `cardKey`, on every printing tile, never
+  allocated to a printing); read-only card dialog (COLL-004 details and the ban label moved here, "n not counted in
+  your decks" for existing excluded tags); "You own N across all printings" with switchable printing lines; Locked in;
+  Could fit in (unlocked decks, SHARE-040 "a of q available"); Keywords pointer to SPEC-011 (KW-001); search, three
+  sorts (Set & number, Name, Copies) and URL `q` + `sort`; lock, ban and deck data-state notices. Status table of every
+  v0.12 ID. **Changed:** COLL-004 / 008 / 009 moved to the dialog (the tile's accessible name has "banned"); COLL-010 is
+  "N copies of M cards" / "Showing X of Y" without "entries". **Narrowed:** COLL-032, 034, 060, 061, 062. **Deferred,
+  not deleted** (Level cell marked, text kept): COLL-005, 013, 021…028, 030, 037, 041…049, 050…056, 064, 082, 084, 085;
+  UI parts of COLL-019, 020, 083 (replaced by COLL-103 (e)); edit part of COLL-088 (Replace and Undo warnings stay).
+  Data, stores, sync, COLL-080/081 `deckOwnership()` unchanged. ACs 32–41 added; v0.13 status of ACs 1–31; ACs 15, 16
+  replaced by AC 37. Open questions 11–16. RJ decided: per-printing tiles, owned cards only, badge from 2 copies, Could
+  fit in = unlocked decks using the card, ban in the dialog only; the deferrals (c–f), sort set, count wording and the
+  dialog's details line are proposals pending RJ. Depends on SPEC-011 0.2.1 (new pointer, closes its note).
+  Impacts: builder item for the code that differs (dialog details line, count line check, tests per ID); pins in
+  SPEC-005, SPEC-008, SPEC-010 and the Spec Index moved to 0.13.
+- 0.12 (2026-11-25, H-174, RJ 2026-11-24 header decision / gate H-178): new COLL-094 "Add to your collection" button on
+  Collection (floating, bottom right; collapses on phones; hidden on the empty state and when the list isn't shown;
+  page-end and snack-bar clearance; empty-state button; `/collection?add=1`; drop a file; phone Export CSV icon);
+  COLL-091 (Collection is already open, no navigation); ACs 27, 30 reworded, AC 31 new; pins SPEC-003 0.12.
+- 0.11 (2026-11-24, H-171, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2, account-only): COLL-070 rewritten:
+  quantities and tags belong to the account (`state/collection`, `state/tags`), the stores are the browser cache of
+  them (SPEC-010 SYNC-140…SYNC-145); printing codes and view state are not account data and never synced (view
+  state is a per-device preference, printing-code memory is rebuilt display data), both cleared with the cache as
+  built. **COLL-074 ("Delete all local collection data") withdrawn**, ID retired: it existed only for local-only
+  mode; deleting data is "Delete account and data" (SYNC-095); H-162 / H-170 (its copy and locked-deck warning)
+  withdrawn with it; its H-163 placement / copy decisions no longer apply. COLL-092 gate always on, "reads nothing
+  from the browser cache". New **COLL-093** smooth scrolling / no pagination for all card and deck lists (a)–(g):
+  no pages or Load more, rows and images load as you scroll from the cached data (no Firestore read while
+  scrolling), nothing jumps, filter changes go to the top, scroll position kept (SHOULD), total visible,
+  60 fps at 390 px with 5,000 entries (SHOULD). Applied by SPEC-005 OWN-084 and SPEC-004 CAT-079. ACs 28–30 added;
+  AC 19, COLL-060 / 062 / 072, `TagStore` comment, Purpose and Out of scope reworded ("per browser", "stored in
+  the browser", "no accounts in the MVP"). Pins SPEC-003 0.11, SPEC-008 0.4.4.
+- 0.10.1 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11 "Impacts"): COLL-070 reads by mode
+  (local-only mode: browser only; account-required mode: a browser cache of the signed-in account, cleared on
+  sign-out; quantities and tags synced in account-required mode, printing codes and view state never). COLL-074
+  split by mode: local-only mode as before (confirmation has no SPEC-010 text, nothing sent); account-required mode
+  not offered, because Sign out clears this device (SYNC-052, SYNC-091); the v0.9 "while signed in clears this
+  device and signs out" and its confirmation line "Your account keeps its copy…" are withdrawn (build H-154 follows).
+  New COLL-092 (SYNC-009 gate note: the Collection page shows the sign-in panel while the gate is not open). Pins:
+  SPEC-003 0.10.1, SPEC-008 0.4.3.
 - 0.10 (2026-11-24, H-087): new COLL-090 (card data missing: banner "Card data couldn't load. Your cards
   are safe. Names and images will show once it loads." with Try again, no list, count line, search, sort,
   export or Unresolved section, nothing written, COLL-015 does not apply) and COLL-091 (arriving from an

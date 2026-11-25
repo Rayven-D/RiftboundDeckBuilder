@@ -14,21 +14,12 @@
         }
       </ul>
     </nav>
-    @if (signInEnabled) {
-      @defer (on immediate) {
-        <app-account-menu />
-      }
+    <!-- SPEC-010 SYNC-150: exactly one control at the right end at every width: Sign in, or the account control
+         with the username (no Import button, SYNC-159). Deferred, so the sync code stays out of the initial bundle;
+         it loads no Firebase until a SYNC-002 trigger. Nothing renders there until it has loaded (SYNC-150 e). -->
+    @defer (on immediate) {
+      <app-account-menu />
     }
-    <a
-      class="import-action"
-      matButton="filled"
-      routerLink="/import"
-      routerLinkActive="active"
-      ariaCurrentWhenActive="page"
-    >
-      <app-icon matButtonIcon name="upload" />
-      Import
-    </a>
   </div>
 </header>
 
@@ -37,24 +28,22 @@
 </main>
 
 <footer class="site-footer">
+  <!-- SYNC-158 (a): the device theme for everyone, signed in or out. The privacy notice link (SYNC-104 e) joins
+       this row in H-180. -->
+  <app-theme-switch class="footer-theme" />
   <p class="legal">
     Rift Builder was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by
     Riot Games. Riot Games does not endorse or sponsor this project.
   </p>
 </footer>
 
-<!-- Phones only (below 40rem): the tabs and Import as a fixed bottom bar. Hidden (display: none)
-     on wider screens, so only one "Main" navigation is ever exposed. -->
+<!-- Phones only (below 40rem): the three tabs as a fixed bottom bar (SYNC-150: no Import tab). Hidden
+     (display: none) on wider screens, so only one "Main" navigation is ever exposed. -->
 <nav class="tab-bar" aria-label="Main">
   <ul>
     @for (item of tabs; track item.path) {
       <li>
-        <a
-          [routerLink]="item.path"
-          routerLinkActive="active"
-          ariaCurrentWhenActive="page"
-          [class.tab--action]="item.action"
-        >
+        <a [routerLink]="item.path" routerLinkActive="active" ariaCurrentWhenActive="page">
           <span class="tab-icon"><app-icon [name]="item.icon" /></span>
           <span class="tab-label">{{ item.label }}</span>
         </a>

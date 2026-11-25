@@ -24,7 +24,7 @@ function topLevelBlock(header: string): string {
 }
 
 const darkRoot = () => topLevelBlock(':root');
-const lightBlock = () => topLevelBlock('@media (prefers-color-scheme: light)');
+const lightBlock = () => topLevelBlock('@mixin light-tokens');
 
 /** Whitespace-normalized body of the rule whose selector is exactly `selector`. */
 function rule(selector: string): string {

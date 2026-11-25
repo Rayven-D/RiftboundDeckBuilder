@@ -324,7 +324,7 @@ export class LocalDeckLockStore implements DeckLockStore {
   }
 }
 
-/** Removes every Rift Builder record from this browser (SYNC-091 "Remove", SYNC-096 step 4, COLL-074). */
+/** Removes every Rift Builder record from this browser (SYNC-091 sign-out, SYNC-096 step 4). */
 export function clearLocalData(backend: KeyValueBackend): void {
   for (const k of backend.keys()) if (k.startsWith(KEY_PREFIX)) backend.remove(k);
 }

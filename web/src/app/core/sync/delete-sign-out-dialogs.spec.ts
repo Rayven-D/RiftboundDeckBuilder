@@ -13,7 +13,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountMenu } from './account-menu';
 import { DeleteAccountDialog, SIGN_OUT_TEXT, SignOutDialog } from './sync-dialogs';
-import { SIGN_IN_ENABLED, SYNC_ADAPTERS, SyncService } from './sync.service';
+import { SYNC_ADAPTERS, SyncService } from './sync.service';
 import { MESSAGES } from '../../shared/sync/sync-engine';
 import type { StoredSyncLog } from '../../shared/sync/sync-types';
 import { emptySyncLog } from '../../shared/sync/sync-log';
@@ -264,7 +264,7 @@ class VisibleInteractivityChecker extends InteractivityChecker {
   }
 }
 
-describe('H-143 account menu: delete dialog state at open and the Sign out hand-off (SPEC-010 AC 55, AC 38)', () => {
+describe('H-143 / H-176 Account Information: delete dialog state at open and the Sign out hand-off (SPEC-010 AC 55, AC 38, AC 73)', () => {
   afterEach(() => {
     document.querySelectorAll('.cdk-overlay-container').forEach((el) => (el.innerHTML = ''));
     localStorage.clear();
@@ -272,8 +272,14 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
   });
 
   const accountDoc = { schemaVersion: 1, createdAt: 1, updatedAt: 1, syncedAt: 1, lastClientVersion: 'x' };
-  const pane = () => document.querySelector<HTMLElement>('.cdk-overlay-container mat-dialog-container');
-  const panes = () => document.querySelectorAll('.cdk-overlay-container mat-dialog-container');
+  const panes = () => document.querySelectorAll<HTMLElement>('.cdk-overlay-container mat-dialog-container');
+  /** The top-most dialog (v0.14: the delete dialog opens on top of Account Information, SYNC-152). */
+  const pane = () => {
+    const all = panes();
+    return all.length ? all[all.length - 1] : null;
+  };
+  /** Account Information's Delete account and data button (focus returns here when the delete dialog is cancelled). */
+  const deleteButton = () => buttonIn(document.querySelector('app-account-info-dialog')!, 'Delete account and data')!;
 
   /** The real SyncService and engine over the fakes, signed in as uA with a synced session. */
   async function signedIn(auth: FakeAuth) {
@@ -295,7 +301,6 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
-        { provide: SIGN_IN_ENABLED, useValue: true },
         { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote: new FakeRemote(db) }) },
         { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
         { provide: InteractivityChecker, useClass: VisibleInteractivityChecker },
@@ -336,6 +341,23 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
     await flush();
   }
 
+  /** SYNC-152: account menu → Account Information → Delete account and data, which opens on top of it. */
+  async function openDeleteDialog(fixture: ComponentFixture<AccountMenu>): Promise<void> {
+    await chooseFromMenu(fixture, 'Account Information');
+    expect(text(pane()?.querySelector('h2'))).toBe('Account Information');
+    deleteButton().focus();
+    deleteButton().click();
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(panes()).toHaveLength(2), { timeout: 2000 });
+    await flush();
+  }
+
+  /** Back to Account Information alone. */
+  async function backToInfo(): Promise<void> {
+    await vi.waitFor(() => expect(panes()).toHaveLength(1), { timeout: 2000 });
+    await flush();
+  }
+
   it('AC 55 H-143 signed in 20 minutes ago by email link with 1 pending: sign-in-first state; Sign out opens the SYNC-090 dialog; Cancel there deletes and clears nothing', async () => {
     const auth = new FakeAuth();
     auth.recentSignIn = false; // more than 5 minutes ago
@@ -343,7 +365,7 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
     vi.spyOn(sync, 'pendingCount').mockReturnValue(1);
     const logBefore = localStorage.getItem(STORAGE_KEYS.syncLog);
 
-    await chooseFromMenu(fixture, 'Delete account and data');
+    await openDeleteDialog(fixture);
     const del = pane()!;
     expect(text(del.querySelector('h2'))).toBe('Delete your Rift Builder account?');
     expect(text(del)).toContain(DELETE_PARAGRAPH);
@@ -355,7 +377,7 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
     await vi.waitFor(() => expect(document.activeElement).toBe(buttonIn(del, 'Cancel')));
 
     buttonIn(del, 'Sign out')!.click();
-    // The delete dialog closes first; then the SYNC-090 dialog opens (never stacked).
+    // SYNC-152 / AC 55: the delete dialog and Account Information close; then the SYNC-090 dialog opens (never stacked).
     await vi.waitFor(() => expect(text(pane()?.querySelector('h2'))).toBe('Sign out?'), { timeout: 2000 });
     expect(panes()).toHaveLength(1);
     const out = pane()!;
@@ -377,22 +399,23 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
     expect(document.activeElement).toBe(trigger(fixture));
   });
 
-  it('AC 55 H-143 Cancel in the sign-in-first state closes it with focus on the Account trigger and nothing deleted', async () => {
+  it('AC 55 / AC 73 H-143 Cancel in the sign-in-first state closes it with focus on Delete account and data and nothing deleted', async () => {
     const auth = new FakeAuth();
     auth.recentSignIn = false;
     const { fixture, deleteAll } = await signedIn(auth);
-    await chooseFromMenu(fixture, 'Delete account and data');
+    await openDeleteDialog(fixture);
     buttonIn(pane()!, 'Cancel')!.click();
-    await closed();
+    await backToInfo();
     expect(deleteAll).not.toHaveBeenCalled();
-    expect(document.activeElement).toBe(trigger(fixture));
+    // SYNC-152 / AC 73: focus returns to Delete account and data in Account Information.
+    expect(document.activeElement).toBe(deleteButton());
   });
 
   it('AC 38 H-143 signed in 1 minute ago: the type-to-confirm state with focus in the field, danger Delete account disabled until delete', async () => {
     const auth = new FakeAuth();
     auth.recentSignIn = true;
     const { fixture, deleteAll } = await signedIn(auth);
-    await chooseFromMenu(fixture, 'Delete account and data');
+    await openDeleteDialog(fixture);
     const del = pane()!;
     expect(text(del)).not.toContain(STEP_1);
     expect(buttonsIn(del).map(text)).toEqual(['Cancel', 'Delete account']);
@@ -401,9 +424,9 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
     expect(confirm.disabled).toBe(true);
     await vi.waitFor(() => expect(document.activeElement).toBe(del.querySelector('input')));
     buttonIn(del, 'Cancel')!.click();
-    await closed();
+    await backToInfo();
     expect(deleteAll).not.toHaveBeenCalled();
-    expect(document.activeElement).toBe(trigger(fixture));
+    expect(document.activeElement).toBe(deleteButton());
   });
 
   it('AC 38 H-143 signed in 4 minutes ago: type-to-confirm; 2 minutes later typing delete and confirming deletes nothing and shows the step 1 text', async () => {
@@ -412,7 +435,7 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
     auth.recentSignIn = true; // 4 minutes ago: still recent at open
     auth.reauthResult = 'needs-sign-in'; // what the adapter returns for an email-link user (no popup)
     const { fixture, db, notices, deleteAll } = await signedIn(auth);
-    await chooseFromMenu(fixture, 'Delete account and data');
+    await openDeleteDialog(fixture);
     const del = pane()!;
     expect(text(del)).not.toContain(STEP_1);
     const input = del.querySelector('input')!;
@@ -424,7 +447,7 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
     fixture.detectChanges();
     await fixture.whenStable();
     buttonIn(del, 'Delete account')!.click();
-    await closed();
+    await backToInfo(); // nothing was deleted, so Account Information stays open
 
     // SYNC-096 step 1 on confirm (as built): nothing deleted, the step 1 text shows.
     await vi.waitFor(() => expect(notices).toContain(MESSAGES.reauthNeeded));
@@ -442,7 +465,7 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
     auth.recentSignIn = false;
     auth.reauthResult = 'cancelled'; // the popup is closed: nothing is deleted
     const { fixture, notices, deleteAll } = await signedIn(auth);
-    await chooseFromMenu(fixture, 'Delete account and data');
+    await openDeleteDialog(fixture);
     const del = pane()!;
     expect(text(del)).not.toContain(STEP_1);
     const input = del.querySelector('input')!;
@@ -451,7 +474,7 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
     fixture.detectChanges();
     await fixture.whenStable();
     buttonIn(del, 'Delete account')!.click();
-    await closed();
+    await backToInfo();
     await vi.waitFor(() => expect(auth.calls).toContain('reauthenticate'));
     await vi.waitFor(() => expect(notices).toContain(MESSAGES.deleteNotDone));
     expect(deleteAll).not.toHaveBeenCalled();
@@ -463,7 +486,7 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
     auth.googleIdentity = true;
     auth.recentSignIn = false;
     const { fixture } = await signedIn(auth);
-    await chooseFromMenu(fixture, 'Delete account and data');
+    await openDeleteDialog(fixture);
     expect(text(pane())).toContain(STEP_1);
     expect(pane()!.querySelector('input')).toBeNull();
   });
@@ -484,17 +507,32 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
     expect(auth.signOuts).toBe(0);
   });
 
-  it('H-143 delete dialog opened while focus is on body: Cancel returns focus to the Account trigger', async () => {
+  it('H-143 / SYNC-152 delete dialog cancelled while focus was lost to body: focus still returns to Delete account and data', async () => {
     const auth = new FakeAuth();
     auth.recentSignIn = false;
     const { fixture } = await signedIn(auth);
+    await openDeleteDialog(fixture);
     (document.activeElement as HTMLElement | null)?.blur();
-    const done = (fixture.componentInstance as unknown as { openDelete(): Promise<void> }).openDelete();
-    await vi.waitFor(() => expect(pane()).not.toBeNull(), { timeout: 2000 });
     buttonIn(pane()!, 'Cancel')!.click();
-    await done;
+    await backToInfo();
+    expect(document.activeElement).toBe(deleteButton());
+  });
+
+  it('AC 21 / SYNC-152 a completed deletion from Account Information closes every dialog and signs out', async () => {
+    const auth = new FakeAuth();
+    auth.recentSignIn = true;
+    const { fixture, sync, db, notices } = await signedIn(auth);
+    await openDeleteDialog(fixture);
+    const input = pane()!.querySelector('input')!;
+    input.value = 'delete';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    buttonIn(pane()!, 'Delete account')!.click();
     await closed();
-    expect(document.activeElement).toBe(trigger(fixture));
+    await vi.waitFor(() => expect(notices).toContain(MESSAGES.deletedOwn));
+    expect(db.get('users/uA')).toBeUndefined();
+    await vi.waitFor(() => expect(sync.signedIn()).toBe(false));
   });
 
   it('H-122 a real sign-out: the Account button is gone, so focus goes to #main (H-125 fallback), not body', async () => {

@@ -55,18 +55,18 @@ describe('AC 52 / H-145 email link return path on the Auth emulator (SPEC-010 SY
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('AC 52 / H-145 Send link on /import?type=deck: the link lands on /import?type=deck plus the Firebase parameters, signs in, and returns to exactly /import?type=deck', async () => {
+  it('AC 52 / H-145 Send link on /decks?import=1: the link lands on /decks?import=1 plus the Firebase parameters, signs in, and returns to exactly /decks?import=1', async () => {
     const email = `h145-${Date.now()}@example.com`;
     const svc = new FirebaseAuthService(freshAuth());
-    await svc.sendEmailLink(email, '/import?type=deck');
+    await svc.sendEmailLink(email, '/decks?import=1');
 
     const link = await latestLink(email);
-    expect(new URL(link).searchParams.get('continueUrl')).toBe(`${ORIGIN}/import?type=deck`);
+    expect(new URL(link).searchParams.get('continueUrl')).toBe(`${ORIGIN}/decks?import=1`);
     const land = await landing(link);
     const url = new URL(land);
     expect(url.origin).toBe(ORIGIN);
-    expect(url.pathname).toBe('/import');
-    expect(land.startsWith(`${ORIGIN}/import?type=deck&`)).toBe(true); // the continue URL's query comes first
+    expect(url.pathname).toBe('/decks');
+    expect(land.startsWith(`${ORIGIN}/decks?import=1&`)).toBe(true); // the continue URL's query comes first
     expect(url.searchParams.get('mode')).toBe('signIn');
     expect(url.searchParams.has('oobCode')).toBe(true);
     expect(url.searchParams.has('continueUrl')).toBe(false);
@@ -76,7 +76,7 @@ describe('AC 52 / H-145 email link return path on the Auth emulator (SPEC-010 SY
     const r = await svc.signIn('email-link'); // same device: the stored address, no question
     expect(r).toEqual({ uid: expect.any(String) });
     expect(store.size).toBe(0); // the address is removed once the sign-in completes
-    expect(returnTarget(land)).toBe('/import?type=deck');
+    expect(returnTarget(land)).toBe('/decks?import=1');
   });
 
   it('AC 52 / H-145 Send link on / (header on Home) lands on /?mode=signIn… and returns to /', async () => {

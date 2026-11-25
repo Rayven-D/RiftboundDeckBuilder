@@ -3,8 +3,9 @@ import { BrowserStores, createBrowserStores } from './browser-stores';
 import { LocalStorageBackend } from './kv-backend';
 
 /**
- * The browser stores every feature uses (SYNC-130). They stamp changes for sync on every save, signed
- * in or not (SYNC-031); sync itself only runs when signed in.
+ * The browser stores every feature uses (SYNC-130): the signed-in account's cache (SPEC-010 SYNC-141).
+ * They stamp changes for sync on every user save (SYNC-031); user saves happen only while the sign-in gate
+ * is open (SYNC-009), so every stamped change belongs to the signed-in account.
  */
 @Injectable({ providedIn: 'root' })
 export class AppStores {

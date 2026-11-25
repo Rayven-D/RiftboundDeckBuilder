@@ -2,7 +2,7 @@
 tags: [research]
 area: tournaments
 status: unverified
-as_of: 2026-11-23
+as_of: 2026-11-24
 sources:
   - url: https://playriftbound.com/en-us/news/organizedplay/
     tier: official
@@ -68,6 +68,9 @@ Community aggregators (Liquipedia Lab, piltoverarchive, riftdecks, mobalytics, r
 | 4 | Singapore was won by Gorica (Akali). (official recap title) | https://playriftbound.com/en-us/news/organizedplay/singapores-top-decks | 2026-11-23 |
 | 5 | The other RQ dates, winners and sizes come from one creator compilation that says it was checked against Riot recaps (last updated 2026-11-15). | https://senseos.gg/guides/riftbound/regional-qualifier-results/ | 2026-11-23 |
 | 6 | World Showcase: Shanghai, 2027-01-22 to 23, $100k, 9 Swiss rounds with 3 decks (no overlapping Domains), then a Bo3 Top 4. (official) | https://playriftbound.com/en-us/news/organizedplay/riftbound-world-showcase | 2026-11-23 |
+| 7 | **Official name and structure of RC Europe (H-022):** Riot calls it the **"Riftbound Regional Championship: Europe"** (short "RC Europe"; Riot's info page also says "European Regional Championship"). Venue Hall H, Messe Stuttgart. Day 1 (Fri 11-06): 6 Swiss rounds, 12+ match points advance. Day 2 (Sat 11-07): 6 more Swiss rounds, Top 8 advance. Day 3 (Sun 11-08): **single-elimination** quarterfinals, semifinals, finals. Entry: Top 64 at a Regional Qualifier. Top 8 are invited to the World Showcase. | https://playriftbound.com/en-us/news/organizedplay/all-eyes-on-rc-europe ; https://playriftbound.com/en-us/news/organizedplay/2026-regional-championship-info/ | 2026-11-24 |
+| 8 | **Player total: still not published.** Riot's article gives no count. Riven shares imply about **308 on Day 1** (126 Riven = 40.90%) and about **96 on Day 2** (47 = 49.00%); the note's 307 comes from summing the Legend table. Both are derived, plus or minus 1. The info page's prize table runs to 64th place, but that is not a field size. | https://playriftbound.com/en-us/news/organizedplay/best-ofs-for-the-european-championship | 2026-11-24 |
+| 9 | **Bracket: Riot publishes no bracket or match results**, only the Top 8 list and the winner (ASC Evansrhim, Kennen). The format (single elimination from the Top 8) is official; who beat whom is not available, so the ranks above are the article's "Overall Ranking" order and shouldn't be shown as a bracket. | same | 2026-11-24 |
 
 ## Decklists captured
 8 notes in `Decklists/`, the full RC Europe Top 8 copied from Riot's article. **All 8 contain cards

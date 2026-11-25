@@ -9,6 +9,17 @@ superseded_by: "[[Deck Import]]"
 
 Moved out of [[Deck Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.8 (2026-11-24, H-171, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2, account-only): DECK-090 now says a
+  deck belongs to the signed-in account (`decks/{deckId}`) and `DeckStore` is the browser cache of it (SPEC-010
+  SYNC-140…SYNC-145), cleared on sign-out, account deletion and a different account signing in, never uploaded;
+  "local-only mode: browser only" and ADR-0005 #1 are gone. DECK-097 gate always on, no local-only exception; names
+  "wherever it is opened from" instead of the Import page because H-174 changes entry points. DECK-087 JSON backup:
+  a restore is an ordinary user save into the signed-in account (needs the gate). Summary and pins updated (SPEC-003
+  0.11, SPEC-004 0.6, SPEC-008 0.4.4).
+- 0.7.1 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11 "Impacts"): DECK-090 reads by mode
+  (local-only mode: browser only; account-required mode: a browser cache of the signed-in account, cleared on
+  sign-out), replacing "browser by default, synced when signed in"; new DECK-097 (SYNC-009 gate note: Deck Import
+  and the Tournaments "Add to your decks" path are not offered while the gate is not open). DECK-074 unchanged.
 - 0.7 (2026-11-24, H-071, SPEC-010 Impacts): DECK-074 `updatedAt` becomes monotonic, `max(now, previous + 1 ms)`
   (SYNC-031), with a worked example; DECK-090 reads "browser by default, synced to the account when signed in".
   DECK-094 unchanged. `importRemovedLines` still has no cap (SYNC-112 relies on the 1 MiB limit); left as a MAY for later.

@@ -377,9 +377,35 @@ export class FirestoreRemoteStore implements RemoteStore {
       const snap = await getDoc(doc(this.db, 'users', uid));
       if (!snap.exists()) return null;
       const d = snap.data();
-      return { ...readMeta(d), createdAt: fromTs(d['createdAt']), lastClientVersion: d['lastClientVersion'] };
+      const account: AccountDoc = { ...readMeta(d), createdAt: fromTs(d['createdAt']), lastClientVersion: d['lastClientVersion'] };
+      // SYNC-156: the optional username; anything that isn't a string is treated as no name.
+      if (typeof d['username'] === 'string') account.username = d['username'];
+      return account;
     } catch (e) {
       throw new RemoteError(remoteCode(e));
+    }
+  }
+
+  /**
+   * SYNC-155 / SYNC-156: one update() of users/{uid} (username, updatedAt, syncedAt = server time); never a set(),
+   * so a missing account document fails (not-found) instead of being recreated. Never throws.
+   */
+  async setUsername(uid: string, username: string): Promise<'ok' | RemoteErrorCode> {
+    try {
+      await withTimeout(
+        updateDoc(
+          doc(this.db, 'users', uid),
+          new FieldPath('username'),
+          username,
+          new FieldPath('updatedAt'),
+          toTs(Date.now()),
+          new FieldPath('syncedAt'),
+          serverTimestamp(),
+        ),
+      );
+      return 'ok';
+    } catch (e) {
+      return remoteCode(e);
     }
   }
 

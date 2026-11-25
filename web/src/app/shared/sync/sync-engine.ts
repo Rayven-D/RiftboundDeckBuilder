@@ -100,6 +100,12 @@ export interface EngineDeps {
   leaveSignInLink?: () => Promise<void>;
   /** SPEC-008 `lockedShortfalls(before, after)` (SYNC-068, SYNC-074); optional until H-059 builds it. */
   shortfalls?: (before: LocalSnapshot, after: LocalSnapshot) => { deckName: string; cardsShort: number }[];
+  /**
+   * SYNC-154 (v0.14): the first sign-in found no account document and no cloud data (SYNC-048 case (a)), so this
+   * flow creates the account. Called once per uid per page load, before the account write, so the username prompt
+   * can open while the first sync is still running.
+   */
+  onAccountCreated?: () => void;
   /** SYNC-051: run the job while holding the one-syncing-tab lock (default: run it). */
   withTabLock?: <T>(job: () => Promise<T>) => Promise<T>;
   setTimer?: (fn: () => void, ms: number) => unknown;
@@ -136,6 +142,8 @@ export class SyncEngine {
    * the sync log afterwards (SYNC-091: a sign-out during a running sync leaves the device cleared).
    */
   private generation = 0;
+  /** SYNC-154: uids the username prompt was already asked for in this page load (a retried flow asks no more). */
+  private readonly prompted = new Set<string>();
 
   constructor(private readonly deps: EngineDeps) {}
 
@@ -166,6 +174,35 @@ export class SyncEngine {
     return this.auth?.canReauthenticate() ?? false;
   }
 
+  /**
+   * SYNC-150 / SYNC-156: the username cached in the sync log (`null` = none). Read from the log, so a reload shows
+   * it at once and offline; the log is cleared by every SYNC-142 event, so a signed-out device shows no name.
+   */
+  username(): string | null {
+    return this.lastLog.username ?? null;
+  }
+
+  /**
+   * SYNC-155: one `update()` of `users/{uid}` (username, updatedAt, syncedAt); not debounced, not pending, needs
+   * the network. `value` must already be normalized and valid (SYNC-153). 'not-ready' while the first sync of this
+   * device has not completed (the account document may not exist yet, SYNC-053 / SYNC-154).
+   */
+  async setUsername(value: string): Promise<'ok' | 'offline' | 'not-ready' | 'failed'> {
+    if (!this.uid || this.stopped || !this.remote) return 'failed';
+    if (!this.deps.isOnline()) return 'offline';
+    if (this.gate() !== 'open') return 'not-ready';
+    const uid = this.uid;
+    const gen = this.generation;
+    const r = await this.remote.setUsername(uid, value);
+    if (this.stale(gen)) return 'failed';
+    if (r !== 'ok') return r === 'offline' ? 'offline' : 'failed';
+    await this.updateLog((l) => {
+      l.username = value;
+    }, gen);
+    this.emit();
+    return 'ok';
+  }
+
   isReadOnly(area: string): boolean {
     return this.readOnlyAreas.has(area);
   }
@@ -190,11 +227,11 @@ export class SyncEngine {
   }
 
   /**
-   * SYNC-009: the sign-in gate (account-required mode; the engine runs only when `signInEnabled` is on).
+   * SYNC-009: the sign-in gate.
    * Decided from the sync log plus what only this session knows (a failed first sync, a lost session).
    */
   gate(): GateState {
-    return gateState(true, this.lastLog, { firstSyncFailed: this.firstSyncFailed, sessionLost: this.stopped });
+    return gateState(this.lastLog, { firstSyncFailed: this.firstSyncFailed, sessionLost: this.stopped });
   }
 
   /** Start-up (SYNC-002, SYNC-004): loads Firebase only when a session is expected. */
@@ -459,6 +496,17 @@ export class SyncEngine {
     const account = pulled.account ?? null;
     const hasCloudDocs = !!(pulled.collection || pulled.tags || pulled.locks || Object.keys(pulled.decks).length);
     if (!account && hasCloudDocs) return this.halfDeleted(); // (f)
+    // SYNC-156: the header shows the name as soon as the account document has been read (SYNC-150 e).
+    await this.updateLog((l) => {
+      l.username = account?.username ?? null;
+    }, gen);
+    if (this.stale(gen)) return;
+    this.emit();
+    if (!account && !this.prompted.has(uid)) {
+      // (a) a new account: SYNC-154 asks for a username once, while this flow goes on.
+      this.prompted.add(uid);
+      this.deps.onAccountCreated?.();
+    }
 
     // (3) (c) / (e): download into the empty stores; merge writes keep the pulled times (SYNC-041).
     const now = this.deps.now();
@@ -533,6 +581,12 @@ export class SyncEngine {
       }
       this.accountChecked = true;
       const acct = pulled.account as AccountDoc;
+      // SYNC-156: the account check refreshes the cached username (another device may have changed it).
+      if ((log.username ?? null) !== (acct.username ?? null)) {
+        await this.updateLog((l) => {
+          l.username = acct.username ?? null;
+        }, gen);
+      }
       if (log.sessionLostUid) {
         // SYNC-086: the restore returned the linked uid and the account check passed: the loss was temporary.
         await this.updateLog((l) => {
@@ -654,6 +708,9 @@ export class SyncEngine {
         await this.accountGone();
         return false;
       }
+      await this.updateLog((l) => {
+        l.username = account.username ?? null; // SYNC-156: every read of the account document refreshes it
+      });
       // The account is there: a not-found document is simply gone, so the next write creates it.
       const gone = failed.filter(([, c]) => c === 'not-found').map(([ref]) => ref);
       if (gone.length) {

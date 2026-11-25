@@ -1,7 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
-import { SIGN_IN_ENABLED } from '../../core/sync/sign-in-flag';
 import { CardTile } from '../../shared/deck/card-tile';
 import { sampleCardArt } from '../../shared/deck/sample-art';
 import { Icon, IconName } from '../../shared/icon';
@@ -41,11 +40,8 @@ export class HomePage {
   /** First visit this page load: play the hero entrance (text rise, deal-in, ownership fill). */
   protected readonly enter = !heroEntrancePlayed;
 
-  /**
-   * H-126 (RJ, 2026-11-24; closes H-082): the hero note follows the build mode (SYNC-007 / SYNC-008), not the
-   * session: "Free account" while sign-in is enabled (account required), "Free" in local-only mode.
-   */
-  protected readonly heroNote = inject(SIGN_IN_ENABLED) ? 'Free account' : 'Free';
+  /** H-126 / SPEC-010 v0.12 (account-only, AC 63): the hero note is "Free account" in every build. */
+  protected readonly heroNote = 'Free account';
 
   constructor() {
     heroEntrancePlayed = true;
@@ -56,15 +52,15 @@ export class HomePage {
       icon: 'stacks',
       title: 'Add your cards',
       subtitle: 'Paste a list, CSV or Excel',
-      link: '/import',
-      query: { type: 'collection' },
+      link: '/collection',
+      query: { add: '1' },
     },
     {
       icon: 'playing_cards',
       title: 'Add a deck',
       subtitle: 'Paste any deck list',
-      link: '/import',
-      query: { type: 'deck' },
+      link: '/decks',
+      query: { import: '1' },
     },
     {
       icon: 'content_copy',

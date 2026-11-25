@@ -90,3 +90,41 @@ Note: RJ's row-layout answer said "per card name + expand", but his detailed ans
 - [[Runes Assumed Owned]] (SPEC-009) is withdrawn. The rules now live in SPEC-003 IMP-071, SPEC-005 OWN-028/029, SPEC-007 COLL-089 and SPEC-008 SHARE-006. Legality (SPEC-002) is unchanged.
 - No data migration and no one-time notice; runes the user hasn't imported show as missing. RJ confirmed **"No notice"** on 2026-11-24 (SPEC-005 OWN-029, open question 7 resolved).
 
+## Header and import entry points (RJ, 2026-11-24, H-174)
+**Status: accepted** (RJ, in chat). RJ: "let's also replace the Import button in the header with the account. Users will be able to create a username when making their account. That name will pop up in the top right. They can see their account settings there (delete/theme and others if we get to it) and to sign out. Import will be broken up to the two different types. For importing collection - we will rebrand it to "Add to you collection" with a FAB bottom right. For decks, we'll keep "Import Desk". No need for a full /import screen anymore, just their respective dialogs popping up on the respective screens" ("you" = "your", "Desk" = "deck"). RJ's follow-up answers the same day:
+usernames are display names, not unique; editable in settings; theme is per device, default system; remove
+`/import` with no redirect.
+
+- **Header:** the **Import** button is replaced by the **account**. Signed in, the top right shows the user's
+  **username**; it opens the account menu with account settings (Delete account and data, Theme, more later) and
+  Sign out. Signed out, that spot offers sign-in / create account.
+- **Username:** chosen when the account is created. It is a **display name, not unique** (duplicates allowed; it is
+  shown only to its owner today). It can be **changed later in account settings**. Stored with the account.
+- **Theme:** light / dark / system, remembered **per device** (browser storage). With nothing saved on the device,
+  the app follows the **system theme**. It is not stored in the account.
+- **Collection import** is renamed **"Add to your collection"** and opens from a **floating action button (FAB) at
+  the bottom right of the Collection page**, in a dialog.
+- **Deck import** keeps the name **"Import deck"** and opens from the Decks page, in a dialog.
+- **The `/import` page is removed**, route included: old links show the not-found page (no redirect, RJ).
+  Each import dialog opens on its own screen; a finished collection import stays on Collection, a deck import on Decks.
+
+**Consequences**
+- The two imports stay two imports (this ADR); only where they open changes. "Owned Cards Import" is now labelled
+  "Add to your collection" in the UI.
+- The phone bottom tab bar loses its Import tab (Decks, Collection, Tournaments remain); the account moves to the top
+  right on phones too. [[Design Direction]] / the fluid pass (H-085) need the new header (H-175).
+- Specs to update (H-174): [[Accounts and Sync]] (username, account menu contents, theme per device),
+  [[Collection Import]] (entry point, label, landing), [[Deck Import]] (entry point, landing), [[My Collection]]
+  (FAB), [[Your Decks Ownership View]] (Import deck on Decks), and every spec or brief that mentions `/import`.
+- Works with [[ADR-0007 Firebase Accounts and Firestore]] amendment 2 (account-only): both import entry points need a
+  signed-in user.
+
+### Follow-up (RJ, 2026-11-24, gate H-178 on [[Brief H-175]])
+- Account settings live **in the header menu**, not on a page: **Account Information** (a dialog: change username,
+  delete account and data), **Theme**, **Sign out**.
+- **"Import deck" is a floating button on Decks**, behaving exactly like "Add to your collection" on Collection.
+- Both buttons collapse to an icon on phones while scrolling down and are hidden on empty pages (which have their own
+  button).
+- Username: 1–24 characters, any script, not unique, the prompt after the first sign-in can be skipped.
+- Theme can also be changed signed out, from a footer switch; it stays per device.
+- `/import` (like any unknown path) goes to Home; there is no not-found page.

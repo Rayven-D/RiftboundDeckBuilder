@@ -134,7 +134,7 @@ describe('browser stores (SPEC-003/006/007/008 as mapped by SPEC-010)', () => {
     expect((await s.load())!.locks).toEqual([{ deckId: 'd1', lockedAt: 'a' }]);
   });
 
-  it('SYNC-091 / COLL-074 clearLocalData removes every Rift Builder record and nothing else', () => {
+  it('SYNC-091 clearLocalData removes every Rift Builder record and nothing else', () => {
     backend.set(STORAGE_KEYS.collection, '{}');
     backend.set(STORAGE_KEYS.syncLog, '{}');
     backend.set(`${STORAGE_KEYS.deckPrefix}x`, '{}');

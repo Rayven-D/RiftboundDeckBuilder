@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-008
-version: 0.4.2
+version: 0.4.4
 status: review
 depends_on: [SPEC-001, SPEC-003, SPEC-005, SPEC-006, SPEC-007]
 research: ["[[Physical Copies Across Decks]]", "[[Deck Construction Rules]]"]
@@ -52,13 +52,13 @@ in and runes").
   it holds fewer copies of **any one** `cardKey` after the change than before.
 - SHARE-043: card breakdown "Owned for decks X · Locked by other decks Y · Available Z · This deck needs N"
   plus every other deck using the card (needs, locked or not, holds).
-- SHARE-060: locks live in their own browser `DeckLockStore` (synced when signed in, SPEC-010); `UserDeck` is unchanged.
+- SHARE-060 (v0.4.4, account-only): locks belong to the signed-in account and live in their own `DeckLockStore`, the browser cache of it (SPEC-010 SYNC-140…, cleared on sign-out); `UserDeck` is unchanged.
 
 **Shared types:** `DeckLock`, `StoredDeckLocks`, `DeckLockStore`, `SharedPoolInput`, `SharedPool`,
 `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck`. Functions `computeSharedPool()`,
 `availability()`, `canLock()`, `lockedShortfalls()` (all pure).
-**Depends on:** [[Card Data Model]] v0.3, [[Collection Import]] v0.10, [[Your Decks Ownership View]] v0.5.1,
-[[Deck Import]] v0.7, [[My Collection]] v0.10. **Consumers:**
+**Depends on:** [[Card Data Model]] v0.3, [[Collection Import]] v0.12, [[Your Decks Ownership View]] v0.7,
+[[Deck Import]] v0.9, [[My Collection]] v0.13 (pin-only: its edit confirmations COLL-088 (edit part) are deferred there, the Replace and Undo warnings stay; COLL-102/105/106 read `hold`, SHARE-040 and `availability()`). **Consumers:**
 [[Your Decks Ownership View]] (pool, labels, breakdown), [[My Collection]] and [[Collection Import]]
 (shortfall warnings), [[Deck Import]] (edit/delete/duplicate rules).
 **Open:** two choices for RJ (H-076, recommended defaults written in): SHARE-053 (locked decks while ownership
@@ -182,7 +182,7 @@ SPEC-005 owns the deck view and tiles and reads this spec's `SharedPool`. Runes 
 ### G. Storage
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| SHARE-060 | MUST | Locks are stored **in the browser by default**, behind a `DeckLockStore` interface, separate from the `DeckStore`; when the user is signed in they are **also synced to the account** ([[Accounts and Sync]] SPEC-010, SYNC-017, SYNC-070…077). Signed out there is no account and no server copy. `UserDeck` (DECK-096) is unchanged. | [[ADR-0005 MVP Product Defaults]] #1; [[Deck Import]] DECK-090, DECK-096; [[Accounts and Sync]] |
+| SHARE-060 | MUST | **Account-only storage (v0.4.4).** Locks belong to the signed-in account (its `state/locks` document, [[Accounts and Sync]] SPEC-010 SYNC-017, SYNC-070…077). They are read and written through a `DeckLockStore` interface, separate from the `DeckStore`, backed by the **browser cache** of the account (SYNC-140…SYNC-145), cleared on sign-out, account deletion and when a different account signs in (SYNC-142) and never uploaded into an account (SYNC-143). No lock exists outside an account. `UserDeck` (DECK-096) is unchanged. | [[ADR-0007 Firebase Accounts and Firestore]] amendment 2026-11-24 (2); [[Deck Import]] DECK-090, DECK-096; [[Accounts and Sync]] |
 | SHARE-061 | MUST | `StoredDeckLocks` has `schemaVersion: 1`. A newer or unreadable record is never overwritten; counts then **ignore all locks**, a banner says "Locked decks could not be read; counts ignore locks.", and Lock in / Unlock are disabled. | [[Deck Import]] DECK-091 (same pattern); design rule |
 | SHARE-062 | MUST | A lock whose `deckId` is not in the `DeckStore` is ignored by the computation and removed the next time the lock store is saved. | design rule |
 | SHARE-063 | MUST | A failed save leaves the previous lock state in place and shows "Couldn't save the lock. Try again." | [[Deck Import]] DECK-093 (same pattern) |
@@ -199,8 +199,8 @@ SPEC-005 owns the deck view and tiles and reads this spec's `SharedPool`. Runes 
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { UserDeck, DeckZone } from './deck-import';                  // SPEC-006 v0.7
-import type { DeckOwnershipInput } from './my-collection';              // SPEC-007 v0.10, COLL-081
+import type { UserDeck, DeckZone } from './deck-import';                  // SPEC-006 v0.8
+import type { DeckOwnershipInput } from './my-collection';              // SPEC-007 v0.11, COLL-081
 type CardKey = string;
 type IsoDateTime = string;                                              // ISO 8601 UTC
 
@@ -217,7 +217,7 @@ interface StoredDeckLocks {
   updatedAt: IsoDateTime;
   locks: DeckLock[];              // at most one per deckId (SHARE-022); orphans dropped on save (SHARE-062)
 }
-interface DeckLockStore {         // MVP adapter: browser storage
+interface DeckLockStore {         // adapter: the browser cache of the account's locks (SHARE-060)
   load(): Promise<StoredDeckLocks | null>;   // throws / reports unreadable or newer → SHARE-061
   save(l: StoredDeckLocks): Promise<void>;
 }
@@ -377,7 +377,7 @@ card of every deck is owned in full.
 14. **Determinism and purity** (SHARE-030, SHARE-035, SHARE-070)
     **Given** two locks with the same `lockedAt` on decks `a1…` and `b2…`, needing 3 each, `ownedForDecks =
     4` **When** `computeSharedPool` runs twice **Then** both outputs are deep-equal, deck `a1…` holds 3 and
-    `b2…` holds 1, and browser storage is unchanged.
+    `b2…` holds 1, and the stored locks, decks and collection are unchanged.
 15. **Empty and runes-only decks; one ownership group per deck** (SHARE-006, SHARE-014, SHARE-020, SHARE-050, SHARE-051; v0.4)
     **Given** an unlocked deck `Rune Test` whose only entries are `Chaos Rune` ×9 and `Order Rune` ×3 in
     Runes, with no rune owned, an unlocked deck `Empty Draft` whose entries were all removed, and a locked
@@ -487,4 +487,4 @@ card of every deck is owned in full.
    import that moves copies between cards at the same total).
 
 ## Changelog
-Current: 0.4.2 (2026-11-24, H-076: SHARE-020 `isLocked` input, SHARE-030 unparseable `lockedAt`, SHARE-034 per-card, SHARE-051 group `unavailable`, new SHARE-053; AC 19–21; status `review` for the RJ choices). Previous: 0.4.1 (2026-11-24, H-071: SHARE-060 browser by default, synced when signed in; accounts/lock sync no longer out of scope). Pin-only fix 2026-11-24 (H-071 attempt 2, no version bump): "Depends on" and import comments now pin SPEC-003 0.9.1, SPEC-006 0.7, SPEC-007 0.9. Full history: [[Shared Cards and Lock-in changelog]] (archived). New entries go in the archive note.
+Pin-only fix 2026-11-25 (H-174, no version bump): "Depends on" now pins SPEC-003 0.12, SPEC-005 0.7, SPEC-006 0.9, SPEC-007 0.12; no lock rule changed. Current: 0.4.4 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: SHARE-060 without modes; pins SPEC-003 0.11, SPEC-005 0.6, SPEC-006 0.8, SPEC-007 0.11; status stays `review`). Previous: 0.4.3 (2026-11-25, H-160). Earlier: 0.4.2 (2026-11-24, H-076: SHARE-020 `isLocked` input, SHARE-030 unparseable `lockedAt`, SHARE-034 per-card, SHARE-051 group `unavailable`, new SHARE-053; AC 19–21; status `review` for the RJ choices). Earlier: 0.4.1 (2026-11-24, H-071: SHARE-060 browser by default, synced when signed in; accounts/lock sync no longer out of scope). Pin-only fix 2026-11-24 (H-071 attempt 2, no version bump): "Depends on" and import comments now pin SPEC-003 0.9.1, SPEC-006 0.7, SPEC-007 0.9. Full history: [[Shared Cards and Lock-in changelog]] (archived). New entries go in the archive note.

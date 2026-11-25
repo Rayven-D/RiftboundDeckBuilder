@@ -9,13 +9,12 @@
       missing.
     </p>
     <div class="hero-actions">
-      <a matButton="filled" routerLink="/import" [queryParams]="{ type: 'collection' }">
-        <app-icon matButtonIcon name="upload" />
-        Import your collection
+      <!-- SYNC-159 (d): each import opens in its dialog on its own page (one-shot parameters). -->
+      <a matButton="filled" routerLink="/collection" [queryParams]="{ add: 1 }">
+        <app-icon matButtonIcon name="add" />
+        Add to your collection
       </a>
-      <a matButton="outlined" routerLink="/import" [queryParams]="{ type: 'deck' }"
-        >Import a deck</a
-      >
+      <a matButton="outlined" routerLink="/decks" [queryParams]="{ import: 1 }">Import deck</a>
       <p class="hero-note">{{ heroNote }}</p>
     </div>
   </div>
@@ -48,9 +47,7 @@
       Deck view is coming soon.
     </p>
     <div class="feature-actions">
-      <a matButton="filled" routerLink="/import" [queryParams]="{ type: 'collection' }"
-        >Import your cards</a
-      >
+      <a matButton="filled" routerLink="/collection" [queryParams]="{ add: 1 }">Import your cards</a>
       <a class="arrow-link" routerLink="/styleguide">See an example deck</a>
     </div>
   </div>

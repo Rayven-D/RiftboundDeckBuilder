@@ -1,9 +1,11 @@
 ---
 tags: [research]
 area: formats
-status: conflict
-as_of: 2026-11-23
+status: partial
+as_of: 2026-11-24
 sources:
+  - url: https://playriftbound.com/en-us/news/organizedplay/riftbound-organized-play/
+    tier: official
   - url: https://playriftbound.com/en-us/rules-hub/
     tier: official
   - url: https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/861752822d217edf37d9febaeaf77a7d924c1bb6.pdf
@@ -16,9 +18,9 @@ sources:
 ## Summary
 Organized play has **Constructed** (the primary format is **Standard Constructed**, with matches usually
 Bo3 using the 1v1 Match mode), **Limited** (Sealed, Draft) and **2v2** (Constructed or Sealed). All sets
-currently produced are legal in Standard. The Rules Hub says **set rotation for Standard starts in
-2028**, but the Tournament Rules define Standard as the "most recent 5–8 sets" / "current year's plus
-previous year's sets", which could imply rotation in 2027. That's a conflict. **Recommendation for MVP:
+currently produced are legal in Standard. **Rotation starts at the start of 2028** (Rules Hub and Riot's
+Organized Play FAQ, rechecked 2026-11-24). The Tournament Rules' generic "most recent 5–8 sets" wording
+does not change that. **Recommendation for MVP:
 support Standard Constructed only**, with 2v2 as a later option. Limited decks aren't "meta decks".
 
 ## Facts
@@ -31,9 +33,11 @@ support Standard Constructed only**, with 2v2 as a later option. Limited decks a
 | 5 | Matches are mostly **best-of-3** (TR 404.2). Swiss rounds take 60 minutes and the single-elimination cut is untimed (TR 604). | Tournament Rules PDF | 2026-11-23 |
 | 6 | 2v2 has its own ban list, including a banned **Legend**. See [[Ban List]]. | Rules Hub | 2026-11-23 |
 | 7 | **World Showcase** (Shanghai, 2027-01-22 to 23) uses a special format: **three decks (A/B/C) with no overlapping Domains**, 9 Swiss rounds, and a Top 4 that's Bo3 with a chosen Playoff deck. | https://playriftbound.com/en-us/news/organizedplay/riftbound-world-showcase | 2026-11-23 |
+| 8 | **Rotation, resolved (H-022, 2026-11-24):** Riot's Organized Play FAQ says the **first rotation happens at the start of 2028, when Set 10 releases**. It removes "Sets 1-5": Origins plus the four 2026 sets (SFD, UNL, VEN, RAD). Standard then holds Origins plus the next two years of sets, four Standard sets a year, so it "grows and shrinks" between 4 and 8 sets. The Rules Hub (2026-11-23) and the Tournament Rules page agree that all produced sets are legal until then. A creator report of a Dave Guskin interview (Escapist forum, not verified) says Proving Grounds rotates with them. | https://playriftbound.com/en-us/news/organizedplay/riftbound-organized-play/ ; https://playriftbound.com/en-us/rules-hub/ | 2026-11-24 |
+| 9 | **Promo cards in Standard:** a card is legal if it comes from a legal set **or shares a name with a card from a legal set** (TR 601.2, read on riftjudge's transcription). So a promo printing (OPP, JDG, PR) of a card whose name exists in a legal set is legal by name. Cards stamped "SAMPLE" are not legal for organized play (Riot Organized Play article). See [[Deck Construction Rules]]. | https://app.riftjudge.com/rules/tournament/601 (community-db); https://playriftbound.com/en-us/news/organizedplay/riftbound-organized-play/ (official) | 2026-11-24 |
 
 ## Conflicts / uncertainties
-- **Rotation timing:** Rules Hub (rotation from 2028) vs. TR 601.3/601.3.b (current year plus previous year, 5–8 sets). Taken literally, 601.3.b would rotate 2025 sets (OGN, OGS) out when 2027 begins. → `status: conflict`. Ask spec-writer to model **format legality as data** (a list of legal set codes per format with effective dates), not as a rule.
+- **Rotation timing: resolved for planning.** The official Organized Play FAQ and the Rules Hub both say 2028. TR 601.3's wording ("most recent 5–8 sets", "current year's plus previous year's") is a generic definition and does not match a 2027 rotation in practice; Riot has not published a 2027 rotation anywhere. Keep modelling legality as **data** (legal set codes per format with effective dates) so the 2028 change is one edit. Residual: whether OGS rotates with Origins (the FAQ's "Sets 1-5" does not list it). Riot says it will support other formats for rotated sets, details not published.
 - The 2027 Premier Play and Local Play program changes (announced 2026-10-26) haven't been researched yet.
 
 ## Impacts

@@ -9,6 +9,17 @@ superseded_by: "[[Tournament Deck Catalog]]"
 
 Moved out of [[Tournament Deck Catalog]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.6 (2026-11-24, H-171, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2, account-only): CAT-077 now saves
+  the copy in the signed-in user's account (browser = cache only, SPEC-010 SYNC-140…SYNC-145; ADR-0005 #1
+  superseded), CAT-078 gate always on (no local-only exception, "legacy local deck" wording gone). New CAT-079:
+  smooth scrolling for the event list and decklist rows, no page numbers or Previous / Next, rule defined in
+  SPEC-007 COLL-093. ACs 23 (event list scrolls without pages) and 24 (gate always on). Definitions, data-contract
+  comment and Summary reworded.
+- 0.5.1 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11 "Impacts"): CAT-077 "stores the copy in the
+  browser only" now reads by mode (local-only mode: browser only; account-required mode: a browser cache of the
+  signed-in account, cleared on sign-out); its no-popularity-data rule is unchanged (SYNC-102). New CAT-078
+  (SYNC-009 gate note: no Add / In your decks / Add another copy control while the gate is not open; Tournaments
+  stays public). The `TournamentDeckSource` storage comment follows.
 - 0.5 (2026-11-23): H-050. Versions the H-044 copy change already in the text: user-facing strings use lower-case
   "your". CAT-076 and AC16 confirmation `Added to Your decks` → `Added to your decks`; CAT-074 and AC17 button
   `In Your decks` → `In your decks`; CAT-070 action "Add to Your decks" → "Add to your decks", with the same change

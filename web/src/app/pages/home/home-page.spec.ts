@@ -1,27 +1,40 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { SIGN_IN_ENABLED } from '../../core/sync/sign-in-flag';
+import { environment } from '../../../environments/environment';
+import { environment as devEnvironment } from '../../../environments/environment.development';
 import { HomePage } from './home-page';
 
 describe('HomePage', () => {
-  async function render(signInEnabled = false) {
+  async function render() {
     TestBed.configureTestingModule({
       imports: [HomePage],
-      providers: [provideRouter([]), { provide: SIGN_IN_ENABLED, useValue: signInEnabled }],
+      providers: [provideRouter([])],
     });
     const fixture = TestBed.createComponent(HomePage);
     await fixture.whenStable();
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('shows the headline with the accent line and both import actions', async () => {
+  it('SYNC-159 (d) / IMP-060 / DECK-001 shows the headline and both import actions, linking to their pages', async () => {
     const el = await render();
     expect(el.querySelector('h1')?.textContent).toContain('Know what you own.');
     expect(el.querySelector('h1 .accent')?.textContent).toContain('Own what you need.');
     const hrefs = Array.from(el.querySelectorAll('.hero-actions a')).map((a) =>
       a.getAttribute('href'),
     );
-    expect(hrefs).toEqual(['/import?type=collection', '/import?type=deck']);
+    expect(hrefs).toEqual(['/collection?add=1', '/decks?import=1']);
+    const labels = Array.from(el.querySelectorAll('.hero-actions a')).map((a) => a.textContent?.trim());
+    expect(labels).toEqual(['Add to your collection', 'Import deck']);
+  });
+
+  it('SYNC-159 (d) / AC 80 the "Import your cards" button and the step tiles open the dialogs; nothing links to /import', async () => {
+    const el = await render();
+    const hrefs = Array.from(el.querySelectorAll('a')).map((a) => a.getAttribute('href') ?? '');
+    expect(hrefs.filter((h) => h.startsWith('/import'))).toEqual([]);
+    const steps = Array.from(el.querySelectorAll('.steps a')).map((a) => a.getAttribute('href'));
+    expect(steps).toEqual(['/collection?add=1', '/decks?import=1', '/decks']);
+    const cards = Array.from(el.querySelectorAll('.feature-actions a')).find((a) => a.textContent?.includes('Import your cards'));
+    expect(cards?.getAttribute('href')).toBe('/collection?add=1');
   });
 
   it('shows the three ownership states in the fan, each with a text label', async () => {
@@ -59,13 +72,15 @@ describe('HomePage', () => {
     }
   });
 
-  it('H-126: local-only mode (signInEnabled false) shows the hero note "Free"', async () => {
-    const el = await render(false);
-    expect(el.querySelector('.hero-note')?.textContent?.trim()).toBe('Free');
+  it('H-126 / SPEC-010 AC 63: the hero note reads "Free account" (every build is account-only)', async () => {
+    const el = await render();
+    expect(el.querySelector('.hero-note')?.textContent?.trim()).toBe('Free account');
   });
 
-  it('H-126: account-required mode (signInEnabled true) shows the hero note "Free account"', async () => {
-    const el = await render(true);
-    expect(el.querySelector('.hero-note')?.textContent?.trim()).toBe('Free account');
+  it('SPEC-010 AC 35 / AC 63: no environment has a sign-in flag; production and development differ only in build settings', () => {
+    const keys = ['apiBaseUrl', 'appVersion', 'authProviders', 'firebase', 'production'];
+    expect(Object.keys(environment).sort()).toEqual(keys);
+    expect(Object.keys(devEnvironment).sort()).toEqual(keys);
+    expect(devEnvironment.authProviders).toEqual(environment.authProviders);
   });
 });

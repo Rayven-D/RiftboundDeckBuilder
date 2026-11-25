@@ -3,20 +3,10 @@
     <h1>Collection</h1>
     @if (phase() === 'ready') {
       @if (isPhone()) {
-        <button
-          matIconButton
-          type="button"
-          class="more"
-          aria-label="More"
-          [matMenuTriggerFor]="moreMenu"
-        >
-          <app-icon name="more_vert" />
+        <!-- COLL-094 (j): with COLL-074 withdrawn the phone More menu held only Export CSV; one icon button now. -->
+        <button matIconButton type="button" class="more" aria-label="Export CSV" (click)="exportCsv()">
+          <app-icon name="download" />
         </button>
-        <mat-menu #moreMenu="matMenu" xPosition="before">
-          <button mat-menu-item type="button" (click)="exportCsv()">
-            <app-icon name="download" class="menu-icon" />Export CSV
-          </button>
-        </mat-menu>
       } @else {
         <button
           type="button"
@@ -46,6 +36,12 @@
   }
 </header>
 
+<!-- COLL-094 (a), (b), (f): only with the list shown (not loading, empty or on a banner); right after the header, so
+     Tab reaches it before the toolbar. -->
+@if (phase() === 'ready') {
+  <app-page-fab label="Add to your collection" icon="add" (pressed)="openImport()" />
+}
+
 @if (phase() === 'unreadable') {
   <div class="banner banner--danger" role="alert">
     <app-icon name="error" />
@@ -69,14 +65,16 @@
 }
 
 @if (phase() === 'empty') {
-  <app-empty-state
-    heading="Your collection is empty"
-    message="Import the cards you own and they will appear here."
-  >
-    <a class="button" routerLink="/import" [queryParams]="{ type: 'collection' }"
-      >Import collection</a
-    >
+  <!-- COLL-094 (g): the empty state's own button replaces the floating button. -->
+  <app-empty-state [heading]="emptyText.heading" [message]="emptyText.message">
+    <button #emptyAdd type="button" class="button" aria-haspopup="dialog" (click)="openImport()">
+      Add to your collection
+    </button>
   </app-empty-state>
+}
+
+@if (pending(); as p) {
+  <app-import-pending kind="collection" [result]="p" (again)="openImport()" (cleared)="pending.set(null)" />
 }
 
 @if (phase() === 'ready' || phase() === 'loading') {
@@ -277,3 +275,10 @@
     }
   }
 }
+
+<!-- COLL-094 (i) SHOULD: drop a file to add it (gate open, list or empty state shown). -->
+<app-file-drop
+  text="Drop to add to your collection"
+  [enabled]="phase() === 'ready' || phase() === 'empty'"
+  (dropped)="openImport($event)"
+/>

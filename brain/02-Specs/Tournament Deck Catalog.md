@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-004
-version: 0.5
+version: 0.6
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-006]
 research: ["[[Tournament Results]]", "[[Ban List]]", "[[Formats]]", "[[Riot Developer Rules]]", "[[Collection Import Formats]]", "[[Deck Construction Rules]]"]
@@ -25,6 +25,8 @@ as_of: 2026-11-23
 - CAT-040/041: historical lists shown by default, labelled `Contains cards banned since <date>`.
 - CAT-045: legality label mapping (historical, illegal, incomplete, legal).
 - CAT-070…074: one-click "Add to your decks" via SPEC-006 (DECK-060…065); default name trimmed to 80; "In your decks" / "Add another copy".
+- CAT-077/078 (v0.6, account-only): the copy is saved in the signed-in user's account (the browser only caches it, SPEC-010 SYNC-140…); the deck controls are hidden while the SYNC-009 gate is not open (Tournaments stays public).
+- CAT-079 (v0.6): smooth scrolling: the event list and decklist rows scroll continuously with no pagination, no page numbers (rule: SPEC-007 COLL-093).
 - CAT-060…064 (MUST NOT): no play/win rates, tiers, shares, aggregates or player ratings.
 
 **Shared types:** `TournamentEvent` · `CatalogDecklist` · `CardEntry` · `EventFile` (one file) · `DecklistLegality` (computed legality view) · `BannedCardRef` · `TournamentDeckSource` (defined in SPEC-006, mirrored here).
@@ -60,7 +62,7 @@ stored or shown. Legality of each list is **computed** by [[Deck Legality]] (SPE
   today** (it contains a card, battlefield or Legend banned after the event). Other rule failures or
   `incomplete` verdicts do not make a list historical.
 - **Tournaments screen**: the screen that shows the catalog (events and their Top 8).
-- **Decks**: the screen with the user's own deck list (SPEC-005/SPEC-006), stored in the browser. It never
+- **Decks**: the screen with the user's own deck list (SPEC-005/SPEC-006), saved in the user's account (CAT-077). It never
   lists catalog decklists automatically ([[ADR-0006 Two Imports - Collection and Decks]]).
 - **Tournament deck copy**: a deck in Decks created by "Add to your decks" (CAT-070…CAT-077).
 - **Riot decklist text**: Riot's sectioned decklist layout (Legend / Champion / Main Deck /
@@ -157,7 +159,9 @@ The IDs are retired and not reused.
 | CAT-074 | MUST | **Duplicates.** A decklist is "already added" when Decks holds a deck whose `source.decklistId` equals its `id`. Then the button reads `In your decks` and opens that deck, and a separate `Add another copy` link creates a further copy named with a ` (2)`, ` (3)`… suffix. One click on the primary action never creates a second copy. Editing a copy does not change this; deleting every copy makes "Add to your decks" available again. Identical lists from different pilots (CAT-050) have different ids, so each can be added once on its own. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 2 |
 | CAT-075 | MUST | The copy is independent: later edits to the user deck never change the catalog, and later catalog corrections never change existing copies. No legality is copied; Decks computes legality and ban status itself via SPEC-002 (SPEC-005). | [[Deck Legality]]; [[ADR-0006 Two Imports - Collection and Decks]] |
 | CAT-076 | MUST | After adding, the user sees a neutral confirmation `Added to your decks` with a link to open the deck. For a historical list the confirmation also shows the CAT-041 label. | [[ADR-0005 MVP Product Defaults]] decision 3 |
-| CAT-077 | MUST NOT | The action stores the copy in the browser only ([[ADR-0005 MVP Product Defaults]] decision 1) and MUST NOT send, count or display how many times a deck was added (no popularity data). | [[ADR-0003 Tournament Results Only]]; V-010 |
+| CAT-077 | MUST NOT | **Account-only storage (v0.6).** The action saves the copy as one of **the signed-in user's decks, in their account** ([[Accounts and Sync]] SPEC-010 SYNC-018); the browser holds only a cache of it (SYNC-140…SYNC-145), cleared on sign-out, account deletion and when a different account signs in. There is no browser-only copy ([[ADR-0005 MVP Product Defaults]] decision 1 is superseded). It MUST NOT send, count or display how many times a deck was added (no popularity data); the account copy is the user's own deck, not a count (SYNC-102). | [[ADR-0003 Tournament Results Only]]; V-010; [[Accounts and Sync]] SYNC-018, SYNC-102; [[ADR-0007 Firebase Accounts and Firestore]] amendment 2026-11-24 (2) |
+| CAT-078 | MUST | **Sign-in gate (SYNC-009, always on).** Tournaments itself stays public. While the gate is not open (signed out, session lost, or first sync running), Tournaments shows **no** "Add to your decks" (CAT-070), "In your decks" or "Add another copy" (CAT-074) control, and the CAT-074 "already added" check reads nothing from the browser cache. Everything else on Tournaments shows as usual. When the gate opens the controls appear without a reload, with the CAT-074 state computed from the account's decks. There is no mode without this gate. | [[Accounts and Sync]] SYNC-009 (RJ decision 13 h; amendment 2) |
+| CAT-079 | MUST | **Smooth scrolling, no pagination (v0.6, RJ 2026-11-24).** The Tournaments event list (CAT-030) and each event's decklist rows (CAT-031) scroll as one continuous list: they have **no page numbers, no Previous / Next page controls and no "Page n of m" text**, and no control that must be pressed to reveal more events or decklists. Events further down load or render as the user scrolls (the same rule as [[My Collection]] COLL-093, which defines the load-as-you-scroll behaviour, the placeholder rule and the performance target; it applies here unchanged). Order stays CAT-030 / CAT-031 and never changes while scrolling. A decklist's card sections (CAT-034, at most about 60 entries) are shown whole inside the deck detail and need no scrolling rule of their own. | RJ 2026-11-24 ("No physical pagination, more like an infinite scroll"); [[My Collection]] COLL-093 |
 
 ### ADR-0003 prohibitions
 | ID | Level | Requirement | Source |
@@ -257,7 +261,7 @@ interface CatalogEventView {
 
 // "Add to your decks" (CAT-072): the tournament variant of SPEC-006's DeckSource.
 // SPEC-006 owns the single definition; it must be identical to this field for field.
-// Stored in the browser with the user deck (ADR-0005); never sent to a server.
+// Stored with the user deck in the signed-in account (CAT-077; the browser holds a cache of it, SPEC-010 SYNC-140).
 interface TournamentDeckSource {
   kind: 'tournament';
   eventId: string;                  // '2026-11-rc-europe'
@@ -415,6 +419,12 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
 22. **Dates and labels.** **Given** a legal, fully checked list with `asOf` 2026-11-23 and RC Europe (2026-11-06 to
     2026-11-08), **When** shown, **Then** the label reads `Legal in Standard as of Nov 23, 2026` and the event dates read
     `Nov 6, 2026` and `Nov 8, 2026`; no date is shown as `2026-11-23` or `23 Nov 2026` (CAT-037).
+23. **Event list scrolls without pages** (CAT-079; v0.6) **Given** 60 events in the catalog (fixture) **When** the Tournaments
+    page opens **Then** the newest events show at once in CAT-030 order and no element reads "Page", "Next", "Previous"
+    or a page number, and there is no button whose only job is to reveal more events; **When** the user scrolls to the
+    bottom **Then** the older events appear continuously, in order, with no jump of the content already visible.
+24. **Gate always on** (CAT-078) **Given** a signed-out visitor, with no flag or build setting available to change it **When** they open
+    Tournaments **Then** every event and Top 8 shows and none of "Add to your decks", "In your decks", "Add another copy" does.
 
 ## Out of scope
 - The Decks screen, ownership display and ban status per card (SPEC-005, [[Your Decks Ownership View]]).
@@ -447,4 +457,4 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
   Confirm, or use the full Legend name.
 
 ## Changelog
-Current: 0.5 (2026-11-23). Full history: [[Tournament Deck Catalog changelog]] (archived). New entries go in the archive note.
+Current: 0.6 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: CAT-077 and CAT-078 without modes; new CAT-079 smooth scrolling, no pagination; ACs 23, 24). Previous: 0.5.1 (2026-11-25, H-160). Earlier: 0.5 (2026-11-23). Full history: [[Tournament Deck Catalog changelog]] (archived). New entries go in the archive note.

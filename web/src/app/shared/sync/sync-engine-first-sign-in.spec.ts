@@ -1,9 +1,8 @@
 /**
- * SPEC-010 v0.8 account-required mode, engine side (H-081): the first sign-in clears the device then downloads
+ * SPEC-010 engine side (built H-081, account-only since v0.12): the first sign-in clears the device then downloads
  * (SYNC-048, no Combine SYNC-049), sign-out clears the device (SYNC-090/091), the half-deleted branch clears
  * (SYNC-097), a lost session closes the gate (SYNC-086, `sessionLostUid`), and the gate itself (SYNC-009).
- * The engine only runs when `signInEnabled` is true; local-only mode is covered in `gate.spec.ts` and the
- * page tests.
+ * The browser cache rules (SYNC-140…146) are in `sync-engine-cache.spec.ts`.
  */
 import { FakeFirestore } from './testing/fakes';
 import { Device, T0, at, card, deckId } from './testing/device';
@@ -29,7 +28,7 @@ async function reopen(d: Device, opts: { uid?: string | null; appVersion?: strin
 }
 
 /** The gate as a fresh page computes it at its first frame: from the stored log only (SYNC-009). */
-const firstFrameGate = (d: Device) => gateState(true, d.stores.log.peek());
+const firstFrameGate = (d: Device) => gateState(d.stores.log.peek());
 const riftKeys = (d: Device) => d.backend.keys().filter((k) => k.startsWith('rift.'));
 const stateOrDeckWrites = (db: FakeFirestore) => db.writeLog.filter(([p]) => /\/(state|decks)\//.test(p));
 /** SYNC-050: every push the first-sign-in flow sent carries the account only (no `batch`, no state, decks or deletes). */
@@ -44,7 +43,7 @@ async function accountWith(db: FakeFirestore, cards: Record<string, number>): Pr
   return laptop;
 }
 
-describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
+describe('SyncEngine first sign-in, sign-out and the gate (SPEC-010 SYNC-009, H-081)', () => {
   let db: FakeFirestore;
   beforeEach(() => {
     db = new FakeFirestore();
@@ -247,19 +246,19 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       expect(db.get('users/uA').lastClientVersion).toBe('test-2');
     });
 
-    it('AC 48 / SYNC-008 a browser with local-only data switched to account-required: gate closed, then cleared on sign-in with 1 write', async () => {
+    it('AC 48 / AC 61 / SYNC-143 a browser with data from the old no-account build: gate closed, then cleared on sign-in with 1 write, nothing uploaded', async () => {
       const browser = new Device(db);
       for (let i = 0; i < 120; i++) await browser.setCard(`card ${i}`, 1);
       await browser.createDeck('Deck A');
       await browser.createDeck('Deck B');
-      expect(gateState(false, browser.stores.log.peek())).toBe('open'); // before the switch: no gate
-      expect(firstFrameGate(browser)).toBe('signed-out'); // after it: the panel, not the 120 cards
+      expect(firstFrameGate(browser)).toBe('signed-out'); // the panel, not the 120 cards
       db.resetCounts();
       await signIn(browser, 'uNew');
       expect(db.writeLog).toEqual([['users/uNew', 'set']]);
       expect(pushKeys(db)).toEqual([['account']]);
       expect(await browser.stores.collection.load()).toBeNull();
       expect(await browser.deckNames()).toEqual([]);
+      expect(stateOrDeckWrites(db)).toEqual([]); // SYNC-143: the cache is never uploaded
     });
   });
 

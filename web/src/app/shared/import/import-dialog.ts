@@ -23,13 +23,14 @@ export type ImportKind = 'collection' | 'deck';
 
 export interface ImportDialogData {
   readonly kind: ImportKind;
-  /** A file dropped on the Import page's option card: loaded through the same upload path. */
+  /** A file dropped on the Collection or Decks page (COLL-094 i, OWN-094): loaded through the same upload path. */
   readonly file?: File;
 }
 
 const COPY: Readonly<Record<ImportKind, { title: string; lede: string; action: string }>> = {
   collection: {
-    title: 'Import collection',
+    // SPEC-003 IMP-060 (v0.12, H-174): "Add to your collection" everywhere.
+    title: 'Add to your collection',
     lede: 'Paste the cards you own, or upload a file.',
     action: 'Continue',
   },
@@ -250,7 +251,7 @@ export class ImportDialog {
     void this.loadFile(file);
   }
 
-  /** The one upload path: picked, dropped on the text box, or dropped on the Import page card. */
+  /** The one upload path: picked, dropped on the text box, or dropped on the page that opened the dialog. */
   private async loadFile(file: File): Promise<void> {
     const request = ++this.uploadRequest;
     this.fileError.set(null);
