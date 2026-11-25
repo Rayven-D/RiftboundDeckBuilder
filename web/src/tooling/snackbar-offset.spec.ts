@@ -65,13 +65,19 @@ describe('H-101 snack bar offset above the phone tab bar', () => {
     expect(selectors.every((sel) => sel.startsWith('html.has-fab'))).toBe(true);
   });
 
-  it('H-176 COLL-094 (d), (e): while a floating button shows, the page ends clear of it and snack bars sit above it (no !important)', () => {
+  it('H-176 / H-245 COLL-094 (d), (e), OWN-094: snack bars sit above the floating button, docked or not (no !important)', () => {
     const css = stripComments(styles);
     const body = css.match(/html\.has-fab \.mat-mdc-snack-bar-container\.mat-mdc-snack-bar-container \{([^}]*)\}/)?.[1] ?? '';
-    expect(body).toContain('margin-bottom: var(--fab-clearance);');
+    expect(body).toContain('margin-bottom: calc(var(--fab-clearance) + var(--fab-dock, 0px));');
     expect(body).not.toContain('!important');
-    expect(css).toMatch(/--fab-clearance: calc\(var\(--space-5\) \+ 56px \+ var\(--space-3\)\);/);
-    expect(css).toMatch(/html\.has-fab app-root \{\s*padding-bottom: var\(--fab-clearance\);/);
+    expect(css).toMatch(/--fab-size: 56px;/);
+    expect(css).toMatch(/--fab-clearance: calc\(var\(--space-5\) \+ var\(--fab-size\) \+ var\(--space-3\)\);/);
     expect(css).toMatch(/html\.has-fab \{[^}]*scroll-padding-bottom: var\(--fab-clearance\);/);
+  });
+
+  it('H-245 D2 COLL-094 / OWN-094: the room for the button is reserved above the footer (inside main), none below it', () => {
+    const css = stripComments(styles);
+    expect(css).toMatch(/html\.has-fab \.site-main \{\s*padding-bottom: calc\(var\(--fab-size\) \+ 2 \* var\(--space-4\)\);/);
+    expect(css).not.toMatch(/html\.has-fab app-root/);
   });
 });
