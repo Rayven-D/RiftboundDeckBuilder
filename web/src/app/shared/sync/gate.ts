@@ -19,11 +19,10 @@ export interface GateRuntime {
 }
 
 /**
- * SYNC-008: in local-only mode (`signInEnabled` false) there is no gate. In account-required mode the gate is
- * open when a session is expected, the linked uid is set, a first sync completed and the session is not lost.
+ * The gate is open when a session is expected, the linked uid is set, a first sync completed and the session
+ * is not lost. There is no build in which it is off (SYNC-001, SYNC-007).
  */
-export function gateState(signInEnabled: boolean, log: StoredSyncLog | null, runtime: GateRuntime = {}): GateState {
-  if (!signInEnabled) return 'open';
+export function gateState(log: StoredSyncLog | null, runtime: GateRuntime = {}): GateState {
   if (!log?.sessionExpected) return 'signed-out';
   const linked = log.uid ?? null;
   if (linked !== null && log.sessionLostUid === linked) return 'session-lost';

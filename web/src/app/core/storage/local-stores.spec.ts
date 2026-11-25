@@ -10,7 +10,6 @@ import {
   LocalViewStateStore,
   STORAGE_KEYS,
   UnreadableRecordError,
-  clearCollectionData,
   clearLocalData,
 } from './local-stores';
 
@@ -142,24 +141,5 @@ describe('browser stores (SPEC-003/006/007/008 as mapped by SPEC-010)', () => {
     backend.set('other-app', '1');
     clearLocalData(backend);
     expect(backend.keys()).toEqual(['other-app']);
-  });
-
-  it('COLL-074 clearCollectionData removes collection, Undo snapshot, tag, printing-code and view data only', () => {
-    for (const k of [
-      STORAGE_KEYS.collection,
-      STORAGE_KEYS.collectionPrevious,
-      STORAGE_KEYS.tags,
-      STORAGE_KEYS.printingCodes,
-      STORAGE_KEYS.viewState,
-      STORAGE_KEYS.locks,
-      STORAGE_KEYS.syncLog,
-      `${STORAGE_KEYS.deckPrefix}x`,
-      'other-app',
-    ])
-      backend.set(k, '{}');
-    clearCollectionData(backend);
-    expect(backend.keys().sort()).toEqual(
-      [STORAGE_KEYS.locks, STORAGE_KEYS.syncLog, `${STORAGE_KEYS.deckPrefix}x`, 'other-app'].sort(),
-    );
   });
 });

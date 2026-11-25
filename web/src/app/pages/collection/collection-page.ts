@@ -20,7 +20,6 @@ import {
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatDivider } from '@angular/material/divider';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -31,7 +30,6 @@ import type { DeckLock, DeckOwnershipInput, StoredTags } from '../../core/decks'
 import { AppStores } from '../../core/storage/app-stores';
 import { KEY_PREFIX } from '../../core/storage/kv-backend';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
-import { SignInGate } from '../../core/sync/sign-in-gate';
 import {
   CARD_DIALOG_TITLE_ID,
   CardDialog,
@@ -64,11 +62,6 @@ import { exportCollectionCsv } from '../../shared/collection/export-csv';
 import { EmptyState } from '../../shared/empty-state';
 import { Icon } from '../../shared/icon';
 import type { StoredPrintingCodes } from '../../shared/storage/records';
-import {
-  DELETE_COLLECTION_DATA,
-  DeleteCollectionDataDialog,
-  DeleteCollectionDataDialogData,
-} from './delete-collection-data-dialog';
 
 type Phase = 'loading' | 'empty' | 'ready' | 'unreadable' | 'catalog-error';
 
@@ -108,9 +101,6 @@ interface Loaded {
  * - H-087: where an import lands and its Undo snack bar; the missing-catalog banner wording.
  * - H-091: the SPEC-007 parts the brief §9 defers (tags, exclude, steppers, filters, group view).
  * - H-089 / H-090: the dialog's Keywords section.
- *
- * COLL-074 (H-154): in local-only mode the More menu offers "Delete all local collection data"; in
- * account-required mode it is not offered (SYNC-052: Sign out clears this device).
  */
 @Component({
   selector: 'app-collection-page',
@@ -129,7 +119,6 @@ interface Loaded {
     MatMenuItem,
     MatMenuTrigger,
     MatIconButton,
-    MatDivider,
   ],
   templateUrl: './collection-page.html',
   styleUrl: './collection-page.scss',
@@ -147,15 +136,6 @@ export class CollectionPage {
 
   protected readonly sorts = SORTS;
   protected readonly phase = signal<Phase>('loading');
-  /** COLL-074 / SYNC-052: Delete all local collection data is offered in local-only mode only. */
-  protected readonly offerDelete = inject(SignInGate).offerDeleteLocalData;
-  protected readonly deleteText = DELETE_COLLECTION_DATA;
-  /** The More menu: Export CSV on phones, and the COLL-074 action whenever the page has settled. */
-  protected readonly showMore = computed(
-    () =>
-      (this.phase() === 'ready' && this.isPhone()) ||
-      (this.offerDelete && this.phase() !== 'loading'),
-  );
   protected readonly showSkeleton = signal(false);
   protected readonly skeleton = Array.from({ length: 12 }, (_, i) => i);
   private readonly loaded = signal<Loaded | null>(null);
@@ -170,8 +150,6 @@ export class CollectionPage {
   );
   private debounce: ReturnType<typeof setTimeout> | undefined;
   private queryReady = false;
-  /** The next query change only resets the page after COLL-074; it must not write view state again. */
-  private skipPersist = false;
 
   protected readonly urlNotice = signal<string | null>(null);
   protected readonly banDismissed = signal(false);
@@ -256,12 +234,10 @@ export class CollectionPage {
       const q = this.query();
       const sort = this.sort();
       if (!this.queryReady) return;
-      if (this.skipPersist) {
-        this.skipPersist = false;
-        untracked(() => this.mirrorUrl());
-        return;
-      }
-      untracked(() => this.persistQuery(q, sort));
+      untracked(() => {
+        this.persistQuery(q, sort);
+        this.scrollListToTop();
+      });
     });
     // Keep the roving tab stop on a tile that exists.
     effect(() => {
@@ -496,6 +472,21 @@ export class CollectionPage {
     if (i !== undefined) this.activeIndex.set(i);
   }
 
+  /**
+   * COLL-093 (d): a search or sort change shows the result from the top of the list. Only scrolls back when the
+   * list's top has gone under the sticky header and toolbar; the page above the list is left as it is.
+   */
+  private scrollListToTop(): void {
+    const host = this.gridHost()?.nativeElement;
+    if (!host) return;
+    const header =
+      host.ownerDocument.querySelector('.site-header')?.getBoundingClientRect().height ?? 64;
+    const toolbar =
+      host.ownerDocument.querySelector('.toolbar')?.getBoundingClientRect().height ?? 56;
+    const top = Math.max(0, host.getBoundingClientRect().top + scrollY - header - toolbar);
+    if (scrollY > top) scrollTo({ top });
+  }
+
   /** Scrolls the tile's row into view (it may not be rendered yet) and focuses its button. */
   private focusTile(entryId: string): void {
     const host = this.gridHost()?.nativeElement;
@@ -566,46 +557,6 @@ export class CollectionPage {
       }
       this.focusTile(id);
     });
-  }
-
-  // ---------------------------------------------------------------- delete local data (COLL-074)
-
-  /**
-   * COLL-074 (local-only mode): after the confirmation, deletes the collection, its import Undo snapshot,
-   * tags, printing codes and view state from this browser. Nothing is sent anywhere; decks and locks stay.
-   */
-  protected confirmDeleteData(): void {
-    if (!this.offerDelete) return; // SYNC-052: never in account-required mode
-    const ref = this.dialog.open<
-      DeleteCollectionDataDialog,
-      DeleteCollectionDataDialogData,
-      boolean
-    >(DeleteCollectionDataDialog, {
-      data: { canExport: this.phase() === 'ready' },
-      autoFocus: '.cancel',
-      width: 'min(28rem, calc(100vw - 2 * var(--content-gutter)))',
-    });
-    ref.afterClosed().subscribe((ok) => {
-      if (ok === true) void this.deleteData();
-    });
-  }
-
-  private async deleteData(): Promise<void> {
-    try {
-      await this.saveChain; // a query save in flight must not write view state back afterwards
-      await this.stores.clearCollectionData();
-    } catch {
-      this.snackBar.open(DELETE_COLLECTION_DATA.failed, undefined, { duration: 6000 });
-      return;
-    }
-    // The remembered query is gone: reset the page's own query without saving it again.
-    if (this.query() !== '' || this.sort() !== 'set') {
-      this.skipPersist = true;
-      this.setQuery('', 'set');
-    }
-    this.urlNotice.set(null);
-    await this.load(false);
-    this.snackBar.open(DELETE_COLLECTION_DATA.done, undefined, { duration: 6000 });
   }
 
   // ---------------------------------------------------------------- export (IMP-055)

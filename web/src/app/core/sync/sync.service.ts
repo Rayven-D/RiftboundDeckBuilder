@@ -12,10 +12,8 @@ import { enabledProviders } from '../../shared/sync/sync-types';
 import type { AuthService, RemoteStore, SyncStatus } from '../../shared/sync/sync-types';
 import { AppStores } from '../storage/app-stores';
 import { SignInGate } from './sign-in-gate';
-import { AUTH_PROVIDERS, SIGN_IN_ENABLED } from './sign-in-flag';
+import { AUTH_PROVIDERS } from './auth-providers';
 import { ConfirmEmailDialog, SignInDialog, SignInDialogData } from './sync-dialogs';
-
-export { SIGN_IN_ENABLED };
 
 export type AdapterLoader = () => Promise<{ auth: AuthService; remote: RemoteStore }>;
 
@@ -68,7 +66,6 @@ export function isEmailLinkUrl(href: string): boolean {
 /** Wires the pure `SyncEngine` to the browser: stores, dialogs, notices, and the SYNC-040 triggers. */
 @Injectable({ providedIn: 'root' })
 export class SyncService {
-  readonly enabled = inject(SIGN_IN_ENABLED);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly app = inject(AppStores);
@@ -123,9 +120,12 @@ export class SyncService {
     });
   }
 
-  /** App start-up. With the flag off nothing happens, so `firebase` is never loaded (SYNC-007, SYNC-002). */
+  /**
+   * App start-up. Loads `firebase` only on a SYNC-002 trigger (an expected session or an email sign-in link);
+   * there is no flag that turns sync off (SYNC-007).
+   */
   start(): void {
-    if (!this.enabled || this.started) return;
+    if (this.started) return;
     this.started = true;
     addEventListener('online', this.onOnline);
     addEventListener('offline', this.onOffline);

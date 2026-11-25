@@ -12,7 +12,7 @@ import { EmptyState } from '../../shared/empty-state';
       <h1>Decks</h1>
       <p class="page-lede">Decks you've imported. Cards you own are shown in full color.</p>
     </header>
-    <!-- SYNC-009: gated in account-required mode; always open in local-only mode. -->
+    <!-- SYNC-009: gated (account-only, SPEC-010 v0.12). -->
     @if (gate.open()) {
       <app-empty-state
         heading="No decks to show yet"

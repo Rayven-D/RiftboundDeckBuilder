@@ -9,7 +9,7 @@ import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { AccountMenu } from './account-menu';
 import { SEND_LINK_FAILED, SIGN_IN_INTRO, SignInDialog } from './sync-dialogs';
-import { SIGN_IN_ENABLED, SYNC_ADAPTERS, SyncService } from './sync.service';
+import { SYNC_ADAPTERS, SyncService } from './sync.service';
 import { environment } from '../../../environments/environment';
 import { MESSAGES } from '../../shared/sync/sync-engine';
 import { enabledProviders } from '../../shared/sync/sync-types';
@@ -81,7 +81,6 @@ describe('Sign-in dialog layout and Send link (SPEC-010 v0.10 SYNC-006)', () => 
       TestBed.configureTestingModule({
         imports: [AccountMenu],
         providers: [
-          { provide: SIGN_IN_ENABLED, useValue: true },
           {
             provide: SYNC_ADAPTERS,
             useValue: async () => {

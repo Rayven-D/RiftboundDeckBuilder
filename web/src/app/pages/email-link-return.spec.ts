@@ -16,8 +16,8 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../app.routes';
 import { STORAGE_KEYS } from '../core/storage/local-stores';
 import { SignInGate } from '../core/sync/sign-in-gate';
-import { AUTH_PROVIDERS } from '../core/sync/sign-in-flag';
-import { SIGN_IN_ENABLED, SYNC_ADAPTERS, SyncService } from '../core/sync/sync.service';
+import { AUTH_PROVIDERS } from '../core/sync/auth-providers';
+import { SYNC_ADAPTERS, SyncService } from '../core/sync/sync.service';
 import { MESSAGES } from '../shared/sync/sync-engine';
 import { emptySyncLog } from '../shared/sync/sync-log';
 import type { AuthProviderId, StoredSyncLog } from '../shared/sync/sync-types';
@@ -67,7 +67,6 @@ describe('H-145 email link returns to the start page (SPEC-010 SYNC-006, AC 52, 
         provideRouter(routes, withComponentInputBinding()),
         // The real address bar (jsdom history), not TestBed's mock, so the tests see what the user would.
         { provide: PlatformLocation, useClass: BrowserPlatformLocation },
-        { provide: SIGN_IN_ENABLED, useValue: true },
         { provide: AUTH_PROVIDERS, useValue: providers },
         { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote }) },
         { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },

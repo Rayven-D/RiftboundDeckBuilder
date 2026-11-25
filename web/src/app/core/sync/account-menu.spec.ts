@@ -5,7 +5,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { AccountMenu } from './account-menu';
 import * as dialogs from './sync-dialogs';
 import { DeleteAccountDialog, SignInDialog, SignOutDialog } from './sync-dialogs';
-import { SIGN_IN_ENABLED, SYNC_ADAPTERS, SyncService, isEmailLinkUrl } from './sync.service';
+import { SYNC_ADAPTERS, SyncService, isEmailLinkUrl } from './sync.service';
 import { environment } from '../../../environments/environment';
 import { enabledProviders } from '../../shared/sync/sync-types';
 import type { StoredSyncLog } from '../../shared/sync/sync-types';
@@ -21,13 +21,12 @@ const isDisabled = (b: HTMLButtonElement) => b.disabled || b.getAttribute('aria-
 
 describe('Sign-in UI (SPEC-010)', () => {
   let adapterLoads: number;
-  const setup = (enabled: boolean) => {
+  const setup = () => {
     adapterLoads = 0;
     localStorage.clear();
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
-        { provide: SIGN_IN_ENABLED, useValue: enabled },
         {
           provide: SYNC_ADAPTERS,
           useValue: async () => {
@@ -39,17 +38,8 @@ describe('Sign-in UI (SPEC-010)', () => {
     });
   };
 
-  it('SYNC-007 / AC 35 with signInEnabled false no Sign in action is shown and nothing loads Firebase', async () => {
-    setup(false);
-    const fixture = TestBed.createComponent(AccountMenu);
-    TestBed.inject(SyncService).start();
-    await fixture.whenStable();
-    expect(buttons(fixture.nativeElement)).toEqual([]);
-    expect(adapterLoads).toBe(0);
-  });
-
-  it('SYNC-007 / SYNC-002 with signInEnabled true the Sign in action is shown, still without loading Firebase', async () => {
-    setup(true);
+  it('SYNC-007 / SYNC-002 / AC 35 the Sign in action is shown to a signed-out visitor (no sign-in flag), still without loading Firebase', async () => {
+    setup();
     const fixture = TestBed.createComponent(AccountMenu);
     TestBed.inject(SyncService).start();
     await fixture.whenStable();
@@ -58,7 +48,7 @@ describe('Sign-in UI (SPEC-010)', () => {
   });
 
   it('SYNC-002 a stored linked uid with sessionExpected false loads no Firebase at start-up', async () => {
-    setup(true);
+    setup();
     const seeded: StoredSyncLog = { ...emptySyncLog(), uid: 'uA', sessionExpected: false, lastFullSyncAt: 1, cursors: { state: 1, decks: 1 } };
     localStorage.setItem(STORAGE_KEYS.syncLog, JSON.stringify(seeded));
     const fixture = TestBed.createComponent(AccountMenu);
@@ -469,7 +459,6 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
-        { provide: SIGN_IN_ENABLED, useValue: true },
         { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote }) },
         {
           provide: MatSnackBar,
@@ -544,7 +533,6 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
-        { provide: SIGN_IN_ENABLED, useValue: true },
         { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote: new FakeRemote(db) }) },
         {
           provide: MatSnackBar,

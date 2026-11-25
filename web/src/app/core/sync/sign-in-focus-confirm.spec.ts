@@ -12,7 +12,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountMenu } from './account-menu';
 import { SignInPanel } from './sign-in-panel';
 import { CONFIRM_EMAIL_TEXT } from './sync-dialogs';
-import { SIGN_IN_ENABLED, SYNC_ADAPTERS, SyncService, focusDocumentStart, refocusAfterDialog } from './sync.service';
+import { SYNC_ADAPTERS, SyncService, focusDocumentStart, refocusAfterDialog } from './sync.service';
 import type { SyncEngine } from '../../shared/sync/sync-engine';
 
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -33,7 +33,6 @@ function configure(): void {
   localStorage.clear();
   TestBed.configureTestingModule({
     providers: [
-      { provide: SIGN_IN_ENABLED, useValue: true },
       {
         provide: SYNC_ADAPTERS,
         useValue: async () => {

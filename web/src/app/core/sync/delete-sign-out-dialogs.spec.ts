@@ -13,7 +13,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountMenu } from './account-menu';
 import { DeleteAccountDialog, SIGN_OUT_TEXT, SignOutDialog } from './sync-dialogs';
-import { SIGN_IN_ENABLED, SYNC_ADAPTERS, SyncService } from './sync.service';
+import { SYNC_ADAPTERS, SyncService } from './sync.service';
 import { MESSAGES } from '../../shared/sync/sync-engine';
 import type { StoredSyncLog } from '../../shared/sync/sync-types';
 import { emptySyncLog } from '../../shared/sync/sync-log';
@@ -295,7 +295,6 @@ describe('H-143 account menu: delete dialog state at open and the Sign out hand-
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
-        { provide: SIGN_IN_ENABLED, useValue: true },
         { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote: new FakeRemote(db) }) },
         { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
         { provide: InteractivityChecker, useClass: VisibleInteractivityChecker },

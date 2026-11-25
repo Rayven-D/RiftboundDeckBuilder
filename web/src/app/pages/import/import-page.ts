@@ -39,7 +39,7 @@ interface PendingImport {
       <p class="page-lede">Add cards you own, or deck lists you want to build.</p>
     </header>
 
-    <!-- SYNC-009: gated in account-required mode; always open in local-only mode. -->
+    <!-- SYNC-009: gated (account-only, SPEC-010 v0.12). -->
     @if (!gate.open()) {
       <app-sign-in-panel />
     } @else {

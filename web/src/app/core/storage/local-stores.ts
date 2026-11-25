@@ -328,21 +328,3 @@ export class LocalDeckLockStore implements DeckLockStore {
 export function clearLocalData(backend: KeyValueBackend): void {
   for (const k of backend.keys()) if (k.startsWith(KEY_PREFIX)) backend.remove(k);
 }
-
-/**
- * The records SPEC-007 COLL-074 "Delete all local collection data" removes: the collection (and its import
- * Undo snapshot, so Undo can't bring it back), tags, printing codes and view state. Decks, locks and the sync
- * log stay.
- */
-export const COLLECTION_DATA_KEYS: readonly string[] = [
-  STORAGE_KEYS.collection,
-  STORAGE_KEYS.collectionPrevious,
-  STORAGE_KEYS.tags,
-  STORAGE_KEYS.printingCodes,
-  STORAGE_KEYS.viewState,
-];
-
-/** COLL-074 (local-only mode): deletes the local collection data. Nothing is sent anywhere. */
-export function clearCollectionData(backend: KeyValueBackend): void {
-  for (const k of COLLECTION_DATA_KEYS) backend.remove(k);
-}

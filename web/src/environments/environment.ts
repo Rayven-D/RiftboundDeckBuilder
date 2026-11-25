@@ -1,4 +1,5 @@
-// Production build config. Front-end config is public: never put secrets or API keys here.
+// Production and preview build config (SPEC-010 SYNC-007: the two differ only in `appVersion`; there is no
+// sign-in flag, every build is account-only). Front-end config is public: never put secrets or API keys here.
 // (A Firebase web `apiKey` is a public project identifier, not a secret; access is enforced by firestore.rules.)
 /**
  * SPEC-010 SYNC-012: the per-build `appVersion`, `web-<prod|preview>-<7 hex of the commit>` (or the UTC build
@@ -10,11 +11,6 @@ declare const APP_VERSION: string;
 export const environment = {
   production: true,
   apiBaseUrl: '/api',
-  /**
-   * SPEC-010 SYNC-007: sign-in and sync stay hidden (and `firebase` is never loaded) until RJ approves
-   * the privacy notice (SYNC-101). Turn on only by RJ's decision.
-   */
-  signInEnabled: false,
   /** Written to `users/{uid}.lastClientVersion` (SYNC-012, ≤ 40 characters); see APP_VERSION above. */
   appVersion: typeof APP_VERSION === 'string' ? APP_VERSION : 'web-dev',
   /**

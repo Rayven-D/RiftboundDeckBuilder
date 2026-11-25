@@ -13,7 +13,7 @@ import { EmptyState } from '../../shared/empty-state';
       <h1>Deck detail</h1>
       <p class="page-lede">Which cards you own and which you're missing.</p>
     </header>
-    <!-- SYNC-009: gated in account-required mode; always open in local-only mode. -->
+    <!-- SYNC-009: gated (account-only, SPEC-010 v0.12). -->
     @if (gate.open()) {
       <app-empty-state
         heading="Deck not available yet"

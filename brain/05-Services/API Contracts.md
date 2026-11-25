@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.14
+version: 1.15
 ---
 # API Contracts
 
@@ -216,12 +216,12 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   Owned Cards Import in Replace mode (one `set()`, SYNC-014) and keeps the Undo snapshot (IMP-052).
   Saves to an area whose cloud document is newer throw `ReadOnlyAreaError` (SYNC-046 message).
   `TagStore.load()` migrates long tag ids to `t_` + 6 base-62 (`schemaVersion: 3`, SYNC-016).
-- **Delete all local collection data (SPEC-007 COLL-074, H-154):** `BrowserStores.clearCollectionData(): Promise<void>`
-  (local-only mode only; account-required mode doesn't offer it, SYNC-052) removes `rift.collection`,
-  `rift.collection.previous` (the import Undo snapshot), `rift.tags`, `rift.printingCodes` and `rift.viewState`
-  on the store queue (`COLLECTION_DATA_KEYS`, `clearCollectionData(backend)` in `core/storage/local-stores.ts`).
-  Decks, locks and the sync log stay; no Firebase request. `clearLocalData(backend)` (every `rift.*` key) is
-  for sign-out (SYNC-091) and deletion (SYNC-096) only. There is no `SyncService.deleteLocalData()`.
+- **Browser cache (SPEC-010 SYNC-140…146, H-172):** the stores are the signed-in account's cache. There is no
+  browser-only delete (SPEC-007 COLL-074 and SYNC-052 withdrawn; `BrowserStores.clearCollectionData()` and
+  `COLLECTION_DATA_KEYS` removed in H-172). `clearLocalData(backend)` (every `rift.*` key) is the only clear, and
+  only the SYNC-142 events call it: sign-out (SYNC-091), account deletion (SYNC-096), the SYNC-097 deleted /
+  half-deleted sign-outs and the first-sign-in clear (SYNC-048). Keys outside `rift.*` (the browser's HTTP cache of
+  the card catalog and images, Firebase Auth's own session) are not touched. There is no `SyncService.deleteLocalData()`.
 - **Engine form of documents:** every Firestore `Timestamp` is milliseconds inside the engine; the adapter
   (`web/src/app/core/sync/adapters/firebase-adapters.ts`, the only Firebase import, lazy-loaded) converts
   and writes `syncedAt` with `serverTimestamp()`.
@@ -265,19 +265,20 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   engine is stopped. The account menu reads `needsRecentSignIn() && !canReauthenticate()` once when it opens the
   delete dialog (`DeleteAccountDialogData.signInFirst`); the dialog closes with `true` (delete), `'sign-out'`
   (open the SYNC-090 dialog) or nothing. The engine's step 1 check on confirm is unchanged.
-- **Account-required mode (SYNC-008/009/048/086/090/091/097, H-081):** the sync engine runs only when
-  `signInEnabled` is true, so everything below applies to that mode; with `signInEnabled: false` nothing here
-  runs (no gate, no clearing).
+- **Sign-in gate and device clears (SYNC-009/048/086/090/091/097, H-081; every build since H-172):** there is no
+  build flag (`signInEnabled` and the `SIGN_IN_ENABLED` token were removed in H-172, SYNC-007); the header account
+  control and `SyncService.start()` run in every build and load `firebase` only on a SYNC-002 trigger.
+  `AUTH_PROVIDERS` (SYNC-006) now lives in `core/sync/auth-providers.ts` (was `sign-in-flag.ts`).
   - Sync log `sessionLostUid?: string | null`: set to the linked uid when a lost session is detected (SYNC-086);
     cleared by a successful sign-in with that uid, by a start-up whose restore returns the linked uid and passes
     the account check, and by every log clear (`emptySyncLog()` writes `sessionLostUid: null` and no longer writes
     `uploadingUid`).
-  - Gate (pure, `web/src/app/shared/sync/gate.ts`): `gateState(signInEnabled, log, { firstSyncFailed?, sessionLost? })`
-    → `'open' | 'signed-out' | 'session-lost' | 'first-sync' | 'first-sync-failed'`; always `'open'` in local-only
-    mode. `LocalSyncLogStore.peek()` reads the log synchronously so the gate is right at the first frame.
+  - Gate (pure, `web/src/app/shared/sync/gate.ts`): `gateState(log, { firstSyncFailed?, sessionLost? })`
+    → `'open' | 'signed-out' | 'session-lost' | 'first-sync' | 'first-sync-failed'` (H-172: the first
+    `signInEnabled` parameter is gone). `LocalSyncLogStore.peek()` reads the log synchronously so the gate is right at the first frame.
     `SyncEngine.gate()` adds the session's runtime state. Angular: `SignInGate` (`core/sync/sign-in-gate.ts`):
     `state`, `open`, `deckControls` (Tournaments Add to your decks / In your decks / Add another copy render only
-    while true), `offerDeleteLocalData` (SYNC-052: true only in local-only mode), `signIn(trigger?: HTMLElement)`,
+    while true), `signIn(trigger?: HTMLElement)` (H-172: `offerDeleteLocalData` removed),
     `retry()`; kept current by `SyncService`. **H-125:** `SyncService.openSignIn(trigger?: HTMLElement)`: the header
     and panel Sign in pass their button; the dialog opens with `restoreFocus: trigger ?? true`, and after close
     `refocusAfterDialog(trigger)` (exported from `sync.service.ts`) puts focus on the trigger, or `#main` when the
@@ -373,16 +374,17 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   the first 7 characters of the full commit id, lowercased (`git rev-parse HEAD`, else `GITHUB_SHA`), or the
   UTC build time `YYYYMMDDTHHMMSSZ` when neither gives a full id. ≤ 40 characters of `[0-9A-Za-z._+-]`; the
   script fails the build rather than ship anything else. Pure logic: `web/scripts/app-version.mjs`
-  (`appVersion`, `resolveCommitId`, `formatBuildTime`, `ngBuildArgs`). `environment.ts` and
-  `environment.preview.ts` read `APP_VERSION`; a bare `ng build` without the define falls back to `web-dev`.
+  (`appVersion`, `resolveCommitId`, `formatBuildTime`, `ngBuildArgs`). `environment.ts` (used by
+  both the production and the preview build since H-172; `environment.preview.ts` was removed) reads `APP_VERSION`; a bare `ng build` without the define falls back to `web-dev`.
   The dev server keeps `web-dev` (`environment.development.ts`); unit tests inject their own value.
   The id is the commit checked out: uncommitted changes do not change it.
-- **Builds** (from `web/`): `npm run build` = production (`signInEnabled: false`, `web-prod-…`, output
-  `web/dist/web`); `npm run build:preview` = `ng build --configuration preview` (`signInEnabled: true`,
-  `web-preview-…`, output `web/dist/web-preview`).
+- **Builds** (from `web/`): `npm run build` = production (`web-prod-…`, output `web/dist/web`);
+  `npm run build:preview` = `ng build --configuration preview` (`web-preview-…`, output `web/dist/web-preview`).
+  Since H-172 the two differ only in `appVersion` and output path: both are account-only (SYNC-007), and the
+  production build must not be deployed until the SYNC-007 release rule is met (H-063, H-152, rules deployed).
 - **Production deploys (unchanged):** `firebase deploy --only hosting` and the GitHub Actions deploy of `main`
   run the `firebase.json` predeploy `npm --prefix web run build` and upload `web/dist/web/browser`.
-- **Preview deploy (SYNC-007), the only supported way to put sign-in on a URL:**
+- **Preview deploy (SYNC-007), the only supported way to put the account-only build on a URL until the release rule is met:**
   `npm run deploy:preview -- <channel> [expires]` from `web/` (e.g. `npm run deploy:preview -- sync-test`).
   It runs `firebase hosting:channel:deploy <channel> --config firebase.preview.json [--expires <expires>]` from
   the repo root. `firebase.preview.json` has the same hosting rules as `firebase.json`, but its predeploy is
@@ -435,3 +437,8 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.15 (2026-11-25, H-172, SPEC-010 v0.12 account-only): no endpoint change. Removed: the `signInEnabled`
+  environment flag, `SIGN_IN_ENABLED`, `environment.preview.ts` (preview builds `environment.ts`),
+  `SignInGate.offerDeleteLocalData`, `BrowserStores.clearCollectionData()`, `COLLECTION_DATA_KEYS`. Changed:
+  `gateState(log, runtime?)` (no mode parameter); `AUTH_PROVIDERS` moved to `core/sync/auth-providers.ts`. New
+  "Browser cache" note (SYNC-140…146). Test helper `provideOpenGate()` (`core/sync/testing/open-gate.ts`).

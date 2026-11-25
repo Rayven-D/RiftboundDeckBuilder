@@ -28,7 +28,8 @@ jobs:
         run: npm ci --prefix web
 
       # firebase.json's predeploy hook runs `npm --prefix web run build`: the production build
-      # (signInEnabled false, appVersion web-prod-<first 7 hex of the commit>, from git or GITHUB_SHA)
+      # (appVersion web-prod-<first 7 hex of the commit>, from git or GITHUB_SHA). The account-only build must
+      # not reach production until the SPEC-010 SYNC-007 release rule is met (H-063, H-152, rules deployed).
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_RIFTBOUND_DECKBUILDER }}
