@@ -14,6 +14,9 @@ import { AppStores } from '../storage/app-stores';
 import { SignInGate } from './sign-in-gate';
 import { AUTH_PROVIDERS } from './auth-providers';
 import { ConfirmEmailDialog, SignInDialog, SignInDialogData } from './sync-dialogs';
+import { UsernameDialog, UsernameDialogData, UsernameSaveResult } from './account-dialogs';
+import { USERNAME_TEXT } from '../../shared/account/username';
+import { NoticeLayer } from '../notice-layer';
 
 export type AdapterLoader = () => Promise<{ auth: AuthService; remote: RemoteStore }>;
 
@@ -76,9 +79,27 @@ export class SyncService {
   private readonly injector = inject(Injector);
 
   readonly status = signal<SyncStatus>({ kind: 'signed-out' });
-  readonly statusLine = computed(() => statusText(this.status()));
   readonly online = signal(typeof navigator === 'undefined' ? true : navigator.onLine);
-  readonly signedIn = computed(() => this.status().kind !== 'signed-out');
+  /**
+   * SYNC-150 (a), (e): the header shows the account control when this device has a session (the sync log expects
+   * one and it is not lost), decided from the log at the first frame like the gate (SYNC-009), so a signed-in
+   * reload shows it at once, also offline and before the session restore finishes.
+   */
+  private readonly hasSession = computed(() => {
+    const g = this.gate.state();
+    return g === 'open' || g === 'first-sync' || g === 'first-sync-failed';
+  });
+  readonly signedIn = computed(() => this.status().kind !== 'signed-out' || this.hasSession());
+  /** SYNC-084; while the session restore at start-up runs, the menu reads "Syncing…". */
+  readonly statusLine = computed(() =>
+    this.status().kind === 'signed-out' && this.hasSession()
+      ? statusText({ kind: 'syncing', pendingCount: 0 })
+      : statusText(this.status()),
+  );
+  /** SYNC-150 / SYNC-156: the username from the sync log (`null` = none). Read synchronously at the first frame. */
+  readonly username = signal<string | null>(this.app.stores.log.peek()?.username ?? null);
+  /** SYNC-154: the first sync of this device completed, so a username can be saved. */
+  readonly accountReady = computed(() => this.gate.state() === 'open');
   /** SYNC-096: this device's own unfinished deletion of the signed-in account (Try again, Cancel deletion). */
   readonly deletion = signal<{ canCancel: boolean } | null>(null);
 
@@ -89,6 +110,9 @@ export class SyncService {
   private destroyed = false;
 
   constructor() {
+    // H-189 finding 9: notices show above a dialog opened after them. Started here (the deferred account control
+    // loads this service on every page) rather than at bootstrap, so MatDialog stays out of the initial bundle.
+    inject(NoticeLayer);
     const stores = this.app.stores;
     this.engine = new SyncEngine({
       local: stores.raw,
@@ -100,8 +124,10 @@ export class SyncService {
       isOnline: () => navigator.onLine,
       notify: (m, kind) => this.notify(m, kind),
       leaveSignInLink: () => this.leaveSignInLink(),
+      onAccountCreated: () => this.promptUsername(),
       onStatus: (s) => {
         this.status.set(s);
+        this.username.set(this.engine.username());
         this.deletion.set(this.engine.unfinishedDeletion());
         this.gate.set(this.engine.gate()); // SYNC-009
       },
@@ -203,6 +229,43 @@ export class SyncService {
       refocusAfterDialog(trigger);
       afterNextRender(() => refocusAfterDialog(trigger), { injector: this.injector });
     }
+  }
+
+  /**
+   * SYNC-155: saves a normalized, valid username (one update() of users/{uid}); on success the header and menu
+   * update through `username` and the success notice "Username saved." shows (SYNC-087, 6 s, polite).
+   */
+  async saveUsername(value: string): Promise<UsernameSaveResult> {
+    const r = await this.engine.setUsername(value);
+    if (r === 'ok') this.notify(USERNAME_TEXT.saved, 'success');
+    return r;
+  }
+
+  /**
+   * SYNC-154: the one-time "Choose a username" prompt after a sign-in that created the account, over the page the
+   * sign-in returned to, also while the first sync runs (Save waits for it). Not now or Escape: no name. Focus
+   * then goes to the header account control.
+   */
+  async promptUsername(): Promise<void> {
+    if (this.destroyed) return;
+    const data: UsernameDialogData = {
+      mode: 'choose',
+      current: null,
+      online: this.online,
+      ready: this.accountReady,
+      save: (v) => this.saveUsername(v),
+    };
+    const ref = this.dialog.open<UsernameDialog, UsernameDialogData, string>(UsernameDialog, {
+      data,
+      autoFocus: false,
+      restoreFocus: false,
+      width: '28rem',
+    });
+    await firstValueFrom(ref.afterClosed());
+    if (this.destroyed) return;
+    const control = document.querySelector<HTMLElement>('.account-trigger');
+    if (control) control.focus();
+    else refocusAfterDialog(undefined);
   }
 
   deleteAccount(): Promise<'ok' | 'cancelled' | 'needs-sign-in' | 'failed' | 'offline'> {

@@ -10,6 +10,8 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -23,11 +25,12 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { map } from 'rxjs';
+import { ActivatedRoute } from '@angular/router';
+import { map, take } from 'rxjs';
 import { CardData } from '../../core/cards/card-data';
 import type { DeckLock, DeckOwnershipInput, StoredTags } from '../../core/decks';
 import { AppStores } from '../../core/storage/app-stores';
+import { refocusAfterDialog } from '../../core/sync/sync.service';
 import { KEY_PREFIX } from '../../core/storage/kv-backend';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
 import {
@@ -60,10 +63,22 @@ import {
 } from '../../shared/collection/collection-view';
 import { exportCollectionCsv } from '../../shared/collection/export-csv';
 import { EmptyState } from '../../shared/empty-state';
+import { FileDrop } from '../../shared/import/file-drop';
+import { ImportDialog, ImportDialogData } from '../../shared/import/import-dialog';
+import { IMPORT_PARAMS, dialogOpener, importFocusTarget, launchDecision } from '../../shared/import/import-launch';
+import { ImportPending } from '../../shared/import/import-pending';
+import { ParseResult } from '../../shared/import/parse-card-list';
+import { PageFab } from '../../shared/page-fab';
 import { Icon } from '../../shared/icon';
 import type { StoredPrintingCodes } from '../../shared/storage/records';
 
 type Phase = 'loading' | 'empty' | 'ready' | 'unreadable' | 'catalog-error';
+
+/** SPEC-007 COLL-094 (g) empty state (v0.12, H-174). */
+export const COLLECTION_EMPTY = {
+  heading: 'Your collection is empty',
+  message: "Add the cards you own and they'll show up here.",
+} as const;
 
 const PHONE = '(max-width: 39.99rem)';
 const DESKTOP = '(min-width: 64rem)';
@@ -99,6 +114,8 @@ interface Loaded {
  *
  * Seams left on purpose:
  * - H-087: where an import lands and its Undo snack bar; the missing-catalog banner wording.
+ * - H-176 (COLL-094, SYNC-159): "Add to your collection" opens here (floating button, empty state, `?add=1`, a dropped
+ *   file); the dialog's list is shown as not saved yet until the import commit is built.
  * - H-091: the SPEC-007 parts the brief §9 defers (tags, exclude, steppers, filters, group view).
  * - H-089 / H-090: the dialog's Keywords section.
  */
@@ -106,8 +123,10 @@ interface Loaded {
   selector: 'app-collection-page',
   imports: [
     EmptyState,
-    RouterLink,
     Icon,
+    PageFab,
+    FileDrop,
+    ImportPending,
     CollectionTile,
     CdkVirtualScrollViewport,
     CdkVirtualScrollableWindow,
@@ -133,6 +152,7 @@ export class CollectionPage {
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly breakpoints = inject(BreakpointObserver);
+  private readonly injector = inject(Injector);
 
   protected readonly sorts = SORTS;
   protected readonly phase = signal<Phase>('loading');
@@ -152,6 +172,15 @@ export class CollectionPage {
   private queryReady = false;
 
   protected readonly urlNotice = signal<string | null>(null);
+  /** COLL-094 (g) empty state. */
+  protected readonly emptyText = COLLECTION_EMPTY;
+  /** The list the import dialog closed with (not saved yet; see ImportPending). */
+  protected readonly pending = signal<ParseResult | null>(null);
+  private readonly fab = viewChild(PageFab);
+  private readonly emptyAdd = viewChild<ElementRef<HTMLButtonElement>>('emptyAdd');
+  /** SYNC-159 (c): the `add` parameter as the page was opened; handled once. */
+  private addParam: string | null = null;
+  private addHandled = false;
   protected readonly banDismissed = signal(false);
   protected readonly locksDismissed = signal(false);
   protected readonly decksDismissed = signal(false);
@@ -227,9 +256,25 @@ export class CollectionPage {
     this.tileMin.set(9 * rem);
 
     // URL ↔ query (COLL-060…063): URL wins; without params the remembered query comes back.
-    this.route.queryParamMap
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((p) => void this.applyUrl(p.get('q'), p.get('sort')));
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p) => {
+      if (!this.addHandled) this.addParam = p.get(IMPORT_PARAMS.collection);
+      void this.applyUrl(p.get('q'), p.get('sort'));
+    });
+    // SYNC-159 (c) / COLL-094 (h): `?add=1` opens the dialog once the page can import (list or empty state) and is
+    // then removed from the address without a history entry; a page that cannot import (unreadable store, no card
+    // data) opens nothing and still removes it. Any other value is left alone. The gate is open here (CollectionGate).
+    effect(() => {
+      const phase = this.phase();
+      if (this.addHandled) return;
+      const page = phase === 'ready' || phase === 'empty' ? 'ready' : phase === 'loading' ? 'waiting' : 'cannot';
+      const decision = launchDecision(this.addParam, page);
+      if (decision === 'none' || decision === 'wait') return;
+      this.addHandled = true;
+      untracked(() => {
+        this.mirrorUrl();
+        if (decision === 'open') afterNextRender(() => this.openWhenFree(), { injector: this.injector });
+      });
+    });
     effect(() => {
       const q = this.query();
       const sort = this.sort();
@@ -394,8 +439,13 @@ export class CollectionPage {
    */
   private mirrorUrl(): void {
     const want = urlParams(this.query(), this.sort());
-    const [path] = this.location.path().split('?');
-    const query = queryString(want);
+    const [path, search = ''] = this.location.path().split('?');
+    // Other parameters are left alone (SYNC-159 c), except a handled one-shot `add=1`.
+    const others = new URLSearchParams(search);
+    others.delete('q');
+    others.delete('sort');
+    if (this.addHandled && others.get(IMPORT_PARAMS.collection) === '1') others.delete(IMPORT_PARAMS.collection);
+    const query = [queryString(want), others.toString()].filter(Boolean).join('&');
     if (this.location.path() === (query ? `${path}?${query}` : path)) return;
     this.location.replaceState(path, query);
   }
@@ -560,6 +610,42 @@ export class CollectionPage {
   }
 
   // ---------------------------------------------------------------- export (IMP-055)
+
+  /** `?add=1`: waits for a dialog already open (e.g. the SYNC-154 username prompt) to close, so they never stack. */
+  private openWhenFree(): void {
+    if (this.destroyed) return;
+    if (this.dialog.openDialogs.length === 0) return this.openImport();
+    this.dialog.afterAllClosed.pipe(take(1)).subscribe(() => {
+      if (!this.destroyed) this.openImport();
+    });
+  }
+
+  /**
+   * SPEC-003 IMP-060 / COLL-094 (g): the shared dialog titled "Add to your collection", opened on this page; focus
+   * returns to the floating button, else the opener, else the empty state's button, else #main, chosen when the dialog
+   * closes (H-189: a `?add=1` launch may open before the floating button exists).
+   */
+  protected openImport(file?: File): void {
+    const opener = dialogOpener(document);
+    const ref = this.dialog.open<ImportDialog, ImportDialogData, ParseResult>(ImportDialog, {
+      data: file ? { kind: 'collection', file } : { kind: 'collection' },
+      width: '40rem',
+      maxWidth: 'calc(100vw - 2rem)',
+      autoFocus: 'textarea',
+      restoreFocus: false,
+    });
+    ref.afterClosed().subscribe((result) => {
+      if (result) this.pending.set(result);
+      if (this.destroyed) return;
+      afterNextRender(
+        () =>
+          refocusAfterDialog(
+            importFocusTarget({ fab: this.fab()?.element(), opener, emptyButton: this.emptyAdd()?.nativeElement }),
+          ),
+        { injector: this.injector },
+      );
+    });
+  }
 
   protected exportCsv(): void {
     const loaded = this.loaded();

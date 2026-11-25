@@ -1,6 +1,6 @@
 /**
  * SPEC-010 v0.10 SYNC-006 (H-145, brain/04-UI/Brief H-145.md), page level with the real SyncService, router and
- * Import page: the email link returns to the page sign-in started from, the Firebase parameters leave the URL
+ * Decks page (v0.14: `/decks?import=1`, SYNC-159): the email link returns to the page sign-in started from, the Firebase parameters leave the URL
  * through the Router (no reload, no rebuild, no extra history entry), and "You're signed in." shows once.
  * The landing URLs have the shape the Auth emulator produces (see API Contracts): the continue URL's own query
  * first, then `&mode=signIn&lang=en&oobCode=…&apiKey=…`.
@@ -61,7 +61,10 @@ describe('H-145 email link returns to the start page (SPEC-010 SYNC-006, AC 52, 
   function setup(providers: AuthProviderId[] = ['email-link']): void {
     auth = new FakeAuth();
     auth.enabled = providers;
-    const remote = new FakeRemote(new FakeFirestore());
+    // uA's account exists (a returning user), so the SYNC-154 username prompt of a new account stays out of these tests.
+    const db = new FakeFirestore();
+    db.docs.set('users/uA', { schemaVersion: 1, createdAt: 1, updatedAt: 1, syncedAt: 1, lastClientVersion: 'x' });
+    const remote = new FakeRemote(db);
     TestBed.configureTestingModule({
       providers: [
         provideRouter(routes, withComponentInputBinding()),
@@ -90,11 +93,11 @@ describe('H-145 email link returns to the start page (SPEC-010 SYNC-006, AC 52, 
 
   const signedInShown = () => shown.filter((s) => s.message === MESSAGES.signedIn);
 
-  it('AC 52 / H-145 same device from /import?type=deck: lands on exactly /import?type=deck, "You\'re signed in." once, then the deck import, without a reload', async () => {
+  it('AC 52 / H-145 same device from /decks?import=1: lands on exactly /decks?import=1, "You\'re signed in." once, then the deck import, without a reload', async () => {
     setup();
     auth.nextSignIn = 'uA';
     localStorage.setItem(STORED, 'rj@example.com');
-    const harness = await land(`/import?type=deck&${LINK_QUERY}`);
+    const harness = await land(`/decks?import=1&${LINK_QUERY}`);
     const page = harness.routeDebugElement!.componentInstance;
     const historyLength = history.length;
     const gate = TestBed.inject(SignInGate);
@@ -106,15 +109,17 @@ describe('H-145 email link returns to the start page (SPEC-010 SYNC-006, AC 52, 
       message: "You're signed in.",
       duration: 6000, // H-116 success
       politeness: 'polite',
-      url: '/import?type=deck',
-      routerUrl: '/import?type=deck',
+      url: '/decks?import=1',
+      routerUrl: '/decks?import=1',
     });
     expect(history.length).toBe(historyLength); // replaced, so Back doesn't return to the link
 
     await vi.waitFor(() => expect(gate.state()).toBe('open'), { timeout: 2000 });
     await harness.fixture.whenStable();
     expect(harness.routeDebugElement!.componentInstance).toBe(page); // the page was not rebuilt
-    await vi.waitFor(() => expect(document.querySelector('app-import-dialog, mat-dialog-container')).not.toBeNull());
+    await vi.waitFor(() => expect(text(document.querySelector('mat-dialog-container'))).toContain('Import deck'));
+    // SYNC-159 (c): the one-shot parameter leaves the address once the dialog opened.
+    await vi.waitFor(() => expect(here()).toBe('/decks'));
     expect(here()).not.toMatch(/oobCode|mode=|apiKey|lang=|continueUrl/);
     expect(signedInShown()).toHaveLength(1);
     expect(localStorage.getItem(STORED)).toBeNull();
@@ -125,7 +130,7 @@ describe('H-145 email link returns to the start page (SPEC-010 SYNC-006, AC 52, 
     auth.uid = 'uA';
     const synced: StoredSyncLog = { ...emptySyncLog(), uid: 'uA', sessionExpected: true, lastFullSyncAt: 1, lastSyncAt: 1, cursors: { state: 1, decks: 1 } };
     localStorage.setItem(STORAGE_KEYS.syncLog, JSON.stringify(synced));
-    await land('/import?type=deck');
+    await land('/decks?import=1');
     TestBed.inject(SyncService).start();
     await vi.waitFor(() => expect(TestBed.inject(SignInGate).state()).toBe('open'), { timeout: 2000 });
     await flush();
@@ -178,11 +183,11 @@ describe('H-145 email link returns to the start page (SPEC-010 SYNC-006, AC 52, 
     auth.nextSignIn = 'error';
     auth.signInError = { code: 'auth/expired-action-code' };
     localStorage.setItem(STORED, 'rj@example.com');
-    await land(`/import?type=deck&${LINK_QUERY}`);
+    await land(`/decks?import=1&${LINK_QUERY}`);
     TestBed.inject(SyncService).start();
     await vi.waitFor(() => expect(shown.map((s) => s.message)).toContain(MESSAGES.signInFailed), { timeout: 2000 });
-    await vi.waitFor(() => expect(here()).toBe('/import?type=deck'));
-    expect(TestBed.inject(Router).url).toBe('/import?type=deck');
+    await vi.waitFor(() => expect(here()).toBe('/decks?import=1'));
+    expect(TestBed.inject(Router).url).toBe('/decks?import=1');
     expect(signedInShown()).toEqual([]);
     expect(shown.find((s) => s.message === MESSAGES.signInFailed)?.politeness).toBe('assertive');
   });
@@ -192,11 +197,11 @@ describe('H-145 email link returns to the start page (SPEC-010 SYNC-006, AC 52, 
     auth.nextSignIn = 'error';
     auth.signInError = { code: 'auth/network-request-failed' };
     localStorage.setItem(STORED, 'rj@example.com');
-    await land(`/import?type=deck&${LINK_QUERY}`);
+    await land(`/decks?import=1&${LINK_QUERY}`);
     TestBed.inject(SyncService).start();
     await vi.waitFor(() => expect(shown.map((s) => s.message)).toContain(MESSAGES.signInFailed), { timeout: 2000 });
     await flush();
-    expect(here()).toBe(`/import?type=deck&${LINK_QUERY}`);
+    expect(here()).toBe(`/decks?import=1&${LINK_QUERY}`);
     expect(signedInShown()).toEqual([]);
   });
 
@@ -217,9 +222,9 @@ describe('H-145 email link returns to the start page (SPEC-010 SYNC-006, AC 52, 
     expect(here()).toBe(`/?${LINK_QUERY}`);
   });
 
-  it('AC 52 / H-145 Send link from the gate panel on /import?type=deck sends that page as the return path', async () => {
+  it('AC 52 / H-145 Send link from the gate panel on /decks?import=1 sends that page as the return path', async () => {
     setup();
-    const harness = await land('/import?type=deck');
+    const harness = await land('/decks?import=1');
     TestBed.inject(SyncService); // registers the gate actions, as the app shell does
     await harness.fixture.whenStable();
     const panel = (harness.routeNativeElement as HTMLElement).querySelector('app-sign-in-panel')!;
@@ -231,7 +236,7 @@ describe('H-145 email link returns to the start page (SPEC-010 SYNC-006, AC 52, 
     await flush();
     input.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     await vi.waitFor(() => expect(auth.emailLinksSent).toEqual(['rj@example.com']), { timeout: 2000 });
-    expect(auth.emailLinkReturns).toEqual(['/import?type=deck']);
+    expect(auth.emailLinkReturns).toEqual(['/decks?import=1']);
     await vi.waitFor(() => expect(button(pane()!, 'Close')).toBeDefined(), { timeout: 2000 });
     button(pane()!, 'Close')!.click(); // the sent state; closed so nothing is left for the next test
     await vi.waitFor(() => expect(pane()).toBeNull(), { timeout: 2000 });
@@ -254,7 +259,7 @@ describe('H-145 email link returns to the start page (SPEC-010 SYNC-006, AC 52, 
     main.id = 'main';
     main.tabIndex = -1;
     document.body.append(main);
-    const harness = await land('/import');
+    const harness = await land('/decks');
     TestBed.inject(SyncService).start();
     await harness.fixture.whenStable();
     const trigger = button((harness.routeNativeElement as HTMLElement).querySelector('app-sign-in-panel')!, 'Sign in')!;

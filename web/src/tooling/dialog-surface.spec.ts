@@ -26,7 +26,7 @@ const DIALOG = '.cdk-overlay-pane:not(.card-dialog-panel) .mat-mdc-dialog-surfac
 describe('H-113 dialog surface', () => {
   it('H-113: dialog surface is raised in dark and white (surface) in light; dark dialog border is #434c56 = rgb(67, 76, 86)', () => {
     const dark = topLevelBlock(':root');
-    const light = topLevelBlock('@media (prefers-color-scheme: light)');
+    const light = topLevelBlock('@mixin light-tokens');
     expect(dark).toContain('--color-surface-dialog: var(--color-surface-raised);');
     expect(dark).toContain('--color-border-dialog: #434c56;');
     expect(light).toContain('--color-surface-dialog: var(--color-surface);');

@@ -40,6 +40,8 @@ export class Device {
   onLeaveLink: () => Promise<void> = async () => undefined;
   /** H-145: set to make the lazy adapter load fail (the `firebase` chunk didn't load). */
   adapterError: unknown = null;
+  /** SYNC-154 (H-176): how often the engine asked for the username prompt: a first sign-in that created the account. */
+  accountCreated = 0;
   private timers: { fn: () => void; at: number; id: number }[] = [];
   private timerSeq = 0;
 
@@ -72,6 +74,7 @@ export class Device {
         this.noticeKinds.push({ message, kind });
       },
       onStatus: (s) => (this.status = s),
+      onAccountCreated: () => this.accountCreated++,
       leaveSignInLink: () => {
         this.linkLeaves.push({ reads: this.db.reads, notices: this.notices.length });
         return this.onLeaveLink();

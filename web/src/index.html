@@ -10,6 +10,20 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="theme-color" content="#1b1f24" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#f4f6f8" media="(prefers-color-scheme: light)">
+  <!-- SPEC-010 SYNC-157 (e): the device theme is on <html> before the first paint. The key is `device-theme`
+       (outside the `rift.` cache, never cleared by sign-out); no attribute = System. Kept in step with
+       src/app/shared/theme/theme.ts. A future CSP needs this script's hash. -->
+  <script>
+    try {
+      var t = localStorage.getItem('device-theme');
+      if (t === 'light' || t === 'dark') {
+        document.documentElement.setAttribute('data-theme', t);
+        var c = t === 'dark' ? '#1b1f24' : '#f4f6f8';
+        var m = document.querySelectorAll('meta[name="theme-color"]');
+        for (var i = 0; i < m.length; i++) m[i].setAttribute('content', c);
+      }
+    } catch (e) {}
+  </script>
 </head>
 <body>
   <app-root></app-root>

@@ -56,8 +56,22 @@ describe('H-101 snack bar offset above the phone tab bar', () => {
     expect(stripComments(styles)).not.toContain('mat-mdc-snack-bar-handset');
   });
 
-  it('H-101: wider screens keep Material\'s default margin (no snack-bar rule outside the phone query)', () => {
+  it('H-101: wider screens keep Material\'s default margin, except above a page floating button (H-176)', () => {
     const outside = stripComments(styles).replace(/^@media \(max-width: 40rem\) \{[\s\S]*?\n\}/gm, '');
-    expect(outside).not.toContain('mat-mdc-snack-bar-container');
+    const selectors = [...outside.matchAll(/([^{}]+)\{/g)]
+      .map((m) => m[1].trim())
+      .filter((sel) => sel.includes('mat-mdc-snack-bar-container'));
+    expect(selectors.length).toBeGreaterThan(0);
+    expect(selectors.every((sel) => sel.startsWith('html.has-fab'))).toBe(true);
+  });
+
+  it('H-176 COLL-094 (d), (e): while a floating button shows, the page ends clear of it and snack bars sit above it (no !important)', () => {
+    const css = stripComments(styles);
+    const body = css.match(/html\.has-fab \.mat-mdc-snack-bar-container\.mat-mdc-snack-bar-container \{([^}]*)\}/)?.[1] ?? '';
+    expect(body).toContain('margin-bottom: var(--fab-clearance);');
+    expect(body).not.toContain('!important');
+    expect(css).toMatch(/--fab-clearance: calc\(var\(--space-5\) \+ 56px \+ var\(--space-3\)\);/);
+    expect(css).toMatch(/html\.has-fab app-root \{\s*padding-bottom: var\(--fab-clearance\);/);
+    expect(css).toMatch(/html\.has-fab \{[^}]*scroll-padding-bottom: var\(--fab-clearance\);/);
   });
 });

@@ -26,7 +26,6 @@ describe('routes', () => {
   });
 
   it.each([
-    ['/import', 'Import'],
     ['/collection', 'Collection'],
     ['/tournaments', 'Tournaments'],
     ['/decks/abc', 'Deck detail'],
@@ -44,5 +43,20 @@ describe('routes', () => {
   it('redirects unknown paths to the home page', async () => {
     await RouterTestingHarness.create('/nope');
     expect(TestBed.inject(Router).url).toBe('/');
+  });
+
+  it.each(['/import', '/import?type=deck', '/import?type=collection'])(
+    'SYNC-159 (a) / AC 80 %s goes to Home like any unknown path (no Import page, no not-found page)',
+    async (url) => {
+      const harness = await RouterTestingHarness.create(url);
+      // The catch-all keeps a query string as for any unknown path (`/nope?x=1` → `/?x=1`): Home either way.
+      expect(TestBed.inject(Router).parseUrl(TestBed.inject(Router).url).root.children['primary']).toBeUndefined();
+      expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain('Own what you need.');
+      expect(harness.routeNativeElement?.textContent).not.toMatch(/Import cards to your collection|Import deck lists/);
+    },
+  );
+
+  it('SYNC-159 (a) there is no import route', () => {
+    expect(routes.some((r) => r.path === 'import')).toBe(false);
   });
 });

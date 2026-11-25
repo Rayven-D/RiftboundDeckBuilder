@@ -1,3 +1,4 @@
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import {
   Component,
   DestroyRef,
@@ -40,9 +41,12 @@ export interface SignInDialogData {
   sendEmailLink: (email: string) => Promise<void>;
 }
 
-/** SYNC-003 (v0.8): no warning about legacy local data; the first sign-in clears it silently (SYNC-048). */
+/**
+ * SYNC-003 (v0.8): no warning about legacy local data; the first sign-in clears it silently (SYNC-048). v0.14
+ * (H-176, RJ H-178 decision 7): the last sentence tells a new user that this one Sign in also creates the account.
+ */
 export const SIGN_IN_INTRO =
-  "Sign in to import your cards and decks. They're saved to your account, so you'll see them on any device you sign in on.";
+  "Sign in to import your cards and decks. They're saved to your account, so you'll see them on any device you sign in on. New here? Signing in with your email creates your account.";
 
 /** Per-instance id for the send-failure line (aria-describedby target). */
 let signInDialogSeq = 0;
@@ -216,6 +220,7 @@ export const SPAM_HINT = "Didn't get it? Check your spam folder.";
 export class SignInDialog {
   protected readonly data = inject<SignInDialogData>(MAT_DIALOG_DATA);
   private readonly injector = inject(Injector);
+  private readonly announcer = inject(LiveAnnouncer);
   /** A send can settle after the dialog closed: then nothing is updated or focused. */
   private destroyed = false;
   protected readonly intro = SIGN_IN_INTRO;
@@ -273,9 +278,12 @@ export class SignInDialog {
     } catch {
       if (this.destroyed) return; // closed while sending: no view left to mark or focus
       // SYNC-005 v0.10: a failed send is not a failed sign-in. Focus goes to the field, which reads as invalid
-      // with the message as its description, so a screen reader announces it once (no role="alert").
+      // with the message as its description, so a screen reader announces it once (no role="alert"). After Enter
+      // focus is already in the field, so focusing it reads nothing: then it is announced once, politely (H-189).
       this.setError(SEND_LINK_FAILED);
-      this.focusEmail();
+      const input = this.emailInput()?.nativeElement;
+      if (input && input.ownerDocument.activeElement === input) void this.announcer.announce(SEND_LINK_FAILED, 'polite');
+      else this.focusEmail();
     } finally {
       if (!this.destroyed) this.sending.set(false);
     }
