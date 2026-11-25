@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.12
+version: 1.13
 ---
 # API Contracts
 
@@ -224,7 +224,7 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   instead of `void`; `PushChanges` carries `replace` per state document, `updatedAt`, and the account
   write as `{ create, createdAt, updatedAt, lastClientVersion }` (no `batch` flag since v1.5: `push()` writes
   one document at a time, in order, account first); `AuthService.restore()`,
-  `sendEmailLink(email)`, `isEmailLinkReturn()`, `needsRecentSignIn()`, `canReauthenticate()` (H-143), `signIn(providerId, email?)`;
+  `sendEmailLink(email, returnTo?)` (H-145), `isEmailLinkReturn()`, `needsRecentSignIn()`, `canReauthenticate()` (H-143), `signIn(providerId, email?)`;
   `StoredSyncLog.cloudDocs` (documents known to exist, for create vs update), `pending.collectionReplace`,
   `locks[id].h` (lockedAt), `deckTombstones[id].createdAt` and `.wasPending`; after H-062 round 1 also
   `deckCreated` (deck createdAt for tombstones), `lastBuild` (this device's build: SYNC-118 retry and the
@@ -294,6 +294,39 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
     `PlanOptions.batch` and the adapter's `writeBatch` chunking are removed.
   - Sign-out dialog data: `{ pending: () => number; online: Signal<boolean>; syncNow: () => Promise<void> }`; it
     closes with `true` to sign out.
+- **Email link return and "You're signed in." (SYNC-006, AC 52, AC 39; H-145):**
+  - Pure helpers (`web/src/app/shared/sync/return-path.ts`): `LINK_PARAMS` = `mode`, `oobCode`, `apiKey`, `lang`,
+    `continueUrl`; `safeReturnPath(raw, origin): string` returns `raw` as an app path and query, or `/` unless it
+    starts with exactly one `/` (not `//` or `/\`), resolves to `origin`, and does not normalize to `//…`; it drops
+    the five parameters by name (wherever they are; the user's own query text is kept as written) and any
+    `#fragment`. `returnTarget(href)` = `safeReturnPath` of the location's own path and query; the `continueUrl`
+    parameter is never read.
+  - Sending: `AuthService.sendEmailLink(email, returnTo = '/')`; the Firebase adapter sends
+    `{ url: location.origin + safeReturnPath(returnTo, location.origin), handleCodeInApp: true }`.
+    `SyncEngine.sendEmailLink(email, returnTo?)` passes it through; `SyncService.sendEmailLink(email)` reads
+    `safeReturnPath(router.url, location.origin)` when Send link or Send again is pressed (header and panels alike).
+    Nothing is stored beside the address (`rift.emailForSignIn` is unchanged).
+  - Completing: the adapter no longer edits the URL (`history.replaceState` removed). New optional
+    `EngineDeps.leaveSignInLink(): Promise<void>`, called by `SyncEngine.signIn('email-link', …)` after Firebase
+    accepts the code (before the notice and the first-sign-in flow) and when Firebase rejects the code itself
+    (`SPENT_LINK_CODES` = `auth/invalid-action-code`, `auth/expired-action-code`; `isSpentLinkError(e)` reads the
+    error's `code` duck-typed). Every other failure (the lazy chunk didn't load, `auth/network-request-failed`,
+    `auth/invalid-email`, no code), a cancel (no address) and offline keep the URL, so a reload can retry; the
+    SYNC-005 error shows for every failure. An error from `leaveSignInLink` is ignored. `SyncService` implements it as
+    `router.navigateByUrl(returnTarget(location.href), { replaceUrl: true })`, with `history.replaceState` as a
+    fallback only if the Router refuses and the code is still in the URL.
+  - `MESSAGES.signedIn` = "You're signed in.", notified as `success` in `SyncEngine.signIn()` (email link and
+    Google) right after the uid arrives, before `openSession()`; `start()` (restore) never sends it.
+  - **Firebase continue URL with a query (verified on the Auth emulator, firebase-tools 15.37.0, 2026-11-24;
+    `web/rules-tests/email-link-return.test.ts`):** the emailed link is
+    `http://127.0.0.1:9099/emulator/action?mode=signIn&lang=en&oobCode=…&apiKey=…&continueUrl=<encoded continue URL>`.
+    Opening it answers `303` to the continue URL with Firebase's parameters **appended** to the continue URL's own
+    query: `…/import?type=deck` lands on `…/import?type=deck&mode=signIn&lang=en&oobCode=…&apiKey=…` (`/` lands on
+    `/?mode=signIn&…`). The query is not nested, the landing URL has **no `continueUrl`** parameter, and a
+    `#fragment` stays at the end (`/decks?x=1#a` → `/decks?x=1&mode=…#a`; the app never sends one). The emulator
+    does **not** check the continue URL's domain (`https://example.org/evil` is redirected to as is), which is why
+    the app checks the path on both sides. Production (Hosting's `/__/auth/action` handler, authorized domains)
+    is still `unverified`; the app strips by name, so it works whether production appends or adds `continueUrl`.
 - **SYNC-097 Auth codes (verified on the Auth emulator, 2026-11-23):** deleted user → `reload()`
   `auth/user-token-expired`, forced refresh `auth/invalid-refresh-token`; revoked → `reload()`
   `auth/user-token-expired` (refresh still works in the emulator); disabled → `auth/user-disabled`.
@@ -391,3 +424,6 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   write only (SYNC-050).
 - v1.12 (2026-11-24, H-078; numbered v1.6 on its branch, then v1.10): no endpoint change. New section "Builds and deploys": per-build `appVersion`
   (SYNC-012) and the preview deploy command `npm run deploy:preview -- <channel> [expires]` (SYNC-007).
+- v1.13 (2026-11-24, H-145): no endpoint change. Email link return: `AuthService.sendEmailLink(email, returnTo?)`,
+  `safeReturnPath` / `returnTarget`, `EngineDeps.leaveSignInLink` (only on a rejected code), `MESSAGES.signedIn`; the adapter no longer
+  edits the URL. Records how the Auth emulator combines a continue URL that already has a query.

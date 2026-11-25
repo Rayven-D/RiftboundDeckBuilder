@@ -1,9 +1,11 @@
-import { DestroyRef, Injectable, InjectionToken, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, InjectionToken, Injector, afterNextRender, computed, inject, signal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { NoticeKind, noticeOptions } from '../../shared/sync/notice';
+import { returnTarget, safeReturnPath } from '../../shared/sync/return-path';
 import { SyncEngine } from '../../shared/sync/sync-engine';
 import { statusText } from '../../shared/sync/status-text';
 import { enabledProviders } from '../../shared/sync/sync-types';
@@ -73,6 +75,8 @@ export class SyncService {
   private readonly loadAdapters = inject(SYNC_ADAPTERS);
   private readonly gate = inject(SignInGate);
   private readonly providers = inject(AUTH_PROVIDERS);
+  private readonly router = inject(Router);
+  private readonly injector = inject(Injector);
 
   readonly status = signal<SyncStatus>({ kind: 'signed-out' });
   readonly statusLine = computed(() => statusText(this.status()));
@@ -98,6 +102,7 @@ export class SyncService {
       appVersion: environment.appVersion,
       isOnline: () => navigator.onLine,
       notify: (m, kind) => this.notify(m, kind),
+      leaveSignInLink: () => this.leaveSignInLink(),
       onStatus: (s) => {
         this.status.set(s);
         this.deletion.set(this.engine.unfinishedDeletion());
@@ -159,8 +164,12 @@ export class SyncService {
     return this.engine.signIn('google');
   }
 
+  /**
+   * SYNC-006 / H-145 (Brief decision 1): the link returns to the page under the (modal) Sign in dialog, read from
+   * the Router when Send link or Send again is pressed: path and query, no fragment, Firebase parameters removed.
+   */
   sendEmailLink(email: string): Promise<void> {
-    return this.engine.sendEmailLink(email);
+    return this.engine.sendEmailLink(email, safeReturnPath(this.router.url, location.origin));
   }
 
   syncNow(): Promise<void> {
@@ -186,7 +195,14 @@ export class SyncService {
     const ref = this.dialog.open(SignInDialog, { data, autoFocus: 'first-tabbable', restoreFocus: trigger ?? true });
     const choice = await firstValueFrom(ref.afterClosed());
     if (!this.destroyed) refocusAfterDialog(trigger);
-    if (choice === 'google' && this.providers.includes('google')) await this.signInWithGoogle();
+    if (choice === 'google' && this.providers.includes('google')) {
+      await this.signInWithGoogle();
+      if (this.destroyed) return;
+      // Brief H-145 decision 14: a panel's Sign in is replaced by the first-sync line, so its focus falls to
+      // <body>; the H-125 fallback then puts it on #main (now, and after the render that removes the panel).
+      refocusAfterDialog(trigger);
+      afterNextRender(() => refocusAfterDialog(trigger), { injector: this.injector });
+    }
   }
 
   deleteAccount(): Promise<'ok' | 'cancelled' | 'needs-sign-in' | 'failed' | 'offline'> {
@@ -207,6 +223,20 @@ export class SyncService {
     const email = localStorage.getItem(EMAIL_FOR_SIGN_IN) ?? (await this.confirmEmail());
     if (!email) return;
     await this.engine.signIn('email-link', email);
+  }
+
+  /**
+   * SYNC-006 / H-145 (Brief decisions 4, 6): the link's code is spent, so show this page's own path and query
+   * without the Firebase parameters (never the `continueUrl` parameter; outside the app gives `/`). Through the
+   * Router, replacing the history entry, so `router.url` and the query inputs stay current and Back doesn't
+   * return to the link. Focus is not moved (decision 12).
+   */
+  private async leaveSignInLink(): Promise<void> {
+    if (this.destroyed) return;
+    const target = returnTarget(location.href);
+    const moved = await this.router.navigateByUrl(target, { replaceUrl: true }).catch(() => false);
+    // A refused navigation still must not leave the one-time code in the address bar (AC 39).
+    if (!moved && isEmailLinkUrl(location.href)) history.replaceState(history.state, '', target);
   }
 
   /**

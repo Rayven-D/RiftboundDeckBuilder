@@ -44,7 +44,20 @@ export const MESSAGES = {
   writeFailed: "Couldn't sync. Your changes are saved on this device. Try again.",
   tooLarge: 'This data is too large to sync.',
   paused: 'Sync paused. Your changes are saved on this device.',
+  /** SYNC-006 (H-145): once, when a sign-in the user started completes; never on a restore. */
+  signedIn: "You're signed in.",
 } as const;
+
+/**
+ * SYNC-006 / H-145: Firebase Auth codes meaning the link's one-time code itself is dead (expired, already used or
+ * malformed). Read duck-typed (every Firebase error has a string `code`), so the engine stays Firebase-free.
+ */
+export const SPENT_LINK_CODES: readonly string[] = ['auth/invalid-action-code', 'auth/expired-action-code'];
+
+export function isSpentLinkError(e: unknown): boolean {
+  const code = typeof e === 'object' && e !== null ? (e as { code?: unknown }).code : undefined;
+  return typeof code === 'string' && SPENT_LINK_CODES.includes(code);
+}
 
 /** SYNC-121 */
 export const PUSH_DEBOUNCE_MS = 2000;
@@ -79,6 +92,12 @@ export interface EngineDeps {
   /** H-116: the kind decides how long the notice stays and how it is announced (see `noticeOptions`). */
   notify: (message: string, kind: NoticeKind) => void;
   onStatus?: (s: SyncStatus) => void;
+  /**
+   * SYNC-006 (H-145, Brief decision 7): an email sign-in link was used up (Firebase accepted its code, or the link
+   * failed), so the page should show its start path without the Firebase parameters. Awaited after an accepted code,
+   * before the first-sign-in flow starts. Not called on a cancel (no address), so a reload can offer the link again.
+   */
+  leaveSignInLink?: () => Promise<void>;
   /** SPEC-008 `lockedShortfalls(before, after)` (SYNC-068, SYNC-074); optional until H-059 builds it. */
   shortfalls?: (before: LocalSnapshot, after: LocalSnapshot) => { deckName: string; cardsShort: number }[];
   /** SYNC-051: run the job while holding the one-syncing-tab lock (default: run it). */
@@ -201,10 +220,15 @@ export class SyncEngine {
       const r = await this.auth!.signIn(providerId, email);
       if (r === 'cancelled') return 'cancelled';
       uid = r.uid;
-    } catch {
+    } catch (e) {
       this.deps.notify(MESSAGES.signInFailed, 'error');
+      // Only a code Firebase rejected is dead; a chunk-load, network or address failure keeps the link for a reload.
+      if (providerId === 'email-link' && isSpentLinkError(e)) await this.leaveSignInLink();
       return 'failed';
     }
+    if (providerId === 'email-link') await this.leaveSignInLink();
+    // SYNC-006: before the first-sign-in flow, so a message from it (SYNC-048, SYNC-097) replaces this one.
+    this.deps.notify(MESSAGES.signedIn, 'success');
     await this.updateLog((log) => {
       log.sessionExpected = true;
       // SYNC-086: signing in again as the lost session's uid resumes it. Another uid keeps the gate closed
@@ -216,10 +240,19 @@ export class SyncEngine {
     return 'ok';
   }
 
-  /** SYNC-006: sends the email sign-in link. */
-  async sendEmailLink(email: string): Promise<void> {
+  /** SYNC-006: sends the email sign-in link; `returnTo` is the page to come back to (H-145). */
+  async sendEmailLink(email: string, returnTo?: string): Promise<void> {
     await this.ensureAdapters();
-    await this.auth!.sendEmailLink(email);
+    await this.auth!.sendEmailLink(email, returnTo);
+  }
+
+  /** Brief H-145 decision 7: a navigation that fails must not turn a completed sign-in into a failed one. */
+  private async leaveSignInLink(): Promise<void> {
+    try {
+      await this.deps.leaveSignInLink?.();
+    } catch {
+      // The URL keeps the spent code; a reload then shows the SYNC-005 failure, which changes nothing.
+    }
   }
 
   /** Sync now (SYNC-040, SYNC-043): pull, merge, push. */

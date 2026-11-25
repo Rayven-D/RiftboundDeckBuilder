@@ -77,7 +77,7 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       expect(db.pushLog[0].account?.create).toBe(true);
       expect(db.reads).toBe(3);
       expect([...db.docs.keys()]).toEqual(['users/uA']);
-      expect(laptop.notices).toEqual([]); // no Combine, no upload notice
+      expect(laptop.notices).toEqual([MESSAGES.signedIn]); // H-145 only; no Combine, no upload notice
       const log = await laptop.log();
       expect(log.uid).toBe('uA');
       expect(log.uploadingUid ?? null).toBeNull();
@@ -113,7 +113,7 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       expect(await phone.deckNames()).toEqual(['Kennen Tempo']);
       expect(stateOrDeckWrites(db)).toEqual([]);
       expect(db.writes).toBe(0);
-      expect(phone.notices).toEqual([]);
+      expect(phone.notices).toEqual([MESSAGES.signedIn]); // H-145
       expect([...db.docs.entries()]).toEqual(cloudBefore);
 
       laptop.now = at('10:30');
@@ -135,7 +135,7 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       expect(db.writes).toBe(0);
       expect(db.get('users/uA').createdAt).toBe(createdAt);
       expect(db.get('users/uA/state/collection')).toBeUndefined();
-      expect(phone.notices).toEqual([]);
+      expect(phone.notices).toEqual([MESSAGES.signedIn]); // H-145
       expect(await phone.stores.collection.load()).toBeNull();
       expect(phone.engine.gate()).toBe('open');
     });
@@ -157,7 +157,7 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       expect(db.pushLog).toEqual([]);
       expect(db.writes).toBe(0);
       expect([...db.docs.entries()]).toEqual(leftovers);
-      expect(phone.notices).toEqual([MESSAGES.halfDeleted]);
+      expect(phone.notices).toEqual([MESSAGES.signedIn, MESSAGES.halfDeleted]); // H-145: replaces the sign-in notice
       expect(MESSAGES.halfDeleted).toBe(
         "This account is being deleted, so you've been signed out and its data was removed from this device.",
       );
@@ -290,7 +290,7 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       expect((await phone.tags()).tags).toHaveLength(20);
       expect(await phone.deckNames()).toHaveLength(10);
       expect((await phone.lockedIds()).sort()).toEqual(locked);
-      expect(phone.notices).toEqual([]); // no dialog, no notice
+      expect(phone.notices).toEqual([MESSAGES.signedIn]); // no dialog; only H-145's sign-in notice
       expect(phone.engine.pendingCount()).toBe(0);
       expect((await phone.log()).pending.account).toBe(false);
       expect(phone.engine.gate()).toBe('open');
@@ -387,7 +387,7 @@ describe('SyncEngine account-required mode (SPEC-010 v0.8, H-081)', () => {
       await signIn(phone);
       expect(db.writeLog).toEqual([]);
       expect(db.pushLog).toEqual([]);
-      expect(phone.notices).toEqual([MESSAGES.halfDeleted]);
+      expect(phone.notices).toEqual([MESSAGES.signedIn, MESSAGES.halfDeleted]);
     });
 
     it('SYNC-050 the account update() goes alone even when the download finds a deck tombstone older than 30 days', async () => {

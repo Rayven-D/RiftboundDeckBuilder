@@ -294,6 +294,8 @@ export class FakeAuth implements AuthService {
   signOuts = 0;
   deletedUser = false;
   emailLinksSent: string[] = [];
+  /** H-145: what `signIn()` throws when `nextSignIn` is 'error' (e.g. `{ code: 'auth/expired-action-code' }`). */
+  signInError: unknown = undefined;
   /** What `currentEmail()` reports (SYNC-003, H-141); null = Auth has no address for the user. */
   email: string | null = null;
   /** Order of calls, for SYNC-096 ordering checks. */
@@ -311,12 +313,15 @@ export class FakeAuth implements AuthService {
   }
   async signIn(): Promise<{ uid: string } | 'cancelled'> {
     if (this.nextSignIn === 'cancelled') return 'cancelled';
-    if (this.nextSignIn === 'error') throw new Error('popup blocked');
+    if (this.nextSignIn === 'error') throw this.signInError ?? new Error('popup blocked');
     this.uid = this.nextSignIn;
     return { uid: this.uid };
   }
-  async sendEmailLink(email: string): Promise<void> {
+  /** H-145: the `returnTo` of each send, in order (undefined when the caller passed none). */
+  emailLinkReturns: (string | undefined)[] = [];
+  async sendEmailLink(email: string, returnTo?: string): Promise<void> {
     this.emailLinksSent.push(email);
+    this.emailLinkReturns.push(returnTo);
   }
   isEmailLinkReturn(): boolean {
     return false;

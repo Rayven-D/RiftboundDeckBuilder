@@ -66,6 +66,7 @@ import type {
   TagsDoc,
 } from '../../../shared/sync/sync-types';
 import { PROVIDER_LABELS, RemoteError, enabledProviders, isTagTombstone } from '../../../shared/sync/sync-types';
+import { safeReturnPath } from '../../../shared/sync/return-path';
 
 export interface FirebaseWebConfig {
   apiKey: string;
@@ -171,14 +172,20 @@ export class FirebaseAuthService implements AuthService {
       if (!address) return 'cancelled';
       const r = await signInWithEmailLink(this.auth, address, link);
       localStorage.removeItem(EMAIL_KEY);
-      history.replaceState(null, '', location.pathname); // drop the one-time code from the URL
+      // H-145: the URL is cleaned by `SyncService` through the Router (Brief decision 6), not here.
       return { uid: r.user.uid };
     }
     throw new Error(`Unknown sign-in provider ${providerId}`);
   }
 
-  async sendEmailLink(email: string): Promise<void> {
-    await sendSignInLinkToEmail(this.auth, email, { url: `${location.origin}/`, handleCodeInApp: true });
+  /**
+   * SYNC-006 / H-145: the continue URL is this origin plus the start page's app path and query, checked again
+   * here (`safeReturnPath`), so it can only point into this app. Firebase appends its own parameters to that
+   * query (verified on the Auth emulator, see API Contracts).
+   */
+  async sendEmailLink(email: string, returnTo = '/'): Promise<void> {
+    const url = `${location.origin}${safeReturnPath(returnTo, location.origin)}`;
+    await sendSignInLinkToEmail(this.auth, email, { url, handleCodeInApp: true });
     localStorage.setItem(EMAIL_KEY, email);
   }
 

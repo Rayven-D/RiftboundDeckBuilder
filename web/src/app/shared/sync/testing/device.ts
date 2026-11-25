@@ -34,6 +34,12 @@ export class Device {
   now: number;
   adaptersLoaded = 0;
   status: SyncStatus = { kind: 'signed-out' };
+  /** H-145: each `leaveSignInLink` call, with the Firestore reads and notices that had happened by then. */
+  readonly linkLeaves: { reads: number; notices: number }[] = [];
+  /** H-145: what `leaveSignInLink` does (the app navigates; a test may make it fail). */
+  onLeaveLink: () => Promise<void> = async () => undefined;
+  /** H-145: set to make the lazy adapter load fail (the `firebase` chunk didn't load). */
+  adapterError: unknown = null;
   private timers: { fn: () => void; at: number; id: number }[] = [];
   private timerSeq = 0;
 
@@ -54,6 +60,7 @@ export class Device {
       log: this.stores.log,
       queue: this.stores.queue,
       adapters: async () => {
+        if (this.adapterError) throw this.adapterError;
         this.adaptersLoaded++;
         return { auth: this.auth, remote: this.remote };
       },
@@ -65,6 +72,10 @@ export class Device {
         this.noticeKinds.push({ message, kind });
       },
       onStatus: (s) => (this.status = s),
+      leaveSignInLink: () => {
+        this.linkLeaves.push({ reads: this.db.reads, notices: this.notices.length });
+        return this.onLeaveLink();
+      },
       setTimer: (fn, ms) => {
         const id = ++this.timerSeq;
         this.timers.push({ fn, at: this.now + ms, id });

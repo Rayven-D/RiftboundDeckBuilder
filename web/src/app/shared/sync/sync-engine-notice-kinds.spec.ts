@@ -125,6 +125,9 @@ describe('H-116 notice kinds sent by the SyncEngine', () => {
     });
     const phone = new Device(db);
     await signIn(phone);
-    expect(phone.noticeKinds).toEqual([{ message: MESSAGES.halfDeleted, kind: 'info' }]);
+    expect(phone.noticeKinds).toEqual([
+      { message: MESSAGES.signedIn, kind: 'success' }, // H-145, replaced on screen by the next one
+      { message: MESSAGES.halfDeleted, kind: 'info' },
+    ]);
   });
 });

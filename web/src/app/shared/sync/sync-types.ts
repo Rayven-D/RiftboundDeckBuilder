@@ -212,8 +212,12 @@ export interface AuthService {
    * needed only when the link is opened on a device that did not send it.
    */
   signIn(providerId: string, email?: string): Promise<{ uid: string } | 'cancelled'>;
-  /** SYNC-006 email link: sends the link; the sign-in completes when the user opens it. */
-  sendEmailLink(email: string): Promise<void>;
+  /**
+   * SYNC-006 email link: sends the link; the sign-in completes when the user opens it. `returnTo` (H-145) is the
+   * app path and query of the page sign-in started from (e.g. `/import?type=deck`), sent as the continue URL;
+   * anything that isn't an app path becomes `/` (`safeReturnPath`). Default `/`.
+   */
+  sendEmailLink(email: string, returnTo?: string): Promise<void>;
   /** True when the current URL is an email sign-in link waiting to be completed. */
   isEmailLinkReturn(): boolean;
   /**
