@@ -16,6 +16,7 @@ import { AUTH_PROVIDERS } from './auth-providers';
 import { ConfirmEmailDialog, SignInDialog, SignInDialogData } from './sync-dialogs';
 import { UsernameDialog, UsernameDialogData, UsernameSaveResult } from './account-dialogs';
 import { USERNAME_TEXT } from '../../shared/account/username';
+import { NoticeLayer } from '../notice-layer';
 
 export type AdapterLoader = () => Promise<{ auth: AuthService; remote: RemoteStore }>;
 
@@ -109,6 +110,9 @@ export class SyncService {
   private destroyed = false;
 
   constructor() {
+    // H-189 finding 9: notices show above a dialog opened after them. Started here (the deferred account control
+    // loads this service on every page) rather than at bootstrap, so MatDialog stays out of the initial bundle.
+    inject(NoticeLayer);
     const stores = this.app.stores;
     this.engine = new SyncEngine({
       local: stores.raw,

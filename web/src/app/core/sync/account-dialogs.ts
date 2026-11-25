@@ -176,14 +176,14 @@ export class UsernameDialog {
   protected readonly blocker = computed(() =>
     !this.data.online() ? MESSAGES.offline : !this.data.ready() ? USERNAME_TEXT.preparing : null,
   );
-  /**
-   * H-189 finding 5: the field reads as invalid (outline, label, `aria-invalid`) while an error shows. MatInput owns
-   * `aria-invalid` and only re-reads the matcher when asked (no NgControl), see setError().
-   */
   /** Error first, then the counter; each id once (finding 7). The counter is outside Material's live subscript (N1). */
   protected readonly describedBy = computed(() =>
     this.error() ? `${this.errorId} ${this.counterId}` : this.counterId,
   );
+  /**
+   * H-189 finding 5: the field reads as invalid (outline, label, `aria-invalid`) while an error shows. MatInput owns
+   * `aria-invalid` and only re-reads the matcher when asked (no NgControl), see setError().
+   */
   protected readonly errorMatcher: ErrorStateMatcher = { isErrorState: () => this.error() !== null };
 
   constructor() {
