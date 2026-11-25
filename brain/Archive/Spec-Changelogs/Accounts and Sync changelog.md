@@ -9,6 +9,19 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+## 0.14.2 (2026-11-25, H-200 and H-181)
+RJ's H-182 answers applied to the privacy notice (wording only, no other requirement changed). SYNC-103: item 1
+controller "Rift Builder, an independent fan project", contact `riftbuilder.support@gmail.com`, no personal name; item 2
+date is the placeholder `[set on release: date dev → main ships sign-in]`; item 3 changes announced in the public
+changelog (H-201), no in-app notice promised; item 5 replies go to the support inbox (H-063 sets the reply-to; was
+"replies are not read", H-181 3); item 6 names Firebase Hosting request logs (H-181 2); item 9 includes them; item 12
+"no cookies" unverified until the AC 70 DevTools check (H-181 1); item 20 age 16, no age check. SYNC-104 f age line "For
+ages 16 and over." SYNC-101: placeholder rule, two checks: `[RJ:` fails every build (SPEC-010's existing rule, H-180),
+`[set on release` fails only the production deploy and the release step, and preview / development builds show it as
+written. SYNC-007 condition 2 adds "release-day date filled". ACs 66 (strings, both checks), 67 (age line), 70 (no
+cookies recorded; production rule not met while the marker stands); Open question 12 reworded. [[Privacy Notice Draft]]
+0.3. Spec Index pin 0.14.2.
+
 ## 0.14.1 (2026-11-25, H-183)
 Username length mismatch from [[Validation H-174]] follow-up 1: SYNC-153 allowed 24 graphemes (a worst-case name of 24
 family emoji with skin tones is 264 code points, 456 UTF-16 units, 984 UTF-8 bytes) but the SYNC-112 rules backstop was
