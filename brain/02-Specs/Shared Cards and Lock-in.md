@@ -57,8 +57,8 @@ in and runes").
 **Shared types:** `DeckLock`, `StoredDeckLocks`, `DeckLockStore`, `SharedPoolInput`, `SharedPool`,
 `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck`. Functions `computeSharedPool()`,
 `availability()`, `canLock()`, `lockedShortfalls()` (all pure).
-**Depends on:** [[Card Data Model]] v0.3, [[Collection Import]] v0.9.1, [[Your Decks Ownership View]] v0.5.1,
-[[Deck Import]] v0.7, [[My Collection]] v0.9. **Consumers:**
+**Depends on:** [[Card Data Model]] v0.3, [[Collection Import]] v0.10, [[Your Decks Ownership View]] v0.5.1,
+[[Deck Import]] v0.7, [[My Collection]] v0.10. **Consumers:**
 [[Your Decks Ownership View]] (pool, labels, breakdown), [[My Collection]] and [[Collection Import]]
 (shortfall warnings), [[Deck Import]] (edit/delete/duplicate rules).
 **Open:** two choices for RJ (H-076, recommended defaults written in): SHARE-053 (locked decks while ownership
@@ -200,7 +200,7 @@ SPEC-005 owns the deck view and tiles and reads this spec's `SharedPool`. Runes 
 ```ts
 // shapes only; no implementation
 import type { UserDeck, DeckZone } from './deck-import';                  // SPEC-006 v0.7
-import type { DeckOwnershipInput } from './my-collection';              // SPEC-007 v0.9, COLL-081
+import type { DeckOwnershipInput } from './my-collection';              // SPEC-007 v0.10, COLL-081
 type CardKey = string;
 type IsoDateTime = string;                                              // ISO 8601 UTC
 

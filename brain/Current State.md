@@ -37,11 +37,11 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 |---|---|---|
 | SPEC-001 [[Card Data Model]] | 0.3 | nullable attrs, `cardKey`, `printingSortKey`, `catalogVersion`, `defaultPrintingId` |
 | SPEC-002 [[Deck Legality]] | 0.3 | 4 ban waves as data, `banStatus()`, display rules LEGAL-R08 |
-| SPEC-003 [[Collection Import]] | 0.9 | owned cards; Part A = shared parsers; quantity required (any side), printing codes, .xlsx; upload rejections and `;`/tab delimiter as built; Replace and Undo confirmations warn about locked decks; CSV export `Quantity,Card Name` round-trips per printing (H-045); runes imported and exported like any card (IMP-071, H-097) |
+| SPEC-003 [[Collection Import]] | 0.10 (H-087: a commit lands on `/collection` with an Undo snack bar, IMP-072…075) | owned cards; Part A = shared parsers; quantity required (any side), printing codes, .xlsx; upload rejections and `;`/tab delimiter as built; Replace and Undo confirmations warn about locked decks; CSV export `Quantity,Card Name` round-trips per printing (H-045); runes imported and exported like any card (IMP-071, H-097) |
 | SPEC-004 [[Tournament Deck Catalog]] | 0.5 | Top 8, Add to your decks |
 | SPEC-005 [[Your Decks Ownership View]] | 0.5 | full / darkened / partial fill of **available** copies, Riot section order, ban labels; runes counted like any card, no migration (OWN-028/029) |
 | SPEC-006 [[Deck Import]] | 0.6 | community decks; CSV / Excel too; shared tournament source; locked decks can't change cards |
-| SPEC-007 [[My Collection]] | 0.8 | per-printing, tags, `deckOwnership()`; tags not in the CSV export (COLL-059 withdrawn); runes are cards (COLL-089, COLL-087 withdrawn) |
+| SPEC-007 [[My Collection]] | 0.10 (H-087: COLL-090 card data unavailable, COLL-091) | per-printing, tags, `deckOwnership()`; tags not in the CSV export (COLL-059 withdrawn); runes are cards (COLL-089, COLL-087 withdrawn) |
 | SPEC-008 [[Shared Cards and Lock-in]] | 0.4 | one per-name pool across decks, Runes included (SHARE-006); lock in a complete deck (H-058 PASS 2026-11-23; build: H-059 engine → H-098 runes → H-060 Decks UI) |
 | SPEC-009 [[Runes Assumed Owned]] | 0.3 | **withdrawn 2026-11-24** (RJ: runes are cards; RUNE-001…010 withdrawn, H-097) |
 | SPEC-010 [[Accounts and Sync]] | 0.6 | optional sign-in (email link now, Google later via `authProviders`) + Firestore sync, LWW per card / tag target / lock / deck, same deck status on every device, owner-only rules (H-061 PASS; RJ's 11 decisions applied, H-073 PASS 2026-11-23; H-062 built and PASS, sign-in off in production; pins of SPEC-003/007/008 are stale until H-074) |
