@@ -7,6 +7,13 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-24]] and [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: H-069 privacy notice research (orchestrator: researcher → validator)
+- Did: [[Privacy Notice Requirements]] (`partial`, not legal advice). CalOPPA most likely applies; GDPR probably not, but the notice is written to its standard; Google is the processor; no cookie banner needed (strictly necessary storage, no analytics); Riot sets no user-data rule. Ends with a 24-item checklist for SYNC-101. Validator PASS (one wording fix applied: Auth persistence is IndexedDB with a localStorage fallback).
+- Changed notes: [[Privacy Notice Requirements]], [[Research Index]], [[Handoff Board]] (H-069 done, H-152 new, `next_id` 153), [[Validation Runs]].
+- Branch `loop/H-069-privacy-notice`, cut from `8acf4c6` (`origin/main`, SPEC-010 v0.11). **Not merged into any dev:** local `dev` (`ffb60cf`) and `origin/dev` have split; it lands in whichever `dev` RJ keeps.
+- Open questions: RJ supplies the name, contact email, effective date, age line (13 or 16) and how changes are announced.
+- Next: H-152 (spec-writer: SYNC-101 wording + notice draft for RJ, then a builder item), after RJ reconciles the dev branches.
+
 ## 2026-11-24: UI review chain H-101…H-126 + H-139, orchestrated (orchestrator)
 - Ran the 23 findings of [[UI Review 2026-11-24]] as a chain of 12 steps, one branch per step cut from the previous tip; every step validator PASS. Record: [[UI Review Chain 2026-11-24]].
 - RJ decisions: decision 16 (SPEC-010 Open questions 1–9 and "Finish signing in" confirmed), H-150 option A. H-083 closed, H-133 unblocked.

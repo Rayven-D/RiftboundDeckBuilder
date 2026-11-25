@@ -25,6 +25,7 @@ Owner: **researcher**. Every note needs sources and an *as-of* date. Status: `to
 |---|---|---|---|
 | Applying for a production key | [[Riot App Application]] | verified | Register Product, then the application; needs a reachable URL to a prototype or mockup |
 | Riot developer rules | [[Riot Developer Rules]] | verified | Development key = prototype only; the app stays free; no Riot logos or lookalike design; Riot API is the only data source |
+| Privacy notice for accounts (H-069) | [[Privacy Notice Requirements]] | partial | Not legal advice. CalOPPA most likely applies; write to GDPR standard anyway; Google = processor; no cookie banner needed (strictly necessary storage, no analytics); Riot sets no user-data rule; ends with the SYNC-101 checklist |
 
 ## Decklists
 Stored one per note in `Decklists/` using the Decklist template.
