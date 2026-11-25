@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.17
+version: 1.18
 ---
 # API Contracts
 
@@ -454,6 +454,25 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   cannot put a preview build on `live`. **Preview URLs are public to anyone who has the link:** share them
   privately and let them expire.
 
+## Release changelog, "What's new" (SPEC-012, H-202)
+- **Data:** `web/src/app/core/changelog/changelog.json`, a JSON array of `ChangelogEntry` (`version` `0.0.X`,
+  `date` `YYYY-MM-DD` or `null`, `title`, `bullets`), newest first. Imported at build time (no fetch); the page reads
+  it through the `CHANGELOG_DATA` token (`core/changelog/changelog-data.ts`) so tests can provide other data.
+- **Pure logic:** `web/src/app/shared/changelog/changelog.ts`: `entryErrors` (LOG-031 fields + LOG-022 limits and
+  the hash guard), `showableEntries` (LOG-024: the page shows only entries with no `entryErrors`, in file order),
+  `validateChangelog` (LOG-041 whole-file rules, used by the data unit test), `formatReleaseDate` (LOG-021).
+- **Page:** `/changelog` (`pages/changelog/changelog-page.ts`), public, injects nothing from sync (no Firebase, no
+  storage). Linked from the footer row and the account menu (after Theme / Privacy notice, before the last divider).
+- **Release check (LOG-053):** `npm --prefix web run check:changelog-release` (`web/scripts/check-changelog-release.mjs`,
+  pure logic in `web/scripts/changelog-release.mjs`) exits 1 with `Changelog has an undated entry: set its date before
+  releasing.` while any `date` is `null`, and on a file that is not a JSON array; 0 otherwise. Not part of test, lint
+  or either build. The GitHub Actions deploy of `main` runs it right after `npm ci`, before the deploy step.
+- **Release step (LOG-042), in the `dev` → `main` release PR:** add the new entry on top with version = previous + 1
+  (or, for `0.0.1`, set its `date`); fill every `null` date with the release day; read the bullets once for plain
+  words (title 1–60 characters, 1–5 bullets of 1–140); then run `npm --prefix web run check:changelog-release` and
+  `npm --prefix web test -- --watch=false` before merging. Preview deploys get no entry. The release version is never
+  injected into the build or `appVersion` (LOG-043).
+
 ## Changelog
 - v0: created
 - v1 (2026-11-23, H-008): first endpoints: `GET /api/health`, `GET /api/sets`, `GET /api/cards`
@@ -495,6 +514,8 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.18 (2026-11-25, H-202, SPEC-012 0.1): no endpoint change. New "Release changelog" section: `ChangelogEntry`,
+  `CHANGELOG_DATA`, the pure changelog rules, the `/changelog` page, `check:changelog-release` and the release step.
 - v1.17 (2026-11-25, H-207, SPEC-010 v0.15.0): no endpoint change. Username: client 20 NFC code points and the
   SYNC-153 (4) allowed set (no emoji), counter `n / 20`, `USERNAME_MAX` replaces `USERNAME_MAX_GRAPHEMES` /
   `USERNAME_MAX_UNITS`; rules `size()` 1 to 80 (was 2000), checked only when `username` changes.
