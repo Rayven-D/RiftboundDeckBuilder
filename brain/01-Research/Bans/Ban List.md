@@ -2,7 +2,7 @@
 tags: [research]
 area: bans
 status: verified
-as_of: 2026-11-23
+as_of: 2026-11-24
 sources:
   - url: https://playriftbound.com/en-us/rules-hub/
     tier: official
@@ -23,8 +23,8 @@ sources:
 Riftbound has **bans only, no restricted or limited list** (Riot said in March 2026 it had no plans to
 restrict). There are separate lists for **Standard Constructed** and **2v2 Constructed**, kept in the
 "Constructed Format Legality" sections of the Rules Hub. **The newest wave takes effect today, 2026-11-23**,
-bringing Standard to **15 cards + 7 battlefields**. 2v2 currently has **6 cards, 5 battlefields and 1
-Legend** banned. Riot announced on 2026-11-13 that from 23 Nov, regions behind on set releases (Korea,
+bringing Standard to **15 cards + 7 battlefields**. 2v2 has **14 cards, 7 battlefields and 1
+Legend** banned (rechecked 2026-11-24; it was 6 / 5 / 1 before the Radiance wave). Riot announced on 2026-11-13 that from 23 Nov, regions behind on set releases (Korea,
 Traditional Chinese) get **separate regional ban lists**.
 
 ## Current list: Standard Constructed (effective 2026-11-23)
@@ -56,6 +56,7 @@ Traditional Chinese) get **separate regional ban lists**.
 Total: 15 cards and 7 battlefields, which matches the Rules Hub count.
 
 ## Current list: 2v2 Constructed (per Rules Hub, last updated 2026-11-23)
+_Update 2026-11-24: the hub now shows 14 cards and 7 battlefields, i.e. this list plus the 8 cards and 2 battlefields of the Radiance wave (Standard list above). The older list below is kept for history._
 - **Legend:** Master Yi, Wuju Bladesman (effective 2026-07-24)
 - **Cards:** Called Shot, Ekko, Recurrent, Draven, Vanquisher, Scrapheap, Stealthy Pursuer, Stacked Deck
 - **Battlefields:** The Arena's Greatest, Aspirant's Climb, Dreaming Tree, Obelisk of Power, Reaver's Row
@@ -70,10 +71,14 @@ Total: 15 cards and 7 battlefields, which matches the Rules Hub count.
 | 5 | **Radiance update:** published 2026-11-13, effective **2026-11-23**. 8 cards and 2 battlefields for Standard **and 2v2** (see the conflict below). Riot's reasons included Riven at about 43% of RC Europe registrations. (official) | https://playriftbound.com/en-us/news/announcements/radiance-ban-list-updates-effective-november-23-2026/ | 2026-11-23 |
 | 6 | **Ban windows from 2027:** announcements on the Friday **two weeks before and two weeks after each Continental**. Riot avoids bans within two weeks of premier events, and its tolerance will be "a bit stricter" next year. (official) | same as #5 | 2026-11-23 |
 | 7 | **Regional lists:** from 2026-11-23, regions out of set parity get their own lists. Radiance bans don't apply in Korea or Traditional Chinese regions until Radiance releases there, and some cards are unbanned there until the later sets arrive. At the start of each set's season, the previous season's final list applies. (official) | same as #5 | 2026-11-23 |
+| 8 | **2v2 conflict resolved (H-022):** on 2026-11-24 the Rules Hub 2v2 Constructed table shows **1 Legend, 14 cards, 7 battlefields** (6+8 cards, 5+2 battlefields), and lists Riven, Broken Blade and Emperor's Dais. So the Radiance wave does apply to 2v2. (The announcement also says "not making additional bans in 2v2 right now", which reads as no extra 2v2-only bans.) | https://playriftbound.com/en-us/rules-hub/ | 2026-11-24 |
+| 9 | **Time zone of effective dates: not published.** The announcement and Rules Hub give only a date ("Monday, November 23"), no time of day or zone. Only article publish timestamps are UTC. Treat effective dates as **calendar dates with no zone** (a card is banned from the start of that date in the event's local time is an assumption, not a Riot statement). | https://playriftbound.com/en-us/news/announcements/radiance-ban-list-updates-effective-november-23-2026/ ; https://playriftbound.com/en-us/rules-hub/ | 2026-11-24 |
+| 10 | **Name:** the card in Riftcodex (OGN, `ogn-292-298`, Battlefield) is **"The Dreaming Tree"**, matching the first-ban announcement. The Rules Hub tables print "Dreaming Tree" (no article). Canonical name: **The Dreaming Tree**; the matcher should also accept the short form. Not yet checked against the official card gallery (no API) or the Riot payload (H-020). | https://api.riftcodex.com/cards/name?fuzzy=Dreaming%20Tree (community-db) ; https://playriftbound.com/en-us/news/announcements/announcing-riftbounds-first-bans/ | 2026-11-24 |
 
 ## Conflicts / uncertainties
-- **2v2 scope of the Radiance wave:** the announcement says the bans apply to Standard *and* Constructed 2v2, but the Rules Hub 2v2 table (also dated 2026-11-23) **doesn't include** the 8 new cards or Emperor's Dais/Star Spring. `status: conflict` for 2v2 only. Re-check in a few days.
-- The Rules Hub spells it "Dreaming Tree", while the first-ban announcement and community sources say "The Dreaming Tree". Use the card gallery's exact name as canonical.
+- **2v2 scope of the Radiance wave:** resolved 2026-11-24, see fact 8. The "2v2 Constructed" table above (6 cards, 5 battlefields) is the **old** 2026-11-23 first read; the hub now shows 14 cards and 7 battlefields.
+- Dreaming Tree naming: see fact 10.
+- Effective-time zone: see fact 9, unanswerable from public sources so far. Ask Riot Support or an event judge if exact-time legality ever matters.
 - The regional (KR/TW) ban lists aren't published in detail. This only matters if we support those regions.
 
 ## Impacts

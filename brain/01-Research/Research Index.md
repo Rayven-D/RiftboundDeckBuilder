@@ -12,13 +12,13 @@ Owner: **researcher**. Every note needs sources and an *as-of* date. Status: `to
 | Deck construction | [[Deck Construction Rules]] | verified | Deck size, copy limits, legend/champion, runes, battlefields, domain restrictions |
 | Card keywords | [[Card Keywords]] | unverified | 28 keywords (Core Rules 805-832, rev. 2026-10-09), set added, values and stacking, reminder text, API `keywords[]` (format needs H-020), policy on showing rules text (H-089) |
 | Physical copies across decks | [[Physical Copies Across Decks]] | verified | Which sections share physical cards (champion = main pool; Legend / Battlefields separate but physical); can runes be ignored? |
-| Organized play formats | [[Formats]] | conflict | Which formats exist (constructed, limited)? Which do we support? |
-| Ban & restriction list | [[Ban List]] | verified | Current official list for organized play, effective dates, change history |
-| Sets & release schedule | [[Sets]] | unverified | Released sets, set codes, upcoming releases & rotation (if any) |
+| Organized play formats | [[Formats]] | partial | Rotation conflict resolved 2026-11-24 (H-022): first rotation start of 2028, Sets 1-5 leave; OGS membership unconfirmed; promos legal by name |
+| Ban & restriction list | [[Ban List]] | verified | Current official list for organized play, effective dates, change history. 2v2 conflict closed 2026-11-24; effective-date time zone unpublished |
+| Sets & release schedule | [[Sets]] | partial | OGN to VEN dates now from Riot press releases (H-022); RAD/LGC/PG2/REC official; ARC = Arcane Box Set code |
 | Card data & images | [[Card Data & Images]] | unverified | Official card gallery/API? Community DBs? Stable IDs? **Terms: hotlink vs. cache?** |
 | Meta overview | [[Meta Overview]] (archived) | archived | Background only; app shows no meta stats (ADR-0003) |
 | Tournaments | [[Tournament Results]] | unverified | Major events worldwide (Regionals, Nationals, Worlds…), placings, decklist sources |
-| Import formats | [[Collection Import Formats]] | unverified | Formats other deck sites/apps export, to support importing from them |
+| Import formats | [[Collection Import Formats]] | partial | Piltover table (to RAD), TTS suffix = art number, Riot text sample done (H-022); real CSV/TXT export samples still unobtainable |
 
 ## Policy
 | Topic | Note | Status | Notes |
