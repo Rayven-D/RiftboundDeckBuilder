@@ -18,6 +18,12 @@ Older entries: [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[
 - GitHub had a partial Pull Requests outage most of the run (GraphQL 502s); PR creation and merges were retried.
 - Next: RJ merges PR #53 and #54, then the Firestore rules redeploy (`firebase deploy --only firestore`); gates H-182 (final read of the draft), H-221, H-234, H-243, H-240; release-day dates (privacy `[set on release`, changelog `0.0.1`). Loop: H-241, H-211, H-210, H-233, then the normal order (H-165 attempt 2, H-186, …).
 
+## 2026-11-25: H-213 builder, the Firestore rules check the username (SPEC-010 v0.16.0 SYNC-160)
+- Built `validUsername` in `firestore.rules` as SYNC-160 (c), run only when the request changes `username` (unchanged legacy names pass; create still denies it). The allowed pattern is a **double-quoted** rules string: the rules compiler refused the spec's single-quoted `\'` (`Error compiling rules: L71:74 Unexpected ']'`), which SYNC-160 (c) allows. Shared test data `web/src/app/shared/account/username-cases.ts` (AC 22 lists) runs through `username.spec.ts` and the rules tests, with the SYNC-160 (f) invariant asserted.
+- **The four SYNC-160 (g) proofs pass on the emulator:** 20 × U+1D400 allowed, 21 denied (code points); `नमस्ते` allowed; `O’Neil` allowed (literal `’`, no `\x{2019}` needed); `a` + U+FE0F denied (with the variation-selector clause removed it is allowed, so the clause does the work). Line feeds denied. Production check not done (no deploy in this item): `unverified` until the orchestrator's post-deploy check.
+- Chosen: the H-183 `size()` probe moved to `lastClientVersion` (≤ 40), since no allowed name can exceed 80 in any unit; added `a` + U+E0100 and `RJ` + LF + `Smith` to the denied list.
+- Checks: rules 85/85 (JDK 21), web unit 878/878, lint clean, build OK. [[API Contracts]] v1.19. Not committed or deployed.
+
 ## 2026-11-25: H-222 builder, `/changelog` polish ([[Critique H-202 Changelog]])
 - Bullets are filled `disc` dots with a muted marker (they were hollow second-level circles). The footer links get `padding-inline: var(--space-1)` so the focus ring clears the text; the 44px height stays. The footer "What's new" link has `routerLinkActive="active"` + `ariaCurrentWhenActive="page"`. The `.active` styles are scoped to the main tabs, so the link looks the same. Two tests by LOG-070 / H-222; the disc test fails when the rule is `circle`. Lint, build and 891 web tests green. Nothing deployed. The account menu is unchanged, and the signed-in "fourth Theme option" check is still open.
 
