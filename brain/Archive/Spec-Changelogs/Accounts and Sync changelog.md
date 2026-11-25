@@ -9,6 +9,47 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+## Impacts history (moved here from SPEC-010 "Impacts on other specs" in v0.12, H-177; all applied; the per-mode wording is superseded by v0.12)
+- **v0.7 impacts, applied by H-071 (2026-11-24):** IMP-053 (0.9.1), COLL-070 (0.9), DECK-090 (0.7) and SHARE-060
+  (0.4.1) read "browser by default; synced to the account when signed in"; SPEC-008's Out of scope line superseded;
+  DECK-074 monotonic `updatedAt` (0.7); SPEC-007 0.9 `TagId` `t_` + 6 base-62 and `StoredTags` schemaVersion 3
+  (COLL-071), COLL-074 "while signed in clears this device and signs out"; ADR-0007 "Planned layout" pointer.
+- **v0.8 impacts (account required to import, RJ decision 13), applied by H-160 (2026-11-25):** wording was
+  "local-only mode: browser only; account-required mode: a browser cache of the signed-in account, cleared on
+  sign-out". SPEC-003: Import page and Owned Cards Import gated (IMP-053, new IMP-076; Undo snapshot cleared on
+  sign-out and first sign-in). SPEC-006: deck import gated, DECK-090 as IMP-053, "Add to your decks" not offered
+  while the gate is closed (new DECK-097, decision 13 h). SPEC-007: Collection page gated (new COLL-092), COLL-070
+  as IMP-053, COLL-074 "not offered in account-required mode". SPEC-008: SHARE-060 as IMP-053. SPEC-004: Tournaments
+  public, deck controls hidden while the gate is closed (CAT-077, new CAT-078). SPEC-005: Decks gated (new OWN-066).
+  H-075: SYNC-052 / AC 31 changed (action hidden in account-required mode). H-077: no Combine, write rule SYNC-050.
+  Home copy (H-126): hero note by flag, "Free" / "Free account". Current State constraints line "by mode".
+- Other notes from that list still live in SPEC-010 (Firestore Data Shape reads, V-011 adapter path).
+
+- 0.12 (2026-11-24, H-171, RJ decision 17, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2, account-only;
+  build H-172): **removed** the `signInEnabled` flag and local-only mode. SYNC-008 ("Two modes") and SYNC-052
+  ("Delete all local data by mode") withdrawn, IDs retired. SYNC-007 rewritten from "Sign-in is gated by a build
+  flag" to the **production release rule**: the account-only build is not deployed to production until H-063 (Auth
+  providers), H-152 (privacy notice) and the Firestore rules (SYNC-117) are done; production keeps its current
+  build and only preview channels run the new one; the preview deploy path (H-078) stays, minus the flag.
+  SYNC-001 ("Accounts by mode") now "Account-only"; SYNC-002, SYNC-009 (gate always on), SYNC-031 / 032 (no
+  "stamp but never push" branch), SYNC-048 ("legacy local data" → "stale local data"), SYNC-080, SYNC-086,
+  SYNC-097, SYNC-101 (the notice also says what the browser keeps), SYNC-125 lose their mode wording. New
+  section M **Browser cache**, SYNC-140 (cache never the record of truth, pending changes the only exception),
+  SYNC-141 (what: session; the whole collection, tags, locks and every deck, justified by the existing full
+  read, 2-3 reads per reopen, ≈ 95 KB typical / 640 KB heavy; sync log; device preferences; public catalog and
+  images not cleared), SYNC-142 (cleared exactly on sign-out, account deletion, deleted / half-deleted account
+  sign-outs, a different account's first sign-in; not on reload, offline, lost session), SYNC-143 (never
+  uploaded), SYNC-144 (cache first, then fresh), SYNC-145 (scrolling and browsing make no Firestore reads;
+  smooth scrolling per COLL-093 / OWN-084 / CAT-079), SYNC-146 (the browser may drop it; pending changes then
+  lost, SYNC-098 residual risk). Definitions: Browser cache, Stale local data (replaces Legacy local data),
+  Local stores. Design decision 1 rewritten. ACs 31 (now "No delete-all-local action"), 35 (no flag, preview
+  deploy path), 45 (now "No import without an account"), 48 (first account-only build on a browser with old
+  data) rewritten; ACs 1, 3, 5, 36, 39, 46, 49 de-moded; ACs 59–64 new (cache contents, cache clears, never
+  uploaded, scrolling reads nothing, no local-only code left, production release rule). Decision 17 added;
+  decisions 10 and 13 (c) marked superseded in part; Open questions 10 (how to hold production back) and 11
+  (how much to cache) for RJ. Impacts: SPEC-003…008 applied (IMP-053/076, CAT-077/078/079, OWN-066/084/093,
+  DECK-087/090/097, COLL-070/074 withdrawn/092/093, SHARE-060) plus the 7-point H-172 change list. Pins SPEC-003
+  0.11, SPEC-004 0.6, SPEC-005 0.6, SPEC-006 0.8, SPEC-007 0.11, SPEC-008 0.4.4.
 - 0.11.2 (2026-11-25, H-160): metadata and Impacts only, no requirement changed. The v0.8 Impacts for SPEC-003
   (0.10.1), SPEC-004 (0.5.1), SPEC-005 (0.5.2), SPEC-006 (0.7.1), SPEC-007 (0.10.1) and SPEC-008 (0.4.3) are marked
   applied. Dependency pins updated to those versions.
