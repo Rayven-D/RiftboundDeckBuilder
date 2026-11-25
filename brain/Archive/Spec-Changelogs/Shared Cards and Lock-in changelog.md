@@ -9,6 +9,9 @@ superseded_by: "[[Shared Cards and Lock-in]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.4.1 (2026-11-24, H-071, SPEC-010 Impacts): SHARE-060 reads "browser by default, synced to the account when
+  signed in" (SYNC-017, SYNC-070…077). The Out of scope line "Accounts, syncing locks between browsers, sharing
+  decks" is superseded: only sharing decks with other people stays out of scope. No lock rule changed.
 - 0.4 (2026-11-24, H-097): **runes are cards** (RJ, 2026-11-24: "Allow users to import runes as well and
   treat them like any other card."). New SHARE-006 (rune entries have need, hold, shared indicator,
   breakdown and count toward completeness, shortfall and groups). SHARE-001 and `COUNTED_ZONES` now include

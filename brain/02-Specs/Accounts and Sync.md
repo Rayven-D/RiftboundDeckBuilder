@@ -1,7 +1,7 @@
 ---
 tags: [spec, accounts, sync, firestore]
 id: SPEC-010
-version: 0.6
+version: 0.6.1
 status: draft
 depends_on: [SPEC-003, SPEC-005, SPEC-006, SPEC-007, SPEC-008, SPEC-009]
 research: ["[[Firestore Data Shape]]", "[[Card Data & Images]]"]
@@ -57,8 +57,9 @@ browser storage. Signed in, the browser stores stay the working copy and are syn
 
 **Shared types:** `AuthService`, `RemoteStore`, `StoredSyncLog`, `SyncStatus`, Firestore document shapes
 `AccountDoc`, `CollectionDoc`, `TagsDoc`, `LocksDoc`, `DeckDoc`.
-**Depends on:** [[Collection Import]] v0.6, [[Your Decks Ownership View]] v0.4, [[Deck Import]] v0.6,
-[[My Collection]] v0.5, [[Shared Cards and Lock-in]] v0.2, [[Runes Assumed Owned]] v0.2. **Consumers:** H-062
+**Depends on:** [[Collection Import]] v0.9.1, [[Your Decks Ownership View]] v0.5, [[Deck Import]] v0.7,
+[[My Collection]] v0.9, [[Shared Cards and Lock-in]] v0.4.1 (SPEC-009 [[Runes Assumed Owned]] is withdrawn
+since 2026-11-24: runes are cards, so nothing here treats them differently). **Consumers:** H-062
 (build), [[ADR-0007 Firebase Accounts and Firestore]].
 **Open:** none for RJ (all 11 answered 2026-11-23, see Decisions); privacy-notice legal content `BLOCKED:
 needs research` (H-069; sign-in hidden in production until RJ approves the notice, SYNC-007).
@@ -292,10 +293,10 @@ listener (over 30 minutes) re-reads every matching document; rule lookups are bi
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { CardKey, PrintingId, StoredCollection } from './collection-import';   // SPEC-003 v0.6
-import type { TagId, TagTarget, TagColour, StoredTags } from './my-collection';     // SPEC-007 v0.5 (TagId per SYNC-016)
-import type { UserDeck } from './deck-import';                                       // SPEC-006 v0.6
-import type { StoredDeckLocks } from './shared-cards';                              // SPEC-008 v0.2
+import type { CardKey, PrintingId, StoredCollection } from './collection-import';   // SPEC-003 v0.9.1
+import type { TagId, TagTarget, TagColour, StoredTags } from './my-collection';     // SPEC-007 v0.9 (TagId per SYNC-016)
+import type { UserDeck } from './deck-import';                                       // SPEC-006 v0.7
+import type { StoredDeckLocks } from './shared-cards';                              // SPEC-008 v0.4.1
 type Ms = number;                 // ms since Unix epoch, client clock
 type Timestamp = unknown;         // Firestore timestamp (adapter type)
 
@@ -614,22 +615,23 @@ Unless stated: user RJ has uid `uA`; a second user has uid `uB`; devices are "la
 - The 8-bucket collection split (future `schemaVersion: 2`, SYNC-123).
 
 ## Impacts on other specs and checks (for the orchestrator to file)
-- [[Collection Import]] IMP-053 and [[My Collection]] COLL-070, [[Deck Import]] DECK-090, [[Shared Cards and Lock-in]]
-  SHARE-060 say "browser only"; they should read "browser by default; synced to the account when signed in
-  (SPEC-010)". SPEC-008's Out of scope line "syncing locks between browsers" is superseded.
-- [[Deck Import]] DECK-074: `updatedAt` on save becomes `max(now, previous updatedAt + 1 ms)` (SYNC-031) so a
-  deck edit on a device whose clock is behind still beats the version it replaced. DECK-094's conflict check is
-  unaffected. SPEC-006 MAY also cap `importRemovedLines` (none today; SYNC-112 does not cap it).
-- [[My Collection]]: `TagId` becomes `t_` + 6 base-62 characters; `StoredTags` `schemaVersion: 3` with the
-  SYNC-016 migration (COLL-071); COLL-074 behaviour while signed in (SYNC-052).
+- **Applied 2026-11-24 (H-071):** [[Collection Import]] IMP-053 (0.9.1), [[My Collection]] COLL-070 (0.9),
+  [[Deck Import]] DECK-090 (0.7) and [[Shared Cards and Lock-in]] SHARE-060 (0.4.1) now read "browser by default;
+  synced to the account when signed in (SPEC-010)". SPEC-008's Out of scope line "syncing locks between browsers"
+  is superseded.
+- **Applied (H-071):** [[Deck Import]] DECK-074 (0.7): `updatedAt` on save is `max(now, previous updatedAt + 1 ms)`
+  (SYNC-031). DECK-094's conflict check is unaffected. SPEC-006 MAY still cap `importRemovedLines` (none today;
+  SYNC-112 does not cap it); not done.
+- **Applied (H-071):** [[My Collection]] 0.9: `TagId` is `t_` + 6 base-62 characters; `StoredTags`
+  `schemaVersion: 3` with the SYNC-016 migration (COLL-071); COLL-074 while signed in clears this device and signs
+  out (SYNC-052).
 - [[Firestore Data Shape]] read estimates are now low: a reopen is 3 reads (account check + 2 queries, SYNC-040),
   not 2; a first sign-in adds up to 3 + N rule-lookup reads and each new deck up to 1 (SYNC-113, SYNC-120). The
   per-day table (typical ≈ 15 reads) and the DAU figures should be recomputed; the effect is small (≈ +3 reads
   per typical user per day) but the note should match. The `existsAfter()` billing points are `unverified`.
 - [[Validation Checks]] V-011: the grep excludes only `services/src/adapters/`, so the `web/` Firebase adapter of
   SYNC-130 would fail it. V-011 needs an allowed `web/` adapter path (e.g. `web/src/app/**/adapters/`).
-- [[ADR-0007 Firebase Accounts and Firestore]] "Planned layout": already replaced by the Data shape section; it
-  can point to this spec.
+- **Applied (H-071):** [[ADR-0007 Firebase Accounts and Firestore]] "Planned layout" now points to this spec.
 
 ## Decisions (RJ, 2026-11-23)
 RJ's answers to the 11 open questions of v0.1–v0.4, quoted, and where they apply.
@@ -666,4 +668,4 @@ None for RJ. Research: SYNC-101 privacy-notice content (H-069). Unverified techn
 researcher: the `existsAfter()` billing and limits (SYNC-113), and the provider error that means `deleted` (SYNC-097).
 
 ## Changelog
-Current: 0.6 (2026-11-23, email link only at launch; Google behind `authProviders`). Full history: [[Accounts and Sync changelog]] (archived). New entries go in the archive note.
+Current: 0.6.1 (2026-11-24, H-071: dependency pins and Impacts marked applied; no requirement changed). Pin-only fix 2026-11-24 (H-071 attempt 2, no version bump): Data contract import comments now pin SPEC-003 0.9.1, SPEC-007 0.9, SPEC-006 0.7, SPEC-008 0.4.1. Full history: [[Accounts and Sync changelog]] (archived). New entries go in the archive note.

@@ -39,7 +39,7 @@ as_of: 2026-11-24
   `DeckLockState` (SPEC-008). Defines `computeDeckOwnership()` →
   `DeckOwnershipView`, `OwnershipCard`, `DeckTileSummary`. Excluding tag names come from
   `DeckOwnershipInput.tags` (SPEC-007 `TagStore`).
-- **Depends on:** SPEC-001 v0.3, SPEC-002 v0.3, SPEC-004 v0.5, SPEC-006 v0.6, SPEC-007 v0.8, SPEC-008 v0.4.
+- **Depends on:** SPEC-001 v0.3, SPEC-002 v0.3, SPEC-004 v0.5, SPEC-006 v0.7, SPEC-007 v0.9, SPEC-008 v0.4.1.
   Nothing is stored by this spec; everything is computed on display.
 - **Blocked / open:** foil as its own printing (SPEC-007 open question 1, H-020); card image aspect
   ratio and battlefield orientation in the API (OWN-081). Unknown card = 0 owned is a Claude default RJ
@@ -225,11 +225,11 @@ card fields are SPEC-001 ([[Card Data Model]]).
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { UserDeck, DeckCard, DeckZone, DeckSource } from './deck-import';   // SPEC-006 v0.6
+import type { UserDeck, DeckCard, DeckZone, DeckSource } from './deck-import';   // SPEC-006 v0.7
 import type {
   DeckOwnership, DeckOwnershipInput, CollectionCatalogView, StoredTags, Tag, TagId,
-} from './my-collection';                                                       // SPEC-007 v0.8, COLL-081
-import type { SharedPool, CardUse, DeckLockState } from './shared-cards';     // SPEC-008 v0.4
+} from './my-collection';                                                       // SPEC-007 v0.9, COLL-081
+import type { SharedPool, CardUse, DeckLockState } from './shared-cards';     // SPEC-008 v0.4.1
 // v0.5: no isRuneEntry() (SPEC-009 withdrawn); rune entries are counted entries (OWN-028)
 import type { BanStatus, BanListFile, LegalityResult, FormatDef } from './deck-legality'; // SPEC-002 v0.3
 import type { PlayableCard, Printing, CardCategory } from './card-data-model';   // SPEC-001 v0.3
@@ -510,4 +510,4 @@ deck uses the cards and no deck is locked, so available = `ownedForDecks`.
    fact 11). OWN-016's default-printing art for rune tiles depends on it; the ownership rules here don't.
 
 ## Changelog
-Current: 0.5 (2026-11-24, H-097: runes are cards). Full history: [[Your Decks Ownership View changelog]] (archived). New entries go in the archive note.
+Current: 0.5 (2026-11-24, H-097: runes are cards). Pin-only fix 2026-11-24 (H-071 attempt 2, no version bump): "Depends on" and import comments now pin SPEC-006 0.7, SPEC-007 0.9, SPEC-008 0.4.1. Full history: [[Your Decks Ownership View changelog]] (archived). New entries go in the archive note.
