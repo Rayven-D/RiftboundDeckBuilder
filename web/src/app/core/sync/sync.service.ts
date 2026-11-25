@@ -142,6 +142,18 @@ export class SyncService {
     return this.engine.currentEmail();
   }
 
+  /**
+   * SYNC-095 (H-143): read once when the delete dialog opens. Both are false while the adapters aren't loaded
+   * (then there is no session, and the engine's SYNC-096 step 1 check on confirm still applies).
+   */
+  needsRecentSignIn(): boolean {
+    return this.engine.needsRecentSignIn();
+  }
+
+  canReauthenticate(): boolean {
+    return this.engine.canReauthenticate();
+  }
+
   signInWithGoogle(): Promise<unknown> {
     return this.engine.signIn('google');
   }

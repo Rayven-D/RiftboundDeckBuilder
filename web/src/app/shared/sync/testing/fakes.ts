@@ -331,6 +331,11 @@ export class FakeAuth implements AuthService {
   needsRecentSignIn(): boolean {
     return !this.recentSignIn;
   }
+  /** SYNC-095 (H-143): as the adapter, Google enabled and a Google identity (`googleIdentity`). */
+  googleIdentity = false;
+  canReauthenticate(): boolean {
+    return this.uid !== null && this.enabled.includes('google') && this.googleIdentity;
+  }
   async reauthenticate(): Promise<'ok' | 'cancelled' | 'needs-sign-in'> {
     this.calls.push('reauthenticate');
     if (this.reauthResult === 'ok') this.recentSignIn = true;

@@ -224,7 +224,7 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   instead of `void`; `PushChanges` carries `replace` per state document, `updatedAt`, and the account
   write as `{ create, createdAt, updatedAt, lastClientVersion }` (no `batch` flag since v1.5: `push()` writes
   one document at a time, in order, account first); `AuthService.restore()`,
-  `sendEmailLink(email)`, `isEmailLinkReturn()`, `needsRecentSignIn()`, `signIn(providerId, email?)`;
+  `sendEmailLink(email)`, `isEmailLinkReturn()`, `needsRecentSignIn()`, `canReauthenticate()` (H-143), `signIn(providerId, email?)`;
   `StoredSyncLog.cloudDocs` (documents known to exist, for create vs update), `pending.collectionReplace`,
   `locks[id].h` (lockedAt), `deckTombstones[id].createdAt` and `.wasPending`; after H-062 round 1 also
   `deckCreated` (deck createdAt for tombstones), `lastBuild` (this device's build: SYNC-118 retry and the
@@ -252,6 +252,13 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   and SYNC-096 have no offline carve-out), then offline, paused, other errors, syncing, synced.
   `statusText()` drops the pending count for that deletion Error; other statuses keep it.
   `SyncStatus.pendingCount` still carries the real count.
+- **Delete dialog state at open (SYNC-095, SYNC-096 step 1; H-143):** `AuthService.canReauthenticate(): boolean`,
+  true only when Google is an enabled provider (SYNC-006) and `currentUser.providerData` has `google.com`
+  (Firebase adapter; `reauthenticate()` uses the same check before the popup). `SyncEngine` and `SyncService`
+  expose `needsRecentSignIn()` and `canReauthenticate()`; both return false while no session is loaded or the
+  engine is stopped. The account menu reads `needsRecentSignIn() && !canReauthenticate()` once when it opens the
+  delete dialog (`DeleteAccountDialogData.signInFirst`); the dialog closes with `true` (delete), `'sign-out'`
+  (open the SYNC-090 dialog) or nothing. The engine's step 1 check on confirm is unchanged.
 - **Account-required mode (SYNC-008/009/048/086/090/091/097, H-081):** the sync engine runs only when
   `signInEnabled` is true, so everything below applies to that mode; with `signInEnabled: false` nothing here
   runs (no gate, no clearing).

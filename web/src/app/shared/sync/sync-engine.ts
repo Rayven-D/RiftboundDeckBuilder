@@ -133,6 +133,18 @@ export class SyncEngine {
     return this.auth?.currentEmail() ?? null;
   }
 
+  /** SYNC-096 step 1, for the delete dialog's state at open (SYNC-095, H-143). False while no session is loaded. */
+  needsRecentSignIn(): boolean {
+    if (!this.uid || this.stopped) return false;
+    return this.auth?.needsRecentSignIn() ?? false;
+  }
+
+  /** SYNC-095 (H-143): a Google popup re-authentication is possible. False while no session is loaded. */
+  canReauthenticate(): boolean {
+    if (!this.uid || this.stopped) return false;
+    return this.auth?.canReauthenticate() ?? false;
+  }
+
   isReadOnly(area: string): boolean {
     return this.readOnlyAreas.has(area);
   }

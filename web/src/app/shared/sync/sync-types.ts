@@ -224,6 +224,11 @@ export interface AuthService {
   signOut(): Promise<void>;
   /** SYNC-096 step 1. */
   needsRecentSignIn(): boolean;
+  /**
+   * SYNC-095 (H-143): true only when Google is enabled (SYNC-006) and the user has a Google identity, so
+   * `reauthenticate()` can use a popup; false = a fresh sign-in is needed (the delete dialog's sign-in-first state).
+   */
+  canReauthenticate(): boolean;
   /** 'needs-sign-in': the provider cannot re-authenticate here (email link); the user signs out and in again. */
   reauthenticate(): Promise<'ok' | 'cancelled' | 'needs-sign-in'>;
   checkAccount(): Promise<AccountCheck>;

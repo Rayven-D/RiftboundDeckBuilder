@@ -16,6 +16,8 @@ import { STORAGE_KEYS } from '../storage/local-stores';
 
 const text = (el: Element) => (el.textContent ?? '').replace(/\s+/g, ' ').trim();
 const buttons = (root: HTMLElement) => Array.from(root.querySelectorAll('button')).map(text);
+/** Disabled natively or through Material's disabledInteractive (Sync now, H-122). */
+const isDisabled = (b: HTMLButtonElement) => b.disabled || b.getAttribute('aria-disabled') === 'true';
 
 describe('Sign-in UI (SPEC-010)', () => {
   let adapterLoads: number;
@@ -202,7 +204,8 @@ describe('Sign-in UI (SPEC-010)', () => {
       await vi.waitFor(async () => {
         fixture.detectChanges();
         await fixture.whenStable();
-        expect(syncNow.disabled).toBe(false);
+        expect(text(syncNow)).toBe('Sync now');
+        expect(isDisabled(syncNow)).toBe(false);
       });
       await new Promise((r) => setTimeout(r));
       expect(syncNowCalls).toHaveBeenCalledTimes(1);
@@ -215,7 +218,7 @@ describe('Sign-in UI (SPEC-010)', () => {
       button('Sync now').click();
       await vi.waitFor(async () => {
         await settle();
-        expect(button('Sync now').disabled).toBe(false); // the sync finished
+        expect(isDisabled(button('Sync now'))).toBe(false); // the sync finished (label back to Sync now)
       });
       expect(text(el)).toContain("1 change hasn't synced yet. It'll be lost if you sign out now.");
       expect(buttons(el)).toEqual(['Cancel', 'Sign out anyway', 'Sync now']);
@@ -227,12 +230,12 @@ describe('Sign-in UI (SPEC-010)', () => {
       await settle();
       expect(text(el)).toContain("You're offline.");
       expect(text(el)).toContain("1 change hasn't synced yet.");
-      expect(button('Sync now').disabled).toBe(true);
+      expect(isDisabled(button('Sync now'))).toBe(true);
       expect(button('Sign out anyway').disabled).toBe(true);
       expect(button('Cancel').disabled).toBe(false);
       online.set(true);
       await settle();
-      expect(button('Sync now').disabled).toBe(false);
+      expect(isDisabled(button('Sync now'))).toBe(false);
       expect(button('Sign out anyway').disabled).toBe(false);
       expect(text(el)).not.toContain("You're offline.");
     });

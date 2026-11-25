@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, Injector, afterNextRender, inject, signal, viewChild } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDivider } from '@angular/material/divider';
@@ -7,8 +7,14 @@ import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { firstValueFrom } from 'rxjs';
 import { Icon } from '../../shared/icon';
 import { MESSAGES } from '../../shared/sync/sync-engine';
-import { DeleteAccountDialog, SignOutDialog, SignOutDialogData } from './sync-dialogs';
-import { SyncService } from './sync.service';
+import {
+  DeleteAccountDialog,
+  DeleteAccountDialogData,
+  DeleteAccountDialogResult,
+  SignOutDialog,
+  SignOutDialogData,
+} from './sync-dialogs';
+import { SyncService, refocusAfterDialog } from './sync.service';
 
 /** Ids for the menu's aria-describedby (identity line, status). */
 let accountMenuSeq = 0;
@@ -93,12 +99,15 @@ export class AccountMenu {
   protected readonly sync = inject(SyncService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly injector = inject(Injector);
   protected readonly offline = MESSAGES.offline;
   /** A deletion or Cancel deletion is running (SYNC-096): its menu actions are disabled meanwhile. */
   protected readonly busy = signal(false);
   private readonly seq = ++accountMenuSeq;
   protected readonly identityId = `account-identity-${this.seq}`;
   protected readonly statusId = `account-status-${this.seq}`;
+  /** H-143 / H-122 (Brief decision 8): the Account button. The menu item that opened a dialog is gone by then. */
+  private readonly trigger = viewChild(MatMenuTrigger, { read: ElementRef<HTMLElement> });
 
   constructor() {
     // The app shell loads this component (deferred) only while signInEnabled is on; it starts sync,
@@ -116,24 +125,47 @@ export class AccountMenu {
     return this.sync.openSignIn(e.currentTarget as HTMLElement);
   }
 
-  /** SYNC-090: the dialog stays open during Sync now; Sign out (or Sign out anyway) clears this device. */
+  /**
+   * SYNC-090: the dialog stays open during Sync now; Sign out (or Sign out anyway) clears this device. Focus
+   * returns to the Account button (H-125 pattern); after a real sign-out that button is gone, so the same
+   * fallback puts it on #main.
+   */
   protected async openSignOut(): Promise<void> {
+    const trigger = this.trigger()?.nativeElement;
     const data: SignOutDialogData = {
       pending: () => this.sync.pendingCount(),
       online: this.sync.online,
       syncNow: () => this.sync.syncNow(),
     };
-    const ref = this.dialog.open(SignOutDialog, { data });
-    if ((await firstValueFrom(ref.afterClosed())) === true) await this.sync.signOut();
+    const ref = this.dialog.open(SignOutDialog, { data, autoFocus: 'first-tabbable', restoreFocus: trigger ?? true });
+    const signOut = (await firstValueFrom(ref.afterClosed())) === true;
+    refocusAfterDialog(trigger);
+    if (!signOut) return;
+    await this.sync.signOut();
+    // The Account button leaves the DOM only on the next render (it becomes Sign in); then the fallback runs.
+    afterNextRender(() => refocusAfterDialog(trigger), { injector: this.injector });
   }
 
   /**
-   * SYNC-095 / SYNC-096. The engine shows the outcome notice (deleted, not deleted, sign in again first,
-   * offline). A deletion that stopped part-way offers Try again, which continues where it stopped.
+   * SYNC-095 / SYNC-096. The state is decided once, at open (H-143): when a fresh sign-in is needed and no
+   * Google popup is possible, the sign-in-first state, whose Sign out hands off to the SYNC-090 dialog (opened
+   * only after this one closed, so they never stack). The engine shows the outcome notice (deleted, not deleted,
+   * sign in again first, offline). A deletion that stopped part-way offers Try again, which continues where it
+   * stopped.
    */
   protected async openDelete(): Promise<void> {
-    const ref = this.dialog.open(DeleteAccountDialog);
-    if (!(await firstValueFrom(ref.afterClosed()))) return;
+    const trigger = this.trigger()?.nativeElement;
+    const data: DeleteAccountDialogData = {
+      signInFirst: this.sync.needsRecentSignIn() && !this.sync.canReauthenticate(),
+    };
+    const ref = this.dialog.open<DeleteAccountDialog, DeleteAccountDialogData, DeleteAccountDialogResult>(
+      DeleteAccountDialog,
+      { data, autoFocus: 'first-tabbable', restoreFocus: trigger ?? true },
+    );
+    const result = await firstValueFrom(ref.afterClosed());
+    refocusAfterDialog(trigger);
+    if (result === 'sign-out') return this.openSignOut();
+    if (result !== true) return;
     await this.runDelete();
   }
 

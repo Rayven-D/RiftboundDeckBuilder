@@ -201,16 +201,22 @@ export class FirebaseAuthService implements AuthService {
   }
 
   /**
-   * SYNC-096 step 1. Google re-authenticates in a popup, only while Google is an enabled provider and
-   * the user has a Google identity. Otherwise (email link) the user cannot re-authenticate inside this
-   * dialog (it needs a new link): 'needs-sign-in', and the UI asks them to sign in again first.
+   * SYNC-095 / SYNC-096 step 1 (H-143): a Google popup re-authentication is possible only while Google is an
+   * enabled provider (SYNC-006) and the signed-in user has a Google identity. False = a fresh sign-in is needed.
+   */
+  canReauthenticate(): boolean {
+    const user = this.auth.currentUser;
+    return !!user && this.isEnabled('google') && user.providerData.some((p) => p.providerId === 'google.com');
+  }
+
+  /**
+   * SYNC-096 step 1. Google re-authenticates in a popup, only when `canReauthenticate()`. Otherwise (email
+   * link) the user cannot re-authenticate inside this dialog (it needs a new link): 'needs-sign-in', and the
+   * UI asks them to sign in again first.
    */
   async reauthenticate(): Promise<'ok' | 'cancelled' | 'needs-sign-in'> {
     const user = this.auth.currentUser;
-    if (!user) return 'needs-sign-in';
-    if (!this.isEnabled('google') || !user.providerData.some((p) => p.providerId === 'google.com')) {
-      return 'needs-sign-in';
-    }
+    if (!user || !this.canReauthenticate()) return 'needs-sign-in';
     try {
       await reauthenticateWithPopup(user, new GoogleAuthProvider());
       return 'ok';

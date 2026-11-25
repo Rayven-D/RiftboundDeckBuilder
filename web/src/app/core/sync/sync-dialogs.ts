@@ -1,6 +1,7 @@
 import {
   Component,
   DestroyRef,
+  DOCUMENT,
   ElementRef,
   Injector,
   Signal,
@@ -398,6 +399,9 @@ export const SIGN_OUT_TEXT =
  * SYNC-090 (v0.8): one choice, Sign out, which clears this device (SYNC-091); no Keep a copy. With unsynced
  * changes it first warns, with Sync now (primary), Sign out anyway and Cancel. Offline (SYNC-081) every button
  * that syncs or signs out is disabled and only Cancel works. Closes with `true` to sign out.
+ * v0.10 (H-122, brain/04-UI/Brief H-143 H-122.md decisions 11-17): the explanation is always rendered, muted
+ * under the warning while it shows; Sync now reads "Syncing…" while it runs, with Sync now and Sign out anyway
+ * disabled and Cancel enabled.
  */
 @Component({
   selector: 'app-sign-out-dialog',
@@ -406,52 +410,117 @@ export const SIGN_OUT_TEXT =
     <h2 mat-dialog-title>Sign out?</h2>
     <mat-dialog-content>
       @if (warning(); as w) {
-        <p role="alert">{{ w }}</p>
-      } @else {
-        <p>{{ text }}</p>
+        <p class="warning" role="alert">{{ w }}</p>
       }
+      <!-- H-122: one element, never swapped, so it just becomes the main line when the warning goes away. -->
+      <p class="explanation" [class.note]="!!warning()">{{ text }}</p>
       @if (!data.online()) {
         <p class="note" role="status">{{ offline }}</p>
       }
     </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button matButton type="button" mat-dialog-close>Cancel</button>
+    <mat-dialog-actions align="end" [class.stack]="!!warning()">
+      <button #cancelButton matButton type="button" mat-dialog-close>Cancel</button>
       @if (warning()) {
         <button matButton="outlined" type="button" [disabled]="disabled()" [mat-dialog-close]="true">Sign out anyway</button>
-        <button matButton="filled" type="button" [disabled]="disabled()" (click)="syncNow()">Sync now</button>
+        <!-- disabledInteractive: it has focus when it disables, so focus must not drop to body (guarded in syncNow). -->
+        <button matButton="filled" type="button" class="sync" [disabled]="disabled()" disabledInteractive (click)="syncNow()">
+          {{ syncing() ? 'Syncing…' : 'Sync now' }}
+        </button>
       } @else {
-        <button matButton="filled" type="button" [disabled]="disabled()" [mat-dialog-close]="true">Sign out</button>
+        <button #signOutButton matButton="filled" type="button" [disabled]="disabled()" [mat-dialog-close]="true">
+          Sign out
+        </button>
       }
     </mat-dialog-actions>
   `,
   styles: `
     .note { color: var(--color-text-muted); }
+    /* H-122: the warning and the explanation read as one pair. */
+    .warning { margin-bottom: var(--space-2); }
+    /* The margins would collapse to the explanation's 1em top margin (14px): the pair keeps the 8px gap. */
+    .warning + .explanation { margin-top: 0; }
+    /* "Syncing…" and "Sync now" fit in one width, so the row doesn't shift (as .send, H-106). */
+    .sync { min-width: 7.5rem; }
+    /* H-122: three actions don't fit on a phone row: stack them full width in DOM order (Cancel on top,
+       Sync now last, nearest the thumb). The plain two-button state stays a row. */
+    @media (max-width: 40rem) {
+      .stack { flex-direction: column; align-items: stretch; gap: var(--space-2); }
+      .stack .mat-mdc-button-base { margin: 0; }
+    }
   `,
 })
 export class SignOutDialog {
   protected readonly data = inject<SignOutDialogData>(MAT_DIALOG_DATA);
+  private readonly injector = inject(Injector);
+  /** A sync can settle after the dialog closed (Cancel stays enabled): then nothing is updated or focused. */
+  private destroyed = false;
   protected readonly text = SIGN_OUT_TEXT;
   protected readonly offline = MESSAGES.offline;
   private readonly pending = signal(this.data.pending());
   protected readonly syncing = signal(false);
   protected readonly warning = computed(() => unsyncedWarning(this.pending()));
   protected readonly disabled = computed(() => !this.data.online() || this.syncing());
+  private readonly signOutButton = viewChild('signOutButton', { read: ElementRef<HTMLButtonElement> });
+  private readonly cancelButton = viewChild('cancelButton', { read: ElementRef<HTMLButtonElement> });
+  private readonly doc = inject(DOCUMENT);
 
-  /** Runs a sync with the dialog open, then shows the plain question or the warning with the new count. */
+  constructor() {
+    inject(DestroyRef).onDestroy(() => (this.destroyed = true));
+  }
+
+  /**
+   * Runs a sync with the dialog open, then shows the plain question or the warning with the new count. When
+   * nothing is pending any more, Sync now has left the DOM, so focus moves to Sign out (the next step).
+   */
   protected async syncNow(): Promise<void> {
+    if (this.disabled()) return; // disabledInteractive still sends clicks
     this.syncing.set(true);
     try {
       await this.data.syncNow();
     } catch {
       // The engine reports sync failures itself (status line, notices); the dialog only re-reads the count.
     } finally {
-      this.pending.set(this.data.pending());
-      this.syncing.set(false);
+      if (!this.destroyed) {
+        this.pending.set(this.data.pending());
+        this.syncing.set(false);
+        if (this.pending() === 0) afterNextRender(() => this.focusAfterSync(), { injector: this.injector });
+      }
     }
+  }
+
+  /**
+   * The removed Sync now button had focus, so it is on <body> now. Sign out is the next step; when it is natively
+   * disabled (offline) Cancel takes focus instead. Focus the user moved meanwhile (e.g. to Cancel) is kept.
+   */
+  private focusAfterSync(): void {
+    if (this.destroyed) return;
+    const active = this.doc.activeElement;
+    if (active && active !== this.doc.body && active.isConnected) return;
+    const signOut = this.signOutButton()?.nativeElement;
+    (signOut && !signOut.disabled ? signOut : this.cancelButton()?.nativeElement)?.focus();
   }
 }
 
-/** SYNC-095: type `delete` to enable Delete account; no keep-a-copy option (RJ decision 7). */
+export interface DeleteAccountDialogData {
+  /**
+   * SYNC-095 (v0.10, H-143): decided once at open: `needsRecentSignIn() && !canReauthenticate()`. True = the
+   * sign-in-first state (no field, no Delete account; Sign out hands off to the SYNC-090 dialog).
+   */
+  signInFirst: boolean;
+}
+
+/** `true` = delete (type-to-confirm state); `'sign-out'` = open the SYNC-090 dialog (sign-in-first state). */
+export type DeleteAccountDialogResult = true | 'sign-out';
+
+/** Per-instance id for the step 1 sentence (Sign out's aria-describedby target). */
+let deleteDialogSeq = 0;
+
+/**
+ * SYNC-095: type `delete` to enable Delete account; no keep-a-copy option (RJ decision 7). Sign-in-first state
+ * (v0.10, H-143, brain/04-UI/Brief H-143 H-122.md decisions 1-6): the SYNC-096 step 1 sentence as plain body
+ * text, no field, no Delete account, and Cancel + Sign out (filled, not danger). Without data it is the
+ * type-to-confirm state.
+ */
 @Component({
   selector: 'app-delete-account-dialog',
   imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, MatFormField, MatLabel, MatInput],
@@ -462,21 +531,37 @@ export class SignOutDialog {
         This deletes your account and the collection, tags, decks and locks saved in it, including the copy on
         this device and on every other device that syncs it. This can't be undone.
       </p>
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Type delete to confirm</mat-label>
-        <input matInput autocomplete="off" [value]="typed()" (input)="onType($event)" />
-      </mat-form-field>
+      @if (signInFirst) {
+        <!-- Plain body text, no role or live region: it is there from the start (Brief decisions 3-4). -->
+        <p [id]="stepId">{{ reauthNeeded }}</p>
+      } @else {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Type delete to confirm</mat-label>
+          <input matInput autocomplete="off" [value]="typed()" (input)="onType($event)" />
+        </mat-form-field>
+      }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button matButton type="button" mat-dialog-close>Cancel</button>
-      <button matButton="filled" type="button" class="danger" [disabled]="typed() !== 'delete'" (click)="confirm()">
-        Delete account
-      </button>
+      @if (signInFirst) {
+        <button matButton="filled" type="button" [attr.aria-describedby]="stepId" [mat-dialog-close]="'sign-out'">
+          Sign out
+        </button>
+      } @else {
+        <button matButton="filled" type="button" class="danger" [disabled]="typed() !== 'delete'" (click)="confirm()">
+          Delete account
+        </button>
+      }
     </mat-dialog-actions>
   `,
 })
 export class DeleteAccountDialog {
-  private readonly ref = inject(MatDialogRef<DeleteAccountDialog, boolean>);
+  private readonly ref = inject(MatDialogRef<DeleteAccountDialog, DeleteAccountDialogResult>);
+  private readonly data = inject<DeleteAccountDialogData | null>(MAT_DIALOG_DATA, { optional: true });
+  protected readonly signInFirst = this.data?.signInFirst === true;
+  /** SYNC-095 reuses the SYNC-096 step 1 text, so there is one string. */
+  protected readonly reauthNeeded = MESSAGES.reauthNeeded;
+  protected readonly stepId = `delete-step1-${++deleteDialogSeq}`;
   protected readonly typed = signal('');
 
   protected onType(e: Event): void {
