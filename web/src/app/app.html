@@ -14,12 +14,17 @@
         }
       </ul>
     </nav>
-    <!-- SPEC-010 SYNC-150: exactly one control at the right end at every width: Sign in, or the account control
-         with the username (no Import button, SYNC-159). Deferred, so the sync code stays out of the initial bundle;
-         it loads no Firebase until a SYNC-002 trigger. Nothing renders there until it has loaded (SYNC-150 e). -->
-    @defer (on immediate) {
-      <app-account-menu />
-    }
+    <!-- SPEC-010 SYNC-158 / SYNC-150 (v0.17.0): the theme toggle, then (above 40rem) the one account control,
+         8px apart. The toggle renders at once (no Firebase, no request). The account control is deferred, so the
+         sync code stays out of the initial bundle; it loads no Firebase until a SYNC-002 trigger, and nothing renders
+         for it until it has loaded (SYNC-150 e). At 40rem and below the account control is the tab bar's 4th tab instead
+         (SYNC-150 g) and the toggle sits alone in the top-right corner. No Import button (SYNC-159). -->
+    <div class="header-actions">
+      <app-theme-toggle />
+      @defer (on immediate) {
+        <app-account-menu />
+      }
+    </div>
   </div>
 </header>
 
@@ -28,10 +33,15 @@
 </main>
 
 <footer class="site-footer">
-  <!-- SYNC-158 (a): the device theme for everyone, signed in or out, then the footer links in this order: Privacy
-       notice (SYNC-104 e, H-180), What's new (SPEC-012 LOG-010). -->
+  <!-- SYNC-104 (e) / LOG-010 (Brief H-247 F1): one row on the header's content edges. Above 40rem the Riot legal
+       notice sits on the left and the links on the right (Privacy notice, then What's new; RJ 2026-11-25). At 40rem
+       and below the links show above the notice, centred (CSS order only: the DOM and reading order stay legal, then
+       links). No theme control here (v0.17.0: it is the header toggle, SYNC-158). -->
   <div class="footer-row">
-    <app-theme-switch class="footer-theme" />
+    <p class="legal">
+      Rift Builder was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by
+      Riot Games. Riot Games does not endorse or sponsor this project.
+    </p>
     <nav class="footer-links" aria-label="Footer">
       <ul>
         <li>
@@ -43,14 +53,10 @@
       </ul>
     </nav>
   </div>
-  <p class="legal">
-    Rift Builder was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by
-    Riot Games. Riot Games does not endorse or sponsor this project.
-  </p>
 </footer>
 
-<!-- Phones only (below 40rem): the three tabs as a fixed bottom bar (SYNC-150: no Import tab). Hidden
-     (display: none) on wider screens, so only one "Main" navigation is ever exposed. -->
+<!-- Phones only (40rem and below): the three tabs and the account as a fixed bottom bar (SYNC-150 g: no Import tab).
+     Hidden (display: none) on wider screens, so only one "Main" navigation and one account trigger are exposed. -->
 <nav class="tab-bar" aria-label="Main">
   <ul>
     @for (item of tabs; track item.path) {
@@ -61,5 +67,12 @@
         </a>
       </li>
     }
+    <!-- SYNC-150 (g): the account tab (Sign in, or the letter avatar), owned by the deferred account menu. Until it
+         has loaded the column is reserved but empty and not focusable, so the three tabs don't move. -->
+    <li class="tab-account">
+      @if (accountTab.template(); as t) {
+        <ng-container [ngTemplateOutlet]="t" />
+      }
+    </li>
   </ul>
 </nav>

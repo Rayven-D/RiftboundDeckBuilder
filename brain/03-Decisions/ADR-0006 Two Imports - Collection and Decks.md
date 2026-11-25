@@ -100,8 +100,9 @@ usernames are display names, not unique; editable in settings; theme is per devi
   Sign out. Signed out, that spot offers sign-in / create account.
 - **Username:** chosen when the account is created. It is a **display name, not unique** (duplicates allowed; it is
   shown only to its owner today). It can be **changed later in account settings**. Stored with the account.
-- **Theme:** light / dark / system, remembered **per device** (browser storage). With nothing saved on the device,
-  the app follows the **system theme**. It is not stored in the account.
+- **Theme:** ~~light / dark / system~~ **light / dark only** (amended 2026-11-25, see *Amendment: theme and phone account* below),
+  remembered **per device** (browser storage). With nothing saved on the device, the app follows the **system theme**
+  behind the scenes. It is not stored in the account.
 - **Collection import** is renamed **"Add to your collection"** and opens from a **floating action button (FAB) at
   the bottom right of the Collection page**, in a dialog.
 - **Deck import** keeps the name **"Import deck"** and opens from the Decks page, in a dialog.
@@ -121,10 +122,17 @@ usernames are display names, not unique; editable in settings; theme is per devi
 
 ### Follow-up (RJ, 2026-11-24, gate H-178 on [[Brief H-175]])
 - Account settings live **in the header menu**, not on a page: **Account Information** (a dialog: change username,
-  delete account and data), **Theme**, **Sign out**.
+  delete account and data), ~~**Theme**~~ (moved to a header toggle, 2026-11-25), **Sign out**.
 - **"Import deck" is a floating button on Decks**, behaving exactly like "Add to your collection" on Collection.
 - Both buttons collapse to an icon on phones while scrolling down and are hidden on empty pages (which have their own
   button).
 - Username: 1–24 characters, any script, not unique, the prompt after the first sign-in can be skipped.
-- Theme can also be changed signed out, from a footer switch; it stays per device.
+- ~~Theme can also be changed signed out, from a footer switch; it stays per device.~~ Superseded 2026-11-25: a header toggle, see below.
 - `/import` (like any unknown path) goes to Home; there is no not-found page.
+
+### Amendment: theme and phone account (RJ, 2026-11-25)
+**Status: accepted** (RJ, in chat). RJ: "we'll only do light/dark and the system will be used behind the scenes until the user specifically chooses a theme". Earlier the same day: "move the theme to a light/dark switch next to the sign in/account area. No more \"system\". use only system if cached theme is not available", and on phones "move the signin/account to the bottom right next to tournaments", with the theme switch "in the top right where account used to be".
+- **Theme is light / dark only.** There is no System option. Until the user picks a theme, the app follows the OS theme behind the scenes; once they pick, the choice is stored per device and wins.
+- **Where:** a light/dark toggle in the header next to sign-in / account. It is no longer in the account menu or the footer.
+- **Phones:** the account moves to a 4th bottom tab after Tournaments; the theme toggle takes the header's top-right corner.
+- Specified in [[Accounts and Sync]] 0.17.1 (decision 22, SYNC-150 g, SYNC-151, SYNC-157, SYNC-158) and [[Brief H-245 H-246 H-247]]; built in H-246.

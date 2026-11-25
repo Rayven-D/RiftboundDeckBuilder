@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.20
+version: 1.21
 ---
 # API Contracts
 
@@ -397,12 +397,28 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
     `usernameInitial`, `USERNAME_TEXT` (`tooLong` "Use 20 characters or fewer.", `notAllowed` "Use letters, numbers,
     spaces and . _ - ' only. No emoji."). The dialog closes on a Save of the unchanged value before checking it, so a
     stored v0.14 name that breaks the v0.15 rules is never rewritten unless the user changes it.
-  - **Theme (SYNC-157, 158):** `THEME_KEY = 'device-theme'` (`web/src/app/shared/theme/theme.ts`), values `light` /
-    `dark`, absent = System; `parseTheme()`. `ThemeService` (`core/theme/theme.service.ts`): `choice` signal and `set()`;
-    writes `html[data-theme]` and both `theme-color` metas; follows the `storage` event. The inline script in
-    `web/src/index.html` sets `data-theme` before the first paint (a future CSP needs its hash). `styles.scss`: the light
+  - **Theme (SYNC-157, 158; v0.17.0 light/dark toggle, H-246):** `THEME_KEY = 'device-theme'`
+    (`web/src/app/shared/theme/theme.ts`). `ThemeChoice = 'light' | 'dark'` (no System). Pure: `parseTheme(raw)` →
+    `ThemeChoice | null` (`null` = nothing stored, also for `system` or junk); `effectiveTheme(stored, osPrefersLight)`
+    (stored wins, else the OS); `toggledTheme(effective)` (the opposite). `ThemeService` (`core/theme/theme.service.ts`):
+    `effective` signal (stored value, else `matchMedia('(prefers-color-scheme: light)')`, followed live by a `change`
+    listener) and `toggle()` (stores and applies the opposite of `effective`); an unknown stored value is removed on
+    read; writes `html[data-theme]` (absent while nothing is stored) and both `theme-color` metas; follows the
+    `storage` event. The control is `ThemeToggle` (`app-theme-toggle`, `core/theme/theme-toggle.ts`): a native button
+    named "Dark theme" with `aria-pressed`, icon `dark_mode` / `light_mode` (`shared/icon.ts`), `matTooltip`, rendered
+    in the header's `.header-actions` before the deferred account menu (not deferred). Removed: `ThemeSwitch`
+    (`app-theme-switch`), `THEME_CHOICES`, `ThemeService.choice` / `set()`, the menu Theme group. The inline script in
+    `web/src/index.html` sets `data-theme` before the first paint, only for `light` / `dark`, and removes any other
+    value (a future CSP needs its hash). `styles.scss`: the light
     tokens are the `light-tokens` mixin, applied by `@media (prefers-color-scheme: light) :root:not([data-theme='dark'])`
     and by `:root[data-theme='light']`; an explicit choice sets `color-scheme`.
+  - **Phone account tab (SYNC-150 g, H-246):** `AccountTab` (`core/sync/account-tab.ts`, root service) holds
+    `template: signal<TemplateRef | null>`. `AccountMenu` (still one instance, deferred in the header, one
+    `SyncService.start()`) declares the tab button in `<ng-template #accountTab>` and hands it over after its first
+    render; the app shell renders it with `ngTemplateOutlet` in the tab bar's fourth `li.tab-account` (empty until
+    then). Both triggers (`.account-trigger` in the header, `.account-tab` in the bar) open the same `mat-menu`; it
+    opens `above` while `matchMedia('(max-width: 40rem)')` matches. Dialogs opened from the menu return focus to the
+    trigger that opened it. The username prompt returns focus to whichever of the two is displayed.
   - **Dialogs** (`core/sync/account-dialogs.ts`): `UsernameDialog` (data `{ mode: 'choose' | 'change' | 'add', current,
     online, ready, save }`, closes with the saved name or nothing; `disableClose`, Escape closes) and `AccountInfoDialog`
     (data `{ username, online, deletionError, editUsername(opener), deleteAccount(opener) }`). The SYNC-095 dialog now
@@ -505,7 +521,7 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   the hash guard), `showableEntries` (LOG-024: the page shows only entries with no `entryErrors`, in file order),
   `validateChangelog` (LOG-041 whole-file rules, used by the data unit test), `formatReleaseDate` (LOG-021).
 - **Page:** `/changelog` (`pages/changelog/changelog-page.ts`), public, injects nothing from sync (no Firebase, no
-  storage). Linked from the footer row and the account menu (after Theme / Privacy notice, before the last divider).
+  storage). Linked from the footer row and the account menu (after Privacy notice, before the last divider; no Theme group since H-246).
 - **Release check (LOG-053):** `npm --prefix web run check:changelog-release` (`web/scripts/check-changelog-release.mjs`,
   pure logic in `web/scripts/changelog-release.mjs`) exits 1 with `Changelog has an undated entry: set its date before
   releasing.` while any `date` is `null`, and on a file that is not a JSON array; 0 otherwise. Not part of test, lint
@@ -530,7 +546,7 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
 - **Page:** `/privacy` (`pages/privacy/privacy-page.ts`), tab title `Privacy notice · Rift Builder`, public, injects
   nothing from sync (no Firebase, no storage, no request). The paragraph under the `<h1>` is the date line.
 - **Links:** footer (`.footer-links`, first, before What's new; `routerLinkActive` + `aria-current="page"`); account
-  menu (`<a mat-menu-item routerLink="/privacy">` after the Theme group, before What's new and the last divider;
+  menu (`<a mat-menu-item routerLink="/privacy">` after Account Information (no Theme group since H-246), before What's new and the last divider;
   enabled offline and during an unfinished deletion); sign-in dialog (`.fine-print` line under the form in every
   state: `AGE_LINE` "For ages 16 and over." then `<a href="/privacy" target="_blank" rel="noopener">Privacy notice</a>`,
   described by a visually hidden "Opens in a new tab.").
@@ -591,6 +607,10 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.21 (2026-11-25, H-246, SPEC-010 v0.17.0): no endpoint change. Theme: `ThemeChoice` is `light` | `dark`,
+  `parseTheme` returns `null` for anything else, new `effectiveTheme` / `toggledTheme`, `ThemeService.effective` and
+  `toggle()` replace `choice` / `set()`, unknown stored values are removed; `ThemeToggle` replaces `ThemeSwitch`. New
+  `AccountTab` (phone account tab template). The account menu has no Theme group.
 - v1.20 (2026-11-25, H-180, SPEC-010 v0.15.1): no endpoint change. New "Privacy notice" section: the notice text
   file, `PRIVACY_NOTICE_TEXT`, the Markdown subset parser, `/privacy`, its three links, SYNC-101 check 1 (in
   `build.mjs`) and check 2 (`check:privacy-release`, `main` workflow and `firebase.json` predeploy), the release step.

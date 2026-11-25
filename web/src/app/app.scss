@@ -67,8 +67,18 @@
 }
 
 .site-nav {
-  /* Pushes the account control to the far right. */
+  /* Pushes the theme toggle and the account control to the far right. */
   margin-right: auto;
+}
+
+/* SYNC-158 (a) / SYNC-150: the theme toggle, then the account control, 8px apart (Brief H-246 T3). The group may
+   shrink so the account control's name gives way first; the toggle never shrinks. */
+.header-actions {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .site-nav ul {
@@ -119,26 +129,36 @@
   }
 }
 
+/* ---- Footer (Brief H-247 F1, SYNC-104 e, LOG-010): slim, one row on the header's content edges ---- */
 .site-footer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4) var(--space-2);
+  /* 12px top and bottom: also the room the links' 44px hit areas overflow into (below). */
+  padding: var(--space-3) 0;
   border-top: 1px solid var(--color-border);
   color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  line-height: 1.4;
-  text-align: center;
 }
 
-/* SYNC-158 / LOG-010: the theme switch and the footer links share one row, wrapping on narrow screens. */
+/* Same width and side padding as the header row. Above 40rem: the legal notice left, the links right. */
 .footer-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: var(--space-2) var(--space-5);
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding-inline: var(--content-gutter);
+}
+
+/* Riot's required notice: wording kept exactly as Riot gives it, set small and muted. */
+.legal {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  text-align: start;
+}
+
+.footer-links {
+  flex: none;
 }
 
 .footer-links ul {
@@ -151,19 +171,19 @@
   list-style: none;
 }
 
-/* LOG-071: each link at least 44px tall to tap. H-222: side padding so the focus ring clears the text. */
-.footer-links a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding-inline: var(--space-1);
-  font-size: var(--font-size-sm);
+/* A flex item's margins don't collapse, so each item is exactly the link's 20px layout height (no line-box strut). */
+.footer-links li {
+  display: flex;
 }
 
-/* Riot's required notice: wording kept as Riot gives it, set small so it takes one or two lines. */
-.legal {
-  max-width: 100ch;
-  margin: 0 auto;
+/* LOG-071 / SYNC-158: a 44px tall hit area (20px line + 12px above and below) that takes only 20px of layout,
+   so the footer stays slim; the footer's 12px padding holds the overflow. H-222: side padding clears the focus ring. */
+.footer-links a {
+  display: block;
+  padding: 12px var(--space-1);
+  margin-block: -12px;
+  font-size: var(--font-size-sm);
+  line-height: 20px;
 }
 
 /* ---- Phone bottom tab bar (RJ, 2026-11-24) ---- */
@@ -172,22 +192,42 @@
 }
 
 @media (max-width: 40rem) {
-  /* The footer (and so the page) ends above the fixed bar. */
+  /* The footer (and so the page) ends above the fixed bar, including the bar's top hairline (H-247: without
+     --tabbar-border that hairline covered the footer's last pixel). */
   :host {
-    padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--tabbar-height) + var(--tabbar-border) + env(safe-area-inset-bottom));
+  }
+
+  /* Brief H-247 F1: links on top, the legal notice under them, centred. CSS order only; the DOM (and reading order)
+     stays legal, then links. */
+  .footer-row {
+    flex-direction: column;
+    gap: var(--space-2);
+    text-align: center;
+  }
+
+  /* Positioned, so the links' hit areas paint over the legal text 8px below them (order: -1 would otherwise paint
+     them first, under the notice, and the lower 4px of each 44px target would hit the notice instead). */
+  .footer-links {
+    position: relative;
+    order: -1;
+  }
+
+  .legal {
+    text-align: center;
+    text-wrap: balance;
   }
 
   .wordmark {
     font-size: var(--font-size-md);
   }
 
-  /* The tabs move to the bottom bar; the header keeps the wordmark and the account control. */
+  /* The tabs move to the bottom bar; the header keeps the wordmark and the theme toggle (SYNC-150 g). */
   .site-nav {
     display: none;
   }
 
-  /* The account control stays in the header, at the right edge. Its host is display: contents, so the
-     wordmark does the pushing. */
+  /* The theme toggle sits alone at the header's right edge (SYNC-158 a); the wordmark does the pushing. */
   .wordmark {
     margin-right: auto;
   }
@@ -205,7 +245,8 @@
 
     ul {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      /* SYNC-150 (g): Decks, Collection, Tournaments, then the account. */
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       margin: 0;
       padding: 0;
       list-style: none;

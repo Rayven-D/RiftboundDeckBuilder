@@ -1,5 +1,8 @@
+/// <reference types="node" />
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { Component } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { DeferBlockBehavior, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { App } from './app';
 import { routes } from './app.routes';
@@ -35,19 +38,31 @@ describe('App', () => {
     expect(header.textContent).not.toMatch(/\bImport\b/);
   });
 
-  it('SYNC-158 (a) / AC 79 the footer holds the Theme switch (System, Light, Dark) next to the Riot legal line', async () => {
+  it('SYNC-158 (a) / AC 79 / AC 82 the header holds one theme toggle "Dark theme", after the tabs and immediately before the account control, rendered at once (not deferred)', async () => {
+    const fixture = TestBed.createComponent(App);
+    const header = (fixture.nativeElement as HTMLElement).querySelector('header .header-row')!;
+    // before any change detection or defer block has run, the toggle is already in the template's first render
+    fixture.detectChanges();
+    const toggles = header.querySelectorAll('button[aria-label="Dark theme"]');
+    expect(toggles).toHaveLength(1);
+    const actions = header.querySelector('.header-actions')!;
+    expect(actions.previousElementSibling?.matches('nav.site-nav')).toBe(true);
+    expect(actions.firstElementChild?.tagName.toLowerCase()).toBe('app-theme-toggle');
+    await fixture.whenStable();
+    // the deferred account control follows the toggle in the same group (DOM and Tab order: tabs, toggle, account)
+    expect(actions.children[1]?.tagName.toLowerCase()).toBe('app-account-menu');
+  });
+
+  it('SYNC-158 (d) / SYNC-104 (e) / AC 69 / AC 79 the footer holds no Theme control (v0.17.0)', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const footer = (fixture.nativeElement as HTMLElement).querySelector('footer')!;
-    const group = footer.querySelector('[role="radiogroup"]')!;
-    expect(group).not.toBeNull();
-    const labelId = group.getAttribute('aria-labelledby')!;
-    expect(footer.querySelector(`#${labelId}`)?.textContent?.trim()).toBe('Theme');
-    expect(Array.from(group.querySelectorAll('button')).map((b) => b.textContent?.trim())).toEqual(['System', 'Light', 'Dark']);
+    expect(footer.querySelector('app-theme-switch, app-theme-toggle, [role="radiogroup"], button')).toBeNull();
+    expect(footer.textContent).not.toMatch(/Theme|System/);
     expect(footer.querySelector('.legal')).not.toBeNull();
   });
 
-  it("SPEC-012 LOG-010 / LOG-012 / AC 2 the footer has a real What's new link to /changelog in the theme switch's row, same tab", async () => {
+  it("SPEC-012 LOG-010 / LOG-012 / AC 2 the footer has a real What's new link to /changelog in the footer links row, same tab", async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const footer = (fixture.nativeElement as HTMLElement).querySelector('footer')!;
@@ -55,13 +70,12 @@ describe('App', () => {
     const link = links.find((a) => a.textContent?.trim() === "What's new")!;
     expect(link.getAttribute('href')).toBe('/changelog');
     expect(link.getAttribute('target')).toBeNull();
-    expect(link.closest('.footer-row')?.querySelector('app-theme-switch')).not.toBeNull();
     link.click();
     await fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/changelog');
   });
 
-  it('SYNC-104 (e, g) / AC 69 the footer has a real Privacy notice link to /privacy, first in the links row, above the unchanged Riot legal line, same tab', async () => {
+  it("SYNC-104 (e, g) / AC 69 the footer has a real Privacy notice link to /privacy, first in the links row, on the unchanged Riot legal line's row, same tab", async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const footer = (fixture.nativeElement as HTMLElement).querySelector('footer')!;
@@ -71,7 +85,9 @@ describe('App', () => {
     expect(link.getAttribute('href')).toBe('/privacy');
     expect(link.getAttribute('target')).toBeNull();
     expect(link.tabIndex).toBe(0);
-    expect(link.closest('.footer-row')?.nextElementSibling?.classList.contains('legal')).toBe(true);
+    // v0.17.0 / Brief H-247 F1: the links share the legal line's row, after it in the DOM (reading order legal → links)
+    const row = link.closest('.footer-row')!;
+    expect(row.querySelector(':scope > .legal + nav.footer-links')).not.toBeNull();
     expect(footer.querySelector('.legal')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
       `Rift Builder was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project.`,
     );
@@ -110,6 +126,23 @@ describe('App', () => {
     }
   });
 
+  it('SYNC-104 (e) / LOG-010 / Brief H-247 F1 the footer is one row: legal notice, then the links nav, nothing else', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const footer = (fixture.nativeElement as HTMLElement).querySelector('footer.site-footer')!;
+    expect(Array.from(footer.children).map((c) => c.className)).toEqual(['footer-row']);
+    const row = footer.querySelector('.footer-row')!;
+    expect(Array.from(row.children).map((c) => c.tagName.toLowerCase() + '.' + c.className)).toEqual([
+      'p.legal',
+      'nav.footer-links',
+    ]);
+    // the rendered legal wording is byte-identical to before H-247 (Riot's required notice; Angular collapses the
+    // template's line break and indent to one space, so the surrounding spaces are part of the rendered text)
+    expect(row.querySelector('.legal')!.textContent).toBe(
+      ` Rift Builder was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project. `,
+    );
+  });
+
   it('should show the Legal Jibber Jabber notice in the footer', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
@@ -131,7 +164,7 @@ describe('App phone tab bar', () => {
     }).compileComponents();
   });
 
-  it('SYNC-150 / AC 71 lists exactly Decks, Collection and Tournaments (no Import tab), each with an icon and a label', async () => {
+  it('SYNC-150 / AC 71 / AC 81 the links are exactly Decks, Collection and Tournaments (no Import tab), each with an icon and a label, then the account column', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const bar = (fixture.nativeElement as HTMLElement).querySelector('nav.tab-bar')!;
@@ -148,6 +181,27 @@ describe('App phone tab bar', () => {
       'Tournaments',
     ]);
     for (const a of links) expect(a.querySelector('app-icon')).not.toBeNull();
+    // SYNC-150 (g): the fourth column, after Tournaments, is the account (filled by the deferred account menu)
+    const items = Array.from(bar.querySelectorAll(':scope > ul > li'));
+    expect(items).toHaveLength(4);
+    expect(items[3].classList).toContain('tab-account');
+    expect(items[3].querySelector('a')).toBeNull();
+  });
+
+  it('SYNC-150 (g) / AC 81 four equal columns at phone width; the column is reserved before the account code loads', () => {
+    const scss = readFileSync(resolve(process.cwd(), 'src/app/app.scss'), 'utf8');
+    expect(scss).toContain('grid-template-columns: repeat(4, minmax(0, 1fr));');
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [App],
+      providers: [provideRouter(routes)],
+      deferBlockBehavior: DeferBlockBehavior.Manual, // the deferred account menu hasn't loaded yet
+    });
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const col = (fixture.nativeElement as HTMLElement).querySelector('nav.tab-bar .tab-account')!;
+    expect(col).not.toBeNull();
+    expect(col.querySelector('button, a, [tabindex]')).toBeNull();
   });
 
   it('marks only the current page with aria-current="page"', async () => {

@@ -469,6 +469,33 @@ describe('CollectionPage "Add to your collection" (SPEC-007 COLL-094, SPEC-003 I
     expect(TestBed.inject(Router).url).toBe('/collection'); // stays on Collection (IMP-072)
   });
 
+  it('COLL-094 (e) / H-245 Accept 6: an arrow key that moves focus below the window scrolls the row clear of the floating button (the page bottom padding counts)', async () => {
+    const h = await setup('/collection', { sample: { ...generateLargeSample(300), decks: [], locks: [] } });
+    const rowH = parseFloat(el(h).querySelector<HTMLElement>('.grid-row')?.style.height ?? '') || 0;
+    expect(rowH).toBeGreaterThan(0);
+    // Two rows plus 50px fit in the window; the FAB clearance (92px) does not leave room for the second row.
+    const realStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((e: Element, p?: string | null) =>
+      e === document.documentElement
+        ? new Proxy(realStyle(e, p), { get: (t, k) => (k === 'scrollPaddingBottom' ? '92px' : Reflect.get(t, k)) })
+        : realStyle(e, p),
+    );
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(2 * rowH + 50);
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(0);
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    try {
+      const first = el(h).querySelector<HTMLElement>('[data-entry]')!;
+      first.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      await settle(h);
+      expect(scrollTo).toHaveBeenCalled();
+      const top = (scrollTo.mock.calls.at(-1)![0] as ScrollToOptions).top!;
+      // grid top (0 in jsdom) + row 1 + one row height - window height + clearance
+      expect(top).toBe(2 * rowH - (2 * rowH + 50) + 92);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
   it('COLL-094 (b): no floating button on the unreadable banner or the card-data banner', async () => {
     let h = await setup('/collection', { corruptCollection: true });
     expect(el(h).querySelector('app-page-fab')).toBeNull();
