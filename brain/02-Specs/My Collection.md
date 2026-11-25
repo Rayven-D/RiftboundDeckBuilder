@@ -1,12 +1,12 @@
 ---
 tags: [spec]
 id: SPEC-007
-version: 0.10.1
+version: 0.11
 status: draft
 depends_on: ["SPEC-001", "SPEC-002", "SPEC-003", "SPEC-008"]
 research: ["[[Sets]]", "[[Card Data & Images]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]", "[[Ban List]]", "[[Collection Import Formats]]"]
 decisions: ["[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
-board: H-034, H-097, H-087
+board: H-034, H-097, H-087, H-171
 as_of: 2026-11-24
 ---
 # SPEC-007: My Collection
@@ -25,14 +25,15 @@ as_of: 2026-11-24
 - COLL-031/033: default order `printingSortKey`; total, stable tie-breaker.
 - COLL-035/041: Unknown is its own filter/sort bucket and sorts last.
 - COLL-060/061: the query is remembered per browser and mirrored in the URL.
-- COLL-070: stores (`CollectionStore`, `TagStore`, `PrintingCodeStore`, view state) by mode (SPEC-010): local-only mode browser only; account-required mode a browser cache of the signed-in account, cleared on sign-out (quantities and tags synced). COLL-071: `StoredTags` `schemaVersion` 3, `TagId` = `t_` + 6 base-62 characters, migrated on load. COLL-074 (v0.10.1): Delete all local data is offered in local-only mode only; in account-required mode Sign out clears the device. COLL-092 (v0.10.1): the Collection page is behind the SYNC-009 sign-in gate in account-required mode.
+- COLL-070 (v0.11, account-only): quantities, tags and their assignments belong to the signed-in account; `CollectionStore`, `TagStore`, `PrintingCodeStore` and view state are the browser side (SPEC-010 SYNC-140…: a cache of the account, cleared on sign-out; printing codes and view state are never synced). COLL-071: `StoredTags` `schemaVersion` 3, `TagId` = `t_` + 6 base-62 characters, migrated on load. **COLL-074 withdrawn (v0.11):** "Delete all local data" went with local-only mode; deleting data is "Delete account and data" (SYNC-095). COLL-092: the Collection page is always behind the SYNC-009 sign-in gate.
+- COLL-093 (v0.11, RJ 2026-11-24): **smooth scrolling, no pagination** for every card and deck list (rule defined here, applied by SPEC-005 OWN-084 and SPEC-004 CAT-079): no page numbers, no Previous / Next, nothing to press to reveal more; rows render and images load as you scroll, nothing jumps, filter / sort changes return to the top.
 - COLL-080/081: "exclude from decks" tag flag; `deckOwnership(input, cardKey)` → `owned`, `ownedForDecks`, `ownedExcluded`, per-entry breakdown.
 - COLL-086…088 (v0.4): one per-name pool for decks: `ownedForDecks` sums every printing of a name, and SPEC-008 subtracts locked decks from it (Collection itself is unchanged by locks); changes that make a locked deck short warn first, inside their confirmation (v0.5: also inside the SPEC-003 Replace confirmation; v0.7: also inside the Undo of an import, which asks for a confirmation only then unless COLL-058 already gives one, and is followed by a "… is now `<n>` cards short." notice once confirmed).
 - COLL-090/091 (v0.10, H-087): card data unavailable → banner "Card data couldn't load. …" with Try again, no list, nothing written (COLL-015 does not apply); arriving from an import commit needs nothing extra, the Undo notice is SPEC-003's (IMP-073…075).
 - COLL-089 (v0.8, RJ 2026-11-24): **runes are cards**: listed, tagged, edited, exported and counted toward decks like any card, with no rune-specific text or section (COLL-087 withdrawn; SPEC-009 withdrawn).
 
 **Shared types:** `DeckOwnership` / `DeckOwnershipInput` (read by SPEC-005, SPEC-008) · `CollectionCatalogView` (catalog view read by the pure functions) · `Tag`, `TagTarget`, `StoredTags` · `CollectionEntry`, `EntryBan` · `CollectionQuery`, `CollectionQueryInput`.
-**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3.1, [[Collection Import]] v0.10.1, [[Shared Cards and Lock-in]] v0.4.3 (`lockedShortfalls()`, SHARE-034). **Consumers:** [[Your Decks Ownership View]], [[Shared Cards and Lock-in]].
+**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3.1, [[Collection Import]] v0.11, [[Shared Cards and Lock-in]] v0.4.4 (`lockedShortfalls()`, SHARE-034). **Consumers:** [[Your Decks Ownership View]], [[Shared Cards and Lock-in]].
 **BLOCKED (needs research):**
 - Whether a foil is its own Riot API printing (COLL-011/016/020).
 - Rarity order (COLL-034); domain list (CARD-025); variant representation (CARD-040/041); API set order (CARD-071).
@@ -53,8 +54,9 @@ own entry with a **count badge** when more than one copy is owned; **tags attach
 to card names; a tag can be marked **"exclude from decks"**, so tagged printings stay in Collection
 but do not count as owned in Decks.
 
-The collection itself is produced by [[Collection Import]] (SPEC-003) and stored in the browser
-([[ADR-0005 MVP Product Defaults]] decision 1). This spec adds manual editing, tags, the list view
+The collection itself is produced by [[Collection Import]] (SPEC-003) and saved in the signed-in
+user's account, with the browser holding a cache of it ([[Accounts and Sync]] SYNC-140…;
+[[ADR-0007 Firebase Accounts and Firestore]] amendment 2026-11-24 (2); ADR-0005 decision 1 is superseded). This spec adds manual editing, tags, the list view
 and its query model, and the **deck-ownership contract** (section J) that [[Your Decks Ownership View]]
 (SPEC-005) reads: per-`cardKey` owned copies, minus copies carrying an excluded tag.
 
@@ -166,7 +168,7 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 | COLL-019 | MUST | **Unassigned copies are one tag target per `cardKey`**, tagged separately from every printing of that card; their tags show on the unassigned entry only. When a card's unassigned count reaches 0 (e.g. a CSV Replace now identifies every printing), those tags become dormant (COLL-029) and, if the card has printing entries, the app offers once "Copy tags from unassigned copies to …" listing the entries; nothing is copied without the user's choice. | design rule (decision 3) |
 | COLL-020 | MUST | Users can create tags with any free text and assign **many tags to an entry**. Tags attach to **tag targets**: a `printingId` (printing and missing-printing entries) or the unassigned copies of a `cardKey` (COLL-019), never to a whole card. A tag on the foil printing of a card does not show on, filter or exclude its regular printing. | [[ADR-0006 Two Imports - Collection and Decks]] H-036 #4; [[ADR-0006 Two Imports - Collection and Decks]] |
 | COLL-021 | MUST | Tag labels are trimmed, internal whitespace collapsed to one space, and NFC-normalized. Uniqueness is **case-insensitive**: the tag key is the Unicode case fold of the normalized label. Creating `trade binder` when `Trade Binder` exists reuses the existing tag. Display keeps the label as the user typed it. | design rule |
-| COLL-022 | MUST | Limits: label length 1–40 characters after normalization; no control characters; at most **200 tags** per browser; at most **20 tags per tag target**. Exceeding a limit shows an inline error and changes nothing. | design rule |
+| COLL-022 | MUST | Limits: label length 1–40 characters after normalization; no control characters; at most **200 tags** per account; at most **20 tags per tag target**. Exceeding a limit shows an inline error and changes nothing. | design rule |
 | COLL-023 | MUST | **Rename** a tag: the new label is validated as in COLL-021/022. Renaming to the key of another existing tag offers **merge** instead (COLL-024). Renaming keeps the tag's id, so assignments and saved views stay valid. | design rule |
 | COLL-024 | MUST | **Merge** tag A into tag B: every tag target that had A gets B (no duplicates), A is deleted, B keeps its label, colour and `excludeFromDecks` flag. A confirmation states how many entries change and, if A and B differ in the flag, that the merged tag is (or is not) excluded from decks. | design rule |
 | COLL-025 | MUST | **Delete** a tag: removes it and all its assignments after a confirmation naming the number of entries affected (and, for an excluded tag, the copies that will count in Decks again). Quantities are not affected. | design rule |
@@ -218,9 +220,9 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 ### G. View state and URL
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| COLL-060 | MUST | The current query (view mode, search text, filters, tag mode, ban filter, sort, direction) is remembered **per browser** and restored when the user returns to Collection. | design rule; [[ADR-0005 MVP Product Defaults]] decision 1 |
+| COLL-060 | MUST | The current query (view mode, search text, filters, tag mode, ban filter, sort, direction) is remembered **per browser** (a device preference, not account data: never synced, SYNC-019) and restored when the user returns to Collection. | design rule |
 | COLL-061 | MUST | The query is mirrored in URL query parameters (`view`, `q`, `sort`, `dir`, `set`, `cat`, `type`, `domain`, `cost`, `energy`, `might`, `power`, `rarity`, `variant`, `tag`, `tagMode`, `ban`, `decks`, `minQty`), with comma-separated multi-values, so a filtered view can be bookmarked or reopened in the same browser. `view=cards` selects group-by-card view. The unknown bucket is the token `_unknown`, "No domain" is `_none`, Untagged is `_untagged`, unassigned entries `_unassigned`, missing-printing entries `_missing`. Defaults are omitted, so the default query has a clean URL. | design rule |
-| COLL-062 | MUST | Tags are referenced in the URL by **tag id**, so a bookmark survives a rename. A URL that names a tag id, set code or value that does not exist in this browser drops that value and shows a one-line notice ("1 filter value not found and was ignored"). URLs never contain anything but query state (no quantities, no personal data). | design rule; privacy |
+| COLL-062 | MUST | Tags are referenced in the URL by **tag id**, so a bookmark survives a rename. A URL that names a tag id, set code or value that does not exist for this account drops that value and shows a one-line notice ("1 filter value not found and was ignored"). URLs never contain anything but query state (no quantities, no personal data). | design rule; privacy |
 | COLL-063 | MUST | On load, URL parameters (if any) win over the remembered state; the result becomes the remembered state. Changes to the query update the URL in place (no new history entry per keystroke). | design rule |
 | COLL-064 | MAY | A user may save named views (e.g. "Kennen deck – unowned trades") that store a query. | design rule |
 
@@ -235,12 +237,13 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 ### I. Storage
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| COLL-070 | MUST | All Collection data is stored behind interfaces with a browser adapter: quantities through SPEC-003's `CollectionStore`, tags through a `TagStore`, printing codes through a `PrintingCodeStore` (COLL-075), view state through a `CollectionViewStateStore`. By mode ([[Accounts and Sync]] SPEC-010, `signInEnabled`): **local-only mode: browser only**, no account and no server copy; **account-required mode: a browser cache of the signed-in account, cleared on sign-out**. In account-required mode quantities and tags (with their assignments) are synced to the account (SYNC-013, SYNC-015); printing codes and view state are never synced (SYNC-019). | [[ADR-0005 MVP Product Defaults]] decision 1; [[ADR-0006 Two Imports - Collection and Decks]] (tags in the browser); [[Collection Import]] IMP-053; [[Accounts and Sync]] |
+| COLL-070 | MUST | **Account-only storage (v0.11).** Quantities and tags (with their assignments and "exclude from decks" flags) belong to the signed-in account: its `state/collection` and `state/tags` documents are the record of truth ([[Accounts and Sync]] SPEC-010 SYNC-013, SYNC-015). The screen reads and writes them through interfaces backed by the **browser cache** of the account (SYNC-140…SYNC-145): quantities through SPEC-003's `CollectionStore`, tags through a `TagStore`. Two stores hold no account data and are never synced (SYNC-019): printing-code memory through a `PrintingCodeStore` (COLL-075), which is display data the cache rebuilds, and view state through a `CollectionViewStateStore`, which is a per-device preference (COLL-060). The cache is cleared on sign-out, on account deletion and when a different account signs in (SYNC-142); the view state and printing-code memory are cleared with it, as built. Nothing in the cache is ever uploaded into an account (SYNC-143). | [[ADR-0007 Firebase Accounts and Firestore]] amendment 2026-11-24 (2); [[ADR-0006 Two Imports - Collection and Decks]] (tags); [[Collection Import]] IMP-053; [[Accounts and Sync]] |
 | COLL-071 | MUST | Every stored record has a `schemaVersion`: `StoredTags` is `3`, `StoredViewState` is `2`, `StoredPrintingCodes` is `1`. A loader that finds an older version migrates it: `StoredTags` 1 (0.1 draft, assignments by `cardKey`) → each card's tags are copied to every printing entry currently owned for that card and to its unassigned target, `excludeFromDecks` = false (then continues as 2); `StoredTags` 2 → 3 (short ids, [[Accounts and Sync]] SYNC-016): every tag whose id is not a valid short `TagId` (`t_` + 6 base-62 characters `[0-9A-Za-z]`, see the `TagId` type) is given a new one, once, on load, and every reference is rewritten in the same save: `assignments`, the view state's tag filter and saved views (COLL-060, COLL-064); the record shape is otherwise unchanged. Example: tag `t_01HZX8K2M4QW` becomes `t_k3F9aZ`, and `assignments['p:OGN-001-1'] = ['t_01HZX8K2M4QW']` becomes `['t_k3F9aZ']`. `StoredViewState` 1 → `view: 'printings'` becomes `'entries'`. A newer or unreadable version is not overwritten and the user is told the data could not be read. | [[Collection Import]] IMP-054; design rule |
-| COLL-072 | MUST | A failed save (e.g. browser storage full) shows an error, keeps the in-memory change visible as "not saved", and does not corrupt the previously stored record. | design rule |
+| COLL-072 | MUST | A failed save to the browser cache (e.g. device storage full) shows an error, keeps the in-memory change visible as "not saved", and does not corrupt the previously stored record. | design rule |
 | COLL-073 | SHOULD | Changes made in another tab of the same browser are picked up (reload of stores on change) so two tabs do not overwrite each other silently. | design rule |
-| COLL-074 | MUST | **Local-only mode:** the user can delete all local collection, tag, printing-code and view data from a settings action, after confirmation; there is no account, so the confirmation carries no SPEC-010 text and nothing is sent anywhere. **Account-required mode:** the action is **not offered**: Sign out already clears this device and never deletes cloud data ([[Accounts and Sync]] SYNC-052, SYNC-091), and deleting the cloud copy is Delete account and data (SYNC-095). (v0.9 said "while signed in clears this device and signs out" with a confirmation line "Your account keeps its copy…"; both are withdrawn.) | [[Card Data & Images]] #7 (data removal); design rule; [[Accounts and Sync]] SYNC-052 |
-| COLL-092 | MUST | **Sign-in gate (SYNC-009, account-required mode only).** While the gate is not open (signed out, session lost, or first sync running), the Collection page `/collection` keeps its page header and shows the SPEC-010 sign-in panel below it instead of the list, and reads nothing from the local stores (no tiles, counts, tags or ban data are shown or loaded). Once the gate opens the page shows its content without a reload. In local-only mode there is no gate. This is separate from COLL-090 (card data unavailable). Panel text and gate rules are SPEC-010's. | [[Accounts and Sync]] SYNC-009 |
+| COLL-074 | — | **Withdrawn in v0.11 (2026-11-24, H-171; RJ: local-only mode dropped, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2).** It offered "Delete all local collection data" (built in H-154) in local-only mode, which no longer exists. There is no action that deletes only the collection, tags or the browser's copy: sign-out clears this device's cache and never deletes account data ([[Accounts and Sync]] SYNC-091); deleting everything in the account, and the cache with it, is **Delete account and data** (SYNC-095). Removing single cards stays COLL-054; replacing the whole collection stays an Owned Cards Import in Replace mode (SPEC-003 IMP-050). The ID is retired and not reused. H-162 and H-170 (its copy and warning work) are withdrawn with it. | RJ decision 2026-11-24 (amendment 2); [[Accounts and Sync]] SYNC-091, SYNC-095 |
+| COLL-092 | MUST | **Sign-in gate (SYNC-009, always on).** While the gate is not open (signed out, session lost, or first sync running), the Collection page `/collection` keeps its page header and shows the SPEC-010 sign-in panel below it instead of the list, and reads nothing from the browser cache (no tiles, counts, tags or ban data are shown or loaded). Once the gate opens the page shows its content without a reload. There is no mode without the gate (v0.11). This is separate from COLL-090 (card data unavailable). Panel text and gate rules are SPEC-010's. | [[Accounts and Sync]] SYNC-009 (amendment 2) |
+| COLL-093 | MUST | **Smooth scrolling, no pagination (v0.11, RJ 2026-11-24: "As users scroll through their decks / cards it should feel smooth. No physical pagination, more like an infinite scroll").** This is the rule for **every card or deck list** (Collection here; SPEC-005 OWN-084 Decks; SPEC-004 CAT-079 Tournaments), which refer to it. (a) **No pagination:** no page numbers, no Previous / Next page controls, no "Page n of m", no page-size picker, and no button whose only job is to reveal more rows ("Load more" is not enough). The user reaches any entry by scrolling alone. (b) **Load as you scroll:** only the rows near the viewport are rendered (COLL-066) and card images are requested only for them (COLL-067); the data is already in the browser cache (SPEC-010 SYNC-141: the whole collection is one cached document), so scrolling makes **no Firestore read and no network request** except image requests, and never shows a loading state for rows whose data is cached. (c) **Nothing jumps:** rows and image slots have fixed or reserved size, so content already in view does not move while more rows appear or images arrive. (d) **Filter, sort or search changes** show the result from the top of the list. (e) **Position is kept:** returning to a list from a card dialog or from another page with the browser Back button restores the scroll position and the query (COLL-063) (SHOULD; the interaction design is [[Collection]] brief work, board H-173). (f) **Total is visible:** the list always shows how many entries match (COLL-010 summary) so a user can tell the list is not cut off, and assistive technology can read the position and total of the focused row. (g) **Performance (SHOULD):** with 5,000 entries (COLL-065) scrolling holds 60 frames per second at a 390 px wide viewport on a mid-range phone; if that cannot be met, it must still never block input (COLL-065). | RJ 2026-11-24 ([[ADR-0007 Firebase Accounts and Firestore]] amendment 2, board H-171, H-173); COLL-065…067 |
 | COLL-075 | MUST | **Printing-code memory:** whenever the collection is loaded or saved against a catalog, for every `byPrinting` `printingId` that resolves, Collection records `printingId → printingCode` (SPEC-001 `publicCode`, or `SET-collectorNumber` if `publicCode` is null) with the `cardKey` and the `catalogVersion` it was seen in. A code is kept while its `printingId` is in the collection or in a tag assignment. It is display data only and never used as a key. | [[Collection Import]] `StoredCollection` (keys by `printingId` only); [[Card Data Model]] `Printing.publicCode`, CARD-066; design rule (decision 6) |
 
 ### J. Exclude from decks and the Decks contract
@@ -262,7 +265,7 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { CardKey, PrintingId, PrintingCode, StoredCollection, CollectionStore } from './collection-import'; // SPEC-003 v0.10.1
+import type { CardKey, PrintingId, PrintingCode, StoredCollection, CollectionStore } from './collection-import'; // SPEC-003 v0.11
 import type { CardCategory, VariantKind, CardSet, PlayableCard, Printing } from './card-data-model';  // SPEC-001
 import type { BanStatus, BanListFile } from './deck-legality';       // SPEC-002, LEGAL-B10
 type IsoDate = string;             // YYYY-MM-DD (display per COLL-017: 'Nov 23, 2026')
@@ -294,7 +297,7 @@ interface StoredTags {
   assignments: Record<TagTarget, TagId[]>;       // max 20 per target; may include dormant targets (COLL-029)
 }
 
-interface TagStore {               // MVP adapter: browser storage
+interface TagStore {               // adapter: the browser cache of the account's tags (COLL-070)
   load(): Promise<StoredTags | null>;
   save(t: StoredTags): Promise<void>;
 }
@@ -553,9 +556,10 @@ catalog printing (open question 1).
     name **Then** the new order shows without the page freezing (SHOULD within 200 ms), only rows near
     the viewport have rendered DOM, and image requests are made only for those rows.
 19. **Storage separation** (COLL-070, COLL-071, COLL-075)
-    **Given** stored quantities, tags, printing codes and view state **When** the browser storage is
+    **Given** a signed-in account with quantities, tags, printing codes and view state **When** the browser cache is
     inspected **Then** there are four records (collection, tags, printing codes, view state), each with
-    `schemaVersion`, and none contains any API key or card image data.
+    `schemaVersion`, and none contains any API key or card image data; only the collection and tags records
+    are account data (synced), the printing codes and view state are never uploaded (COLL-070, SYNC-019).
 20. **Count badge on a foil** (COLL-011, COLL-016)
     **Given** the user owns 3 copies of the foil printing of `Lightning Rush` (`p_lr_foil`) and 1 copy of
     its regular printing **When** Collection opens with the default query **Then** there are exactly
@@ -613,12 +617,19 @@ catalog printing (open question 1).
 
 27. **Arriving from an import** (COLL-091, SPEC-003 IMP-072…075, AC 43) **Given** an Add commit of `3 Lightning Rush` / `2 Gust` **When** the app opens Collection **Then** the grid shows the committed cards in default order with "5 copies of 2 cards", the snack bar "Added 5 copies of 2 cards." with **Undo** is showing, and no other banner. **When** the user taps Undo (nothing changed since) **Then** Collection shows its empty state without a reload.
 
+**ACs 28–30 (v0.11, H-171)**
+
+28. **Collection scrolls without pages** (COLL-093) **Given** a signed-in account whose collection has 3,000 entries (generated, cached) **When** Collection opens **Then** the first rows show at once; no element reads "Page", "Next", "Previous", a page number or a page-size choice, and no "Load more" button exists; **When** the user scrolls to the end **Then** every entry has been reachable by scrolling alone, in the same order, the summary still shows the total, the rows already in view did not move while images loaded (reserved slots, COLL-067), and no Firestore read or other network request was made except image requests (Firestore request log empty during the scroll). **When** the user types a search **Then** the result list starts at the top. **When** the user opens a card dialog, closes it and goes Back **Then** the scroll position and query are as they were (SHOULD).
+29. **Gate always on** (COLL-092) **Given** a signed-out visitor **When** they open `/collection` **Then** the page header and the SPEC-010 sign-in panel show and no tile, count, tag or ban status is shown or read; **Given** the production configuration or any other, **Then** no build setting turns the gate off.
+30. **No local delete action** (COLL-074 withdrawn) **Given** a signed-in user **When** they open the Collection page and its menus on desktop and phone **Then** there is no "Delete all local collection data" or similar action; "Delete account and data" is only in the account menu (SPEC-010 SYNC-095).
+
 ## Out of scope
 - Importing cards (SPEC-003) and decks (SPEC-006); deck ownership visuals (SPEC-005).
 - Prices, trade/wishlist features, condition, language; foil/finish tracking beyond what the catalog
   lists as separate printings (open question 1).
-- Sharing a collection or tags with other people or other browsers (no accounts in the MVP);
-  "shareable" URLs work in the same browser only, because the data is local.
+- Sharing a collection or tags with other people (the account is private to its owner, SYNC-102);
+  "shareable" URLs carry only query state (COLL-062) and show the viewer's own collection, so they work
+  only for the same account.
 - Importing tags from CSV, and tags in the CSV export (COLL-059 withdrawn, H-045).
 
 ## Open questions / BLOCKED
@@ -652,4 +663,4 @@ catalog printing (open question 1).
    any other card."): COLL-087 withdrawn, COLL-089 added, SPEC-009 withdrawn.
 
 ## Changelog
-Current: 0.10.1 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11: COLL-070 per-mode storage wording; COLL-074 not offered in account-required mode (replaces "while signed in clears this device and signs out"); new COLL-092 SYNC-009 gate note; pins SPEC-003 0.10.1, SPEC-008 0.4.3). Previous: 0.10 (2026-11-24, H-087: COLL-090 card data unavailable, COLL-091 arriving from an import, COLL-058 names the Undo entry point; ACs 26–27; pins SPEC-003 0.10; attempt 2, H-159: COLL-090 (d) no longer cites COLL-066, the loading state is the brief's). Previous: 0.9 (2026-11-24, H-071: short `TagId`, `StoredTags` schemaVersion 3, COLL-070/074 with sync). Full history: [[My Collection changelog]] (archived). New entries go in the archive note.
+Current: 0.11 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: COLL-070 account-only storage; **COLL-074 withdrawn** (local-only delete action, ID retired); COLL-092 gate always on; new COLL-093 smooth scrolling, no pagination; ACs 28–30; AC 19 and Out of scope reworded; pins SPEC-003 0.11, SPEC-008 0.4.4). Previous: 0.10.1 (2026-11-25, H-160). Earlier: 0.10 (2026-11-24, H-087: COLL-090 card data unavailable, COLL-091 arriving from an import, COLL-058 names the Undo entry point; ACs 26–27; pins SPEC-003 0.10; attempt 2, H-159: COLL-090 (d) no longer cites COLL-066, the loading state is the brief's). Previous: 0.9 (2026-11-24, H-071: short `TagId`, `StoredTags` schemaVersion 3, COLL-070/074 with sync). Full history: [[My Collection changelog]] (archived). New entries go in the archive note.

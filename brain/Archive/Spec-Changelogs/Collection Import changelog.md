@@ -9,6 +9,13 @@ superseded_by: "[[Collection Import]]"
 
 Moved out of [[Collection Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.11 (2026-11-24, H-171, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2, account-only): IMP-053 now says the
+  collection belongs to the signed-in account (`state/collection`) and the browser holds a cache of it (SPEC-010
+  SYNC-140…SYNC-145), cleared on sign-out, account deletion and a different account signing in, never uploaded;
+  the local-only / account-required wording and "ADR-0005 #1 holds in this mode only" are gone (ADR-0005 #1
+  superseded). IMP-076 reworded: the gate is always on, no local-only exception; the entry point is "the import
+  entry point (today the Import page)" because H-174 changes entry points. IMP-075 (d) no longer cites COLL-074
+  (withdrawn). Summary, `CollectionStore` comment and the resolved open question reworded. Pin SPEC-008 0.4.4.
 - 0.10.1 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11 "Impacts"): IMP-053 reworded by mode
   (local-only mode: browser only; account-required mode: a browser cache of the signed-in account, cleared on
   sign-out), replacing "browser by default; synced when signed in"; new IMP-076 (SYNC-009 gate note: the Import
