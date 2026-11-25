@@ -63,8 +63,8 @@ shows no **Confirm** markers):
 1. the operator can open the database console (Who can read it);
 2. the legal-basis sentence (Legal basis);
 3. "answered within one month" (Your rights);
-4. "Rift Builder sets no cookies": not yet checked in a browser, so it stays **Confirm** until the AC 70 DevTools
-   check passes (What your browser keeps);
+4. "Rift Builder sets no cookies": **checked 2026-11-25** (H-240, AC 70 signed-in leg on the sync-test preview: no
+   cookies) (What your browser keeps);
 5. the request-log sentences (What we do not collect, Who receives it): no research row states what the host logs or
    for how long, so the text says only that Google "may keep standard request logs".
 
@@ -136,8 +136,8 @@ While you are signed in, your browser keeps a copy of your account's data (so pa
 your view settings, the email address you typed while signing in by email link (removed when sign-in finishes), and
 your sign-in session, all in the browser's own storage on your device. Your browser also remembers your light or dark
 theme on that device; it is not part of your account, so signing out or deleting your
-account does not clear it. Rift Builder sets no cookies. **Confirm:** this has not yet been checked in a browser
-(AC 70); it stays marked until the DevTools check passes. We keep only what the features you asked for need, so there
+account does not clear it. Rift Builder sets no cookies. *(Checked 2026-11-25, H-240: signed in on the sync-test
+preview, no cookies.)* We keep only what the features you asked for need, so there
 is no cookie banner. Signing out or deleting your account clears the copy of your account's data from the device.
 
 ### Do Not Track and Global Privacy Control
