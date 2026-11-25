@@ -9,7 +9,7 @@ Use this for any review, validation or screenshot of `/collection` (and the deck
 real card data exists (H-020) and the Import page saves a collection. All sample data is
 invented. Built in H-086, fixes H-095, runes-as-cards H-098.
 
-> **On live (H-204, [[Test Data]] SPEC-012, build H-205):** signed-in testers get Small (150) and Large (5,000) generated sets from the Collection page, synced to their account and removable; the fixture sample stays dev-only (needs `/api`). The section below is the **dev-only** `/styleguide` tool.
+> **On live (H-204, [[Test Data]] SPEC-013, build H-205):** signed-in testers get Small (150) and Large (5,000) generated sets from the Collection page, synced to their account and removable; the fixture sample stays dev-only (needs `/api`). The section below is the **dev-only** `/styleguide` tool.
 
 ## In the browser (dev build only)
 1. **Card data:** `services/` serves the fixture. Run `npm run ingest:fixture` once (writes
