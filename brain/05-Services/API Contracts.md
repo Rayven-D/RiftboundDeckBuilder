@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.24
+version: 1.25
 ---
 # API Contracts
 
@@ -171,6 +171,7 @@ countedEntries(deck: UserDeck): { zone; entry }[]                               
 lockedShortfalls(before: SharedPool, after: SharedPool): LockedShortfall[]         // SHARE-034 v0.4.2: per cardKey hold drop
 computeDeckOwnership(deck, ownership: CollectionOwnership, catalog | null, banData | null, today): DeckOwnershipView // OWN-025
 summarizeDeck(deck, view, legality: { verdict; asOf } | null, format: { id; name } | null): DeckTileSummary
+completionPercent(a: number, r: number): number | null                          // OWN-101 (b); null when r = 0
 // text helpers: lockCheckMessage(), cardsShortText(), sharedIndicator(), shortfallWarning(), shortfallNotice()
 // minimal stand-ins until SPEC-007 / SPEC-002 are built in web/: deckOwnership(input, cardKey) (COLL-081),
 //   cachedDeckOwnership() (OWN-083, per input object), banStatus(data, cardKey, format, region, asOf) (LEGAL-B10)
@@ -211,6 +212,21 @@ Notes for the UI:
   for every deck), `lockBadge` "Locked" for a locked deck, never "… cards short"; `null` otherwise.
 - `OwnershipFilter` = `'ready' | 'partial' | 'none' | 'locked' | 'unavailable'`; `unavailable` and `locked` match none
   of the three ownership filter options (OWN-006).
+- Completion (SPEC-005 v0.10.2 OWN-100, OWN-101; H-311): `DeckOwnershipView.summary` gains
+  `completionFill: number | null` (A / R, exact, 0..1) and `completionPercent: number | null` (0 when A = 0, 100 when
+  A = R, else `min(99, max(1, floor(100·A/R)))`; e.g. 34/66 → 51, 65/66 → 98, 1/300 → 1, 299/300 → 99). Both are
+  `null` when R = 0 or ownership is unavailable (OWN-101 (c), also `catalog === null`). A and R are `copiesAvailable`
+  / `copiesRequired` (every zone, runes and sideboard included); in a locked deck A is the copies locked in (50 of 54
+  → 92). **The Deck detail header (OWN-010 (f)) and the list tile both read this value; never recompute it.**
+- `DeckTileSummary` v0.9 fields (OWN-100…104), all from the same `DeckOwnershipView` (OWN-073), never stored (OWN-026):
+  `legend: { name; imageUrl } | null` (the Legend tile's catalog name and `defaultPrintingId` thumbnail; `null` = no
+  Legend, unknown card or catalog not loaded → the deck mark; still set while ownership is unavailable, OWN-100 (e));
+  `completionFill`, `completionPercent` (= `view.summary`); `bans: DeckTileBans | null` = `{ banned, upcoming,
+  upcomingFrom }` counting distinct `cardKey`s, `upcomingFrom` = earliest upcoming `effective` (`null` when
+  `upcoming` is 0); `bans` is `null` when ban data is not loaded (any card `'unknown'`; an empty deck then reads
+  `{ 0, 0, null }`, which shows nothing either way); `pilot: string | null` (`source.pilot` for a tournament deck,
+  OWN-104); `readOnly: boolean` (`schemaVersion` above 1, DECK-091). `UserDeck`, Firestore rules and every
+  `schemaVersion` are unchanged; the description is the deck's existing `notes`.
 
 ## Browser stores and sync (SPEC-010, H-062)
 Not an HTTP API: the browser talks to Firestore directly ([[ADR-0007 Firebase Accounts and Firestore]]).
@@ -689,6 +705,9 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.25 (2026-11-25, H-311, SPEC-005 0.10.2): no endpoint change and no stored-shape change. `DeckOwnershipView.summary`
+  gains `completionFill` and `completionPercent` (OWN-101); `DeckTileSummary` gains `legend`, `completionFill`,
+  `completionPercent`, `bans` (`DeckTileBans`), `pilot` and `readOnly` (OWN-100…104); new pure `completionPercent(a, r)`.
 - v1.24 (2026-11-25, H-253, SPEC-006 0.11.1): no endpoint change. Unpicked cards under `Champion:` (and extra copies of the
   picked one) go to `main` with a line reason instead of `importRemovedLines` (DECK-034; RJ 2026-11-25); unpicked Legends
   are still left out. New "Deck Import save" section: `deck-import.ts`
