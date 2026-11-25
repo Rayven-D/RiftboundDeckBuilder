@@ -57,8 +57,8 @@ browser storage. Signed in, the browser stores stay the working copy and are syn
 
 **Shared types:** `AuthService`, `RemoteStore`, `StoredSyncLog`, `SyncStatus`, Firestore document shapes
 `AccountDoc`, `CollectionDoc`, `TagsDoc`, `LocksDoc`, `DeckDoc`.
-**Depends on:** [[Collection Import]] v0.9.1, [[Your Decks Ownership View]] v0.5.1, [[Deck Import]] v0.7,
-[[My Collection]] v0.9, [[Shared Cards and Lock-in]] v0.4.2 (SPEC-009 [[Runes Assumed Owned]] is withdrawn
+**Depends on:** [[Collection Import]] v0.10, [[Your Decks Ownership View]] v0.5.1, [[Deck Import]] v0.7,
+[[My Collection]] v0.10, [[Shared Cards and Lock-in]] v0.4.2 (SPEC-009 [[Runes Assumed Owned]] is withdrawn
 since 2026-11-24: runes are cards, so nothing here treats them differently). **Consumers:** H-062
 (build), [[ADR-0007 Firebase Accounts and Firestore]].
 **Open:** none for RJ (all 11 answered 2026-11-23, see Decisions); privacy-notice legal content `BLOCKED:
@@ -293,8 +293,8 @@ listener (over 30 minutes) re-reads every matching document; rule lookups are bi
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { CardKey, PrintingId, StoredCollection } from './collection-import';   // SPEC-003 v0.9.1
-import type { TagId, TagTarget, TagColour, StoredTags } from './my-collection';     // SPEC-007 v0.9 (TagId per SYNC-016)
+import type { CardKey, PrintingId, StoredCollection } from './collection-import';   // SPEC-003 v0.10
+import type { TagId, TagTarget, TagColour, StoredTags } from './my-collection';     // SPEC-007 v0.10 (TagId per SYNC-016)
 import type { UserDeck } from './deck-import';                                       // SPEC-006 v0.7
 import type { StoredDeckLocks } from './shared-cards';                              // SPEC-008 v0.4.2
 type Ms = number;                 // ms since Unix epoch, client clock
