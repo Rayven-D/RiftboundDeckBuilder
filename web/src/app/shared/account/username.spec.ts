@@ -11,6 +11,7 @@ import {
   usernameInitial,
   usernameLength,
 } from './username';
+import { ALLOWED_USERNAMES, DENIED_USERNAMES } from './username-cases';
 
 const NOT_ALLOWED = "Use letters, numbers, spaces and . _ - ' only. No emoji.";
 /** 👨🏽‍👩🏽‍👧🏽‍👦🏽: one grapheme of 11 code points (a v0.14 name may still hold one). */
@@ -165,5 +166,36 @@ describe('SYNC-153 username rules (v0.15, AC 74)', () => {
     expect(USERNAME_TEXT.saved).toBe('Username saved.');
     expect(USERNAME_TEXT.saveFailed).toBe("Couldn't save your username. Check your connection and try again.");
     expect(USERNAME_TEXT.preparing).toBe('Getting your account ready…');
+  });
+});
+
+describe('SYNC-160 (f) the shared AC 22 names list through the client check (v0.16, H-213; AC 74)', () => {
+  // The same list runs through the Firestore rules in web/rules-tests/firestore.rules.test.ts.
+  const unchanged = (v: string) => normalizeUsername(v) === v;
+
+  for (const c of ALLOWED_USERNAMES) {
+    it(`AC 74 / AC 22 allowed: ${c.label}`, () => {
+      expect(checkUsername(c.value).ok).toBe(true);
+    });
+  }
+
+  for (const c of DENIED_USERNAMES.filter((d) => unchanged(d.value))) {
+    it(`AC 74 / AC 22 denied: ${c.label}`, () => {
+      expect(checkUsername(c.value).ok).toBe(false);
+    });
+  }
+
+  it('AC 74 / AC 22 the denied names the client normalizes first become something else (rules-only cases)', () => {
+    const changed = DENIED_USERNAMES.filter((d) => !unchanged(d.value)).map((d) => d.label);
+    expect(changed).toEqual([
+      "' Smith' (leading space)",
+      "'Smith ' (trailing space)",
+      'RJ  Smith (two spaces)',
+      'a + a line feed',
+      'a + a tab',
+      'a + U+00A0 (no-break space)',
+    ]);
+    // a line feed inside the name is not trimmed away: refused by the client as well
+    expect(checkUsername('RJ\nSmith')).toEqual({ ok: false, error: 'not-allowed' });
   });
 });
