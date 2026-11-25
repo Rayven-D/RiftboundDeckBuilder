@@ -163,6 +163,10 @@ let nextId = 0;
       border-bottom-right-radius: 0;
       --mat-button-outlined-container-shape: var(--radius-md) 0 0 var(--radius-md);
     }
+    .copy-main app-icon {
+      margin-inline-end: var(--space-2);
+      font-size: 18px;
+    }
     .copy-more {
       width: 40px;
       height: 40px;

@@ -140,6 +140,12 @@ interface Loaded {
 const PHONE = '(max-width: 39.99rem)';
 const DESKTOP = '(min-width: 64rem)';
 const SKELETON_DELAY_MS = 200;
+/** OWN-110: gap between the sticky bars and a section heading after a jump; the current-section test uses the same line. */
+const LAND_GAP = 12;
+/** OWN-110: a jump counts as finished after this long without a scroll event (for browsers without `scrollend`). */
+const JUMP_IDLE_MS = 150;
+/** OWN-110: room left beside the current link when the section bar scrolls sideways to show it. */
+const NAV_MARGIN = 8;
 const DELETE_UNDO_MS = 10_000;
 const EMPTY_TAGS: StoredTags = { schemaVersion: 3, updatedAt: '', tags: [], assignments: {} };
 const EMPTY_CODES: StoredPrintingCodes = { schemaVersion: 1, updatedAt: '', codes: {} };
@@ -185,6 +191,7 @@ function localToday(): string {
   styleUrls: ['./deck-detail.scss', './deck-detail-sections.scss'],
   host: {
     '(window:scroll)': 'onScroll()',
+    '(window:scrollend)': 'endJump()',
     '(window:focus)': 'checkToday()',
     '(document:visibilitychange)': 'checkToday()',
   },
@@ -269,6 +276,10 @@ export class DeckDetail {
   private today = localToday();
   private destroyed = false;
   private loadedId: string | null = null;
+  /** OWN-110: a section-bar jump in flight, and the section it pinned as current once it ended. */
+  private jumping: { zone: DeckZone } | null = null;
+  private pinned: { zone: DeckZone; y: number } | null = null;
+  private jumpTimer: ReturnType<typeof setTimeout> | undefined;
   /** Set once a delete is under way: the page is leaving, so lock-change re-reads are skipped. */
   private leaving = false;
 
@@ -334,6 +345,7 @@ export class DeckDetail {
     this.deckLocks.changed.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
     this.destroyRef.onDestroy(() => {
       this.destroyed = true;
+      clearTimeout(this.jumpTimer);
       removeEventListener('storage', onStorage);
     });
   }
@@ -468,21 +480,35 @@ export class DeckDetail {
     return (this.active()[zone] ?? 0) === i;
   }
 
-  /** OWN-110: the section in view gets `aria-current="location"`. */
+  /**
+   * OWN-110: the section in view gets `aria-current="location"`: the last section whose heading has reached the
+   * landing line (the bottom of the sticky bars plus `LAND_GAP`, the same line `jump()` scrolls a heading to). While a
+   * jump is in flight the target stays current; after it, the target stays current until the page scrolls again
+   * (a section near the end of the page may not be able to reach the line).
+   */
   protected onScroll(): void {
     const v = this.view();
     if (!v) return;
-    const offset = this.stickyOffset() + 8;
+    const y = this.scrollY();
+    if (this.jumping) {
+      this.armJumpEnd();
+      return;
+    }
+    if (this.pinned) {
+      if (Math.abs(y - this.pinned.y) < 2) return;
+      this.pinned = null;
+    }
+    const line = this.stickyOffset() + LAND_GAP + 2;
     let current: DeckZone = v.sections[0]?.zone ?? 'legend';
     for (const s of v.sections) {
-      const el = this.doc.getElementById(`section-${s.zone}`);
-      if (el && el.getBoundingClientRect().top <= offset) current = s.zone;
+      const el = this.doc.getElementById(`zone-${s.zone}`);
+      if (el && el.getBoundingClientRect().top <= line) current = s.zone;
     }
-    if (current !== this.currentZone()) {
-      this.currentZone.set(current);
-      // Phones: keep the current link in view in the sideways-scrolling bar.
-      this.doc.querySelector<HTMLElement>(`.section-nav a[data-zone="${current}"]`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-    }
+    this.setCurrentZone(current);
+  }
+
+  private scrollY(): number {
+    return this.doc.defaultView?.scrollY ?? 0;
   }
 
   private stickyOffset(): number {
@@ -491,15 +517,51 @@ export class DeckDetail {
     return header + bar;
   }
 
-  /** OWN-110: an in-page link scrolls to the section (smoothly unless reduced motion) and focuses its heading. */
+  /** Marks the current section and keeps its link visible in the bar by scrolling only the bar (never the page). */
+  private setCurrentZone(zone: DeckZone): void {
+    if (zone === this.currentZone()) return;
+    this.currentZone.set(zone);
+    const nav = this.doc.querySelector<HTMLElement>('.section-nav');
+    const link = nav?.querySelector<HTMLElement>(`a[data-zone="${zone}"]`);
+    if (!nav || !link) return;
+    const n = nav.getBoundingClientRect();
+    const l = link.getBoundingClientRect();
+    // Instant and on the bar only: a page scroll (a jump in flight) is never touched.
+    if (l.left < n.left) nav.scrollLeft += Math.floor(l.left - n.left) - NAV_MARGIN;
+    else if (l.right > n.right) nav.scrollLeft += Math.ceil(l.right - n.right) + NAV_MARGIN;
+  }
+
+  /**
+   * OWN-110: an in-page link scrolls the page so the section heading lands just under the sticky bars (smoothly
+   * unless reduced motion), focuses the heading and marks the section current at once. The page scroll is the only
+   * scroll started; `onScroll` leaves it alone until it ends (`scrollend`, or no scroll event for `JUMP_IDLE_MS`).
+   */
   protected jump(e: Event, zone: DeckZone): void {
     e.preventDefault();
     const heading = this.doc.getElementById(`zone-${zone}`);
-    if (!heading) return;
-    const reduce = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true;
-    heading.scrollIntoView?.({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    const win = this.doc.defaultView;
+    if (!heading || !win) return;
+    const reduce = win.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true;
+    const top = Math.max(0, Math.round(this.scrollY() + heading.getBoundingClientRect().top - this.stickyOffset() - LAND_GAP));
+    this.pinned = null;
+    this.jumping = { zone };
+    this.setCurrentZone(zone);
     heading.focus({ preventScroll: true });
-    this.currentZone.set(zone);
+    win.scrollTo({ top, behavior: reduce ? 'auto' : 'smooth' });
+    this.armJumpEnd();
+  }
+
+  /** Called on `scrollend` (window listener) or by the idle timer. */
+  protected endJump(): void {
+    if (!this.jumping) return;
+    clearTimeout(this.jumpTimer);
+    this.pinned = { zone: this.jumping.zone, y: this.scrollY() };
+    this.jumping = null;
+  }
+
+  private armJumpEnd(): void {
+    clearTimeout(this.jumpTimer);
+    this.jumpTimer = setTimeout(() => this.endJump(), JUMP_IDLE_MS);
   }
 
   protected setMode(mode: DeckViewMode): void {

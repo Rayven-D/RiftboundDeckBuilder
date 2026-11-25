@@ -232,6 +232,7 @@ describe('Deck detail (H-254)', () => {
 
     it('OWN-110: a section bar with six in-page links; the first is the current location', async () => {
       const h = await setup(URL_);
+      const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
       const links = qa(h, '.section-nav a');
       expect(q(h, 'nav.section-nav')!.getAttribute('aria-label')).toBe('Deck sections');
       expect(links.map(text)).toEqual(['Legend', 'Champion', 'Main 6', 'Battlefields 1', 'Runes 12', 'Sideboard 2']);
@@ -240,6 +241,62 @@ describe('Deck detail (H-254)', () => {
       await settle(h);
       expect(links[2].getAttribute('aria-current')).toBe('location');
       expect(document.activeElement?.id).toBe('zone-main');
+      scrollTo.mockRestore();
+    });
+
+    it('OWN-110 / H-390: a jump scrolls only the page, lands the heading under the bars, and keeps its target current while in flight and after', async () => {
+      const h = await setup(URL_);
+      const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+      const linkScroll = vi.fn();
+      const links = qa(h, '.section-nav a');
+      links.forEach((a) => (a.scrollIntoView = linkScroll));
+      const runes = q(h, '#zone-runes')!;
+      const rect = (top: number) => ({ top, bottom: top + 30, left: 0, right: 0, width: 0, height: 30, x: 0, y: top, toJSON: () => ({}) });
+      vi.spyOn(runes, 'getBoundingClientRect').mockReturnValue(rect(900) as DOMRect);
+      vi.spyOn(q(h, '#zone-sideboard')!, 'getBoundingClientRect').mockReturnValue(rect(1500) as DOMRect);
+      const current = () => links.filter((a) => a.getAttribute('aria-current') === 'location').map(text);
+
+      links[4].click();
+      await settle(h, 2);
+      // jsdom: no site header (64 px fallback), the bar measures 0; landing gap 12 → 900 − 64 − 12.
+      expect(scrollTo).toHaveBeenCalledWith({ top: 824, behavior: 'auto' });
+      expect(current()).toEqual(['Runes 12']);
+      expect(document.activeElement).toBe(runes);
+
+      // In flight: scroll events (Legend…Battlefields sit at 0, so Battlefields would be current) leave the target alone,
+      // and the page is never scrolled through a nav link.
+      dispatchEvent(new Event('scroll'));
+      await settle(h, 2);
+      expect(current()).toEqual(['Runes 12']);
+      expect(linkScroll).not.toHaveBeenCalled();
+
+      // Ended (scrollend): pinned while the page stays where the jump left it.
+      dispatchEvent(new Event('scrollend'));
+      dispatchEvent(new Event('scroll'));
+      await settle(h, 2);
+      expect(current()).toEqual(['Runes 12']);
+
+      // The user scrolls on: the normal test takes over (the last heading at or above the landing line).
+      Object.defineProperty(window, 'scrollY', { configurable: true, value: 500 });
+      dispatchEvent(new Event('scroll'));
+      await settle(h, 2);
+      expect(current()).toEqual(['Battlefields 1']); // Runes (900) and Sideboard (1500) are below the line
+      Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
+      scrollTo.mockRestore();
+    });
+
+    it('OWN-110: without scrollend the jump ends after a quiet moment', async () => {
+      const h = await setup(URL_);
+      const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+      const links = qa(h, '.section-nav a');
+      links[1].click();
+      await new Promise((r) => setTimeout(r, 200));
+      Object.defineProperty(window, 'scrollY', { configurable: true, value: 300 });
+      dispatchEvent(new Event('scroll'));
+      await settle(h, 2);
+      expect(links.filter((a) => a.getAttribute('aria-current') === 'location').map(text)).toEqual(['Sideboard 2']);
+      Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
+      scrollTo.mockRestore();
     });
 
     it('OWN-111 / AC 27: on desktop the panel opens on the Card tab with the Legend selected; a press selects another card; Missing shows counts without %', async () => {

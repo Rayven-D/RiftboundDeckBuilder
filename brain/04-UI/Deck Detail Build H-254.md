@@ -24,6 +24,12 @@ SPEC-005 OWN-010…119. Contracts: [[API Contracts]] → "Deck detail" (v1.27). 
 - **Sticky deck bar** under the site header: section links in Riot order (Legend and Champion without a count,
   `aria-current="location"` follows the scroll) and the Card view / List view toggle (`aria-pressed`, icon-only on
   phones, remembered per device under `deck-view`).
+  A link scrolls only the page (`window.scrollTo`) so the heading lands 12 px under the sticky bars, focuses the
+  heading and marks the section current at once; while the scroll is in flight (until `scrollend`, or 150 ms
+  without a scroll event) the current section doesn't change, and afterwards it stays until the page moves again.
+  The current section is the last heading at or above that same landing line. The bar keeps the current link in
+  view by changing only its own `scrollLeft` (no `scrollIntoView`, which cancelled the page scroll; H-390). The bar
+  has no scroll snap.
 - **Sections:** six `h2` sections with counts; Card view is the card-tile grid, List view rows "3× Name" with the
   chip. Each grid is one Tab stop with arrow-key roving.
 - **≥ 64rem:** a sticky right panel (`--deck-aside: 20rem`) with tabs Card / Missing; the first card is selected on

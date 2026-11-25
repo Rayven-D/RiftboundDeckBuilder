@@ -198,6 +198,11 @@ app-lock-actions {
 
 .split-main {
   --mat-button-outlined-container-shape: var(--radius-md) 0 0 var(--radius-md);
+
+  app-icon {
+    margin-inline-end: var(--space-2);
+    font-size: 18px;
+  }
 }
 
 .split-more,
