@@ -26,14 +26,25 @@ describe('App', () => {
     expect(links).toEqual(['/decks', '/collection', '/tournaments']);
   });
 
-  it('should show Import as the last item in the header, outside the tabs', async () => {
+  it('SYNC-150 / AC 71 the header has no Import button: the account control (deferred) is the only item after the tabs', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const header = (fixture.nativeElement as HTMLElement).querySelector('header .header-row')!;
-    const last = header.lastElementChild as HTMLAnchorElement;
-    expect(last.classList).toContain('import-action');
-    expect(last.getAttribute('href')).toBe('/import');
-    expect(last.textContent).toContain('Import');
+    expect(header.querySelector('.import-action')).toBeNull();
+    expect(Array.from(header.querySelectorAll('a')).map((a) => a.getAttribute('href'))).not.toContain('/import');
+    expect(header.textContent).not.toMatch(/\bImport\b/);
+  });
+
+  it('SYNC-158 (a) / AC 79 the footer holds the Theme switch (System, Light, Dark) next to the Riot legal line', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const footer = (fixture.nativeElement as HTMLElement).querySelector('footer')!;
+    const group = footer.querySelector('[role="radiogroup"]')!;
+    expect(group).not.toBeNull();
+    const labelId = group.getAttribute('aria-labelledby')!;
+    expect(footer.querySelector(`#${labelId}`)?.textContent?.trim()).toBe('Theme');
+    expect(Array.from(group.querySelectorAll('button')).map((b) => b.textContent?.trim())).toEqual(['System', 'Light', 'Dark']);
+    expect(footer.querySelector('.legal')).not.toBeNull();
   });
 
   it('should show the Legal Jibber Jabber notice in the footer', async () => {
@@ -57,7 +68,7 @@ describe('App phone tab bar', () => {
     }).compileComponents();
   });
 
-  it('lists Decks, Collection, Tournaments and Import, each with an icon and a label', async () => {
+  it('SYNC-150 / AC 71 lists exactly Decks, Collection and Tournaments (no Import tab), each with an icon and a label', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const bar = (fixture.nativeElement as HTMLElement).querySelector('nav.tab-bar')!;
@@ -67,16 +78,13 @@ describe('App phone tab bar', () => {
       '/decks',
       '/collection',
       '/tournaments',
-      '/import',
     ]);
     expect(links.map((a) => a.querySelector('.tab-label')?.textContent?.trim())).toEqual([
       'Decks',
       'Collection',
       'Tournaments',
-      'Import',
     ]);
     for (const a of links) expect(a.querySelector('app-icon')).not.toBeNull();
-    expect(links[3].classList).toContain('tab--action');
   });
 
   it('marks only the current page with aria-current="page"', async () => {
@@ -92,9 +100,9 @@ describe('App phone tab bar', () => {
     await fixture.whenStable();
     expect(current()).toEqual(['/collection']);
 
-    await router.navigateByUrl('/import');
+    await router.navigateByUrl('/tournaments');
     await fixture.whenStable();
-    expect(current()).toEqual(['/import']);
+    expect(current()).toEqual(['/tournaments']);
 
     await router.navigateByUrl('/');
     await fixture.whenStable();
@@ -109,7 +117,7 @@ describe('App skip link', () => {
       providers: [
         provideRouter([
           { path: '', component: StubPage },
-          { path: 'import', component: StubPage },
+          { path: 'tournaments', component: StubPage },
         ]),
       ],
     }).compileComponents();
@@ -118,7 +126,7 @@ describe('App skip link', () => {
   it('focuses main without navigating away from a non-root route', async () => {
     const fixture = TestBed.createComponent(App);
     const router = TestBed.inject(Router);
-    await router.navigateByUrl('/import');
+    await router.navigateByUrl('/tournaments');
     await fixture.whenStable();
     const el = fixture.nativeElement as HTMLElement;
 

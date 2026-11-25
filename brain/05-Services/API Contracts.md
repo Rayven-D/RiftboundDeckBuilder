@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.15
+version: 1.16
 ---
 # API Contracts
 
@@ -221,7 +221,8 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   `COLLECTION_DATA_KEYS` removed in H-172). `clearLocalData(backend)` (every `rift.*` key) is the only clear, and
   only the SYNC-142 events call it: sign-out (SYNC-091), account deletion (SYNC-096), the SYNC-097 deleted /
   half-deleted sign-outs and the first-sign-in clear (SYNC-048). Keys outside `rift.*` (the browser's HTTP cache of
-  the card catalog and images, Firebase Auth's own session) are not touched. There is no `SyncService.deleteLocalData()`.
+  the card catalog and images, Firebase Auth's own session, and the device theme `device-theme`, v1.16) are not
+  touched. There is no `SyncService.deleteLocalData()`.
 - **Engine form of documents:** every Firestore `Timestamp` is milliseconds inside the engine; the adapter
   (`web/src/app/core/sync/adapters/firebase-adapters.ts`, the only Firebase import, lazy-loaded) converts
   and writes `syncedAt` with `serverTimestamp()`.
@@ -342,6 +343,52 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   creates) and `firestore.indexes.json` (every field but `syncedAt` exempt). Not deployed: deploy with
   `firebase deploy --only firestore` before sign-in ships (SYNC-117).
 
+- **Header account, username, theme, imports from their pages (SPEC-010 v0.14 SYNC-150…159, H-176):**
+  - **Account document:** `AccountDoc.username?: string` (SYNC-156): absent until chosen, never written at creation.
+    Rules (`firestore.rules`): `validAccount` (create) allows exactly the five keys, so a `username` on create is
+    denied; `validAccountUpdate` (update) allows `username` as a string with `size()` 1 to 2000 (SYNC-112, H-183).
+    **`string.size()` counts UTF-16 code units on the Firestore emulator** (verified 2026-11-25 by the H-183 probe in
+    `web/rules-tests/firestore.rules.test.ts`: 700 × U+1F600 = 1,400 units allowed, 1,100 × U+1F600 = 2,200 units
+    denied; production `unverified`). The client caps a name at 500 UTF-16 units, so the backstop never bites.
+  - **`RemoteStore.setUsername(uid, username): Promise<'ok' | RemoteErrorCode>`** (SYNC-155): one `updateDoc` of
+    `users/{uid}` with `username`, `updatedAt` (client ms) and `syncedAt: serverTimestamp()`; never a `set()` (a missing
+    account is `not-found`, not recreated); 20 s timeout as other writes (`'unconfirmed'`); never throws.
+    `getAccount()` returns `username` when the stored field is a string. Not a push: no `PushChanges` field, no pending item.
+  - **Sync log:** `StoredSyncLog.username?: string | null` (SYNC-156 b): written from every account-document read (the
+    first-sign-in full read, the session's account check, the `getAccount` recheck) and after a successful save;
+    `emptySyncLog()` writes `username: null`, so every SYNC-142 clear removes it.
+  - **Engine:** `SyncEngine.username(): string | null`; `SyncEngine.setUsername(value)` →
+    `'ok' | 'offline' | 'not-ready' | 'failed'` (`value` already normalized; `'not-ready'` while the gate is not open,
+    SYNC-154); new optional `EngineDeps.onAccountCreated()` (SYNC-154): called once per uid per page load when the
+    first-sign-in full read finds no account and no cloud data (SYNC-048 a), before the account create.
+    `SyncService`: `username` (signal, first value read synchronously from the log), `accountReady` (gate open),
+    `saveUsername(value)` (notifies "Username saved." as `success`), `promptUsername()`; `signedIn` is also true while
+    the log expects a session that is not lost (gate `open` / `first-sync` / `first-sync-failed`), so the header shows
+    the account control at the first frame; `statusLine` reads "Syncing…" until the restore finishes.
+  - **Username rules (pure, `web/src/app/shared/account/username.ts`):** `normalizeUsername`, `checkUsername(raw)` →
+    `{ ok: true, value } | { ok: false, error: 'empty' | 'too-long' | 'not-allowed' }`, `usernameLength` (the `n / 24`
+    counter), `graphemes` (`Intl.Segmenter`, code points as the fallback), `usernameInitial`, `USERNAME_TEXT`.
+  - **Theme (SYNC-157, 158):** `THEME_KEY = 'device-theme'` (`web/src/app/shared/theme/theme.ts`), values `light` /
+    `dark`, absent = System; `parseTheme()`. `ThemeService` (`core/theme/theme.service.ts`): `choice` signal and `set()`;
+    writes `html[data-theme]` and both `theme-color` metas; follows the `storage` event. The inline script in
+    `web/src/index.html` sets `data-theme` before the first paint (a future CSP needs its hash). `styles.scss`: the light
+    tokens are the `light-tokens` mixin, applied by `@media (prefers-color-scheme: light) :root:not([data-theme='dark'])`
+    and by `:root[data-theme='light']`; an explicit choice sets `color-scheme`.
+  - **Dialogs** (`core/sync/account-dialogs.ts`): `UsernameDialog` (data `{ mode: 'choose' | 'change' | 'add', current,
+    online, ready, save }`, closes with the saved name or nothing; `disableClose`, Escape closes) and `AccountInfoDialog`
+    (data `{ username, online, deletionError, editUsername(opener), deleteAccount(opener) }`). The SYNC-095 dialog now
+    opens from Account Information with `restoreFocus` on its Delete button; its `'sign-out'` result closes Account
+    Information first, then opens SYNC-090; a completed deletion closes every dialog.
+  - **Imports (SYNC-159):** no `/import` route (the `**` catch-all sends it to Home, keeping any query as for every
+    unknown path). One-shot parameters `IMPORT_PARAMS = { collection: 'add', deck: 'import' }` and the pure
+    `launchDecision(value, 'waiting' | 'ready' | 'cannot')` → `'none' | 'wait' | 'open' | 'drop'`
+    (`shared/import/import-launch.ts`): only the value `1` acts. Collection drops `add` with `Location.replaceState`
+    (its `q` / `sort` mirroring keeps any other parameter now); Decks drops `import` with a `replaceUrl` router
+    navigation. A dialog opened by the address waits until no other dialog is open. Shared UI: `app-page-fab`
+    (sets `html.has-fab`: page-end clearance and snack bars above the button, `styles.scss`), `app-file-drop`,
+    `app-import-pending` (the parsed list, "Not saved yet", moved from the removed Import page). The collection
+    dialog title is "Add to your collection".
+
 ## Collection page (H-086)
 Not an endpoint: the first web consumer of `GET /api/sets` and `GET /api/cards`, plus the pure
 Collection view model. TypeScript source of truth: `web/src/app/shared/collection/`.
@@ -437,6 +484,10 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.16 (2026-11-25, H-176, SPEC-010 v0.14.1): no endpoint change. New "Header account, username, theme, imports
+  from their pages" note: `AccountDoc.username?`, `StoredSyncLog.username?`, `RemoteStore.setUsername`,
+  `EngineDeps.onAccountCreated`, the rules' create / update split for `username` (`string.size()` counts UTF-16 units
+  on the emulator), `device-theme`, the `/import` route and page removed, one-shot `?add=1` / `?import=1`.
 - v1.15 (2026-11-25, H-172, SPEC-010 v0.12 account-only): no endpoint change. Removed: the `signInEnabled`
   environment flag, `SIGN_IN_ENABLED`, `environment.preview.ts` (preview builds `environment.ts`),
   `SignInGate.offerDeleteLocalData`, `BrowserStores.clearCollectionData()`, `COLLECTION_DATA_KEYS`. Changed:

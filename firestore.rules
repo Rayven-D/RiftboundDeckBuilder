@@ -51,11 +51,22 @@ service cloud.firestore {
     }
 
     // ---- account: users/{uid} (SYNC-012) ----
+    // Create: exactly the five keys; no username at creation (SYNC-156, SYNC-112).
     function validAccount(d) {
       return exactKeys(d, ['schemaVersion', 'createdAt', 'updatedAt', 'syncedAt', 'lastClientVersion'], [])
         && validMeta(d)
         && d.createdAt is timestamp
         && shortString(d.lastClientVersion, 40);
+    }
+
+    // Update: the same keys plus the optional username (v0.14, SYNC-153, SYNC-156; H-183). size() 1 to 2000 is a
+    // backstop: the client allows 24 graphemes and at most 500 UTF-16 units, far below 2000 in any unit.
+    function validAccountUpdate(d) {
+      return exactKeys(d, ['schemaVersion', 'createdAt', 'updatedAt', 'syncedAt', 'lastClientVersion'], ['username'])
+        && validMeta(d)
+        && d.createdAt is timestamp
+        && shortString(d.lastClientVersion, 40)
+        && (!('username' in d) || (d.username is string && d.username.size() >= 1 && d.username.size() <= 2000));
     }
 
     // ---- state documents (SYNC-013, SYNC-015, SYNC-017; caps: design decision 7) ----
@@ -119,7 +130,7 @@ service cloud.firestore {
       allow get, delete: if isOwner(uid);
       allow create: if isOwner(uid) && validAccount(request.resource.data);
       // SYNC-012: updated, never replaced: createdAt keeps its first value.
-      allow update: if isOwner(uid) && validAccount(request.resource.data)
+      allow update: if isOwner(uid) && validAccountUpdate(request.resource.data)
         && request.resource.data.createdAt == resource.data.createdAt;
 
       match /state/{name} {

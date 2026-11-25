@@ -15,14 +15,26 @@ describe('HomePage', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('shows the headline with the accent line and both import actions', async () => {
+  it('SYNC-159 (d) / IMP-060 / DECK-001 shows the headline and both import actions, linking to their pages', async () => {
     const el = await render();
     expect(el.querySelector('h1')?.textContent).toContain('Know what you own.');
     expect(el.querySelector('h1 .accent')?.textContent).toContain('Own what you need.');
     const hrefs = Array.from(el.querySelectorAll('.hero-actions a')).map((a) =>
       a.getAttribute('href'),
     );
-    expect(hrefs).toEqual(['/import?type=collection', '/import?type=deck']);
+    expect(hrefs).toEqual(['/collection?add=1', '/decks?import=1']);
+    const labels = Array.from(el.querySelectorAll('.hero-actions a')).map((a) => a.textContent?.trim());
+    expect(labels).toEqual(['Add to your collection', 'Import deck']);
+  });
+
+  it('SYNC-159 (d) / AC 80 the "Import your cards" button and the step tiles open the dialogs; nothing links to /import', async () => {
+    const el = await render();
+    const hrefs = Array.from(el.querySelectorAll('a')).map((a) => a.getAttribute('href') ?? '');
+    expect(hrefs.filter((h) => h.startsWith('/import'))).toEqual([]);
+    const steps = Array.from(el.querySelectorAll('.steps a')).map((a) => a.getAttribute('href'));
+    expect(steps).toEqual(['/collection?add=1', '/decks?import=1', '/decks']);
+    const cards = Array.from(el.querySelectorAll('.feature-actions a')).find((a) => a.textContent?.includes('Import your cards'));
+    expect(cards?.getAttribute('href')).toBe('/collection?add=1');
   });
 
   it('shows the three ownership states in the fan, each with a text label', async () => {

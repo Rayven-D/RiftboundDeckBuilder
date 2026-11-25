@@ -304,6 +304,8 @@ describe('AccountMenu delete outcomes (SPEC-010 SYNC-096)', () => {
             statusLine: () => '',
             status: () => ({ kind: 'synced', at: 0, pendingCount: 0 }),
             currentEmail: () => null,
+            username: signal<string | null>(null),
+            accountReady: signal(true),
             deletion: () => null,
             deleteAccount: async () => {
               calls++;
@@ -361,6 +363,8 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
             statusLine: () => (deletion ? "Some data couldn't be deleted. Try again." : 'Synced · 9:41 AM'),
             status: () => status,
             currentEmail: () => email,
+            username: signal<string | null>(null),
+            accountReady: signal(true),
             deletion: signal(deletion),
             pendingCount: () => 0,
             deleteAccount: async () => (calls.push('deleteAccount'), 'ok'),
@@ -383,26 +387,27 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
   it('AC 43 with nothing removed the menu shows the Error status, Try deleting again and Cancel deletion', async () => {
     await menuFor({ canCancel: true });
     expect(overlayText()).toContain("Some data couldn't be deleted. Try again.");
-    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Cancel deletion', 'Sign out', 'Delete account and data']);
+    // SYNC-151 / AC 54 (v0.14): Delete account and data lives in Account Information.
+    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Cancel deletion', 'Account Information', 'System', 'Light', 'Dark', 'Sign out']);
   });
 
   it('AC 43 once something was removed only Try deleting again is offered, and Sign out stays available', async () => {
     await menuFor({ canCancel: false });
-    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Sign out', 'Delete account and data']);
+    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Account Information', 'System', 'Light', 'Dark', 'Sign out']);
     expect(menuButton('Sign out')!.disabled).toBe(false);
   });
 
   it('SYNC-096 without an unfinished deletion the menu offers neither Try deleting again nor Cancel deletion', async () => {
     await menuFor(null);
-    expect(menuButtons().map(text)).toEqual(['Sync now', 'Sign out', 'Delete account and data']);
+    expect(menuButtons().map(text)).toEqual(['Sync now', 'Account Information', 'System', 'Light', 'Dark', 'Sign out']);
   });
 
-  it('H-102: a divider directly precedes Delete account and data, which carries the danger class', async () => {
+  it('SYNC-151 / AC 72: no Delete account and data item, no Settings item and no /account link in the menu', async () => {
     await menuFor({ canCancel: true });
-    const del = menuButton('Delete account and data')!;
-    expect(del.classList.contains('danger')).toBe(true);
-    expect(del.previousElementSibling?.tagName.toLowerCase()).toBe('mat-divider');
-    expect(menuButtons().filter((b) => b.classList.contains('danger')).map(text)).toEqual(['Delete account and data']);
+    expect(menuButton('Delete account and data')).toBeUndefined();
+    expect(overlayText()).not.toMatch(/Settings/);
+    expect(document.querySelector('.cdk-overlay-container a[href*="account"]')).toBeNull();
+    expect(menuButtons().filter((b) => b.classList.contains('danger'))).toEqual([]);
   });
 
   it('SYNC-096 AC 43 the menu Try deleting again reruns the deletion without the confirmation dialog', async () => {
@@ -433,7 +438,9 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
     await menuFor(null, false);
     expect(menuButton('Sign out')!.disabled).toBe(true);
     expect(menuButton('Sync now')!.disabled).toBe(true);
-    expect(menuButton('Delete account and data')!.disabled).toBe(true);
+    // SYNC-151 / AC 72: Account Information and Theme need no network.
+    expect(menuButton('Account Information')!.disabled).toBe(false);
+    expect(menuButton('Dark')!.disabled).toBe(false);
     expect(overlayText()).toContain("You're offline.");
   });
 
@@ -506,6 +513,10 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     Array.from(panel().children).map((el) => {
       const tag = el.tagName.toLowerCase();
       if (tag === 'mat-divider') return 'divider';
+      if (el.getAttribute('role') === 'group') {
+        const items = Array.from(el.querySelectorAll('button')).map(text).join(',');
+        return `group:${text(el.querySelector('p')!)}(${items})`;
+      }
       return tag === 'button' ? `item:${text(el)}` : `text:${text(el)}`;
     });
 
@@ -522,7 +533,9 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
   }
 
   /** The real SyncService and engine over the fakes, with captured notices and console output. */
-  function realService(auth: FakeAuth, db: FakeFirestore) {
+  function realService(auth: FakeAuth, db: FakeFirestore, opts: { newAccount?: boolean } = {}) {
+    // A returning account by default, so the SYNC-154 username prompt of a new account stays out of these tests.
+    if (!opts.newAccount && !db.docs.has('users/uA')) db.docs.set('users/uA', { ...accountDoc });
     const notices: [string, string | undefined][] = [];
     const consoleOut: string[] = [];
     for (const m of ['log', 'info', 'warn', 'error', 'debug'] as const) {
@@ -672,7 +685,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     expect(text(panel())).not.toContain('not synced yet');
     expect(status.classList.contains('error')).toBe(true);
     expect(status.querySelector('app-icon')?.getAttribute('aria-hidden')).toBe('true');
-    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Cancel deletion', 'Sign out', 'Delete account and data']);
+    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Cancel deletion', 'Account Information', 'System', 'Light', 'Dark', 'Sign out']);
     expect(menuButton('Sync now')).toBeUndefined();
 
     // Try deleting again fails again (nothing removed): the failure notice's action still reads "Try again".
@@ -692,7 +705,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     await vi.waitFor(() => expect(sync.pendingCount()).toBe(0));
     expect(Object.keys(db.get('users/uA/state/collection').cards).sort()).toEqual(['hextech ray', 'lightning rush', 'mystic shot']);
     await openMenu(fixture);
-    expect(menuButtons().map(text)).toEqual(['Sync now', 'Sign out', 'Delete account and data']);
+    expect(menuButtons().map(text)).toEqual(['Sync now', 'Account Information', 'System', 'Light', 'Dark', 'Sign out']);
   });
 
   /** H-110: exactly 3 dividers, none first, last or next to another. */
@@ -730,6 +743,8 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
             status: () => status,
             statusLine: () => line,
             currentEmail: () => opts.email,
+            username: signal<string | null>(null),
+            accountReady: signal(true),
             deletion: () => opts.deletion,
             pendingCount: () => 0,
           },
@@ -742,7 +757,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     return layout();
   }
 
-  it('H-110 normal: [identity, status] / [Sync now] / [Sign out] / [Delete], 3 dividers, none leading, trailing or doubled', async () => {
+  it('H-110 / SYNC-151 / AC 72 normal: [identity, status] / [Sync now] / [Account Information, Theme] / [Sign out], 3 dividers, none leading, trailing or doubled', async () => {
     const l = await stubMenu({ deletion: null, online: true, email: 'rj@example.com' });
     expect(l).toEqual([
       'text:Signed in as rj@example.com',
@@ -750,14 +765,15 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
       'divider',
       'item:Sync now',
       'divider',
-      'item:Sign out',
+      'item:Account Information',
+      'group:Theme(System,Light,Dark)',
       'divider',
-      'item:Delete account and data',
+      'item:Sign out',
     ]);
     expectCleanDividers(l);
   });
 
-  it('H-110 / AC 54 deletion: [status] / [Try deleting again, Cancel deletion] / [Sign out] / [Delete], no empty group', async () => {
+  it('H-110 / AC 54 deletion: [status] / [Try deleting again, Cancel deletion] / [Account Information, Theme] / [Sign out], no empty group', async () => {
     const l = await stubMenu({ deletion: { canCancel: true }, online: true, email: null });
     expect(l).toEqual([
       "text:Some data couldn't be deleted. Try again.",
@@ -765,9 +781,10 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
       'item:Try deleting again',
       'item:Cancel deletion',
       'divider',
-      'item:Sign out',
+      'item:Account Information',
+      'group:Theme(System,Light,Dark)',
       'divider',
-      'item:Delete account and data',
+      'item:Sign out',
     ]);
     expectCleanDividers(l);
   });
@@ -778,7 +795,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     expectCleanDividers(l);
   });
 
-  it("H-110 / SYNC-081 offline: You're offline. is right under the status, above the first divider; nothing after Delete", async () => {
+  it("H-110 / SYNC-081 offline: You're offline. is right under the status, above the first divider; Sign out is last", async () => {
     const l = await stubMenu({ deletion: null, online: false, email: 'rj@example.com' });
     expect(l).toEqual([
       'text:Signed in as rj@example.com',
@@ -787,9 +804,10 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
       'divider',
       'item:Sync now',
       'divider',
-      'item:Sign out',
+      'item:Account Information',
+      'group:Theme(System,Light,Dark)',
       'divider',
-      'item:Delete account and data',
+      'item:Sign out',
     ]);
     expectCleanDividers(l);
   });
@@ -802,7 +820,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
 });
 
 describe('AccountMenu header trigger (H-123)', () => {
-  it('H-123 Sign in and Account both carry the header-only 44px class with the strong control edge', async () => {
+  it('H-123 Sign in carries the header-only 44px class with the strong control edge; signed in it is the SYNC-150 account control', async () => {
     const signedIn = signal(false);
     TestBed.configureTestingModule({
       imports: [AccountMenu],
@@ -817,6 +835,8 @@ describe('AccountMenu header trigger (H-123)', () => {
             statusLine: () => '',
             status: () => ({ kind: 'synced', at: 0, pendingCount: 0 }),
             currentEmail: () => null,
+            username: signal<string | null>(null),
+            accountReady: signal(true),
             deletion: () => null,
           },
         },
@@ -829,8 +849,10 @@ describe('AccountMenu header trigger (H-123)', () => {
     expect(trigger().classList).toContain('header-account');
     signedIn.set(true);
     await fixture.whenStable();
+    // SYNC-150 (b), (c): signed in, the ghost account control (no outlined class); "Account" with no username.
     expect(text(trigger())).toBe('Account');
-    expect(trigger().classList).toContain('header-account');
+    expect(trigger().classList).toContain('account-trigger');
+    expect(trigger().classList).not.toContain('header-account');
     const styles = Array.from(document.querySelectorAll('style'))
       .map((s) => s.textContent ?? '')
       .find((css) => css.includes('.header-account'));

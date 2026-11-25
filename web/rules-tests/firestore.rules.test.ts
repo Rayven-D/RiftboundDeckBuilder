@@ -227,6 +227,67 @@ describe('SYNC-112 field validation', () => {
   });
 });
 
+describe('SYNC-112 / SYNC-156 account username (v0.14, H-176; AC 22, AC 74, AC 76)', () => {
+  const upd = (f: Firestore, username: unknown) =>
+    updateDoc(ref(f, 'users/uA'), { username, updatedAt: T, syncedAt: serverTimestamp() });
+  /** 👨🏽\u{200D}👩🏽\u{200D}👧🏽\u{200D}👦🏽: 11 code points, 19 UTF-16 units, 41 UTF-8 bytes; 24 of them is the worst name the client accepts. */
+  const FAMILY = '\u{1F468}\u{1F3FD}\u{200D}\u{1F469}\u{1F3FD}\u{200D}\u{1F467}\u{1F3FD}\u{200D}\u{1F466}\u{1F3FD}';
+
+  it("AC 22 / SYNC-112 an update with username 'RJ Smith' (createdAt kept) is allowed", async () => {
+    await assertSucceeds(upd(db('uA'), 'RJ Smith'));
+  });
+
+  it('AC 22 / AC 74 / H-183 24 × the skin-tone family emoji (264 code points, 456 UTF-16 units, 984 UTF-8 bytes) is allowed', async () => {
+    const name = FAMILY.repeat(24);
+    expect([...name].length).toBe(264);
+    expect(name.length).toBe(456);
+    expect(new TextEncoder().encode(name).length).toBe(984);
+    await assertSucceeds(upd(db('uA'), name));
+  });
+
+  it('AC 22 / SYNC-156 a username on the create of users/uA is denied (never set at creation)', async () => {
+    await env.clearFirestore();
+    await assertFails(setDoc(ref(db('uA'), 'users/uA'), { ...account(), username: 'RJ Smith' }));
+    await assertSucceeds(setDoc(ref(db('uA'), 'users/uA'), account()));
+  });
+
+  it('AC 22 / SYNC-112 a username of 2001 characters, an empty one or a numeric one is denied; 2000 is allowed', async () => {
+    const a = db('uA');
+    await assertFails(upd(a, 'x'.repeat(2001)));
+    await assertFails(upd(a, ''));
+    await assertFails(upd(a, 42));
+    await assertSucceeds(upd(a, 'x'.repeat(2000)));
+  });
+
+  it('AC 76 / SYNC-155 the username write is one update() of username, updatedAt and syncedAt; a client syncedAt is denied', async () => {
+    const a = db('uA');
+    await assertSucceeds(upd(a, 'RJ Smith'));
+    await assertFails(updateDoc(ref(a, 'users/uA'), { username: 'RJ', updatedAt: T, syncedAt: T }));
+    // another user cannot set uA's name
+    await assertFails(upd(db('uB'), 'Mallory'));
+  });
+
+  it('H-183 which unit string.size() counts: probed with 😀 × 700 and × 1100 (code points 700 / 1100, UTF-16 1400 / 2200, UTF-8 2800 / 4400)', async () => {
+    const a = db('uA');
+    const probe = async (n: number) => {
+      try {
+        await assertSucceeds(upd(a, '\u{1F600}'.repeat(n)));
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const r700 = await probe(700);
+    const r1100 = await probe(1100);
+    const unit = r1100 ? 'code points' : r700 ? 'UTF-16 units' : 'UTF-8 bytes';
+    console.log(`[H-183] Firestore rules string.size() counts ${unit} (700 emoji: ${r700}, 1100 emoji: ${r1100})`);
+    expect(unit).toBe(SIZE_UNIT);
+  });
+});
+
+/** Recorded by the H-183 probe above against the Firestore emulator (H-176, 2026-11-25): UTF-16 units. Production is unverified. */
+const SIZE_UNIT = 'UTF-16 units';
+
 describe('SYNC-113 creates need the account document', () => {
   beforeEach(async () => {
     await env.clearFirestore();

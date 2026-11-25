@@ -31,6 +31,11 @@ export interface DocMeta {
 export interface AccountDoc extends DocMeta {
   createdAt: Ms;
   lastClientVersion: string;
+  /**
+   * v0.14 (SYNC-156): absent until the user chooses one; never set at creation. Normalized (SYNC-153): 1-24
+   * graphemes and at most 500 UTF-16 units; the rules allow `size()` 1-2000 on update only (SYNC-112, H-183).
+   */
+  username?: string;
 }
 export interface CloudCard {
   q: number;
@@ -173,6 +178,12 @@ export interface StoredSyncLog {
    * passes the account check, and by every clear of the log.
    */
   sessionLostUid?: string | null;
+  /**
+   * v0.14 (SYNC-156): cache of `users/{uid}.username` for the header (SYNC-150), so it shows at once and offline.
+   * Read with the account check and the full read, written after a username save (SYNC-155); cleared with the log.
+   * `null` (or absent) = no username.
+   */
+  username?: string | null;
 }
 
 export interface SyncLogStore {
@@ -214,7 +225,7 @@ export interface AuthService {
   signIn(providerId: string, email?: string): Promise<{ uid: string } | 'cancelled'>;
   /**
    * SYNC-006 email link: sends the link; the sign-in completes when the user opens it. `returnTo` (H-145) is the
-   * app path and query of the page sign-in started from (e.g. `/import?type=deck`), sent as the continue URL;
+   * app path and query of the page sign-in started from (e.g. `/decks?import=1`, SYNC-159), sent as the continue URL;
    * anything that isn't an app path becomes `/` (`safeReturnPath`). Default `/`.
    */
   sendEmailLink(email: string, returnTo?: string): Promise<void>;
@@ -313,6 +324,11 @@ export interface RemoteStore {
   pull(uid: string, cursors: StoredSyncLog['cursors'] | null, opts?: { withAccount?: boolean }): Promise<PullResult>;
   /** The account check alone (`get users/{uid}`, 1 read, SYNC-053). Throws `RemoteError`. */
   getAccount(uid: string): Promise<AccountDoc | null>;
+  /**
+   * v0.14 (SYNC-155): one `update()` of `users/{uid}` setting `username`, `updatedAt` and `syncedAt` (server time);
+   * never a `set()`. Needs the network: not a pending item. Never throws: failures come back as a code.
+   */
+  setUsername(uid: string, username: string): Promise<'ok' | RemoteErrorCode>;
   /** Never throws for a single document: each document's result is in the outcome (SYNC-043, SYNC-118). */
   push(uid: string, changes: PushChanges): Promise<PushOutcome>;
   /** SYNC-096 step 2: account document first, then every deck, then the three state documents. */

@@ -229,6 +229,24 @@ export class FakeRemote implements RemoteStore {
     return outcome;
   }
 
+  /** SYNC-155: one update() of users/{uid}; a missing account is not-found (never a set()). Fail rules use ref 'username'. */
+  async setUsername(uid: string, username: string): Promise<'ok' | RemoteErrorCode> {
+    if (this.offline) return 'offline';
+    if (this.quota) return 'quota';
+    for (const r of this.failRules) {
+      if (r.ref === '*' || r.ref === 'username') {
+        if (r.once) this.failRules = this.failRules.filter((x) => x !== r);
+        return r.code;
+      }
+    }
+    try {
+      this.update(`users/${uid}`, { username, updatedAt: this.db.serverTime });
+      return 'ok';
+    } catch (e) {
+      return e instanceof RemoteError ? e.code : 'unknown';
+    }
+  }
+
   async deleteAll(uid: string): Promise<DeleteAllResult> {
     this.checkUp();
     if (this.failDeckList) {

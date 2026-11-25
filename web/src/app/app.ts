@@ -1,7 +1,7 @@
 import { Component, ElementRef, signal, viewChild } from '@angular/core';
-import { MatButton } from '@angular/material/button';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AccountMenu } from './core/sync/account-menu';
+import { ThemeSwitch } from './core/theme/theme-switch';
 import { Icon, IconName } from './shared/icon';
 
 interface NavItem {
@@ -11,31 +11,28 @@ interface NavItem {
 
 interface TabItem extends NavItem {
   icon: IconName;
-  /** The main action (Import): drawn in the accent so it still reads as the primary button. */
-  action?: boolean;
 }
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatButton, Icon, AccountMenu],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon, AccountMenu, ThemeSwitch],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   host: { '(window:scroll)': 'onScroll()' },
 })
 export class App {
-  /** Main tabs. Import is not a tab: it is the raised action at the far right of the header. */
+  /** Main tabs. There is no Import page (SYNC-159): each import opens from its own page. */
   protected readonly nav: NavItem[] = [
     { path: '/decks', label: 'Decks' },
     { path: '/collection', label: 'Collection' },
     { path: '/tournaments', label: 'Tournaments' },
   ];
 
-  /** Phone bottom bar (RJ, 2026-11-24): the same tabs plus Import, each an icon over its label. */
+  /** Phone bottom bar (RJ, 2026-11-24; SYNC-150: three tabs, no Import), each an icon over its label. */
   protected readonly tabs: TabItem[] = [
     { path: '/decks', label: 'Decks', icon: 'playing_cards' },
     { path: '/collection', label: 'Collection', icon: 'stacks' },
     { path: '/tournaments', label: 'Tournaments', icon: 'trophy' },
-    { path: '/import', label: 'Import', icon: 'upload', action: true },
   ];
 
   /** The header shows its bottom border once the page has scrolled under it. */

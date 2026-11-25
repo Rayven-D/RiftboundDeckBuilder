@@ -39,7 +39,7 @@
 }
 
 /* Same width and side padding as <main>: the wordmark lines up with the page's left edge and
-   Import with its right edge at every width. */
+   the account control with its right edge at every width (SYNC-150 f). */
 .header-row {
   display: flex;
   align-items: center;
@@ -60,8 +60,14 @@
   text-decoration: none;
 }
 
+/* SYNC-150 (b) / Brief H-175 H2: the wordmark and tabs never shrink; the account control's name gives way first. */
+.wordmark,
 .site-nav {
-  /* Pushes the Import action to the far right. */
+  flex: none;
+}
+
+.site-nav {
+  /* Pushes the account control to the far right. */
   margin-right: auto;
 }
 
@@ -100,27 +106,6 @@
   }
 }
 
-/* Raised primary action: the accent fill plus a lift, so it reads above the flat tabs. */
-.import-action {
-  --mat-button-filled-container-height: 44px;
-
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 30%),
-    0 3px 8px rgb(0 0 0 / 25%);
-
-  &:hover {
-    --mat-button-filled-container-color: var(--color-accent-hover);
-
-    box-shadow:
-      0 2px 4px rgb(0 0 0 / 30%),
-      0 6px 14px rgb(0 0 0 / 28%);
-  }
-
-  &.active {
-    box-shadow: inset 0 -2px 0 var(--color-accent-contrast);
-  }
-}
-
 .site-main {
   flex: 1;
   width: 100%;
@@ -135,7 +120,11 @@
 }
 
 .site-footer {
-  padding: var(--space-2) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-2);
   border-top: 1px solid var(--color-border);
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
@@ -164,14 +153,13 @@
     font-size: var(--font-size-md);
   }
 
-  /* Tabs and Import move to the bottom bar; the header keeps just the wordmark. */
-  .site-nav,
-  .import-action {
+  /* The tabs move to the bottom bar; the header keeps the wordmark and the account control. */
+  .site-nav {
     display: none;
   }
 
-  /* The account control (when sign-in is enabled) stays in the header, at the right edge. Its host
-     is display: contents, so the wordmark does the pushing. */
+  /* The account control stays in the header, at the right edge. Its host is display: contents, so the
+     wordmark does the pushing. */
   .wordmark {
     margin-right: auto;
   }
@@ -189,7 +177,7 @@
 
     ul {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       margin: 0;
       padding: 0;
       list-style: none;
@@ -266,17 +254,5 @@
     line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  /* Import keeps the accent fill, so it still reads as the main action. */
-  .tab--action {
-    .tab-icon {
-      background: var(--color-accent);
-      color: var(--color-accent-contrast);
-    }
-
-    .tab-label {
-      color: var(--color-accent-text);
-    }
   }
 }

@@ -100,12 +100,20 @@ describe('CollectionPage (H-086)', () => {
     document.querySelectorAll('.cdk-overlay-container').forEach((n) => (n.innerHTML = '')),
   );
 
-  it('COLL-001 S1: an empty collection shows the empty state and no toolbar', async () => {
+  it('COLL-001 S1 / COLL-094 (g): an empty collection shows the empty state with its own Add to your collection button, no toolbar and no floating button', async () => {
     const h = await setup('/collection', { sample: null });
     expect(text(h, 'app-empty-state h2')).toBe('Your collection is empty');
+    expect(text(h, 'app-empty-state p')).toBe("Add the cards you own and they'll show up here.");
     expect(text(h, '.page-lede')).toBe('Every card you own.');
-    expect(el(h).querySelector('a.button')?.getAttribute('href')).toBe('/import?type=collection');
+    const add = el(h).querySelector<HTMLButtonElement>('app-empty-state button')!;
+    expect(add.textContent?.trim()).toBe('Add to your collection');
+    expect(add.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(el(h).querySelector('a[href^="/import"]')).toBeNull();
+    expect(el(h).querySelector('app-page-fab')).toBeNull();
     expect(el(h).querySelector('.toolbar')).toBeNull();
+    add.click();
+    await settle(h);
+    expect(document.querySelector('mat-dialog-container h2')?.textContent?.trim()).toBe('Add to your collection');
   });
 
   it('COLL-071 SYNC-033 S8: an unreadable collection shows the alert banner with Reload', async () => {
@@ -372,8 +380,6 @@ describe('CollectionPage (H-086)', () => {
   });
 
   describe('SPEC-010 AC 31: no delete-all-local action (SPEC-007 COLL-074 withdrawn)', () => {
-    const overlay = () => document.querySelector('.cdk-overlay-container') as HTMLElement;
-
     it('AC 31 desktop: Export CSV in the header, no More menu, no delete action', async () => {
       const h = await setup('/collection');
       expect(text(h, 'button.button--outlined')).toContain('Export CSV');
@@ -381,15 +387,12 @@ describe('CollectionPage (H-086)', () => {
       expect(el(h).textContent).not.toMatch(/Delete all local|local collection data/i);
     });
 
-    it('AC 31 phone: the More menu holds Export CSV only', async () => {
+    it('AC 31 / COLL-094 (j) phone: one Export CSV icon button replaces the More menu, and no delete action', async () => {
       const h = await setup('/collection', { phone: true });
-      el(h).querySelector<HTMLButtonElement>('button[aria-label="More"]')!.click();
-      await settle(h);
-      const items = [...overlay().querySelectorAll('.mat-mdc-menu-item')].map((b) =>
-        b.textContent?.trim(),
-      );
-      expect(items).toEqual(['Export CSV']);
-      expect(overlay().querySelector('.danger')).toBeNull();
+      expect(el(h).querySelector('button[aria-label="More"]')).toBeNull();
+      const exportButton = el(h).querySelector<HTMLButtonElement>('.title-row button[aria-label="Export CSV"]');
+      expect(exportButton).not.toBeNull();
+      expect(el(h).textContent).not.toMatch(/Delete all local|local collection data/i);
     });
 
     it('AC 31 empty collection: no More menu and no delete action', async () => {
@@ -438,5 +441,71 @@ describe('CollectionPage (H-086)', () => {
         scrollTo.mockRestore();
       }
     });
+  });
+});
+
+describe('CollectionPage "Add to your collection" (SPEC-007 COLL-094, SPEC-003 IMP-060, SPEC-010 SYNC-159, H-176)', () => {
+  afterEach(() => {
+    document.querySelectorAll('.cdk-overlay-container').forEach((n) => (n.innerHTML = ''));
+    document.documentElement.classList.remove('has-fab');
+  });
+  const dialogTitle = () => document.querySelector('mat-dialog-container h2')?.textContent?.trim() ?? null;
+
+  it('COLL-094 (a), (f), (g) / IMP-060: with the list shown, one floating button "Add to your collection" right after the header, before the toolbar; it opens the dialog', async () => {
+    const h = await setup('/collection');
+    const fab = el(h).querySelector<HTMLButtonElement>('app-page-fab button')!;
+    expect(fab).not.toBeNull();
+    expect(fab.textContent?.trim()).toBe('Add to your collection');
+    expect(fab.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(fab.querySelector('app-icon')?.getAttribute('aria-hidden')).toBe('true');
+    expect(document.documentElement.classList.contains('has-fab')).toBe(true); // page-end clearance (COLL-094 d, e)
+    const header = el(h).querySelector('header.page-header')!;
+    const toolbar = el(h).querySelector('.toolbar')!;
+    expect(header.compareDocumentPosition(fab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(fab.compareDocumentPosition(toolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fab.click();
+    await settle(h);
+    expect(dialogTitle()).toBe('Add to your collection');
+    expect(TestBed.inject(Router).url).toBe('/collection'); // stays on Collection (IMP-072)
+  });
+
+  it('COLL-094 (b): no floating button on the unreadable banner or the card-data banner', async () => {
+    let h = await setup('/collection', { corruptCollection: true });
+    expect(el(h).querySelector('app-page-fab')).toBeNull();
+    TestBed.resetTestingModule();
+    h = await setup('/collection', { catalogError: true });
+    expect(el(h).querySelector('app-page-fab')).toBeNull();
+  });
+
+  it('SYNC-159 (c) / AC 80: /collection?add=1 opens the dialog once and the address becomes /collection with no history entry', async () => {
+    const h = await setup('/collection?add=1');
+    await vi.waitFor(async () => {
+      await settle(h);
+      expect(dialogTitle()).toBe('Add to your collection');
+    });
+    expect(document.querySelectorAll('mat-dialog-container')).toHaveLength(1);
+    expect(TestBed.inject(Location).path()).toBe('/collection');
+  });
+
+  it('SYNC-159 (c) / AC 80: /collection?add=1 on an empty collection opens the dialog too (the page can import)', async () => {
+    const h = await setup('/collection?add=1', { sample: null });
+    await vi.waitFor(async () => {
+      await settle(h);
+      expect(dialogTitle()).toBe('Add to your collection');
+    });
+  });
+
+  it('SYNC-159 (c) / AC 80: /collection?add=2 opens nothing and the address is left alone', async () => {
+    const h = await setup('/collection?add=2');
+    await settle(h, 20);
+    expect(document.querySelector('mat-dialog-container')).toBeNull();
+    expect(TestBed.inject(Location).path()).toContain('add=2');
+  });
+
+  it('SYNC-159 (c) / AC 80: card data unavailable with ?add=1: no dialog, and the parameter is removed', async () => {
+    const h = await setup('/collection?add=1', { catalogError: true });
+    await settle(h, 20);
+    expect(document.querySelector('mat-dialog-container')).toBeNull();
+    expect(TestBed.inject(Location).path()).not.toContain('add=');
   });
 });

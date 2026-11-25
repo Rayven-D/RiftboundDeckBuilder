@@ -30,6 +30,7 @@ export function emptySyncLog(): StoredSyncLog {
     lastBuild: null,
     deletingUid: null,
     sessionLostUid: null,
+    username: null,
   };
 }
 

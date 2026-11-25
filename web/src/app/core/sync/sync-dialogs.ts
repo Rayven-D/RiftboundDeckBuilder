@@ -40,9 +40,12 @@ export interface SignInDialogData {
   sendEmailLink: (email: string) => Promise<void>;
 }
 
-/** SYNC-003 (v0.8): no warning about legacy local data; the first sign-in clears it silently (SYNC-048). */
+/**
+ * SYNC-003 (v0.8): no warning about legacy local data; the first sign-in clears it silently (SYNC-048). v0.14
+ * (H-176, RJ H-178 decision 7): the last sentence tells a new user that this one Sign in also creates the account.
+ */
 export const SIGN_IN_INTRO =
-  "Sign in to import your cards and decks. They're saved to your account, so you'll see them on any device you sign in on.";
+  "Sign in to import your cards and decks. They're saved to your account, so you'll see them on any device you sign in on. New here? Signing in with your email creates your account.";
 
 /** Per-instance id for the send-failure line (aria-describedby target). */
 let signInDialogSeq = 0;

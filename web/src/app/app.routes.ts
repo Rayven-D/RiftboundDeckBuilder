@@ -8,11 +8,6 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/home/home-page').then((m) => m.HomePage),
   },
   {
-    path: 'import',
-    title: 'Import · Rift Builder',
-    loadComponent: () => import('./pages/import/import-page').then((m) => m.ImportPage),
-  },
-  {
     path: 'collection',
     title: 'Collection · Rift Builder',
     loadComponent: () => import('./pages/collection/collection-gate').then((m) => m.CollectionGate),
@@ -39,5 +34,6 @@ export const routes: Routes = [
     title: 'Component preview · Rift Builder',
     loadComponent: () => import('./pages/styleguide/styleguide-page').then((m) => m.StyleguidePage),
   },
+  // SYNC-159 (a): every unknown path goes to Home, `/import` included (no not-found page, no special rule).
   { path: '**', redirectTo: '' },
 ];
