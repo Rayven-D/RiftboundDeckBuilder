@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-002
-version: 0.3
+version: 0.3.1
 status: draft
 depends_on: [SPEC-001]
 research: ["[[Deck Construction Rules]]", "[[Ban List]]", "[[Formats]]", "[[Sets]]", "[[Rules Overview]]", "[[Riot App Application]]"]
@@ -20,7 +20,7 @@ as_of: 2026-11-23
 - LEGAL-016: no banned card, battlefield or Legend in any zone as of `asOf`, matched by `cardKey`.
 - LEGAL-017/018: each card needs a printing in a set legal as of `asOf`; an overnumbered printing alone doesn't count.
 - LEGAL-019: every name resolves to exactly one `cardKey`; others are skipped, not guessed.
-- LEGAL-B02: banned set as of D = all waves with `effective <= D` (inclusive).
+- LEGAL-B02: banned set as of D = all waves with `effective <= D` (inclusive); inside one wave `remove` runs before `add` (v0.3.1).
 - LEGAL-B10: `banStatus(cardKey, format, region, asOf)` → `banned` (with `bannedSince`) / `upcoming` / `not-banned`.
 - LEGAL-C02/C08: set legality from Riot-published dates or API release status only; no community dates.
 - LEGAL-R01/R04: pure function; verdict `illegal` > `incomplete` > `legal`; `incomplete` is never shown as legal.
@@ -129,7 +129,7 @@ Notes backed by research but not checked (informational only, never a failure):
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | LEGAL-B01 | MUST | The ban list lives in `data/banlist.json` (schema below), as an ordered list of **ban waves** per (format, region). Each wave has an id, name, announced date, effective date, official source URL, and `add` / `remove` entries; each entry has a canonical `name` and a `kind`: `card` \| `battlefield` \| `legend`. | [[Ban List]]; [[ADR-0001 Tech Stack]] (versioned JSON in `data/`) |
-| LEGAL-B02 | MUST | **Banned set as of D** = start empty; apply every wave of the (format, region) list with `effective <= D`, in ascending effective-date order (ties: file order); `add` inserts names, `remove` deletes them. A wave whose effective date is **after** D has no effect, even if already announced. The effective date is **inclusive** (a card banned "effective 2026-11-23" is banned on 2026-11-23). | [[Ban List]] (effective vs. announced dates) |
+| LEGAL-B02 | MUST | **Banned set as of D** = start empty; apply every wave of the (format, region) list with `effective <= D`, in ascending effective-date order (ties: file order); `add` inserts names, `remove` deletes them. **Inside one wave, every `remove` is applied before every `add`** (v0.3.1), so a name listed in both ends up banned after that wave. A wave whose effective date is **after** D has no effect, even if already announced. The effective date is **inclusive** (a card banned "effective 2026-11-23" is banned on 2026-11-23). | [[Ban List]] (effective vs. announced dates) |
 | LEGAL-B03 | MUST | Region lookup: use the list for (format, region) if it exists; otherwise fall back to (format, `global`). MVP ships only `global`. | [[Ban List]] #7 |
 | LEGAL-B04 | MUST | The file carries `dataVersion` and `lastVerified`; every legality result echoes the `dataVersion` used, so a stored result can be re-checked when the list changes. | [[Spec Index]] (versioned specs/data) |
 | LEGAL-B05 | MUST | Every name in the ban list resolves (by `nameKey`) to a catalog `cardKey` of the matching kind (pipeline check). A name that does not resolve is a **data error** that blocks publishing the data, not a silent skip and not fixed by an alias (see the "Dreaming Tree" naming conflict). | [[Ban List]] Conflicts; [[ADR-0005 MVP Product Defaults]] #4 |
@@ -426,6 +426,7 @@ Fixtures: `KENNEN_1` = [[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]] (1st, 
 18. **Overnumbered** (LEGAL-018) **Given** a card with an in-range printing in `LGC` and a `variant.kind: 'overnumbered'` printing `RAD` `300` **When** evaluated as of 2026-11-23 **Then** LEGAL-018 fails for it (only legal-set printing is overnumbered) and LEGAL-017 passes. **Given** the same card with the RAD printing's `variant.kind: 'unknown'` **Then** LEGAL-018 is `not_evaluated`. **Given** a card whose printings are all in legal sets, all with `variant.kind: 'unknown'` **Then** LEGAL-018 passes.
 19. **Unknown champion data** (LEGAL-004, LEGAL-R04) **Given** `RIVEN_2` with SPEC-001 data where `isChampionUnit`, `isSignature` and `championTag` are `null` **When** evaluated as of 2026-11-08 **Then** LEGAL-004 is `not_evaluated` (not `pass`, not `fail`) and `verdict = incomplete`.
 20. **Per-card ban status** (LEGAL-B10) **Given** the Standard ban data **When** `banStatus` is asked as of 2026-11-23 for `cardKey` `zhonyas hourglass` **Then** it returns `banned`, `waveId = std-2026-11-23`, `bannedSince = 2026-11-23`; as of 2026-11-15 **Then** `upcoming` (announced 2026-11-13, effective 2026-11-23); as of 2026-11-10 **Then** `not-banned`; for `stealthy pursuer` as of 2026-11-23 **Then** `banned` with `bannedSince = 2026-07-24`.
+21. **Remove before add inside one wave** (LEGAL-B02; v0.3.1) **Given** a list whose earlier wave bans `Card A` and whose later wave (effective 2026-12-01) has `remove: [Card A]` **and** `add: [Card A]` **When** the banned set is computed as of 2026-12-01 **Then** `Card A` is banned (remove runs first, then add). **Given** the same wave with `remove: [Card A]` and no `add` **Then** `Card A` is not banned from 2026-12-01 and still banned as of 2026-11-30.
 
 ## Out of scope
 - **2v2 Constructed** (own ban list with a banned Legend; Radiance-wave scope in conflict), **Limited** (Sealed: ≥25 main, no copy limit, 3-domain identity; Draft: ≥20), and the **World Showcase** three-deck format. The data model supports them via `deckRules` and per-format ban lists. ([[Formats]], [[Deck Construction Rules]] #14)
@@ -446,4 +447,4 @@ Fixtures: `KENNEN_1` = [[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]] (1st, 
 10. **Battlefield domains** ("where applicable"): confirm whether any battlefields carry domains. LEGAL-012 applies the general fit rule meanwhile.
 
 ## Changelog
-Current: 0.3 (2026-11-23). Full history: [[Deck Legality changelog]] (archived). New entries go in the archive note.
+Current: 0.3.1 (2026-11-24, H-076: LEGAL-B02 orders `remove` before `add` inside one wave, AC 21). Full history: [[Deck Legality changelog]] (archived). New entries go in the archive note.

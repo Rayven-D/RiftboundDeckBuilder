@@ -35,7 +35,7 @@ as_of: 2026-11-23
   Undo and Duplicate give unlocked decks. Locks live in SPEC-008's `DeckLockStore`, not in `UserDeck`.
 
 **Shared types:** `UserDeck` · `DeckCard` (`cardKey`, name, qty) · `DeckSource` = `UserDeckSource | TournamentDeckSource` · `DeckZone` (= SPEC-002 `Zone`) · `DeckImportResult` · `ZoneQuestion` · `DeckStore`.
-**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3, [[Collection Import]] v0.9.1, [[Tournament Deck Catalog]] v0.5, [[Shared Cards and Lock-in]] v0.4.1 (lock rules for DECK-080/082…084). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
+**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3.1, [[Collection Import]] v0.9.1, [[Tournament Deck Catalog]] v0.5, [[Shared Cards and Lock-in]] v0.4.2 (lock rules for DECK-080/082…084). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
 **BLOCKED (needs research):**
 - Whether Piltover deck codes encode Legend, champion, runes and battlefields (DECK-039).
 - API type strings and champion/signature fields (via SPEC-001), so inference mostly asks zone questions.

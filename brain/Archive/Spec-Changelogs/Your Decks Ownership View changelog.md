@@ -9,6 +9,7 @@ superseded_by: "[[Your Decks Ownership View]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.5.1 (2026-11-24, H-076, status `review`): new OWN-065 (ownership unavailable: lock state kept from the lock store, tile line "Ownership unavailable", `ownershipFilter` gains `unavailable`, `lock` is null only without a stored lock); OWN-006 filter text and the `DeckOwnershipView.lock` / `DeckTileSummary` contract comments updated; AC added. Pins: SPEC-002 0.3.1, SPEC-008 0.4.2. RJ to confirm the wording and the filter group (SPEC-008 open question 5).
 - 0.5, note (2026-11-24, H-097): open question 7 resolved by RJ ("No notice"). OWN-029's Source now cites
   RJ's decision instead of a Claude default; the proposed notice wording is marked not used. No requirement
   or AC changed, so no version bump.
