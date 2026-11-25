@@ -6,6 +6,8 @@
 import { InteractivityChecker, LiveAnnouncer } from '@angular/cdk/a11y';
 import { Injectable, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { MatMenuTrigger } from '@angular/material/menu';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -15,7 +17,7 @@ import { ThemeService } from '../theme/theme.service';
 import { emptySyncLog } from '../../shared/sync/sync-log';
 import type { StoredSyncLog } from '../../shared/sync/sync-types';
 import { FakeAuth, FakeFirestore, FakeRemote } from '../../shared/sync/testing/fakes';
-import { AccountMenu } from './account-menu';
+import { AccountMenu, menuEdgeCorrection } from './account-menu';
 import { UsernameDialog, UsernameDialogData, UsernameSaveResult } from './account-dialogs';
 import { SYNC_ADAPTERS, SyncService } from './sync.service';
 
@@ -207,6 +209,47 @@ describe('Header account control, menu and Account Information (SPEC-010 SYNC-15
       expect(TestBed.inject(ThemeService).choice()).toBe('dark');
       expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
       await vi.waitFor(() => expect(trigger(fixture).getAttribute('aria-expanded')).not.toBe('true'));
+    });
+  });
+
+  describe('SYNC-151 / H-189 N3 the menu lines up with its button', () => {
+    it('SYNC-151 menuEdgeCorrection: a small leftward gap (the 15 px scrollbar gutter) is closed; none, rightward or large gaps are left', () => {
+      expect(menuEdgeCorrection(1272.5, 1257.5)).toBe(15);
+      expect(menuEdgeCorrection(1272.5, 1272.5)).toBe(0);
+      expect(menuEdgeCorrection(1272.5, 1272.2)).toBe(0);
+      expect(menuEdgeCorrection(1272.5, 1280)).toBe(0);
+      expect(menuEdgeCorrection(1272.5, 1200)).toBe(0);
+    });
+
+    it('SYNC-151 opening the menu 15 px left of the trigger moves its pane right by 15 px; a later aligned opening clears it', async () => {
+      const db = new FakeFirestore();
+      db.docs.set('users/uA', accountDoc({ username: 'RJ Smith' }));
+      const auth = new FakeAuth();
+      auth.uid = 'uA';
+      const { fixture } = setup(db, auth, synced({ username: 'RJ Smith' }));
+      await render(fixture);
+      const rect = (right: number) => ({ right }) as DOMRect;
+      vi.spyOn(trigger(fixture), 'getBoundingClientRect').mockReturnValue(rect(1272.5));
+      let paneRight = 1257.5;
+      const real = HTMLElement.prototype.getBoundingClientRect;
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains('cdk-overlay-pane') ? rect(paneRight - parseFloat(this.style.marginRight || '0')) : real.call(this);
+      });
+      trigger(fixture).click();
+      await render(fixture);
+      await flush();
+      const pane = document.querySelector('.account-menu-panel')!.closest<HTMLElement>('.cdk-overlay-pane')!;
+      await vi.waitFor(() => expect(pane.style.marginRight).toBe('-15px'));
+      // closed and opened again on a page where the CDK got it right: no correction left over
+      const menuTrigger = fixture.debugElement.query(By.directive(MatMenuTrigger)).injector.get(MatMenuTrigger);
+      menuTrigger.closeMenu();
+      await render(fixture);
+      await flush();
+      paneRight = 1272.5;
+      menuTrigger.openMenu();
+      await render(fixture);
+      await flush();
+      await vi.waitFor(() => expect(pane.style.marginRight).toBe(''));
     });
   });
 
@@ -439,11 +482,23 @@ describe('UsernameDialog (SPEC-010 SYNC-153…155, AC 74, AC 75, AC 76)', () => 
     const ids = t.input().getAttribute('aria-describedby')!.split(' ');
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toContain(t.el.querySelector('.error')!.id);
-    expect(ids).toContain(t.el.querySelector('mat-hint')!.id);
+    expect(ids).toContain(t.el.querySelector('.counter')!.id);
     await t.type('K');
     expect(field.classList).not.toContain('mat-form-field-invalid');
     expect(t.input().getAttribute('aria-invalid')).not.toBe('true');
-    expect(t.input().getAttribute('aria-describedby')).toBe(t.el.querySelector('mat-hint')!.id);
+    expect(t.input().getAttribute('aria-describedby')).toBe(t.el.querySelector('.counter')!.id);
+  });
+
+  it('SYNC-153 / H-189 N1 the n / 24 counter is outside every aria-live region (not read on each keystroke) but describes the field', async () => {
+    const t = open();
+    await t.fixture.whenStable();
+    await t.type('Kai S');
+    const counter = t.el.querySelector('.counter')!;
+    expect(text(counter)).toBe('5 / 24');
+    expect(t.el.querySelector('mat-hint')).toBeNull();
+    expect(counter.closest('[aria-live]')).toBeNull();
+    for (const live of Array.from(t.el.querySelectorAll('[aria-live]'))) expect(text(live)).not.toContain('/ 24');
+    expect(t.input().getAttribute('aria-describedby')!.split(' ')).toContain(counter.id);
   });
 
   it('AC 74 / H-189 Enter in the field with an invalid value announces the error once (focus already there); a Save click moves focus instead', async () => {
@@ -467,7 +522,7 @@ describe('UsernameDialog (SPEC-010 SYNC-153…155, AC 74, AC 75, AC 76)', () => 
     const t = open();
     await t.fixture.whenStable();
     await t.type('a'.repeat(25));
-    expect(text(t.el.querySelector('mat-hint'))).toBe('25 / 24');
+    expect(text(t.el.querySelector('.counter'))).toBe('25 / 24');
     await t.save();
     expect(text(t.el.querySelector('.error'))).toBe('Use 24 characters or fewer.');
     expect(t.input().value).toBe('a'.repeat(25));

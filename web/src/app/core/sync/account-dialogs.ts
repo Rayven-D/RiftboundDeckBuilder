@@ -19,7 +19,7 @@ import {
   MatDialogTitle,
 } from '@angular/material/dialog';
 import type { ErrorStateMatcher } from '@angular/material/core';
-import { MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import {
   USERNAME_MAX_GRAPHEMES,
@@ -79,7 +79,6 @@ let usernameDialogSeq = 0;
     MatButton,
     MatFormField,
     MatLabel,
-    MatHint,
     MatInput,
     Icon,
   ],
@@ -100,11 +99,13 @@ let usernameDialogSeq = 0;
             enterkeyhint="done"
             [value]="value()"
             [errorStateMatcher]="errorMatcher"
-            [aria-describedby]="error() ? errorId : ''"
+            [aria-describedby]="describedBy()"
             (input)="onInput($event)"
           />
-          <mat-hint align="end" [id]="counterId">{{ count() }} / {{ max }}</mat-hint>
         </mat-form-field>
+        <!-- H-189 N1: not a mat-hint. Material's subscript wrapper is aria-live, so a hint counter was read on every
+             keystroke; here it is plain text, read with the field through aria-describedby. -->
+        <p class="counter" [id]="counterId">{{ count() }} / {{ max }}</p>
         @if (error(); as err) {
           <p class="error" [id]="errorId"><app-icon name="error" />{{ err }}</p>
         }
@@ -128,6 +129,13 @@ let usernameDialogSeq = 0;
   `,
   styles: `
     .field { width: 100%; }
+    .counter {
+      margin: var(--space-1) 0 0;
+      padding-inline: 16px; /* the outline field's text inset, as Material's hint */
+      text-align: end;
+      color: var(--color-text-muted);
+      font-size: var(--font-size-xs);
+    }
     .error {
       display: flex;
       align-items: flex-start;
@@ -170,9 +178,12 @@ export class UsernameDialog {
   );
   /**
    * H-189 finding 5: the field reads as invalid (outline, label, `aria-invalid`) while an error shows. MatInput owns
-   * `aria-invalid` and only re-reads the matcher when asked (no NgControl), see setError(). The counter's id reaches
-   * `aria-describedby` through its mat-hint only; the error id is the one added by hand (finding 7).
+   * `aria-invalid` and only re-reads the matcher when asked (no NgControl), see setError().
    */
+  /** Error first, then the counter; each id once (finding 7). The counter is outside Material's live subscript (N1). */
+  protected readonly describedBy = computed(() =>
+    this.error() ? `${this.errorId} ${this.counterId}` : this.counterId,
+  );
   protected readonly errorMatcher: ErrorStateMatcher = { isErrorState: () => this.error() !== null };
 
   constructor() {

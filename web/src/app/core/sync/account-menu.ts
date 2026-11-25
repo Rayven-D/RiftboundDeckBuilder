@@ -20,6 +20,20 @@ import {
 } from './sync-dialogs';
 import { SyncService, refocusAfterDialog } from './sync.service';
 
+/** A gap larger than this is a real layout choice (a push to stay on screen), not the scrollbar-gutter mismatch. */
+const MAX_EDGE_CORRECTION = 32;
+
+/**
+ * H-189 N3: how far (px) to move the menu right so its right edge meets the trigger's. The CDK places an `xPosition=
+ * "before"` menu with `right: clientWidth - x`, but the fixed overlay it is measured in is the full viewport width;
+ * with `scrollbar-gutter: stable` on a page that doesn't scroll the two differ by the gutter, so the menu sits that
+ * far left of its button. Only a small leftward gap is corrected; anything else returns 0.
+ */
+export function menuEdgeCorrection(triggerRight: number, paneRight: number): number {
+  const gap = triggerRight - paneRight;
+  return gap > 0.5 && gap <= MAX_EDGE_CORRECTION ? gap : 0;
+}
+
 /** Ids for the menu's aria-describedby (username, identity line, status) and the Theme group label. */
 let accountMenuSeq = 0;
 
@@ -48,6 +62,7 @@ let accountMenuSeq = 0;
         [matMenuTriggerFor]="menu"
         #menuTrigger="matMenuTrigger"
         [class.open]="menuTrigger.menuOpen"
+        (menuOpened)="alignMenu()"
         [attr.aria-label]="accessibleName()"
       >
         <span class="avatar" aria-hidden="true">
@@ -62,7 +77,7 @@ let accountMenuSeq = 0;
       </button>
       <!-- H-110 groups: [username, identity, status, offline] / [Sync now] or [deletion actions] /
            [Account Information, Theme, (Privacy notice, H-180)] / [Sign out]. Always 3 dividers, never first or last. -->
-      <mat-menu #menu="matMenu" xPosition="before" [aria-describedby]="describedBy()">
+      <mat-menu #menu="matMenu" xPosition="before" class="account-menu-panel" [aria-describedby]="describedBy()">
         @if (sync.username(); as name) {
           <p class="menu-text username" [id]="usernameId">{{ name }}</p>
         }
@@ -236,6 +251,25 @@ export class AccountMenu {
     // The app shell loads this component (deferred) in every build; it starts sync, which restores an
     // expected session and otherwise loads no Firebase (SYNC-002).
     this.sync.start();
+  }
+
+  /**
+   * H-189 N3: after the menu is placed, line its right edge up with the trigger's (see menuEdgeCorrection). The pane
+   * is reused between openings, so the previous correction is cleared before measuring. CDK repositioning sets only
+   * top/left/right, so the margin survives it.
+   */
+  protected alignMenu(): void {
+    afterNextRender(
+      () => {
+        const trigger = this.trigger()?.nativeElement;
+        const pane = document.querySelector('.account-menu-panel')?.closest<HTMLElement>('.cdk-overlay-pane');
+        if (!trigger || !pane) return;
+        pane.style.marginRight = '';
+        const shift = menuEdgeCorrection(trigger.getBoundingClientRect().right, pane.getBoundingClientRect().right);
+        if (shift) pane.style.marginRight = `${-shift}px`;
+      },
+      { injector: this.injector },
+    );
   }
 
   /** Brief H-141 / H-175 M1: opening the menu reads the name, who is signed in (when known) and the status. */

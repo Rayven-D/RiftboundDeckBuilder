@@ -218,6 +218,22 @@ describe('H-189 stylesheet: shared focus ring and button variant', () => {
     expect(forced.split('}')[0]).toContain(toggle);
   });
 
+  it('SYNC-153 / H-189 N2 a field in error uses --color-danger for outline, label, caret and error text (one red)', () => {
+    const block = norm(css).split('@include mat.form-field-overrides( (')[1]?.split(') );')[0] ?? '';
+    for (const token of [
+      'error-text-color',
+      'outlined-error-outline-color',
+      'outlined-error-hover-outline-color',
+      'outlined-error-focus-outline-color',
+      'outlined-error-label-text-color',
+      'outlined-error-hover-label-text-color',
+      'outlined-error-focus-label-text-color',
+      'outlined-error-caret-color',
+    ]) {
+      expect(block).toContain(`${token}: var(--color-danger)`);
+    }
+  });
+
   it('OWN-008 / H-189 .button--outlined is one global variant (no fill, strong border), not a page copy', () => {
     expect(norm(css)).toContain('.button--outlined { gap: var(--space-2); border: 1px solid var(--color-border-strong); background: transparent;');
     const collection = readFileSync(resolve(process.cwd(), 'src/app/pages/collection/collection-page.scss'), 'utf8');

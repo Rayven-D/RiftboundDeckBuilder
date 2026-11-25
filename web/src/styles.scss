@@ -84,6 +84,34 @@ html {
     )
   );
 
+  /* H-189 N2: a field in Material's error state (the username field, the sign-in email field) uses the app's one
+     red, --color-danger, for outline, label, caret, trailing icon and error text, so the field and the error line
+     under it match (Material's generated error tone was #ba1a1a / #ffb4ab against --color-danger #a32d2d / #f09595).
+     --color-danger on the dialog surface: 6.51 dark / 7.07 light (text >= 4.5, outline >= 3). Hover keeps the same
+     red rather than Material's on-error-container tone. */
+  @include mat.form-field-overrides(
+    (
+      error-text-color: var(--color-danger),
+      error-trailing-icon-color: var(--color-danger),
+      error-focus-trailing-icon-color: var(--color-danger),
+      error-hover-trailing-icon-color: var(--color-danger),
+      outlined-error-caret-color: var(--color-danger),
+      outlined-error-outline-color: var(--color-danger),
+      outlined-error-hover-outline-color: var(--color-danger),
+      outlined-error-focus-outline-color: var(--color-danger),
+      outlined-error-label-text-color: var(--color-danger),
+      outlined-error-hover-label-text-color: var(--color-danger),
+      outlined-error-focus-label-text-color: var(--color-danger),
+      filled-error-caret-color: var(--color-danger),
+      filled-error-active-indicator-color: var(--color-danger),
+      filled-error-hover-active-indicator-color: var(--color-danger),
+      filled-error-focus-active-indicator-color: var(--color-danger),
+      filled-error-label-text-color: var(--color-danger),
+      filled-error-hover-label-text-color: var(--color-danger),
+      filled-error-focus-label-text-color: var(--color-danger),
+    )
+  );
+
   /* Buttons use our accent and text colours, not Material's generated tones. */
   @include mat.button-overrides(
     (
