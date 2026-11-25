@@ -568,8 +568,12 @@ export class CollectionPage {
     const toolbar =
       host.ownerDocument.querySelector('.toolbar')?.getBoundingClientRect().height ?? 56;
     const visibleTop = scrollY + header + toolbar;
+    // H-245 Accept 6 (COLL-094 e): keep the row clear of the floating button (and the phone tab bar). A scripted
+    // scroll ignores scroll-padding, so read the page's bottom padding (the FAB clearance; 0 without a button).
+    const bottomPad = parseFloat(getComputedStyle(host.ownerDocument.documentElement).scrollPaddingBottom) || 0;
+    const visibleBottom = scrollY + innerHeight - bottomPad;
     if (top < visibleTop) scrollTo({ top: top - header - toolbar });
-    else if (top + h > scrollY + innerHeight) scrollTo({ top: top + h - innerHeight });
+    else if (top + h > visibleBottom) scrollTo({ top: top + h - innerHeight + bottomPad });
     let tries = 0;
     const attempt = () => {
       const el = host.querySelector<HTMLElement>(`[data-entry="${CSS.escape(entryId)}"]`);
