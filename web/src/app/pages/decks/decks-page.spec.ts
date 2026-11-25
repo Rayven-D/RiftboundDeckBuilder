@@ -3,6 +3,7 @@
  * gate itself is covered in pages/gated-pages.spec.ts.
  */
 import { TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -54,7 +55,9 @@ describe('DecksPage Import deck (OWN-008, OWN-094, DECK-001, SYNC-159)', () => {
     expect(text(el.querySelector('app-empty-state p'))).toBe('Import a deck list to see which of its cards you own.');
     const button = Array.from(el.querySelectorAll('app-empty-state button')).find((b) => text(b) === 'Import deck') as HTMLButtonElement;
     expect(button.getAttribute('aria-haspopup')).toBe('dialog');
-    expect(el.querySelector('app-empty-state a[href="/tournaments"]')).not.toBeNull();
+    // OWN-008 / H-189 finding 3: one filled main action; Tournaments is the shared outlined (link) variant.
+    expect(el.querySelector('app-empty-state a[href="/tournaments"]')!.classList).toContain('button--outlined');
+    expect(button.classList).not.toContain('button--outlined');
     expect(el.querySelector('app-page-fab')).toBeNull();
     expect(el.querySelector('a[href^="/import"]')).toBeNull();
     button.click();
@@ -83,6 +86,40 @@ describe('DecksPage Import deck (OWN-008, OWN-094, DECK-001, SYNC-159)', () => {
     });
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/decks'));
     expect(document.querySelectorAll('mat-dialog-container')).toHaveLength(1);
+  });
+
+  it('SYNC-159 (c) / AC 80 / H-189 /decks?import=1 then close: focus returns to the floating Import deck, not <body>', async () => {
+    const { harness, el } = await setup('/decks?import=1', 2);
+    await vi.waitFor(async () => {
+      await settle(harness);
+      expect(dialogTitle()).toBe('Import deck');
+    });
+    TestBed.inject(MatDialog).closeAll();
+    await vi.waitFor(async () => {
+      await settle(harness);
+      expect(document.activeElement).toBe(el.querySelector('app-page-fab button'));
+    });
+  });
+
+  it('SYNC-159 (c) / H-189 /decks?import=1 with no decks then close: focus goes to the empty state Import deck', async () => {
+    const { harness, el } = await setup('/decks?import=1');
+    await vi.waitFor(async () => {
+      await settle(harness);
+      expect(dialogTitle()).toBe('Import deck');
+    });
+    TestBed.inject(MatDialog).closeAll();
+    await vi.waitFor(async () => {
+      await settle(harness);
+      expect(document.activeElement).toBe(el.querySelector('app-empty-state button'));
+    });
+  });
+
+  it('H-060 placeholder (RJ 2026-11-25): the count line reads "N decks saved." / "1 deck saved."', async () => {
+    const two = await setup('/decks', 2);
+    expect(text(two.el.querySelector('.count-line'))).toBe('2 decks saved.');
+    TestBed.resetTestingModule();
+    const one = await setup('/decks', 1);
+    expect(text(one.el.querySelector('.count-line'))).toBe('1 deck saved.');
   });
 
   it('SYNC-159 (c) /decks?import=yes is ignored and left alone', async () => {

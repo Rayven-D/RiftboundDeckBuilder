@@ -453,8 +453,18 @@ a {
   outline-offset: -2px;
 }
 
+/* H-189 finding 1 (WCAG 2.4.7): mat-button-toggle segments (the footer Theme switch) set `outline: none` and show
+ * only a 12% overlay on focus. The segments touch each other and the group border, so the ring is inset; it sits
+ * on the segment fill (dark selected #2d343c, light selected #e9edf1), against which --color-focus is >= 3:1.
+ * (0,3,1) beats Material's own rules whatever the load order. */
+.mat-button-toggle-group .mat-button-toggle .mat-button-toggle-button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
 @media (forced-colors: active) {
   .mat-mdc-button-base.mat-mdc-button-base:focus-visible,
+  .mat-button-toggle-group .mat-button-toggle .mat-button-toggle-button:focus-visible,
   .mat-mdc-menu-panel .mat-mdc-menu-item:focus-visible,
   .mat-mdc-menu-panel .mat-mdc-menu-item.cdk-keyboard-focused {
     outline-color: Highlight;
@@ -545,6 +555,19 @@ h1 {
 
   &:hover {
     background: var(--color-accent-hover);
+  }
+}
+
+/* Secondary / link variant of .button (OWN-008 "a link to Tournaments", Collection's Export CSV and Reload): no fill,
+ * --color-border-strong edge, same 44px height. Global since H-189 (finding 3), so every page shares one variant. */
+.button--outlined {
+  gap: var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text);
+
+  &:hover {
+    background: var(--color-surface-raised);
   }
 }
 

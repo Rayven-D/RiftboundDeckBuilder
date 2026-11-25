@@ -1,3 +1,4 @@
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import {
   Component,
   ElementRef,
@@ -99,8 +100,7 @@ let usernameDialogSeq = 0;
             enterkeyhint="done"
             [value]="value()"
             [errorStateMatcher]="errorMatcher"
-            [attr.aria-invalid]="error() ? 'true' : null"
-            [aria-describedby]="describedBy()"
+            [aria-describedby]="error() ? errorId : ''"
             (input)="onInput($event)"
           />
           <mat-hint align="end" [id]="counterId">{{ count() }} / {{ max }}</mat-hint>
@@ -109,12 +109,20 @@ let usernameDialogSeq = 0;
           <p class="error" [id]="errorId"><app-icon name="error" />{{ err }}</p>
         }
         @if (blocker(); as b) {
-          <p class="note" role="status">{{ b }}</p>
+          <p class="note" role="status" [id]="blockerId">{{ b }}</p>
         }
       </mat-dialog-content>
       <mat-dialog-actions align="end">
         <button matButton type="button" mat-dialog-close>{{ data.mode === 'choose' ? 'Not now' : 'Cancel' }}</button>
-        <button matButton="filled" type="submit" [disabled]="!!blocker() || saving()" disabledInteractive>Save</button>
+        <button
+          matButton="filled"
+          type="submit"
+          [disabled]="!!blocker() || saving()"
+          disabledInteractive
+          [attr.aria-describedby]="blocker() ? blockerId : null"
+        >
+          Save
+        </button>
       </mat-dialog-actions>
     </form>
   `,
@@ -136,9 +144,12 @@ export class UsernameDialog {
   protected readonly data = inject<UsernameDialogData>(MAT_DIALOG_DATA);
   private readonly ref = inject<MatDialogRef<UsernameDialog, string>>(MatDialogRef);
   private readonly field = viewChild.required<ElementRef<HTMLInputElement>>('field');
+  private readonly matInput = viewChild.required(MatInput);
+  private readonly announcer = inject(LiveAnnouncer);
   private readonly seq = ++usernameDialogSeq;
   protected readonly errorId = `username-error-${this.seq}`;
   protected readonly counterId = `username-count-${this.seq}`;
+  protected readonly blockerId = `username-blocker-${this.seq}`;
   protected readonly max = USERNAME_MAX_GRAPHEMES;
   protected readonly title =
     this.data.mode === 'choose'
@@ -157,9 +168,11 @@ export class UsernameDialog {
   protected readonly blocker = computed(() =>
     !this.data.online() ? MESSAGES.offline : !this.data.ready() ? USERNAME_TEXT.preparing : null,
   );
-  protected readonly describedBy = computed(() =>
-    this.error() ? `${this.errorId} ${this.counterId}` : this.counterId,
-  );
+  /**
+   * H-189 finding 5: the field reads as invalid (outline, label, `aria-invalid`) while an error shows. MatInput owns
+   * `aria-invalid` and only re-reads the matcher when asked (no NgControl), see setError(). The counter's id reaches
+   * `aria-describedby` through its mat-hint only; the error id is the one added by hand (finding 7).
+   */
   protected readonly errorMatcher: ErrorStateMatcher = { isErrorState: () => this.error() !== null };
 
   constructor() {
@@ -176,7 +189,7 @@ export class UsernameDialog {
 
   protected onInput(e: Event): void {
     this.value.set((e.target as HTMLInputElement).value);
-    this.error.set(null);
+    this.setError(null);
   }
 
   protected async submit(e: Event): Promise<void> {
@@ -197,9 +210,21 @@ export class UsernameDialog {
     if (r === 'failed') this.fail(USERNAME_TEXT.saveFailed);
   }
 
+  /**
+   * Focus goes back to the field, which then reads its error through `aria-describedby`. When focus is already
+   * there (Enter in the field), focusing does nothing, so the error is announced once, politely (H-189 finding 6).
+   */
   private fail(message: string): void {
+    this.setError(message);
+    const input = this.field().nativeElement;
+    if (input.ownerDocument.activeElement === input) void this.announcer.announce(message, 'polite');
+    else input.focus();
+  }
+
+  private setError(message: string | null): void {
+    if (this.error() === message) return;
     this.error.set(message);
-    this.field().nativeElement.focus();
+    this.matInput().updateErrorState();
   }
 }
 
@@ -271,14 +296,14 @@ let accountInfoSeq = 0;
           aria-haspopup="dialog"
           [disabled]="!data.online()"
           disabledInteractive
-          [attr.aria-describedby]="deleteLineId"
+          [attr.aria-describedby]="data.online() ? deleteLineId : deleteLineId + ' ' + offlineId"
           (click)="remove($event)"
         >
           Delete account and data
         </button>
         <p class="hint" [id]="deleteLineId">{{ text.deleteLine }}</p>
         @if (!data.online()) {
-          <p class="hint" role="status">{{ offline }}</p>
+          <p class="hint" role="status" [id]="offlineId">{{ offline }}</p>
         }
       </section>
     </mat-dialog-content>
@@ -312,6 +337,7 @@ export class AccountInfoDialog {
   private readonly seq = ++accountInfoSeq;
   protected readonly usernameHeadingId = `account-info-username-${this.seq}`;
   protected readonly deleteLineId = `account-info-delete-${this.seq}`;
+  protected readonly offlineId = `account-info-offline-${this.seq}`;
 
   protected edit(e: Event): void {
     void this.data.editUsername(e.currentTarget as HTMLElement);

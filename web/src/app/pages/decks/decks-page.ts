@@ -1,4 +1,16 @@
-import { Component, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  effect,
+  inject,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -6,10 +18,11 @@ import { map, take } from 'rxjs';
 import { AppStores } from '../../core/storage/app-stores';
 import { SignInGate } from '../../core/sync/sign-in-gate';
 import { SignInPanel } from '../../core/sync/sign-in-panel';
+import { refocusAfterDialog } from '../../core/sync/sync.service';
 import { EmptyState } from '../../shared/empty-state';
 import { FileDrop } from '../../shared/import/file-drop';
 import { ImportDialog, ImportDialogData } from '../../shared/import/import-dialog';
-import { IMPORT_PARAMS, launchDecision } from '../../shared/import/import-launch';
+import { IMPORT_PARAMS, dialogOpener, importFocusTarget, launchDecision } from '../../shared/import/import-launch';
 import { ImportPending } from '../../shared/import/import-pending';
 import { ParseResult } from '../../shared/import/parse-card-list';
 import { PageFab } from '../../shared/page-fab';
@@ -39,10 +52,10 @@ export const DECKS_EMPTY = {
       @if (deckCount(); as n) {
         <!-- OWN-094 (f): right after the page header, before the list's controls. -->
         <app-page-fab label="Import deck" icon="upload" (pressed)="openImport()" />
-        <p class="count-line" role="status">{{ n }} {{ n === 1 ? 'deck' : 'decks' }} saved. The deck list comes next.</p>
+        <p class="count-line" role="status">{{ n }} {{ n === 1 ? 'deck' : 'decks' }} saved.</p>
       } @else if (deckCount() === 0) {
         <app-empty-state [heading]="empty.heading" [message]="empty.message">
-          <button type="button" class="button" aria-haspopup="dialog" (click)="openImport()">Import deck</button>
+          <button #emptyImport type="button" class="button" aria-haspopup="dialog" (click)="openImport()">Import deck</button>
           <a class="button button--outlined" routerLink="/tournaments">Tournaments</a>
         </app-empty-state>
       }
@@ -62,6 +75,11 @@ export class DecksPage {
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly fab = viewChild(PageFab);
+  private readonly emptyImport = viewChild<ElementRef<HTMLButtonElement>>('emptyImport');
+  private readonly doc = inject(DOCUMENT);
+  private readonly injector = inject(Injector);
+  /** A dialog can close after the page is gone (navigation, test teardown): then nothing is focused. */
+  private destroyed = false;
   protected readonly empty = DECKS_EMPTY;
   /** null while loading (and while the gate is closed: nothing is read from the cache, SYNC-009). */
   protected readonly deckCount = signal<number | null>(null);
@@ -74,6 +92,7 @@ export class DecksPage {
   );
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => (this.destroyed = true));
     // Read only while the gate is open, so the cache of a signed-out device stays hidden (SYNC-009).
     effect(() => {
       if (!this.gate.open()) {
@@ -122,17 +141,30 @@ export class DecksPage {
     this.dialog.afterAllClosed.pipe(take(1)).subscribe(() => this.openImport());
   }
 
-  /** DECK-001: the shared dialog titled "Import deck"; focus returns to the floating button (or the opener). */
+  /**
+   * DECK-001: the shared dialog titled "Import deck". Focus returns to the floating button, else the opener, else the
+   * empty state's Import deck, else #main, chosen when the dialog closes (H-189: a `?import=1` launch has no FAB yet).
+   */
   protected openImport(file?: File): void {
+    const opener = dialogOpener(this.doc);
     const ref = this.dialog.open<ImportDialog, ImportDialogData, ParseResult>(ImportDialog, {
       data: file ? { kind: 'deck', file } : { kind: 'deck' },
       width: '40rem',
       maxWidth: 'calc(100vw - 2rem)',
       autoFocus: 'textarea',
-      restoreFocus: this.fab()?.element() ?? true,
+      restoreFocus: false,
     });
     ref.afterClosed().subscribe((result) => {
       if (result) this.pending.set(result);
+      if (this.destroyed) return;
+      afterNextRender(
+        () =>
+          refocusAfterDialog(
+            importFocusTarget({ fab: this.fab()?.element(), opener, emptyButton: this.emptyImport()?.nativeElement }),
+            this.doc,
+          ),
+        { injector: this.injector },
+      );
     });
   }
 }

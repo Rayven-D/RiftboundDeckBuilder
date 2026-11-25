@@ -189,7 +189,19 @@ let accountMenuSeq = 0;
     .menu-text.error { display: flex; gap: var(--space-1); align-items: flex-start; color: var(--color-danger); }
     .menu-text.error app-icon { flex: none; margin-top: 0.2em; }
     .menu-text.group-label { padding-top: var(--space-2); padding-bottom: 0; font-size: var(--font-size-xs); font-weight: 600; }
-    .check { display: inline-flex; width: 20px; margin-inline-end: var(--space-2); font-size: 20px; }
+    /* H-189 finding 8: a fixed 20 x 20 box (the label's line height) on every row, empty on the unselected ones, so
+       the three labels share one baseline and x-position and the check is centred on its label. */
+    .check {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      margin-inline-end: var(--space-2);
+      vertical-align: top;
+      font-size: 20px;
+      line-height: 1;
+    }
   `,
 })
 export class AccountMenu {

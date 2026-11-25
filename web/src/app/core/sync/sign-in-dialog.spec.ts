@@ -3,7 +3,7 @@
  * board H-104 (layout and focus), H-106 (Send link failure), built from brain/04-UI/Brief H-104 H-106 H-124.md.
  * The H-124 phone layout is guarded from the source in src/tooling/sign-in-dialog-layout.spec.ts.
  */
-import { InteractivityChecker } from '@angular/cdk/a11y';
+import { InteractivityChecker, LiveAnnouncer } from '@angular/cdk/a11y';
 import { Injectable } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
@@ -271,6 +271,22 @@ describe('Sign-in dialog layout and Send link (SPEC-010 v0.10 SYNC-006)', () => 
       expect(document.activeElement).toBe(input());
       const send = button(el, 'Send link')!;
       expect(send.getAttribute('aria-disabled')).not.toBe('true'); // can be pressed again
+    });
+
+    it('AC 50 / H-189 Enter in the field: a failed send is announced once, politely (focus is already in the field)', async () => {
+      const sends = deferredSends();
+      const { fixture, input, type, submit } = await dialog(['email-link'], sends.send);
+      const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce').mockResolvedValue();
+      await type('rj@example.com');
+      input()!.focus();
+      await submit();
+      sends.calls[0].reject(new Error('auth/network-request-failed'));
+      await fixture.whenStable();
+      await flush();
+      await fixture.whenStable();
+      expect(announce).toHaveBeenCalledTimes(1);
+      expect(announce).toHaveBeenCalledWith(SEND_LINK_FAILED, 'polite');
+      expect(document.activeElement).toBe(input());
     });
 
     it('H-106 the failure clears on the first edit: message, both aria attributes and the red outline go', async () => {

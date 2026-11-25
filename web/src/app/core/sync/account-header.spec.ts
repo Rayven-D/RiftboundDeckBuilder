@@ -3,7 +3,7 @@
  * control (SYNC-150, AC 71), the menu's Theme group (SYNC-151, AC 72), Account Information (SYNC-152, AC 73), the
  * username dialog and its rules in the UI (SYNC-153, SYNC-155, AC 74, AC 76) and the one-time prompt, SYNC-154 and AC 75.
  */
-import { InteractivityChecker } from '@angular/cdk/a11y';
+import { InteractivityChecker, LiveAnnouncer } from '@angular/cdk/a11y';
 import { Injectable, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
@@ -282,6 +282,12 @@ describe('Header account control, menu and Account Information (SPEC-010 SYNC-15
       const del = buttonIn(top()!, 'Delete account and data')!;
       expect(del.getAttribute('aria-disabled')).toBe('true');
       expect(text(top())).toContain("You're offline.");
+      // H-189 finding 4: the reason is tied to the button (its line, then "You're offline.").
+      const ids = del.getAttribute('aria-describedby')!.split(' ');
+      expect(ids.map((id) => text(top()!.querySelector(`#${id}`)))).toEqual([
+        "Deletes your account and everything saved in it, on every device. This can't be undone.",
+        "You're offline.",
+      ]);
       del.click();
       await flush();
       expect(panes()).toHaveLength(1);
@@ -423,6 +429,40 @@ describe('UsernameDialog (SPEC-010 SYNC-153…155, AC 74, AC 75, AC 76)', () => 
     expect(t.closed).toEqual([]);
   });
 
+  it('AC 74 / H-189 an error marks the field invalid (mat-form-field-invalid) and the next keystroke clears it; each described-by id once', async () => {
+    const t = open();
+    await t.fixture.whenStable();
+    await t.type('');
+    await t.save();
+    const field = t.el.querySelector('mat-form-field')!;
+    expect(field.classList).toContain('mat-form-field-invalid');
+    const ids = t.input().getAttribute('aria-describedby')!.split(' ');
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toContain(t.el.querySelector('.error')!.id);
+    expect(ids).toContain(t.el.querySelector('mat-hint')!.id);
+    await t.type('K');
+    expect(field.classList).not.toContain('mat-form-field-invalid');
+    expect(t.input().getAttribute('aria-invalid')).not.toBe('true');
+    expect(t.input().getAttribute('aria-describedby')).toBe(t.el.querySelector('mat-hint')!.id);
+  });
+
+  it('AC 74 / H-189 Enter in the field with an invalid value announces the error once (focus already there); a Save click moves focus instead', async () => {
+    const t = open();
+    await t.fixture.whenStable();
+    const announce = vi.spyOn(TestBed.inject(LiveAnnouncer), 'announce').mockResolvedValue();
+    await t.type('');
+    t.input().focus();
+    await t.save();
+    expect(announce).toHaveBeenCalledTimes(1);
+    expect(announce).toHaveBeenCalledWith('Enter a username.', 'polite');
+    announce.mockClear();
+    await t.type('');
+    buttonIn(t.el, 'Save')!.focus();
+    await t.save();
+    expect(announce).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(t.input());
+  });
+
   it('AC 74 25 characters: "Use 24 characters or fewer." and the text is not cut; the counter reads 25 / 24', async () => {
     const t = open();
     await t.fixture.whenStable();
@@ -472,6 +512,8 @@ describe('UsernameDialog (SPEC-010 SYNC-153…155, AC 74, AC 75, AC 76)', () => 
     const save = buttonIn(t.el, 'Save')!;
     expect(save.getAttribute('aria-disabled')).toBe('true');
     expect(text(t.el.querySelector('.note'))).toBe("You're offline.");
+    // H-189 finding 4: Save is described by the reason.
+    expect(text(t.el.querySelector(`#${save.getAttribute('aria-describedby')}`))).toBe("You're offline.");
     await t.type('Kai');
     await t.save();
     expect(t.saved).toEqual([]);

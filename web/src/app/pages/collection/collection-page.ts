@@ -30,6 +30,7 @@ import { map, take } from 'rxjs';
 import { CardData } from '../../core/cards/card-data';
 import type { DeckLock, DeckOwnershipInput, StoredTags } from '../../core/decks';
 import { AppStores } from '../../core/storage/app-stores';
+import { refocusAfterDialog } from '../../core/sync/sync.service';
 import { KEY_PREFIX } from '../../core/storage/kv-backend';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
 import {
@@ -64,7 +65,7 @@ import { exportCollectionCsv } from '../../shared/collection/export-csv';
 import { EmptyState } from '../../shared/empty-state';
 import { FileDrop } from '../../shared/import/file-drop';
 import { ImportDialog, ImportDialogData } from '../../shared/import/import-dialog';
-import { IMPORT_PARAMS, launchDecision } from '../../shared/import/import-launch';
+import { IMPORT_PARAMS, dialogOpener, importFocusTarget, launchDecision } from '../../shared/import/import-launch';
 import { ImportPending } from '../../shared/import/import-pending';
 import { ParseResult } from '../../shared/import/parse-card-list';
 import { PageFab } from '../../shared/page-fab';
@@ -176,6 +177,7 @@ export class CollectionPage {
   /** The list the import dialog closed with (not saved yet; see ImportPending). */
   protected readonly pending = signal<ParseResult | null>(null);
   private readonly fab = viewChild(PageFab);
+  private readonly emptyAdd = viewChild<ElementRef<HTMLButtonElement>>('emptyAdd');
   /** SYNC-159 (c): the `add` parameter as the page was opened; handled once. */
   private addParam: string | null = null;
   private addHandled = false;
@@ -620,18 +622,28 @@ export class CollectionPage {
 
   /**
    * SPEC-003 IMP-060 / COLL-094 (g): the shared dialog titled "Add to your collection", opened on this page; focus
-   * returns to the floating button (or, from the empty state, to the button that opened it).
+   * returns to the floating button, else the opener, else the empty state's button, else #main, chosen when the dialog
+   * closes (H-189: a `?add=1` launch may open before the floating button exists).
    */
   protected openImport(file?: File): void {
+    const opener = dialogOpener(document);
     const ref = this.dialog.open<ImportDialog, ImportDialogData, ParseResult>(ImportDialog, {
       data: file ? { kind: 'collection', file } : { kind: 'collection' },
       width: '40rem',
       maxWidth: 'calc(100vw - 2rem)',
       autoFocus: 'textarea',
-      restoreFocus: this.fab()?.element() ?? true,
+      restoreFocus: false,
     });
     ref.afterClosed().subscribe((result) => {
       if (result) this.pending.set(result);
+      if (this.destroyed) return;
+      afterNextRender(
+        () =>
+          refocusAfterDialog(
+            importFocusTarget({ fab: this.fab()?.element(), opener, emptyButton: this.emptyAdd()?.nativeElement }),
+          ),
+        { injector: this.injector },
+      );
     });
   }
 

@@ -206,3 +206,21 @@ describe('SYNC-157 (d) stylesheet: an explicit choice overrides the device setti
     expect(norm(css)).toContain("html[data-theme='dark'] { color-scheme: dark; }");
   });
 });
+
+describe('H-189 stylesheet: shared focus ring and button variant', () => {
+  const css = readFileSync(resolve(process.cwd(), 'src/styles.scss'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const norm = (s: string) => s.replace(/\s+/g, ' ');
+  const toggle = '.mat-button-toggle-group .mat-button-toggle .mat-button-toggle-button:focus-visible';
+
+  it('AC 79 / H-189 the footer Theme switch (mat-button-toggle) gets the inset H-139 ring, also in forced colors', () => {
+    expect(norm(css)).toContain(`${toggle} { outline: 2px solid var(--color-focus); outline-offset: -2px; }`);
+    const forced = norm(css).split('@media (forced-colors: active) {')[1] ?? '';
+    expect(forced.split('}')[0]).toContain(toggle);
+  });
+
+  it('OWN-008 / H-189 .button--outlined is one global variant (no fill, strong border), not a page copy', () => {
+    expect(norm(css)).toContain('.button--outlined { gap: var(--space-2); border: 1px solid var(--color-border-strong); background: transparent;');
+    const collection = readFileSync(resolve(process.cwd(), 'src/app/pages/collection/collection-page.scss'), 'utf8');
+    expect(collection).not.toContain('.button--outlined');
+  });
+});

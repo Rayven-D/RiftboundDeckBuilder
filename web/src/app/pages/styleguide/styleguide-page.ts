@@ -85,6 +85,10 @@ interface SampleCard {
         <dd><button matButton="filled" type="button" class="danger">Delete account</button></dd>
         <dt>Filled danger, disabled</dt>
         <dd><button matButton="filled" type="button" class="danger" disabled>Delete account</button></dd>
+        <dt>Plain .button (empty states)</dt>
+        <dd><button type="button" class="button">Import deck</button></dd>
+        <dt>Plain .button--outlined (H-189)</dt>
+        <dd><button type="button" class="button button--outlined">Tournaments</button></dd>
       </dl>
       <h3 class="sub">Dialog actions</h3>
       <div class="dialog-actions">
