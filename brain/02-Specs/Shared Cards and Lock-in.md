@@ -49,8 +49,8 @@ in and runes").
 **Shared types:** `DeckLock`, `StoredDeckLocks`, `DeckLockStore`, `SharedPoolInput`, `SharedPool`,
 `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck`. Functions `computeSharedPool()`,
 `availability()`, `canLock()`, `lockedShortfalls()` (all pure).
-**Depends on:** [[Card Data Model]] v0.3, [[Collection Import]] v0.9, [[Your Decks Ownership View]] v0.5,
-[[Deck Import]] v0.6, [[My Collection]] v0.8. **Consumers:**
+**Depends on:** [[Card Data Model]] v0.3, [[Collection Import]] v0.9.1, [[Your Decks Ownership View]] v0.5,
+[[Deck Import]] v0.7, [[My Collection]] v0.9. **Consumers:**
 [[Your Decks Ownership View]] (pool, labels, breakdown), [[My Collection]] and [[Collection Import]]
 (shortfall warnings), [[Deck Import]] (edit/delete/duplicate rules).
 **Open:** none. Design decisions 3–6 and no force lock accepted by RJ 2026-11-23.
@@ -188,8 +188,8 @@ SPEC-005 owns the deck view and tiles and reads this spec's `SharedPool`. Runes 
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { UserDeck, DeckZone } from './deck-import';                  // SPEC-006 v0.6
-import type { DeckOwnershipInput } from './my-collection';              // SPEC-007 v0.8, COLL-081
+import type { UserDeck, DeckZone } from './deck-import';                  // SPEC-006 v0.7
+import type { DeckOwnershipInput } from './my-collection';              // SPEC-007 v0.9, COLL-081
 type CardKey = string;
 type IsoDateTime = string;                                              // ISO 8601 UTC
 
@@ -440,4 +440,4 @@ card of every deck is owned in full.
    (AC 18); no notice is shown (SPEC-005 OWN-029, open question 7 there).
 
 ## Changelog
-Current: 0.4.1 (2026-11-24, H-071: SHARE-060 browser by default, synced when signed in; accounts/lock sync no longer out of scope). Full history: [[Shared Cards and Lock-in changelog]] (archived). New entries go in the archive note.
+Current: 0.4.1 (2026-11-24, H-071: SHARE-060 browser by default, synced when signed in; accounts/lock sync no longer out of scope). Pin-only fix 2026-11-24 (H-071 attempt 2, no version bump): "Depends on" and import comments now pin SPEC-003 0.9.1, SPEC-006 0.7, SPEC-007 0.9. Full history: [[Shared Cards and Lock-in changelog]] (archived). New entries go in the archive note.

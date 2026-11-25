@@ -293,10 +293,10 @@ listener (over 30 minutes) re-reads every matching document; rule lookups are bi
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { CardKey, PrintingId, StoredCollection } from './collection-import';   // SPEC-003 v0.6
-import type { TagId, TagTarget, TagColour, StoredTags } from './my-collection';     // SPEC-007 v0.5 (TagId per SYNC-016)
-import type { UserDeck } from './deck-import';                                       // SPEC-006 v0.6
-import type { StoredDeckLocks } from './shared-cards';                              // SPEC-008 v0.2
+import type { CardKey, PrintingId, StoredCollection } from './collection-import';   // SPEC-003 v0.9.1
+import type { TagId, TagTarget, TagColour, StoredTags } from './my-collection';     // SPEC-007 v0.9 (TagId per SYNC-016)
+import type { UserDeck } from './deck-import';                                       // SPEC-006 v0.7
+import type { StoredDeckLocks } from './shared-cards';                              // SPEC-008 v0.4.1
 type Ms = number;                 // ms since Unix epoch, client clock
 type Timestamp = unknown;         // Firestore timestamp (adapter type)
 
@@ -668,4 +668,4 @@ None for RJ. Research: SYNC-101 privacy-notice content (H-069). Unverified techn
 researcher: the `existsAfter()` billing and limits (SYNC-113), and the provider error that means `deleted` (SYNC-097).
 
 ## Changelog
-Current: 0.6.1 (2026-11-24, H-071: dependency pins and Impacts marked applied; no requirement changed). Full history: [[Accounts and Sync changelog]] (archived). New entries go in the archive note.
+Current: 0.6.1 (2026-11-24, H-071: dependency pins and Impacts marked applied; no requirement changed). Pin-only fix 2026-11-24 (H-071 attempt 2, no version bump): Data contract import comments now pin SPEC-003 0.9.1, SPEC-007 0.9, SPEC-006 0.7, SPEC-008 0.4.1. Full history: [[Accounts and Sync changelog]] (archived). New entries go in the archive note.
