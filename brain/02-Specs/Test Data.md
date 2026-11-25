@@ -131,7 +131,7 @@ Give testers real, synced, clearly fake data on the live site until real card da
 | **Load** (Small or Large) | **5** (6 on the first push after a build change) | 0 | 0 | 1 collection `set()` + 3 deck `set()` + 1 locks write = 5. The account `update()` (`updatedAt`, `lastClientVersion`, SYNC-012) is added **only when the app build changed** since the last push (`sync-engine.ts`, `planPush` `opts.account`), so a normal Load is 5. A write is one write however many cards it carries. |
 | **Remove** | **5** (6 on the first push after a build change) | 0 | 0 | 1 collection write (tombstones) + 1 locks write immediately, plus 3 deck soft-delete writes that are pushed only **after the 10 s Undo window** ([[Accounts and Sync]] SYNC-035, `DECK_UNDO_MS`; the push plan skips a deck tombstone until `pushAfter`), so the last 3 writes land about 10 s after the click (a later sync pass picks them up). A later clean-up hard-deletes the 3 decks after 30 days: **3 deletes**. |
 | Another device pulling it | 0 | 5 (the changed docs) + 2 (the `state` and `decks` delta queries) = **≈ 7** | 0 | cold pull of the collection document downloads ≈ 254 KB |
-| Replace one set by another | 6 | 0 | 0 | same as Load |
+| Replace one set by another | 5 (6 after a build change) | 0 | 0 | same as Load |
 
 (The write count assumes the Tracked stores batch each document once per push, SYNC-040…; if the sync log also writes the `tags` document it is 1 more. The builder records the count it observes, H-205 Accept.)
 
