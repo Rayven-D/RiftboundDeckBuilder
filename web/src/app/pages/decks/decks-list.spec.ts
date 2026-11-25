@@ -205,8 +205,9 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', () => {
     expect(tile.querySelector('.percent')).toBeNull();
     expect(tile.querySelector('app-card-art .art')!.className).toContain('art--full');
     expect(text(tile.querySelector('.copies'))).toBe('Ownership unavailable');
-    // OWN-065 (b): the locked deck keeps its "Locked" chip.
-    expect(text(tile.querySelector('app-deck-status-chip'))).toBe('Locked');
+    // OWN-065 (b) / SHARE-053 (b): no ownership chip, but the locked deck keeps its "Locked" badge, never "short".
+    expect(text(tile.querySelector('app-deck-status-chip'))).toBe('');
+    expect(text(tile.querySelector('app-lock-badge'))).toBe('Locked');
     const banner = Array.from(el.querySelectorAll('.banner[role="alert"]')).map(text);
     expect(banner).toContain(DECKS_TEXT.ownershipUnavailable);
     const chips = Array.from(el.querySelectorAll('.own-chip'));
@@ -214,7 +215,7 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', () => {
     expect(text(el.querySelector('#own-hint'))).toBe('Not available while ownership is unavailable');
   });
 
-  it('SPEC-005 AC 25 locked complete deck of 54: "100%", "54 of 54 copies locked in", chip Locked; 4 short in 2 cards: "92%", "Locked · 2 cards short"', async () => {
+  it('SPEC-005 AC 25 / SHARE-041 locked complete deck of 54: "100%", "54 of 54 copies locked in", badge Locked; 4 short in 2 cards: "92%", badge "Locked · 2 cards short" next to the chip', async () => {
     const deck54 = { ...makeDeck(id(4), 'Locked 54', { legend: [[LEGEND, 1]], main: [['Lightning Rush', 3], ['Gust', 50]] }) };
     const ok = await setup({ decks: [deck54], owned: { [LEGEND]: 1, 'Lightning Rush': 3, Gust: 50 }, locks: [lock(id(4))] });
     let tile = ok.tiles()[0];
@@ -222,15 +223,23 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', () => {
     expect(text(tile.querySelector('.percent [aria-hidden="true"]'))).toBe('100%');
     expect(text(tile.querySelector('.percent .visually-hidden'))).toBe('100 percent of copies locked in');
     expect(text(tile.querySelector('.copies'))).toBe('54 of 54 copies locked in');
-    expect(text(tile.querySelector('app-deck-status-chip'))).toBe('Locked');
+    // RJ 2026-11-25: the lock is its own badge; a locked complete deck (group `locked`) has no ownership chip.
+    expect(text(tile.querySelector('app-deck-status-chip'))).toBe('');
+    expect(text(tile.querySelector('.ownership app-lock-badge'))).toBe('Locked');
+    // The tile badge has no "Locked in on <date>" (the header's, SHARE-041).
+    expect(tile.querySelector('app-lock-badge .date')).toBeNull();
     TestBed.resetTestingModule();
     const short = await setup({ decks: [deck54], owned: { [LEGEND]: 1, 'Lightning Rush': 1, Gust: 48 }, locks: [lock(id(4))] });
     tile = short.tiles()[0];
     expect(Number(artFill(tile))).toBeCloseTo(50 / 54, 10);
     expect(text(tile.querySelector('.percent [aria-hidden="true"]'))).toBe('92%');
     expect(text(tile.querySelector('.copies'))).toBe('50 of 54 copies locked in');
-    expect(text(tile.querySelector('app-deck-status-chip'))).toBe('Locked · 2 cards short');
-    expect(tile.querySelector('.chip--short')).not.toBeNull();
+    expect(text(tile.querySelector('app-deck-status-chip'))).toBe('Partly available');
+    expect(text(tile.querySelector('.ownership app-lock-badge'))).toBe('Locked · 2 cards short');
+    expect(tile.querySelector('app-lock-badge .badge--short')).not.toBeNull();
+    // Chip first, then the badge (the badge sits next to the ownership chip).
+    const own = Array.from(tile.querySelector('.ownership')!.children).map((c) => c.tagName.toLowerCase());
+    expect(own.slice(0, 2)).toEqual(['app-deck-status-chip', 'app-lock-badge']);
   });
 
   it('SPEC-005 AC 26 tournament tile: source line, player, legality, ban flags, Updated date; the whole tile is one link', async () => {
@@ -395,7 +404,7 @@ describe('DecksPage toolbar and states (SPEC-005 OWN-005, OWN-006, OWN-084, OWN-
     await settle(harness);
     expect(TestBed.inject(Location).path()).toBe('/decks?lock=locked');
     expect(tiles().map((t) => text(t.querySelector('.name-text')))).toEqual(['Ray Deck']);
-    expect(text(tiles()[0].querySelector('app-deck-status-chip'))).toBe('Locked');
+    expect(text(tiles()[0].querySelector('app-lock-badge'))).toBe('Locked');
     expect(el.querySelector('.locked-hint')).toBeNull();
   });
 
@@ -405,7 +414,7 @@ describe('DecksPage toolbar and states (SPEC-005 OWN-005, OWN-006, OWN-084, OWN-
       'Locked decks could not be read; counts ignore locks.',
     );
     expect(text(tileOf(el, 'Ray Deck').querySelector('.copies'))).toBe('3 of 3 copies available');
-    expect(tiles().some((t) => text(t.querySelector('app-deck-status-chip')).startsWith('Locked'))).toBe(false);
+    expect(tiles().some((t) => text(t.querySelector('app-lock-badge')) !== '')).toBe(false);
     expect(el.querySelector('.lock-select')!.getAttribute('aria-disabled')).toBe('true');
     expect(JSON.parse(backend.get(STORAGE_KEYS.locks)!).schemaVersion).toBe(2);
   });
@@ -426,6 +435,9 @@ describe('DecksPage toolbar and states (SPEC-005 OWN-005, OWN-006, OWN-084, OWN-
   it('SPEC-005 AC 13 second Given / SPEC-008 AC 19 lock=locked lists the locked deck while ownership is unavailable', async () => {
     const { tiles } = await setup({ decks: three(), collection: 'newer', locks: [lock(id(2))], url: '/decks?lock=locked' });
     expect(tiles().map((t) => text(t.querySelector('.name-text')))).toEqual(['Ray Deck']);
+    // SHARE-053 (b): the badge reads "Locked", never "… cards short", and no ownership chip (OWN-065).
+    expect(text(tiles()[0].querySelector('app-lock-badge'))).toBe('Locked');
+    expect(text(tiles()[0].querySelector('app-deck-status-chip'))).toBe('');
     TestBed.resetTestingModule();
     const none = await setup({ decks: three(), collection: 'newer', locks: [lock(id(2))], url: '/decks?own=none' });
     expect(none.tiles()).toHaveLength(0);

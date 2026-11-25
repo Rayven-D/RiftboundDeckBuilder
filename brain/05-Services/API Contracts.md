@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.26
+version: 1.27
 ---
 # API Contracts
 
@@ -591,9 +591,9 @@ Deck detail header (H-254) uses the same ones. Writes: only `stores.locks` (thro
 
 | Selector | Inputs | Outputs | Needs |
 |---|---|---|---|
-| `app-deck-tile` | `summary: DeckTileSummary` (required), `eager: boolean` | none | Router. One link to `/decks/<id>` (whole tile), Legend art with the completion fill or the deck mark, "51%" + hidden "51 percent of copies available / locked in", status chip, source, pilot, legality, ban flags, Updated date, "Read-only" tag |
-| `app-deck-status-chip` | `filter: OwnershipFilter` (required), `lockBadge: string \| null` | none | `lockBadge` wins (warning style when it says "short"); `unavailable` without a badge shows nothing |
-| `app-lock-badge` | `lock: DeckLockState \| null`, `label: string \| null` (= `summary.lockBadge`), `showDate` (default true) | none | "Locked · Locked in on <MMM D, YYYY>" (date left out when `lockedAt` doesn't parse) |
+| `app-deck-tile` | `summary: DeckTileSummary` (required), `eager: boolean` | none | Router. One link to `/decks/<id>` (whole tile), Legend art with the completion fill or the deck mark, "51%" + hidden "51 percent of copies available / locked in", status chip (ownership group only) and next to it `app-lock-badge` with `label` = `lockBadge`, `showDate` false (v1.27; a locked complete deck has no chip, only "Locked"; a short one has its group chip and "Locked · n cards short"; "Locked" while ownership is unavailable), source, pilot, legality, ban flags, Updated date, "Read-only" tag |
+| `app-deck-status-chip` | `filter: OwnershipFilter` (required), `lockBadge: string \| null` | none | `lockBadge` wins (warning style when it says "short"); `unavailable` or `locked` without a badge shows nothing. Unchanged in v1.27; the deck tile no longer passes `lockBadge` |
+| `app-lock-badge` | `lock: DeckLockState \| null` (optional since v1.27, default `null`), `label: string \| null` (required, = `summary.lockBadge`), `showDate` (default true) | none | "Locked · Locked in on <MMM D, YYYY>" (date left out when `lockedAt` doesn't parse or `lock` is null). Renders when `label` is set unless `lock.locked` is false (v1.27; before, it also needed `lock`). Size through `--lock-badge-font-size` (default `--font-size-sm`) and `--lock-badge-icon-size` (default 16px) |
 | `app-lock-actions` | `deck: UserDeck` (required), `view: DeckOwnershipView` (required), `pool: SharedPool \| null`, `readOnly: boolean`, `locksUnreadable: boolean` | `changed: void` | `DeckLocks`, `MatDialog`, `MatSnackBar`. Lock in (`aria-disabled` + reason line as `aria-describedby`, SHARE-020) → `LockInDialog` confirmation (SHARE-021) → "Locking in…" → snack "<name> is locked in."; Unlock at once (SHARE-023); failure snack "Couldn't save the lock. Try again." (SHARE-063). The host re-reads on `DeckLocks.changed` and passes the new `view` |
 | `app-shortfall-warning` | `items: readonly LockedShortfall[]` (required), `mode: 'before' \| 'after'` | none | `shortfallWarning` (before a change) or `shortfallNotice` (after) lines, no `role="alert"` (the host dialog or snack announces) |
 
@@ -751,6 +751,10 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.27 (2026-11-25, H-060 follow-up, RJ H-382): no endpoint change and no stored-shape change. `app-lock-badge`:
+  `lock` is optional (default `null`), the badge renders from `label` alone, and two size custom properties; existing
+  bindings (`[lock]`, `[label]`, `[showDate]`) work unchanged. `app-deck-tile` shows the lock as `app-lock-badge` (no
+  date) next to `app-deck-status-chip`, which it now binds with `filter` only; the chip's inputs are unchanged.
 - v1.26 (2026-11-25, H-060, SPEC-005 0.10.2, SPEC-008 0.4.6): no endpoint change and no stored-shape change. New
   section "Decks list and shared lock pieces": `deck-list.ts`, `deck-locks.ts`, `DeckLocks`, `app-deck-tile`,
   `app-deck-status-chip`, `app-lock-badge`, `app-lock-actions` (+ `LockInDialog`), `app-shortfall-warning`;

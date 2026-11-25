@@ -6,6 +6,7 @@ import { Icon } from '../icon';
 import { CardArt } from './card-art';
 import { localDateText } from './local-date';
 import { DeckStatusChip } from './deck-status-chip';
+import { LockBadge } from './lock-badge';
 import type { OwnershipState } from './ownership';
 
 let nextId = 0;
@@ -36,13 +37,16 @@ export function deckArtState(fill: number | null): { state: OwnershipState; fill
  *   (`completionFill`, A of R), with the deck mark when there is no Legend. Ownership unavailable or R = 0: no fill.
  * - **Completion %** (OWN-101): `completionPercent` next to the art, "51%", accessible text "51 percent of copies
  *   available" ("… locked in" in a locked deck); nothing when null.
- * - name + "Read-only" tag (DECK-091), source line (OWN-003), player (OWN-104), the ownership chip and the copies
- *   line (OWN-102), legality label (OWN-004), ban flag (OWN-103), "Updated <date>" (OWN-090).
+ * - name + "Read-only" tag (DECK-091), source line (OWN-003), player (OWN-104), the ownership chip, the lock badge
+ *   ("Locked" / "Locked · 2 cards short", SHARE-041, no date; kept while ownership is unavailable, SHARE-053 (b))
+ *   and the copies line (OWN-102). A locked complete deck (group `locked`) has no ownership chip, only the badge;
+ *   a short locked deck shows its group chip (Partly / None available) and the short badge. Then the legality
+ *   label (OWN-004), ban flag (OWN-103) and "Updated <date>" (OWN-090).
  * Screen readers hear "Kennen Tempo, link" then the details (name = `aria-labelledby`, rest = `aria-describedby`).
  */
 @Component({
   selector: 'app-deck-tile',
-  imports: [RouterLink, CardArt, DeckMark, DeckStatusChip, Icon],
+  imports: [RouterLink, CardArt, DeckMark, DeckStatusChip, LockBadge, Icon],
   template: `
     @let s = summary();
     <a
@@ -87,7 +91,9 @@ export function deckArtState(fill: number | null): { state: OwnershipState; fill
             <p class="pilot">{{ s.pilot }}</p>
           }
           <p class="ownership">
-            <app-deck-status-chip [filter]="s.ownershipFilter" [lockBadge]="s.lockBadge" />
+            <!-- RJ 2026-11-25: the lock is its own badge next to the ownership chip (no date on the tile). -->
+            <app-deck-status-chip [filter]="s.ownershipFilter" />
+            <app-lock-badge [label]="s.lockBadge" [showDate]="false" />
             <span class="copies">{{ s.ownershipLine }}</span>
           </p>
           <p class="legality" [class]="'legality legality--' + s.legalityVerdict">
@@ -212,6 +218,12 @@ export function deckArtState(fill: number | null): { state: OwnershipState; fill
       align-items: center;
       gap: var(--space-1) var(--space-2);
       padding-top: var(--space-1);
+    }
+    .ownership app-lock-badge {
+      --lock-badge-font-size: var(--font-size-xs);
+      --lock-badge-icon-size: 14px;
+      line-height: 1.4;
+      white-space: nowrap;
     }
     .copies {
       font-size: var(--font-size-sm);
