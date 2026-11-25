@@ -437,7 +437,7 @@ card of every deck is owned in full.
 19. **Ownership unavailable, locked deck** (SHARE-020, SHARE-051, SHARE-053; v0.4.2)
     **Given** Deck 1 (`Kennen Tempo`) has a `DeckLock` (`lockedAt: 2026-11-23T10:00:00Z`), the lock store is
     readable, and the collection cannot be read (OWN-062) **When** Decks opens **Then** Deck 1's view has
-    `lock = { locked: true, lockedAt: '2026-11-23T10:00:00Z', short: false, cardsShort: [] }`, shows the "Locked"
+    `lock = { locked: true, lockedAt: '2026-11-23T10:00:00Z', complete: false, short: false, cardsShort: [] }`, shows the "Locked"
     badge and "Locked in on Nov 23, 2026" with no "cards short"; its tile `lockBadge` is "Locked", its
     `ownershipLine` is "Ownership unavailable" and `ownershipFilter` is `unavailable`; `lock=locked` lists it;
     `own=none`, `own=partial` and `own=ready` do not; `canLock(null, deck1, false, true)` returns
