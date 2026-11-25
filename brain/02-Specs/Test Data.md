@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-013
-version: 0.1.2
+version: 0.1.3
 status: review
 depends_on: ["SPEC-007", "SPEC-003", "SPEC-008", "SPEC-010"]
 research: ["[[Firestore Data Shape]]", "[[Collection Test Data]]"]
@@ -35,7 +35,7 @@ sources:
 - **Numbers (checked 2026-11-25, section "Size and quota"):** the Large collection document is **≈ 254 KB = 24 % of the 1 MiB limit** (4.1× headroom); the whole test set for one account is **≈ 265 KB**. One Load or one Remove is **5 writes** (6 on the first push after a build change), 0 reads; Remove's 3 deck writes go out after the 10 s Undo window. After Remove the collection's `catalogVersion` is `""` and an empty collection is never test data. The free tier allows ≈ **3,300 to 4,000 loads a day** across all testers (20,000 / 6 or 5) before anything else runs, and ≈ **1,300 cold pulls of the Large document a day** on the outbound-data limit. **Everything fits one document: no fallback needed**; RJ has nothing to decide on quota.
 - **Sunset (TEST-040…043):** the tool is hidden when `testDataEnabled` is false; the Remove banner stays for anyone who still has test data until they remove it. The build item that turns on real imports (after H-020) sets the flag to `false`.
 
-**Depends on:** [[My Collection]] 0.13, [[Collection Import]] 0.12, [[Shared Cards and Lock-in]] 0.4.4, [[Accounts and Sync]] 0.15.0, [[Firestore Data Shape]], [[Collection Test Data]] (the existing generators). **Consumers:** builder item H-205.
+**Depends on:** [[My Collection]] 0.13, [[Collection Import]] 0.12, [[Shared Cards and Lock-in]] 0.4.4, [[Accounts and Sync]] 0.16.0, [[Firestore Data Shape]], [[Collection Test Data]] (the existing generators). **Consumers:** builder item H-205.
 **BLOCKED (needs research):** none. Nothing here states a game rule; the cards are invented.
 
 ## Purpose
@@ -197,3 +197,4 @@ Nothing blocks the build. Defaults below stand unless RJ answers (the spec-write
 - 0.1 (2026-11-25, H-204): new. Test data on live: Collection-only entry, Small / Large generated sets, reserved `catalogVersion` marker and deck ids (no rules change), Load / Remove through the tracked stores, flag-based sunset, size and quota numbers (Large ≈ 254 KB, 6 writes per Load or Remove).
 - 0.1.1 (2026-11-25, H-204 attempt 2): H-230: after Remove the collection's `catalogVersion` is `""`, a collection with no cards is never test data (TEST-030, TEST-050, TEST-051), new AC 10a. H-231: write counts corrected to 5 per Load or Remove (6 on the first push after a build change, the account update), Remove's three deck writes are pushed after the 10 s Undo window (SYNC-035); quota numbers and ACs 4 and 10 updated to ranges.
 - 0.1.2 (2026-11-25, H-204 merge into `dev`): renumbered SPEC-012 → SPEC-013 (H-201 [[Changelog]] took SPEC-012 first); depends-on pin [[Accounts and Sync]] 0.14.1 → 0.15.0 (H-206 changed only usernames, SYNC-112/153/156; SYNC-035, 095, 142, 151 used here are unchanged). No requirement changes.
+- 0.1.3 (2026-11-25, H-212): depends-on pin [[Accounts and Sync]] 0.15.0 → 0.16.0 (H-212 changed only the username rules, SYNC-112/153/156/160; nothing used here changed; test data writes no `username`). No requirement changes.
