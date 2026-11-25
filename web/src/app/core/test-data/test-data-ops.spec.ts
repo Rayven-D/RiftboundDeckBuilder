@@ -65,6 +65,24 @@ describe('SPEC-013 test data through sync (H-205)', () => {
     expect(laptop.engine.pendingCount()).toBe(0);
   });
 
+  it('TEST-025 / AC 18 the three full-shape test decks reach the account with all six zones; their documents are measured against the "Size and quota" table (≈ 11,200 B)', async () => {
+    const laptop = await signedIn(db);
+    expect(await load(laptop, 'small')).toBe('ok');
+    await laptop.advance(PUSH_DEBOUNCE_MS);
+    const sizes = TEST_DECK_IDS.map((id) => documentSize(deckPath(id), db.get(deckPath(id))));
+    for (const id of TEST_DECK_IDS) {
+      const stored = await laptop.stores.decks.get(id);
+      expect(stored?.legend).not.toBeNull();
+      expect(stored?.champion).not.toBeNull();
+      for (const zone of ['main', 'sideboard', 'runes', 'battlefields'] as const) expect(stored?.[zone].length).toBeGreaterThan(0);
+    }
+    const total = sizes.reduce((n, b) => n + b, 0);
+    console.log(`H-310 measured: test deck documents = ${sizes.join(' + ')} = ${total} bytes`);
+    for (const b of sizes) expect(b).toBeLessThanOrEqual(1_048_576);
+    // The spec's estimate is ≈ 11,200 B; fail loudly if the decks ever grow far past it.
+    expect(total).toBeLessThan(20_000);
+  });
+
   it('TEST-020 / AC 4 after a build change the account update() goes out with the start-up sync, so a Load is still 5 writes (6 only if it shares that push)', async () => {
     const first = await signedIn(db);
     const laptop = first.reload({ appVersion: 'test-2' });
