@@ -20,7 +20,7 @@ import { OWNERSHIP_ICON, OwnershipState } from './ownership';
       align-items: center;
       gap: var(--space-1);
       padding: 1px var(--space-2) 1px var(--space-1);
-      /* Decks Components §0: the none state's edge is --color-border-strong (>= 3:1, WCAG 1.4.11). */
+      /* Decks Components §0 token fix (H-060): the none edge was --color-border (1.29:1); strong is >= 3:1. */
       border: 1px solid var(--color-border-strong);
       border-radius: var(--radius-sm);
       background: var(--color-surface-raised);

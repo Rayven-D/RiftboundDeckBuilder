@@ -45,6 +45,8 @@ export interface RawCollectionStore {
 export interface RawDeckStore extends DeckStore {
   put(deck: UserDeck): Promise<void>;
   unreadableIds(): Promise<string[]>;
+  /** DECK-091: newer-schema records with the deck fields, for read-only display (H-060). Optional for fakes. */
+  newerDecks?(): Promise<UserDeck[]>;
 }
 
 /** SYNC-046: an area whose cloud document is newer than this app cannot be changed on this device. */
@@ -198,6 +200,11 @@ export class TrackedDeckStore implements DeckStore {
 
   get(id: string): Promise<UserDeck | null> {
     return this.inner.get(id);
+  }
+
+  /** DECK-091 / OWN-064: newer-schema decks to show read-only; never written or synced (SYNC-033). */
+  newerDecks(): Promise<UserDeck[]> {
+    return this.inner.newerDecks?.() ?? Promise.resolve([]);
   }
 
   async create(deck: UserDeck): Promise<void> {

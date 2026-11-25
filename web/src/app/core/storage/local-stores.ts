@@ -276,6 +276,27 @@ export class LocalDeckStore implements DeckStore {
     return out;
   }
 
+  /**
+   * DECK-091 / OWN-064 (H-060): records with a **newer** `schemaVersion` that still have the version-1 deck fields
+   * (id, name, zones, `updatedAt`), so the Decks page can show them read-only with ownership. Corrupt records and
+   * newer ones without those fields are left out. Read only: nothing is migrated or written.
+   */
+  async newerDecks(): Promise<UserDeck[]> {
+    const out: UserDeck[] = [];
+    for (const id of this.ids()) {
+      let v: unknown;
+      try {
+        v = readJson(this.backend, this.key(id));
+      } catch {
+        continue;
+      }
+      if (!isObject(v) || typeof v['schemaVersion'] !== 'number' || v['schemaVersion'] <= 1) continue;
+      if (!deckShape(v) || !isObject(v['source']) || typeof v['createdAt'] !== 'string') continue;
+      out.push(v as unknown as UserDeck);
+    }
+    return out;
+  }
+
   async get(id: string): Promise<UserDeck | null> {
     return readVersioned<UserDeck>(this.backend, this.key(id), [1], deckShape);
   }

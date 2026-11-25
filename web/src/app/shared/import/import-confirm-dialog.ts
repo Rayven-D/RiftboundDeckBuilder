@@ -9,13 +9,14 @@ import {
   MatDialogTitle,
 } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
-import { Icon } from '../icon';
+import type { LockedShortfall } from '../../core/decks';
+import { ShortfallWarning } from '../deck/shortfall-warning';
 
 export interface ImportConfirmData {
   readonly title: string;
   readonly text: string;
-  /** SPEC-008 SHARE-034 warnings, one per locked deck (IMP-050a). */
-  readonly warnings: readonly string[];
+  /** SPEC-008 SHARE-034: the locked decks this change leaves short, one warning line each (IMP-050a). */
+  readonly shortfalls: readonly LockedShortfall[];
   readonly confirm: string;
 }
 
@@ -25,28 +26,17 @@ export interface ImportConfirmData {
  */
 @Component({
   selector: 'app-import-confirm-dialog',
-  imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, Icon],
+  imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, ShortfallWarning],
   template: `
     <h2 mat-dialog-title>{{ data.title }}</h2>
     <mat-dialog-content>
       <p>{{ data.text }}</p>
-      @if (data.warnings.length) {
-        <ul class="warnings">
-          @for (w of data.warnings; track $index) {
-            <li><app-icon name="warning" /><span>{{ w }}</span></li>
-          }
-        </ul>
-      }
+      <app-shortfall-warning [items]="data.shortfalls" />
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button matButton type="button" mat-dialog-close>Cancel</button>
       <button matButton="filled" type="button" [mat-dialog-close]="true">{{ data.confirm }}</button>
     </mat-dialog-actions>
-  `,
-  styles: `
-    .warnings { margin: var(--space-3) 0 0; padding: 0; list-style: none; }
-    .warnings li { display: flex; gap: var(--space-2); align-items: flex-start; margin-top: var(--space-2); }
-    .warnings app-icon { flex: none; color: var(--color-warning, currentColor); }
   `,
 })
 export class ImportConfirmDialog {
