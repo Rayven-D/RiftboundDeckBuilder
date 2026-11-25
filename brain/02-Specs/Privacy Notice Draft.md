@@ -25,7 +25,9 @@ as_of: 2026-11-25
   removed: none is left except the release-day date. **H-208 fix:** the image-host blank (a bracketed RJ/builder marker with its
   "Keep only while…" note) is removed from "Who receives it", so no blank can ship; a rule in SYNC-103 item 9 requires
   the host line to be added before any build loads card images from a third-party host. The only marker left in the
-  page text is `[set on release: …]`.
+  page text is `[set on release: …]`. **H-209:** the build check scans only the file holding the notice text for the
+  case-sensitive substrings `[RJ` and `[builder` (markdown links and template bindings are not matched); the
+  image-host line is a manual release step under AC 70, with no automated check.
 - 0.2 (2026-11-25, H-174): username and `device-theme` lines added.
 - 0.1 (2026-11-25, H-152): first draft.
 
@@ -34,7 +36,7 @@ as_of: 2026-11-25
 |---|---|
 | Text approved by RJ | **not yet** (RJ: write "approved YYYY-MM-DD" here and set `status: approved`) |
 | RJ-supplied blanks | **none left** (H-182 answers applied, 0.3); the page text has no image-host blank either (H-208): that line is added only if a build loads card images from a third-party host (SYNC-103 item 9, release condition below) |
-| Card-image host line | **not in the text.** If the build to be released loads card images from any host other than Rift Builder's own hosting, the line naming that host (see "Not in this text on purpose") must be added and RJ re-approves before that build ships; the source is undecided until H-020 |
+| Card-image host line | **not in the text; a manual release step, no automated check** (AC 70, SYNC-103 item 9). If any card image is loaded from a host other than Rift Builder's own hosting, the notice must name that host (see "Not in this text on purpose") and RJ re-approves before that build ships; the source is undecided until H-020 |
 | Release-day date | `[set on release: date dev → main ships sign-in]` stays until the release step replaces it with the real date (effective and last-updated) |
 | Built page matches this text | not yet (builder item H-180, see [[Accounts and Sync]] ACs 65-70) |
 
