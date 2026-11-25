@@ -56,3 +56,11 @@ Follow-ups (non-blocking, no new row): inline `import type` comments in Accounts
 - **Fixed:** `Test Data.md` line 38 now pins My Collection 0.14.1 / Collection Import 0.13; Spec Index SPEC-013 row lists H-165 in its pin-only note.
 - **Failure 1:** `brain/02-Specs/Spec Index.md` line 21 (SPEC-010 Accounts and Sync row, dependency list): expected `SPEC-003 0.13, SPEC-006 0.9.1, SPEC-007 0.14.1` (Accounts and Sync's own Depends on line says Collection Import v0.13, Deck Import v0.9.1, My Collection v0.14.1; the SPEC-005/008/011/013 rows already match); actual `SPEC-003 0.12, SPEC-006 0.9, SPEC-007 0.14`. Owner spec-writer, pin-only, in H-165 scope, no board row.
 - All other remaining older numbers are changelog history, "Impacts" notes, or old inline `import type` comments (pre-existing). API Contracts SPEC-001 v0.2 is H-195.
+
+## Attempt 4 (2026-11-25, RJ exception past the cap, commit 750f3ee)
+
+2026-11-25 · H-165 attempt 4 · **PASS** · checks: `git diff dev -- brain/` (13 files), every Spec Index row and every spec's Depends on line against SPEC-001 0.4 / SPEC-003 0.13 / SPEC-006 0.9.1 / SPEC-007 0.14.1, residual-pin grep, earlier content checks (attempt-1 fixes, RJ decision, research status, V-009) re-read · no failures.
+
+- Spec Index SPEC-010 row now pins SPEC-003 0.13, SPEC-006 0.9.1, SPEC-007 0.14.1; rows SPEC-005, 006, 007, 008, 011, 013 and Test Data.md line 38 all match; Depends on lines in Accounts and Sync, Collection Import, Deck Import, My Collection, Shared Cards, Your Decks Ownership View, Test Data are current. Deck Legality and Tournament Deck Catalog carry unversioned links only.
+- Remaining older numbers are changelog history, "Impacts" notes and old inline comments. API Contracts SPEC-001 v0.2 is board row H-195.
+- Content checks unchanged since attempt 2 (750f3ee touched only the index row, the board row and loop notes). Board row H-165 is currently `todo`; the coordinator sets it to done.
