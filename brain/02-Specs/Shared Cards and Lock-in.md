@@ -62,7 +62,7 @@ in and runes").
 **Shared types:** `DeckLock`, `StoredDeckLocks`, `DeckLockStore`, `SharedPoolInput`, `SharedPool`,
 `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck`. Functions `computeSharedPool()`,
 `availability()`, `canLock()`, `lockedShortfalls()` (all pure).
-**Depends on:** [[Card Data Model]] v0.4.1, [[Collection Import]] v0.14, [[Your Decks Ownership View]] v0.10.1,
+**Depends on:** [[Card Data Model]] v0.4.1, [[Collection Import]] v0.14, [[Your Decks Ownership View]] v0.10.2 (pin-only, H-330),
 [[Deck Import]] v0.11.1, [[My Collection]] v0.14.1 (pin-only: its edit confirmations COLL-088 (edit part) are deferred there, the Replace and Undo warnings stay; COLL-102/105/106 read `hold`, SHARE-040 and `availability()`). **Consumers:**
 [[Your Decks Ownership View]] (pool, labels, breakdown), [[My Collection]] and [[Collection Import]]
 (shortfall warnings), [[Deck Import]] (edit/delete/duplicate rules).
