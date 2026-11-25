@@ -1,7 +1,7 @@
 ---
 tags: [spec, privacy, draft, review]
 id: SPEC-010-NOTICE
-version: 0.1
+version: 0.2
 status: review   # becomes `approved` only when RJ writes the date in "Approval gate" below
 spec: "[[Accounts and Sync]] SYNC-101, SYNC-103, SYNC-104 (v0.13)"
 research: ["[[Privacy Notice Requirements]]"]
@@ -55,12 +55,14 @@ project.*
 You can use Home and Tournaments without an account; nothing is stored in the cloud for that. To import cards or
 decks you create an account with your email address. We store:
 - your email address and a Firebase user ID (in Firebase Authentication);
+- your username, the display name you choose (it is shown only to you, at the top of the page; you can leave it out);
 - your collection: card identifiers, counts and printing identifiers;
 - your tags: labels, colours and settings;
 - your decks: names, where each came from, notes and card lists;
 - the times you locked decks, timestamps of changes, and the version of the app that last wrote your data.
 
-Tag labels, deck names and notes are free text that you control. Please do not put personal information in them.
+Your username, tag labels, deck names and notes are free text that you control. Please do not put personal
+information in them.
 
 ### What Google collects for us
 Our account and database service is Google Firebase. When you sign in, Firebase Authentication also keeps the IP
@@ -104,9 +106,10 @@ or when you ask.
 ### What your browser keeps
 While you are signed in, your browser keeps a copy of your account's data (so pages load quickly and work offline),
 your view settings, the email address you typed while signing in by email link (removed when sign-in finishes), and
-your Firebase sign-in session, all in the browser's own storage on your device. Rift Builder sets no cookies. We keep
-only what the features you asked for need, so there is no cookie banner. Signing out or deleting your account clears
-this copy from the device.
+your Firebase sign-in session, all in the browser's own storage on your device. Your browser also remembers your
+theme choice (light, dark or system) on that device; it is not part of your account, so signing out or deleting your
+account does not clear it. Rift Builder sets no cookies. We keep only what the features you asked for need, so there
+is no cookie banner. Signing out or deleting your account clears the copy of your account's data from the device.
 
 ### Do Not Track and Global Privacy Control
 We do not track you across websites or over time, and we do not sell or share your data, so there is nothing to opt
