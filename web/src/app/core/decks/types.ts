@@ -248,7 +248,15 @@ export interface LockedShortfall {
 
 // ---- SPEC-005 v0.5 ----
 export type CollectionOwnership =
-  { status: 'ok'; input: DeckOwnershipInput; shared: SharedPool } | { status: 'unavailable' };
+  | { status: 'ok'; input: DeckOwnershipInput; shared: SharedPool }
+  | {
+      status: 'unavailable';
+      /**
+       * The stored locks (SHARE-053, OWN-065): a deck with a lock here keeps its lock state while
+       * ownership is unavailable. null = lock store unreadable (SHARE-061); omitted = no lock known.
+       */
+      locks?: readonly DeckLock[] | null;
+    };
 
 export type CardBan = BanStatus | { status: 'unknown' };
 
@@ -310,6 +318,10 @@ export interface DeckOwnershipView {
   catalogVersion: string | null;
   ownershipAvailable: boolean;
   locksIgnored: boolean;
+  /**
+   * SPEC-008 state; null = no lock or lock store unreadable. With ownership unavailable a stored
+   * lock still gives the SHARE-053 state (OWN-065 (a)): locked, never complete or short.
+   */
   lock: DeckLockState | null;
   sections: ZoneSection[];
   summary: {
@@ -323,7 +335,8 @@ export interface DeckOwnershipView {
   missingText: string;
 }
 
-export type OwnershipFilter = 'ready' | 'partial' | 'none' | 'locked';
+/** SHARE-051 group; `unavailable` (rule 0) = ownership unavailable (SHARE-053, OWN-065). */
+export type OwnershipFilter = 'ready' | 'partial' | 'none' | 'locked' | 'unavailable';
 
 export interface DeckTileSummary {
   deckId: string;

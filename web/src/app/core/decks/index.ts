@@ -21,6 +21,7 @@ export {
   sharedIndicator,
   shortfallNotice,
   shortfallWarning,
+  storedLockState,
   zoneEntries,
 } from './shared-pool';
 export {
