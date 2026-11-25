@@ -220,8 +220,8 @@ questions 1–9 and the title "Finish signing in" ("all those look good to me", 
 `StoredSyncLog`, `SyncStatus`, Firestore document shapes `AccountDoc`, `CollectionDoc`, `TagsDoc`, `LocksDoc`,
 `DeckDoc`. Source of truth in code: `web/src/app/shared/sync/sync-types.ts` (v0.11 matches it; the v0.10
 additions were built in H-141, H-143 and H-145).
-**Depends on:** [[Collection Import]] v0.12, [[Tournament Deck Catalog]] v0.6, [[Your Decks Ownership View]]
-v0.8, [[Deck Import]] v0.9, [[My Collection]] v0.14 (pin-only), [[Shared Cards and Lock-in]] v0.4.4 (SPEC-009 [[Runes Assumed Owned]]
+**Depends on:** [[Collection Import]] v0.13, [[Tournament Deck Catalog]] v0.6, [[Your Decks Ownership View]]
+v0.8, [[Deck Import]] v0.9.1, [[My Collection]] v0.14.1 (pin-only), [[Shared Cards and Lock-in]] v0.4.4 (SPEC-009 [[Runes Assumed Owned]]
 is withdrawn since 2026-11-24: runes are cards, so nothing here treats them differently). **Consumers:** H-062 (built v0.7), H-081 (sign-in gate, built as "account-required mode"), H-127 (Cancel deletion), H-077
 (first-sign-in writes), H-078 (build id and preview deploy), v0.10 UI items H-104, H-106, H-110, H-115, H-122 and
 H-140…H-145, H-172 (builds v0.12: removes local-only mode, adds the browser cache rules), H-173 (scrolling brief), H-176 (builds v0.14: header, username, theme, FABs, no `/import`), [[ADR-0007 Firebase Accounts and Firestore]].
