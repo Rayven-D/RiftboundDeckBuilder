@@ -9,6 +9,12 @@ superseded_by: "[[Shared Cards and Lock-in]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.4.4 (2026-11-24, H-171, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2, account-only, status stays
+  `review`): SHARE-060 now says locks belong to the signed-in account (`state/locks`) and `DeckLockStore` is the
+  browser cache of it (SPEC-010 SYNC-140…SYNC-145), cleared on sign-out, account deletion and a different account
+  signing in, never uploaded; the local-only / account-required wording and ADR-0005 #1 are gone. Data-contract
+  comment and AC 14 wording ("browser storage") reworded. Pins SPEC-003 0.11, SPEC-005 0.6, SPEC-006 0.8,
+  SPEC-007 0.11.
 - 0.4.3 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11 "Impacts", status stays `review`): SHARE-060
   reads by mode (local-only mode: browser only; account-required mode: a browser cache of the signed-in account,
   cleared on sign-out; locks synced), replacing "in the browser by default; also synced when signed in". No gate

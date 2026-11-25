@@ -9,6 +9,14 @@ superseded_by: "[[Your Decks Ownership View]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.6 (2026-11-24, H-171, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2, account-only, status stays
+  `review`): OWN-066 gate always on, "reads nothing from the browser cache", no local-only exception. **OWN-093**
+  reworded: it said "nothing on this screen is sent to a server: decks, collection and ownership stay in the
+  browser" (true only of the old browser-only storage); now decks, collection, tags and locks come from the
+  signed-in account through its cache, and the ownership result is computed on the device and never stored or
+  sent. New **OWN-084** smooth scrolling for the Decks list and deck view, no pagination or page numbers (rule
+  defined in SPEC-007 COLL-093). ACs 15 and 19 reworded, new ACs 20 (deck list scrolls without pages) and 21
+  (gate always on). Pins SPEC-004 0.6, SPEC-006 0.8, SPEC-007 0.11, SPEC-008 0.4.4. No ownership rule changed.
 - 0.5.2 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11 "Impacts", status stays `review`): new OWN-066
   (SYNC-009 gate note: in account-required mode the Decks page and deck detail show the SPEC-010 sign-in panel under
   their page header while the gate is not open, reading nothing from the local stores; distinct from the OWN-062 /

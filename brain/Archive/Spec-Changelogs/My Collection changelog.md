@@ -9,6 +9,19 @@ superseded_by: "[[My Collection]]"
 
 Moved out of [[My Collection]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.11 (2026-11-24, H-171, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2, account-only): COLL-070 rewritten:
+  quantities and tags belong to the account (`state/collection`, `state/tags`), the stores are the browser cache of
+  them (SPEC-010 SYNC-140…SYNC-145); printing codes and view state are not account data and never synced (view
+  state is a per-device preference, printing-code memory is rebuilt display data), both cleared with the cache as
+  built. **COLL-074 ("Delete all local collection data") withdrawn**, ID retired: it existed only for local-only
+  mode; deleting data is "Delete account and data" (SYNC-095); H-162 / H-170 (its copy and locked-deck warning)
+  withdrawn with it; its H-163 placement / copy decisions no longer apply. COLL-092 gate always on, "reads nothing
+  from the browser cache". New **COLL-093** smooth scrolling / no pagination for all card and deck lists (a)–(g):
+  no pages or Load more, rows and images load as you scroll from the cached data (no Firestore read while
+  scrolling), nothing jumps, filter changes go to the top, scroll position kept (SHOULD), total visible,
+  60 fps at 390 px with 5,000 entries (SHOULD). Applied by SPEC-005 OWN-084 and SPEC-004 CAT-079. ACs 28–30 added;
+  AC 19, COLL-060 / 062 / 072, `TagStore` comment, Purpose and Out of scope reworded ("per browser", "stored in
+  the browser", "no accounts in the MVP"). Pins SPEC-003 0.11, SPEC-008 0.4.4.
 - 0.10.1 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11 "Impacts"): COLL-070 reads by mode
   (local-only mode: browser only; account-required mode: a browser cache of the signed-in account, cleared on
   sign-out; quantities and tags synced in account-required mode, printing codes and view state never). COLL-074
