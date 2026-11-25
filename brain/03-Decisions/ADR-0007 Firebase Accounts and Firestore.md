@@ -2,7 +2,7 @@
 tags: [adr, hosting, data]
 status: accepted
 date: 2026-11-23
-amendment: "2026-11-24 account required to import: accepted by RJ 2026-11-24 (H-080)"
+amendment: "2026-11-24 account required to import: accepted by RJ 2026-11-24 (H-080); 2026-11-24 account-only, local-only mode dropped: accepted by RJ 2026-11-24 (H-171)"
 ---
 # ADR-0007: Firebase for Accounts and Saved Data (Firestore)
 
@@ -99,3 +99,37 @@ syncs it to the account" is replaced, in two modes chosen by the build flag:
 - Specs to update: [[Accounts and Sync]] (v0.8), and the storage lines of [[Collection Import]],
   [[Deck Import]], [[My Collection]], [[Shared Cards and Lock-in]], [[Tournament Deck Catalog]] ("Add to your
   decks"). The list is in SPEC-010 "Impacts on other specs".
+
+## Amendment 2026-11-24 (2): account-only, local-only mode dropped
+**Status: accepted** (RJ, 2026-11-24, in chat; board H-171). Where it differs from the text above, including the
+first amendment, this amendment wins.
+
+**RJ's decision** (2026-11-24, in chat): "let's drop the local-only mode... all data will live and be from the account that's signed in. if someone deletes their account, their information will be deleted as well. However, we can keep cached data in the browser to speed up load times like we can cache their authentication and a few cards/decks. As users scroll through their decks /cards it should feel smooth. No physical pagination, more like an infinite scroll."
+Earlier in the same conversation RJ agreed that "collections and decks should be saved under the user".
+
+**What changes**
+- **One mode.** The `signInEnabled: false` **local-only mode is removed**. Every user's collection, tags, locks
+  and decks live in their account in Firestore (`(default)`, the layout in [[Firestore Data Shape]]). There is
+  no browser-only storage of user data and no no-account import. Home and Tournaments stay public.
+- **The browser is a cache only**, there to make loading fast: the signed-in session, plus account data the app
+  has already downloaded (at least recently viewed cards and decks). Sign-out, account deletion and a different
+  account signing in clear it. How much is cached is SPEC-010's call (H-171); note that the collection is one
+  Firestore document, so caching all of it costs no more reads than caching part of it.
+- **Deleting the account deletes all of its data** (already SPEC-010 SYNC-095) and clears the device.
+- **Lists scroll smoothly with no pagination:** card and deck lists load as the user scrolls (infinite /
+  virtual scroll), with no page numbers or "next page" buttons. The Collection page already uses virtual
+  scrolling; Decks and Tournaments lists follow the same rule.
+
+**Consequences**
+- The first amendment's two-mode text, its (c) "production keeps today's no-account imports until sign-in is
+  turned on", and the "local-only mode" lines in SPEC-003…010 are superseded. [[ADR-0005 MVP Product Defaults]]
+  decision 1 (browser-only storage) is superseded.
+- COLL-074 "Delete all local collection data" (built in H-154) goes away with local-only mode; deleting data is
+  "Delete account and data" (SYNC-095). H-162 and H-170 are withdrawn.
+- **Production:** production runs `signInEnabled: false` today. A build without local-only mode makes import
+  require sign-in, so it must not be deployed to production until sign-in is ready there: Firebase Auth providers
+  (H-063), the privacy notice (H-152, SYNC-101) and Firestore rules deployed. Until then production stays on its
+  current build.
+- Specs: [[Accounts and Sync]] (SPEC-010) and the storage / gate lines of [[Collection Import]], [[Tournament Deck Catalog]],
+  [[Your Decks Ownership View]], [[Deck Import]], [[My Collection]], [[Shared Cards and Lock-in]] (H-171).
+  Code: H-172. Scrolling design for the Decks and Tournaments lists: H-173.
