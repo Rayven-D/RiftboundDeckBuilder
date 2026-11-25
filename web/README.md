@@ -36,6 +36,10 @@ ng build
 
 This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
 
+Use `npm run build` (production) or `npm run build:preview` (preview, output `dist/web-preview`) instead of a
+bare `ng build`: they set the per-build `appVersion` (`web-prod-<7 hex of the commit>`). Deploy notes,
+including the preview-channel command `npm run deploy:preview -- <channel>`, are in the repo `README.md`.
+
 ## Running unit tests
 
 To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:

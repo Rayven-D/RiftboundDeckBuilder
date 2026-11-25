@@ -43,3 +43,29 @@ describe('FirebaseAuthService provider config (SPEC-010 SYNC-006)', () => {
     expect(await svc.reauthenticate()).toBe('cancelled');
   });
 });
+
+describe('FirebaseAuthService.canReauthenticate (SPEC-010 SYNC-095, H-143)', () => {
+  it('H-143 canReauthenticate is true only with Google enabled and a Google identity', () => {
+    expect(new FirebaseAuthService(stubAuth(['google.com']), ['email-link', 'google']).canReauthenticate()).toBe(true);
+    expect(new FirebaseAuthService(stubAuth(['google.com']), ['email-link']).canReauthenticate()).toBe(false);
+    expect(new FirebaseAuthService(stubAuth(['password']), ['email-link', 'google']).canReauthenticate()).toBe(false);
+    expect(new FirebaseAuthService(stubAuth([]), ['email-link', 'google']).canReauthenticate()).toBe(false);
+    expect(new FirebaseAuthService({ currentUser: null } as unknown as Auth, ['email-link', 'google']).canReauthenticate()).toBe(false);
+  });
+
+  it('H-143 reauthenticate uses the same check: no popup whenever canReauthenticate is false', async () => {
+    const svc = new FirebaseAuthService(stubAuth(['password']), ['email-link', 'google']);
+    expect(svc.canReauthenticate()).toBe(false);
+    expect(await svc.reauthenticate()).toBe('needs-sign-in');
+    expect(await new FirebaseAuthService({ currentUser: null } as unknown as Auth, ['google']).reauthenticate()).toBe('needs-sign-in');
+  });
+});
+
+describe('FirebaseAuthService.sendEmailLink (SPEC-010 SYNC-006, AC 50)', () => {
+  it('AC 50 / H-106 a send that Firebase rejects stores no address on this device', async () => {
+    localStorage.clear();
+    // The stub Auth has no config, so Firebase's sendSignInLinkToEmail rejects before any request.
+    await expect(new FirebaseAuthService(stubAuth([])).sendEmailLink('rj@example.com')).rejects.toBeDefined();
+    expect(localStorage.length).toBe(0);
+  });
+});

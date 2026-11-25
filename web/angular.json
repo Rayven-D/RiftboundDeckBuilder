@@ -65,6 +65,7 @@
               ]
             },
             "preview": {
+              "outputPath": "dist/web-preview",
               "budgets": [
                 {
                   "type": "initial",

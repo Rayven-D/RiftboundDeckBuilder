@@ -30,7 +30,6 @@ import {
   FieldPath,
   Firestore,
   Timestamp,
-  WriteBatch,
   collection,
   connectFirestoreEmulator,
   deleteDoc,
@@ -44,7 +43,6 @@ import {
   setDoc,
   updateDoc,
   where,
-  writeBatch,
 } from 'firebase/firestore';
 import type {
   AccountCheck,
@@ -56,6 +54,7 @@ import type {
   CloudTag,
   CollectionDoc,
   DeckDoc,
+  DeleteAllResult,
   LocksDoc,
   Ms,
   PullResult,
@@ -67,6 +66,7 @@ import type {
   TagsDoc,
 } from '../../../shared/sync/sync-types';
 import { PROVIDER_LABELS, RemoteError, enabledProviders, isTagTombstone } from '../../../shared/sync/sync-types';
+import { safeReturnPath } from '../../../shared/sync/return-path';
 
 export interface FirebaseWebConfig {
   apiKey: string;
@@ -79,10 +79,8 @@ export interface FirebaseWebConfig {
 
 /** Email kept on this device between "send link" and opening it (Firebase's recommended flow). */
 const EMAIL_KEY = 'rift.emailForSignIn';
-/** Firestore keeps unacknowledged writes queued while offline; a write this slow counts as offline (SYNC-080). */
+/** A write not acknowledged within this time is reported as `'unconfirmed'` (it may still land; items stay pending until a pull confirms them, SYNC-080). */
 const WRITE_TIMEOUT_MS = 20_000;
-/** Writes per first-sign-in batch (SYNC-050, SYNC-113 rule-lookup limit). */
-const BATCH_CHUNK = 10;
 /** Firebase asks for a recent sign-in before deleting a user (SYNC-096 step 1). */
 const RECENT_SIGN_IN_MS = 5 * 60_000;
 
@@ -137,6 +135,11 @@ export class FirebaseAuthService implements AuthService {
     return this.auth.currentUser?.uid ?? null;
   }
 
+  /** SYNC-003 (H-141): read from Auth each time; never copied anywhere (SYNC-100). */
+  currentEmail(): string | null {
+    return this.auth.currentUser?.email ?? null;
+  }
+
   async restore(): Promise<string | null> {
     await this.auth.authStateReady();
     return this.currentUid();
@@ -169,14 +172,20 @@ export class FirebaseAuthService implements AuthService {
       if (!address) return 'cancelled';
       const r = await signInWithEmailLink(this.auth, address, link);
       localStorage.removeItem(EMAIL_KEY);
-      history.replaceState(null, '', location.pathname); // drop the one-time code from the URL
+      // H-145: the URL is cleaned by `SyncService` through the Router (Brief decision 6), not here.
       return { uid: r.user.uid };
     }
     throw new Error(`Unknown sign-in provider ${providerId}`);
   }
 
-  async sendEmailLink(email: string): Promise<void> {
-    await sendSignInLinkToEmail(this.auth, email, { url: `${location.origin}/`, handleCodeInApp: true });
+  /**
+   * SYNC-006 / H-145: the continue URL is this origin plus the start page's app path and query, checked again
+   * here (`safeReturnPath`), so it can only point into this app. Firebase appends its own parameters to that
+   * query (verified on the Auth emulator, see API Contracts).
+   */
+  async sendEmailLink(email: string, returnTo = '/'): Promise<void> {
+    const url = `${location.origin}${safeReturnPath(returnTo, location.origin)}`;
+    await sendSignInLinkToEmail(this.auth, email, { url, handleCodeInApp: true });
     localStorage.setItem(EMAIL_KEY, email);
   }
 
@@ -199,16 +208,22 @@ export class FirebaseAuthService implements AuthService {
   }
 
   /**
-   * SYNC-096 step 1. Google re-authenticates in a popup, only while Google is an enabled provider and
-   * the user has a Google identity. Otherwise (email link) the user cannot re-authenticate inside this
-   * dialog (it needs a new link): 'needs-sign-in', and the UI asks them to sign in again first.
+   * SYNC-095 / SYNC-096 step 1 (H-143): a Google popup re-authentication is possible only while Google is an
+   * enabled provider (SYNC-006) and the signed-in user has a Google identity. False = a fresh sign-in is needed.
+   */
+  canReauthenticate(): boolean {
+    const user = this.auth.currentUser;
+    return !!user && this.isEnabled('google') && user.providerData.some((p) => p.providerId === 'google.com');
+  }
+
+  /**
+   * SYNC-096 step 1. Google re-authenticates in a popup, only when `canReauthenticate()`. Otherwise (email
+   * link) the user cannot re-authenticate inside this dialog (it needs a new link): 'needs-sign-in', and the
+   * UI asks them to sign in again first.
    */
   async reauthenticate(): Promise<'ok' | 'cancelled' | 'needs-sign-in'> {
     const user = this.auth.currentUser;
-    if (!user) return 'needs-sign-in';
-    if (!this.isEnabled('google') || !user.providerData.some((p) => p.providerId === 'google.com')) {
-      return 'needs-sign-in';
-    }
+    if (!user || !this.canReauthenticate()) return 'needs-sign-in';
     try {
       await reauthenticateWithPopup(user, new GoogleAuthProvider());
       return 'ok';
@@ -280,8 +295,25 @@ export function remoteCode(e: unknown): RemoteErrorCode {
 }
 
 /**
+ * SYNC-096 step 2: runs `count` deletes in order and stops at the first failure. `removedAny` is true
+ * when an earlier delete of this attempt succeeded, or when the failing one timed out (`'unconfirmed'`)
+ * and so may still land.
+ */
+export async function deleteInOrder(count: number, del: (i: number) => Promise<void>): Promise<DeleteAllResult> {
+  for (let i = 0; i < count; i++) {
+    try {
+      await del(i);
+    } catch (e) {
+      const mayHaveLanded = e instanceof RemoteError && e.code === 'unconfirmed';
+      return { remaining: count - i, removedAny: i > 0 || mayHaveLanded };
+    }
+  }
+  return 'ok';
+}
+
+/**
  * A write not acknowledged in time is `unconfirmed`, not failed: the SDK keeps it queued and may still
- * commit it, so the engine keeps its items pending and lets the next pull confirm them (SYNC-042).
+ * commit it, so the engine keeps its items pending and lets the next pull confirm them (SYNC-080).
  * The timer is cleared when the write settles.
  */
 export function withTimeout<T>(p: Promise<T>, ms = WRITE_TIMEOUT_MS): Promise<T> {
@@ -392,26 +424,8 @@ export class FirestoreRemoteStore implements RemoteStore {
   async push(uid: string, ch: PushChanges): Promise<PushOutcome> {
     const ops = this.ops(uid, ch);
     const outcome: PushOutcome = {};
-    if (ch.batch) {
-      // SYNC-050: first sign-in in batches; the first one creates the account document, so the
-      // existsAfter() of every create sees it (SYNC-113). Batches are kept small because Firestore
-      // limits rule lookups per batched request (the exact count is `unverified`, SYNC-113). A failed
-      // batch fails its documents and every later one; the flow re-runs and links only when all succeed.
-      for (let i = 0; i < ops.length; i += BATCH_CHUNK) {
-        const chunk = ops.slice(i, i + BATCH_CHUNK);
-        const batch = writeBatch(this.db);
-        for (const op of chunk) op.batch(batch);
-        try {
-          await withTimeout(batch.commit());
-          for (const op of chunk) outcome[op.ref] = 'ok';
-        } catch (e) {
-          const c = remoteCode(e);
-          for (const op of ops.slice(i)) outcome[op.ref] = c;
-          break;
-        }
-      }
-      return outcome;
-    }
+    // One write per document, in order (no batches since H-077, SYNC-050): an account creation goes
+    // first, so a later create in the same push already sees it through existsAfter() (SYNC-113).
     for (const op of ops) {
       try {
         await withTimeout(op.run());
@@ -424,38 +438,33 @@ export class FirestoreRemoteStore implements RemoteStore {
   }
 
   /** SYNC-096 step 2: the account document first, then every deck (tombstones included), then the state documents. */
-  async deleteAll(uid: string): Promise<'ok' | { remaining: number }> {
+  async deleteAll(uid: string): Promise<DeleteAllResult> {
     const paths: string[][] = [['users', uid]];
     try {
       const decks = await getDocs(collection(this.db, 'users', uid, 'decks'));
       for (const d of decks.docs) paths.push(['users', uid, 'decks', d.id]);
     } catch {
-      return { remaining: 4 };
+      return { remaining: 4, removedAny: false }; // the list is read before the first delete: nothing removed
     }
     for (const s of ['collection', 'tags', 'locks']) paths.push(['users', uid, 'state', s]);
-    for (let i = 0; i < paths.length; i++) {
-      try {
-        const [first, ...rest] = paths[i];
-        await withTimeout(deleteDoc(doc(this.db, first, ...rest)));
-      } catch {
-        return { remaining: paths.length - i };
-      }
-    }
-    return 'ok';
+    return deleteInOrder(paths.length, (i) => {
+      const [first, ...rest] = paths[i];
+      return withTimeout(deleteDoc(doc(this.db, first, ...rest)));
+    });
   }
 
   /** One operation per document, in push order: decks before locks (SYNC-076). */
-  private ops(uid: string, ch: PushChanges): { ref: string; run: () => Promise<void>; batch: (b: WriteBatch) => void }[] {
-    const ops: { ref: string; run: () => Promise<void>; batch: (b: WriteBatch) => void }[] = [];
+  private ops(uid: string, ch: PushChanges): { ref: string; run: () => Promise<void> }[] {
+    const ops: { ref: string; run: () => Promise<void> }[] = [];
     const meta = (updatedAt: Ms) => ({ schemaVersion: 1, updatedAt: toTs(updatedAt), syncedAt: serverTimestamp() });
     const set = (ref: string, path: string[], data: DocumentData) => {
       const r = doc(this.db, path[0], ...path.slice(1));
-      ops.push({ ref, run: () => setDoc(r, data), batch: (b) => void b.set(r, data) });
+      ops.push({ ref, run: () => setDoc(r, data) });
     };
     const update = (ref: string, path: string[], pairs: unknown[]) => {
       const r = doc(this.db, path[0], ...path.slice(1));
       const [field, value, ...more] = pairs as [FieldPath, unknown, ...unknown[]];
-      ops.push({ ref, run: () => updateDoc(r, field, value, ...more), batch: (b) => void b.update(r, field, value, ...more) });
+      ops.push({ ref, run: () => updateDoc(r, field, value, ...more) });
     };
     const mapWrite = (
       ref: string,
@@ -491,7 +500,7 @@ export class FirestoreRemoteStore implements RemoteStore {
     for (const [id, d] of Object.entries(ch.decks ?? {})) set(`deck:${id}`, ['users', uid, 'decks', id], writeDeck(d));
     for (const id of ch.hardDelete ?? []) {
       const r = doc(this.db, 'users', uid, 'decks', id);
-      ops.push({ ref: `delete:${id}`, run: () => deleteDoc(r), batch: (b) => void b.delete(r) });
+      ops.push({ ref: `delete:${id}`, run: () => deleteDoc(r) });
     }
     if (ch.collection) {
       const c = ch.collection;

@@ -28,8 +28,8 @@ export function emptySyncLog(): StoredSyncLog {
     cloudDocs: [],
     deckCreated: {},
     lastBuild: null,
-    uploadingUid: null,
     deletingUid: null,
+    sessionLostUid: null,
   };
 }
 

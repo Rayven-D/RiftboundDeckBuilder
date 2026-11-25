@@ -24,7 +24,12 @@ import {
 export class LocalSyncLogStore implements SyncLogStore {
   constructor(private readonly backend: KeyValueBackend) {}
 
-  async load(): Promise<StoredSyncLog | null> {
+  load(): Promise<StoredSyncLog | null> {
+    return Promise.resolve(this.peek());
+  }
+
+  /** Synchronous read, so the sign-in gate is decided at the first frame (SYNC-009). */
+  peek(): StoredSyncLog | null {
     const raw = this.backend.get(STORAGE_KEYS.syncLog);
     if (raw === null) return null;
     try {
@@ -81,7 +86,6 @@ export function createBrowserStores(backend: KeyValueBackend, opts: BrowserStore
   const rawLocks = new LocalDeckLockStore(backend, deckIds);
   const ctx: TrackingContext = { log, queue, now: opts.now, changed: opts.changed, readOnly: opts.readOnly };
 
-  const synced: string[] = [STORAGE_KEYS.collection, STORAGE_KEYS.collectionPrevious, STORAGE_KEYS.tags, STORAGE_KEYS.locks];
   return {
     collection: new TrackedCollectionStore(rawCollection, ctx),
     tags: new TrackedTagStore(rawTags, ctx),
@@ -97,11 +101,6 @@ export function createBrowserStores(backend: KeyValueBackend, opts: BrowserStore
       locks: rawLocks,
       decks: rawDecks,
       clearAll: async () => clearLocalData(backend),
-      clearSynced: async () => {
-        for (const k of backend.keys()) {
-          if (synced.includes(k) || k.startsWith(STORAGE_KEYS.deckPrefix)) backend.remove(k);
-        }
-      },
     },
   };
 }

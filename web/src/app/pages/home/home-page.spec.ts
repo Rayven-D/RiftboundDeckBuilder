@@ -1,10 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { SIGN_IN_ENABLED } from '../../core/sync/sign-in-flag';
 import { HomePage } from './home-page';
 
 describe('HomePage', () => {
-  async function render() {
-    TestBed.configureTestingModule({ imports: [HomePage], providers: [provideRouter([])] });
+  async function render(signInEnabled = false) {
+    TestBed.configureTestingModule({
+      imports: [HomePage],
+      providers: [provideRouter([]), { provide: SIGN_IN_ENABLED, useValue: signInEnabled }],
+    });
     const fixture = TestBed.createComponent(HomePage);
     await fixture.whenStable();
     return fixture.nativeElement as HTMLElement;
@@ -53,5 +57,15 @@ describe('HomePage', () => {
     ]) {
       expect(text).not.toContain(word);
     }
+  });
+
+  it('H-126: local-only mode (signInEnabled false) shows the hero note "Free"', async () => {
+    const el = await render(false);
+    expect(el.querySelector('.hero-note')?.textContent?.trim()).toBe('Free');
+  });
+
+  it('H-126: account-required mode (signInEnabled true) shows the hero note "Free account"', async () => {
+    const el = await render(true);
+    expect(el.querySelector('.hero-note')?.textContent?.trim()).toBe('Free account');
   });
 });

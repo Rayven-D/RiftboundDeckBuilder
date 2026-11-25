@@ -11,6 +11,7 @@ import {
   AuthService,
   CollectionDoc,
   DeckDoc,
+  DeleteAllResult,
   LocksDoc,
   Ms,
   PullResult,
@@ -36,6 +37,8 @@ export class FakeFirestore {
   deletes = 0;
   /** Every write in order, for assertions: [path, kind]. */
   readonly writeLog: [string, 'set' | 'update' | 'delete'][] = [];
+  /** Every `push()` call's changes as sent (a clone), for assertions on the payload shape (SYNC-050). */
+  readonly pushLog: PushChanges[] = [];
   serverTime: Ms = Date.UTC(2026, 10, 23, 12);
   private lastSynced = 0;
 
@@ -55,6 +58,7 @@ export class FakeFirestore {
     this.writes = 0;
     this.deletes = 0;
     this.writeLog.length = 0;
+    this.pushLog.length = 0;
   }
 }
 
@@ -74,10 +78,12 @@ export class FakeRemote implements RemoteStore {
   failRules: FailRule[] = [];
   /** Every pull and account get fails with this code. */
   pullError: RemoteErrorCode | null = null;
-  /** First-sign-in tests: a batch commits only its first N writes (the adapter writes in chunks), the rest fail. */
-  failBatchAfter: number | null = null;
-  /** SYNC-096 retry tests: fail deletion after this many deletes. */
+  /** SYNC-096 retry tests: fail deletion after this many deletes (once). */
   failDeleteAfter: number | null = null;
+  /** SYNC-096: the code of that failed delete; `'unconfirmed'` may have landed, so it counts as removed. */
+  failDeleteCode: RemoteErrorCode = 'unknown';
+  /** SYNC-096: the deck-list read before the first delete fails (once), so nothing is deleted. */
+  failDeckList = false;
 
   constructor(readonly db: FakeFirestore) {}
 
@@ -124,6 +130,7 @@ export class FakeRemote implements RemoteStore {
 
   async push(uid: string, ch: PushChanges): Promise<PushOutcome> {
     this.checkUp();
+    this.db.pushLog.push(structuredClone(ch));
     const ops: { ref: string; path: string; apply: () => void; create: boolean }[] = [];
     const base = `users/${uid}`;
     const exists = (p: string) => this.db.docs.has(p);
@@ -194,7 +201,6 @@ export class FakeRemote implements RemoteStore {
     }
 
     const outcome: PushOutcome = {};
-    const accountAfter = () => exists(base) || ops.some((o) => o.ref === 'account' && ch.account?.create);
     const check = (o: (typeof ops)[number]): RemoteErrorCode | null => {
       for (const r of this.failRules) {
         if ((r.ref === '*' || r.ref === o.ref) && (!r.createsOnly || o.create)) {
@@ -202,39 +208,11 @@ export class FakeRemote implements RemoteStore {
           return r.code;
         }
       }
-      // SYNC-113: creating a state or decks document needs the account document after the write.
-      if (o.create && o.ref !== 'account' && !o.ref.startsWith('delete:') && !accountAfter()) return 'permission-denied';
+      // SYNC-113: creating a state or decks document needs the account document after the write. Writes
+      // are applied one by one in order (no batches, SYNC-050), so an account created earlier in this push counts.
+      if (o.create && o.ref !== 'account' && !o.ref.startsWith('delete:') && !exists(base)) return 'permission-denied';
       return null;
     };
-    if (ch.batch && this.failBatchAfter !== null) {
-      const n = this.failBatchAfter;
-      this.failBatchAfter = null;
-      ops.forEach((o, i) => {
-        if (i < n) {
-          o.apply();
-          outcome[o.ref] = 'ok';
-        } else outcome[o.ref] = 'unconfirmed';
-      });
-      return outcome;
-    }
-    if (ch.batch) {
-      const codes = ops.map(check);
-      const bad = codes.find((c) => c !== null);
-      if (bad) {
-        for (const o of ops) outcome[o.ref] = bad;
-        return outcome;
-      }
-      const snapshot = new Map(this.db.docs);
-      try {
-        for (const o of ops) o.apply();
-        for (const o of ops) outcome[o.ref] = 'ok';
-      } catch (e) {
-        this.db.docs.clear();
-        for (const [k, v] of snapshot) this.db.docs.set(k, v);
-        for (const o of ops) outcome[o.ref] = e instanceof RemoteError ? e.code : 'unknown';
-      }
-      return outcome;
-    }
     for (const o of ops) {
       const code = check(o);
       if (code) {
@@ -251,8 +229,12 @@ export class FakeRemote implements RemoteStore {
     return outcome;
   }
 
-  async deleteAll(uid: string): Promise<'ok' | { remaining: number }> {
+  async deleteAll(uid: string): Promise<DeleteAllResult> {
     this.checkUp();
+    if (this.failDeckList) {
+      this.failDeckList = false;
+      return { remaining: 4, removedAny: false };
+    }
     const base = `users/${uid}`;
     const order = [
       base,
@@ -265,7 +247,7 @@ export class FakeRemote implements RemoteStore {
     for (let i = 0; i < order.length; i++) {
       if (this.failDeleteAfter !== null && this.db.deletes >= this.failDeleteAfter) {
         this.failDeleteAfter = null;
-        return { remaining: order.length - i };
+        return { remaining: order.length - i, removedAny: i > 0 || this.failDeleteCode === 'unconfirmed' };
       }
       this.del(order[i]);
     }
@@ -312,6 +294,10 @@ export class FakeAuth implements AuthService {
   signOuts = 0;
   deletedUser = false;
   emailLinksSent: string[] = [];
+  /** H-145: what `signIn()` throws when `nextSignIn` is 'error' (e.g. `{ code: 'auth/expired-action-code' }`). */
+  signInError: unknown = undefined;
+  /** What `currentEmail()` reports (SYNC-003, H-141); null = Auth has no address for the user. */
+  email: string | null = null;
   /** Order of calls, for SYNC-096 ordering checks. */
   readonly calls: string[] = [];
 
@@ -327,15 +313,21 @@ export class FakeAuth implements AuthService {
   }
   async signIn(): Promise<{ uid: string } | 'cancelled'> {
     if (this.nextSignIn === 'cancelled') return 'cancelled';
-    if (this.nextSignIn === 'error') throw new Error('popup blocked');
+    if (this.nextSignIn === 'error') throw this.signInError ?? new Error('popup blocked');
     this.uid = this.nextSignIn;
     return { uid: this.uid };
   }
-  async sendEmailLink(email: string): Promise<void> {
+  /** H-145: the `returnTo` of each send, in order (undefined when the caller passed none). */
+  emailLinkReturns: (string | undefined)[] = [];
+  async sendEmailLink(email: string, returnTo?: string): Promise<void> {
     this.emailLinksSent.push(email);
+    this.emailLinkReturns.push(returnTo);
   }
   isEmailLinkReturn(): boolean {
     return false;
+  }
+  currentEmail(): string | null {
+    return this.uid ? this.email : null;
   }
   async signOut(): Promise<void> {
     this.signOuts++;
@@ -343,6 +335,11 @@ export class FakeAuth implements AuthService {
   }
   needsRecentSignIn(): boolean {
     return !this.recentSignIn;
+  }
+  /** SYNC-095 (H-143): as the adapter, Google enabled and a Google identity (`googleIdentity`). */
+  googleIdentity = false;
+  canReauthenticate(): boolean {
+    return this.uid !== null && this.enabled.includes('google') && this.googleIdentity;
   }
   async reauthenticate(): Promise<'ok' | 'cancelled' | 'needs-sign-in'> {
     this.calls.push('reauthenticate');

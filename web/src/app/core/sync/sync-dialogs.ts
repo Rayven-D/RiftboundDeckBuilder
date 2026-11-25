@@ -1,4 +1,16 @@
-import { Component, inject, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  DOCUMENT,
+  ElementRef,
+  Injector,
+  Signal,
+  afterNextRender,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import {
   MAT_DIALOG_DATA,
@@ -10,14 +22,15 @@ import {
 } from '@angular/material/dialog';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
-import type { CombineQuestion } from '../../shared/sync/sync-engine';
+import type { ErrorStateMatcher } from '@angular/material/core';
 import type { AuthProviderInfo } from '../../shared/sync/sync-types';
 import { MESSAGES } from '../../shared/sync/sync-engine';
 import { unsyncedWarning } from '../../shared/sync/status-text';
+import { Icon } from '../../shared/icon';
 
 /**
- * SPEC-010 dialogs: sign in (SYNC-003, SYNC-006), Combine (SYNC-049), sign out (SYNC-090), delete
- * account (SYNC-095). Small Angular Material dialogs in the style of the import dialog.
+ * SPEC-010 dialogs: sign in (SYNC-003, SYNC-006), sign out (SYNC-090), delete account (SYNC-095). There is
+ * no Combine dialog (SYNC-049, v0.8). Small Angular Material dialogs in the style of the import dialog.
  */
 
 export interface SignInDialogData {
@@ -27,59 +40,128 @@ export interface SignInDialogData {
   sendEmailLink: (email: string) => Promise<void>;
 }
 
-/** SYNC-003 / SYNC-006: one button per enabled provider; closes with 'google' to start the Google popup, or nothing. */
+/** SYNC-003 (v0.8): no warning about legacy local data; the first sign-in clears it silently (SYNC-048). */
+export const SIGN_IN_INTRO =
+  "Sign in to import your cards and decks. They're saved to your account, so you'll see them on any device you sign in on.";
+
+/** Per-instance id for the send-failure line (aria-describedby target). */
+let signInDialogSeq = 0;
+
+/**
+ * SYNC-006 (v0.10, H-105): a failed Send link shows this under the field, never the SYNC-005 sign-in text
+ * (`MESSAGES.signInFailed`). Kept beside the dialog: the engine never shows it (the send rejects to the caller).
+ */
+export const SEND_LINK_FAILED = "Couldn't send the link. Check the address and your connection, then try again.";
+
+/** SYNC-006 sent state (v0.10, H-140): the sentence after the address, and the spam hint. */
+export const SENT_TAIL = 'Open it on this device to finish signing in.';
+export const SPAM_HINT = "Didn't get it? Check your spam folder.";
+
+/**
+ * SYNC-003 / SYNC-006 (v0.10, brain/04-UI/Brief H-104 H-106 H-124.md). (a) Email link as the only provider:
+ * no provider button, the email form shows at once and `autoFocus: 'first-tabbable'` puts focus in the field.
+ * (b) Two or more providers: one outlined button each; "Sign in with an email link" reveals the form and moves
+ * focus into the field, so Send link is the only filled button. Closes with 'google' to start the Google popup,
+ * or nothing.
+ */
 @Component({
   selector: 'app-sign-in-dialog',
-  imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, MatFormField, MatLabel, MatInput],
+  imports: [
+    MatDialogTitle,
+    MatDialogContent,
+    MatDialogActions,
+    MatDialogClose,
+    MatButton,
+    MatFormField,
+    MatLabel,
+    MatInput,
+    Icon,
+  ],
   template: `
     <h2 mat-dialog-title>Sign in</h2>
     <mat-dialog-content>
-      <p>
-        Sign in to keep your collection and decks in sync across your devices. You don't need an account:
-        without one, everything stays on this device.
-      </p>
+      <p>{{ intro }}</p>
       @if (!data.online) {
         <p class="note" role="status">{{ offline }}</p>
       }
-      <div class="providers">
-        @for (p of data.providers; track p.id; let first = $first) {
-          @if (p.id === 'google') {
-            <button
-              [matButton]="first ? 'filled' : 'outlined'"
-              type="button"
-              [disabled]="!data.online"
-              [mat-dialog-close]="'google'"
-            >
-              {{ p.label }}
-            </button>
-          } @else {
-            <button
-              [matButton]="first ? 'filled' : 'outlined'"
-              type="button"
-              [disabled]="!data.online"
-              (click)="showEmail.set(true)"
-            >
-              {{ p.label }}
-            </button>
+      @if (!emailOnly) {
+        <div class="providers">
+          @for (p of data.providers; track p.id) {
+            @if (p.id === 'google') {
+              <button matButton="outlined" type="button" [disabled]="!data.online" [mat-dialog-close]="'google'">
+                {{ p.label }}
+              </button>
+            } @else {
+              <button matButton="outlined" type="button" [disabled]="!data.online" (click)="reveal()">
+                {{ p.label }}
+              </button>
+            }
           }
-        }
-      </div>
+        </div>
+      }
       @if (showEmail()) {
         @if (sent()) {
-          <p role="status">Check your email for a sign-in link.</p>
+          <!-- H-140 (SYNC-006 sent state): one block in the order you act on it. The sent line takes focus
+               after Send link (the focused button is gone with the form); role="status" announces the
+               "new" line after Send again, which keeps focus. -->
+          <div class="sent">
+            <p #sentLine class="sent-line" role="status" tabindex="-1">
+              We sent a {{ resent() ? 'new ' : '' }}sign-in link to <strong>{{ email() }}</strong>. {{ sentTail }}
+            </p>
+            <p class="note">{{ spamHint }}</p>
+            <div class="sent-actions">
+              <button
+                matButton
+                type="button"
+                class="resend"
+                [disabled]="sending()"
+                disabledInteractive
+                [attr.aria-describedby]="error() ? errorId : null"
+                (click)="sendAgain()"
+              >
+                {{ sending() ? 'Sending…' : 'Send again' }}
+              </button>
+              <button matButton type="button" [disabled]="sending()" disabledInteractive (click)="useDifferentEmail()">
+                Use a different email
+              </button>
+            </div>
+            <!-- Persistent live region: a Send again failure is announced once, politely (no field to mark). -->
+            <div role="status">
+              @if (error(); as err) {
+                <p class="error" [id]="errorId"><app-icon name="error" />{{ err }}</p>
+              }
+            </div>
+          </div>
         } @else {
-          <form class="email" (submit)="send($event)">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <!-- novalidate: Send link uses disabledInteractive, so the browser's own validation bubble must not
+               pop on a click or Enter; canSend() and the dialog's own text are the only feedback. -->
+          <form class="email" novalidate (submit)="send($event)">
+            <mat-form-field
+              appearance="outline"
+              subscriptSizing="dynamic"
+              hideRequiredMarker
+              [class.send-failed]="!!error()"
+            >
               <mat-label>Email address</mat-label>
-              <input matInput type="email" autocomplete="email" required [value]="email()" (input)="onEmail($event)" />
+              <input
+                #emailInput
+                matInput
+                type="email"
+                autocomplete="email"
+                required
+                [value]="email()"
+                [errorStateMatcher]="sendFailedMatcher"
+                [aria-describedby]="error() ? errorId : ''"
+                (input)="onEmail($event)"
+              />
             </mat-form-field>
-            <button matButton="filled" type="submit" [disabled]="!data.online || !email().includes('@') || sending()">
-              Send link
+            <button matButton="filled" type="submit" class="send" [disabled]="!canSend()" disabledInteractive>
+              {{ sending() ? 'Sending…' : 'Send link' }}
             </button>
+            @if (error(); as err) {
+              <p class="error" [id]="errorId"><app-icon name="error" />{{ err }}</p>
+            }
           </form>
-          @if (error()) {
-            <p class="note" role="alert">{{ error() }}</p>
-          }
         }
       }
       <!-- SYNC-101: the privacy notice link goes here once the notice exists (BLOCKED, H-069). -->
@@ -90,102 +172,355 @@ export interface SignInDialogData {
   `,
   styles: `
     .providers { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0; }
-    .email { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+    /* H-139: room below Send link (48px touch target on a 40px button) so its focus ring is not clipped. */
+    .email { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-bottom: var(--space-1); }
+    .email mat-form-field { flex: 1 1 16rem; }
+    /* The label swaps to "Sending…": a min-width keeps the button the same width on desktop (H-106). */
+    .send { min-width: 7.5rem; }
+    /* H-106: icon + danger text, the import dialog's pattern; flex-start keeps the icon on line 1 when it wraps. */
+    .error {
+      flex-basis: 100%;
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-1);
+      margin: var(--space-2) 0 0;
+      color: var(--color-danger);
+      font-size: var(--font-size-sm);
+    }
+    .error app-icon { flex: none; }
     .note { color: var(--color-text-muted); }
+    /* H-140 sent state. */
+    .sent-line { outline: none; } /* focused by script only (not a control); the H-139 ring is for controls */
+    .sent-line strong { font-weight: 600; overflow-wrap: anywhere; }
+    /* Text buttons pulled left by their 12px padding so the labels line up with the paragraphs. */
+    .sent-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      margin-inline-start: calc(-1 * var(--space-3));
+      padding-bottom: var(--space-1); /* the last button's focus ring stays clear of the scroll edge */
+    }
+    /* Sending… is shorter than Send again: a min-width keeps the width, start-aligned so the label stays put. */
+    .resend { min-width: 6rem; justify-content: flex-start; }
+    .sent .error { margin: var(--space-2) 0 0; }
+    /* H-124: phones get a full-width field with a full-width Send link below it. */
+    @media (max-width: 40rem) {
+      .email { flex-direction: column; align-items: stretch; gap: var(--space-3); }
+      .email mat-form-field { flex: none; }
+      .error { margin: 0; }
+      /* H-140: two labels plus the gap don't fit in 280px; stacked, the 48px touch targets give the spacing. */
+      .sent-actions { flex-direction: column; align-items: flex-start; gap: 0; }
+    }
   `,
 })
 export class SignInDialog {
   protected readonly data = inject<SignInDialogData>(MAT_DIALOG_DATA);
+  private readonly injector = inject(Injector);
+  /** A send can settle after the dialog closed: then nothing is updated or focused. */
+  private destroyed = false;
+  protected readonly intro = SIGN_IN_INTRO;
   protected readonly offline = MESSAGES.offline;
-  protected readonly showEmail = signal(false);
+  protected readonly errorId = `send-error-${++signInDialogSeq}`;
+  /**
+   * H-106: the field is invalid while the send-failure line shows. MatInput owns `aria-invalid` (its host
+   * binding), so the dialog drives MatInput's error state instead of writing the attribute itself: "true"
+   * with the failure, Material's "false" on a filled field without one, absent while empty.
+   */
+  protected readonly sendFailedMatcher: ErrorStateMatcher = { isErrorState: () => this.error() !== null };
+  /** SYNC-006 (a): email link is the only provider, so there is no provider button and the form shows at once. */
+  protected readonly emailOnly = this.data.providers.length === 1 && this.data.providers[0].id === 'email-link';
+  protected readonly showEmail = signal(this.emailOnly);
   protected readonly email = signal('');
   protected readonly sending = signal(false);
   protected readonly sent = signal(false);
+  /** H-140: a Send again succeeded, so the line says "a new sign-in link". Reset by Use a different email. */
+  protected readonly resent = signal(false);
+  protected readonly sentTail = SENT_TAIL;
+  protected readonly spamHint = SPAM_HINT;
   protected readonly error = signal<string | null>(null);
+  protected readonly canSend = computed(() => this.data.online && this.email().includes('@') && !this.sending());
+  private readonly emailInput = viewChild<ElementRef<HTMLInputElement>>('emailInput');
+  private readonly matInput = viewChild(MatInput);
+  private readonly sentLine = viewChild<ElementRef<HTMLElement>>('sentLine');
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => (this.destroyed = true));
+  }
+
+  /** SYNC-006 (b): reveals the email form (not a toggle) and moves focus into the field once it has rendered. */
+  protected reveal(): void {
+    this.showEmail.set(true);
+    this.focusEmail();
+  }
+
+  protected onEmail(e: Event): void {
+    this.email.set((e.target as HTMLInputElement).value.trim());
+    this.setError(null); // H-106: the failure clears on the first edit
+  }
+
+  protected async send(e: Event): Promise<void> {
+    e.preventDefault();
+    if (!this.canSend()) return; // disabledInteractive keeps the button focusable, so guard here too
+    this.sending.set(true);
+    this.setError(null);
+    try {
+      await this.data.sendEmailLink(this.email());
+      if (this.destroyed) return;
+      // SYNC-006: the form is replaced by the sent state. From the form it is always the plain line.
+      this.resent.set(false);
+      this.sent.set(true);
+      this.focusSentLine();
+    } catch {
+      if (this.destroyed) return; // closed while sending: no view left to mark or focus
+      // SYNC-005 v0.10: a failed send is not a failed sign-in. Focus goes to the field, which reads as invalid
+      // with the message as its description, so a screen reader announces it once (no role="alert").
+      this.setError(SEND_LINK_FAILED);
+      this.focusEmail();
+    } finally {
+      if (!this.destroyed) this.sending.set(false);
+    }
+  }
+
+  /**
+   * H-140 Send again: a new link to the same address, no cooldown. Both actions are disabled (but stay
+   * focusable, disabledInteractive) while it runs, so focus stays on Send again. A failure keeps the sent
+   * state and shows the send-failure line under the actions.
+   */
+  protected async sendAgain(): Promise<void> {
+    if (this.sending()) return; // disabledInteractive keeps the button focusable, so guard here too
+    this.sending.set(true);
+    this.setError(null);
+    try {
+      await this.data.sendEmailLink(this.email());
+      if (this.destroyed) return;
+      this.resent.set(true);
+    } catch {
+      if (this.destroyed) return;
+      this.setError(SEND_LINK_FAILED);
+    } finally {
+      if (!this.destroyed) this.sending.set(false);
+    }
+  }
+
+  /**
+   * H-140 Use a different email: back to the form with the last address in the field and focus in it. The
+   * stored address is untouched here: the adapter replaces it only when a new Send link succeeds.
+   */
+  protected useDifferentEmail(): void {
+    if (this.sending()) return;
+    this.sent.set(false);
+    this.resent.set(false);
+    this.setError(null);
+    this.focusEmail();
+  }
+
+  private focusSentLine(): void {
+    afterNextRender(() => this.sentLine()?.nativeElement.focus(), { injector: this.injector });
+  }
+
+  private setError(message: string | null): void {
+    this.error.set(message);
+    this.matInput()?.updateErrorState(); // no NgControl, so MatInput only re-reads the matcher when asked
+  }
+
+  private focusEmail(): void {
+    if (this.destroyed) return;
+    afterNextRender(() => this.emailInput()?.nativeElement.focus(), { injector: this.injector });
+  }
+}
+
+/** SYNC-006: asked when an email sign-in link is opened on a device with no stored address. */
+export const CONFIRM_EMAIL_TEXT = 'Confirm your email address to finish signing in.';
+
+let confirmEmailSeq = 0;
+
+/**
+ * H-108 (brain/04-UI/Brief H-140 H-125 H-108.md decisions 12-14): the other-device confirm, replacing the
+ * browser's native prompt dialog. The sign-in dialog's style, smaller: one Email address field, Cancel and
+ * Finish sign-in.
+ * Closes with the trimmed address; Cancel, Escape and the backdrop close with undefined, which the service
+ * treats as a cancelled sign-in (SYNC-005: no sign-in, no message).
+ */
+@Component({
+  selector: 'app-confirm-email-dialog',
+  imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, MatFormField, MatLabel, MatInput],
+  template: `
+    <h2 mat-dialog-title>Finish signing in</h2>
+    <mat-dialog-content>
+      <p>{{ text }}</p>
+      <!-- novalidate: canFinish() is the only check. Enter submits through the form's default button
+           (Finish sign-in, linked by the form attribute), so with no '@' it does nothing. -->
+      <form [id]="formId" novalidate (submit)="finish($event)">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" hideRequiredMarker class="field">
+          <mat-label>Email address</mat-label>
+          <input matInput type="email" autocomplete="email" required (input)="onEmail($event)" />
+        </mat-form-field>
+      </form>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button matButton type="button" mat-dialog-close>Cancel</button>
+      <button matButton="filled" type="submit" [attr.form]="formId" [disabled]="!canFinish()">Finish sign-in</button>
+    </mat-dialog-actions>
+  `,
+  styles: `
+    .field { width: 100%; }
+  `,
+})
+export class ConfirmEmailDialog {
+  private readonly ref = inject(MatDialogRef<ConfirmEmailDialog, string>);
+  protected readonly text = CONFIRM_EMAIL_TEXT;
+  protected readonly formId = `confirm-email-${++confirmEmailSeq}`;
+  protected readonly email = signal('');
+  protected readonly canFinish = computed(() => this.email().includes('@'));
 
   protected onEmail(e: Event): void {
     this.email.set((e.target as HTMLInputElement).value.trim());
   }
 
-  protected async send(e: Event): Promise<void> {
+  protected finish(e: Event): void {
     e.preventDefault();
-    this.sending.set(true);
-    this.error.set(null);
-    try {
-      await this.data.sendEmailLink(this.email());
-      this.sent.set(true);
-    } catch {
-      this.error.set(MESSAGES.signInFailed);
-    } finally {
-      this.sending.set(false);
-    }
+    if (this.canFinish()) this.ref.close(this.email());
   }
 }
 
-/** SYNC-049: Combine (primary) and Cancel, and no other choice (RJ decision 5). */
-@Component({
-  selector: 'app-combine-dialog',
-  imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton],
-  template: `
-    <h2 mat-dialog-title>Combine your data?</h2>
-    <mat-dialog-content>
-      <p>
-        This device and your account both have data. Combine them? You'll have the newest version of each
-        card count, tag and deck.
-      </p>
-      <p>
-        This device: {{ q.device.cards }} cards, {{ q.device.decks }} decks, {{ q.device.tags }} tags. Account:
-        {{ q.account.cards }} cards, {{ q.account.decks }} decks, {{ q.account.tags }} tags.
-      </p>
-      @if (q.differentAccount) {
-        <p>{{ differentAccount }}</p>
-      }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button matButton type="button" [mat-dialog-close]="'cancel'">Cancel</button>
-      <button matButton="filled" type="button" [mat-dialog-close]="'combine'">Combine</button>
-    </mat-dialog-actions>
-  `,
-})
-export class CombineDialog {
-  protected readonly q = inject<CombineQuestion>(MAT_DIALOG_DATA);
-  protected readonly differentAccount = MESSAGES.differentAccount;
-}
-
 export interface SignOutDialogData {
-  pending: number;
-  online: boolean;
+  /** Pending (and rejected) changes right now (SYNC-084, SYNC-118). */
+  pending: () => number;
+  /** Live connection state (SYNC-081): the dialog reacts when it drops or returns. */
+  online: Signal<boolean>;
+  /** Sync now with the dialog open (SYNC-040, SYNC-043). */
+  syncNow: () => Promise<void>;
 }
-export type SignOutChoice = 'keep' | 'remove' | 'sync';
 
-/** SYNC-090: Keep a copy on this device is the primary button (RJ decision 6). */
+export const SIGN_OUT_TEXT =
+  'Your collection and decks stay in your account and are removed from this device. Sign in again to get them back.';
+
+/**
+ * SYNC-090 (v0.8): one choice, Sign out, which clears this device (SYNC-091); no Keep a copy. With unsynced
+ * changes it first warns, with Sync now (primary), Sign out anyway and Cancel. Offline (SYNC-081) every button
+ * that syncs or signs out is disabled and only Cancel works. Closes with `true` to sign out.
+ * v0.10 (H-122, brain/04-UI/Brief H-143 H-122.md decisions 11-17): the explanation is always rendered, muted
+ * under the warning while it shows; Sync now reads "Syncing…" while it runs, with Sync now and Sign out anyway
+ * disabled and Cancel enabled.
+ */
 @Component({
   selector: 'app-sign-out-dialog',
   imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton],
   template: `
     <h2 mat-dialog-title>Sign out?</h2>
     <mat-dialog-content>
-      <p>Your collection and decks stay in your account.</p>
-      @if (warning) {
-        <p role="alert">{{ warning }}</p>
+      @if (warning(); as w) {
+        <p class="warning" role="alert">{{ w }}</p>
+      }
+      <!-- H-122: one element, never swapped, so it just becomes the main line when the warning goes away. -->
+      <p class="explanation" [class.note]="!!warning()">{{ text }}</p>
+      @if (!data.online()) {
+        <p class="note" role="status">{{ offline }}</p>
       }
     </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button matButton type="button" mat-dialog-close>Cancel</button>
-      @if (warning) {
-        <button matButton type="button" [disabled]="!data.online" [mat-dialog-close]="'sync'">Sync now</button>
+    <mat-dialog-actions align="end" [class.stack]="!!warning()">
+      <button #cancelButton matButton type="button" mat-dialog-close>Cancel</button>
+      @if (warning()) {
+        <button matButton="outlined" type="button" [disabled]="disabled()" [mat-dialog-close]="true">Sign out anyway</button>
+        <!-- disabledInteractive: it has focus when it disables, so focus must not drop to body (guarded in syncNow). -->
+        <button matButton="filled" type="button" class="sync" [disabled]="disabled()" disabledInteractive (click)="syncNow()">
+          {{ syncing() ? 'Syncing…' : 'Sync now' }}
+        </button>
+      } @else {
+        <button #signOutButton matButton="filled" type="button" [disabled]="disabled()" [mat-dialog-close]="true">
+          Sign out
+        </button>
       }
-      <button matButton="outlined" type="button" [mat-dialog-close]="'remove'">Remove from this device</button>
-      <button matButton="filled" type="button" [mat-dialog-close]="'keep'" cdkFocusInitial>Keep a copy on this device</button>
     </mat-dialog-actions>
+  `,
+  styles: `
+    .note { color: var(--color-text-muted); }
+    /* H-122: the warning and the explanation read as one pair. */
+    .warning { margin-bottom: var(--space-2); }
+    /* The margins would collapse to the explanation's 1em top margin (14px): the pair keeps the 8px gap. */
+    .warning + .explanation { margin-top: 0; }
+    /* "Syncing…" and "Sync now" fit in one width, so the row doesn't shift (as .send, H-106). */
+    .sync { min-width: 7.5rem; }
+    /* H-122: three actions don't fit on a phone row: stack them full width in DOM order (Cancel on top,
+       Sync now last, nearest the thumb). The plain two-button state stays a row. */
+    @media (max-width: 40rem) {
+      .stack { flex-direction: column; align-items: stretch; gap: var(--space-2); }
+      .stack .mat-mdc-button-base { margin: 0; }
+    }
   `,
 })
 export class SignOutDialog {
   protected readonly data = inject<SignOutDialogData>(MAT_DIALOG_DATA);
-  protected readonly warning = unsyncedWarning(this.data.pending);
+  private readonly injector = inject(Injector);
+  /** A sync can settle after the dialog closed (Cancel stays enabled): then nothing is updated or focused. */
+  private destroyed = false;
+  protected readonly text = SIGN_OUT_TEXT;
+  protected readonly offline = MESSAGES.offline;
+  private readonly pending = signal(this.data.pending());
+  protected readonly syncing = signal(false);
+  protected readonly warning = computed(() => unsyncedWarning(this.pending()));
+  protected readonly disabled = computed(() => !this.data.online() || this.syncing());
+  private readonly signOutButton = viewChild('signOutButton', { read: ElementRef<HTMLButtonElement> });
+  private readonly cancelButton = viewChild('cancelButton', { read: ElementRef<HTMLButtonElement> });
+  private readonly doc = inject(DOCUMENT);
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => (this.destroyed = true));
+  }
+
+  /**
+   * Runs a sync with the dialog open, then shows the plain question or the warning with the new count. When
+   * nothing is pending any more, Sync now has left the DOM, so focus moves to Sign out (the next step).
+   */
+  protected async syncNow(): Promise<void> {
+    if (this.disabled()) return; // disabledInteractive still sends clicks
+    this.syncing.set(true);
+    try {
+      await this.data.syncNow();
+    } catch {
+      // The engine reports sync failures itself (status line, notices); the dialog only re-reads the count.
+    } finally {
+      if (!this.destroyed) {
+        this.pending.set(this.data.pending());
+        this.syncing.set(false);
+        if (this.pending() === 0) afterNextRender(() => this.focusAfterSync(), { injector: this.injector });
+      }
+    }
+  }
+
+  /**
+   * The removed Sync now button had focus, so it is on <body> now. Sign out is the next step; when it is natively
+   * disabled (offline) Cancel takes focus instead. Focus the user moved meanwhile (e.g. to Cancel) is kept.
+   */
+  private focusAfterSync(): void {
+    if (this.destroyed) return;
+    const active = this.doc.activeElement;
+    if (active && active !== this.doc.body && active.isConnected) return;
+    const signOut = this.signOutButton()?.nativeElement;
+    (signOut && !signOut.disabled ? signOut : this.cancelButton()?.nativeElement)?.focus();
+  }
 }
 
-/** SYNC-095: type `delete` to enable Delete account; no keep-a-copy option (RJ decision 7). */
+export interface DeleteAccountDialogData {
+  /**
+   * SYNC-095 (v0.10, H-143): decided once at open: `needsRecentSignIn() && !canReauthenticate()`. True = the
+   * sign-in-first state (no field, no Delete account; Sign out hands off to the SYNC-090 dialog).
+   */
+  signInFirst: boolean;
+}
+
+/** `true` = delete (type-to-confirm state); `'sign-out'` = open the SYNC-090 dialog (sign-in-first state). */
+export type DeleteAccountDialogResult = true | 'sign-out';
+
+/** Per-instance id for the step 1 sentence (Sign out's aria-describedby target). */
+let deleteDialogSeq = 0;
+
+/**
+ * SYNC-095: type `delete` to enable Delete account; no keep-a-copy option (RJ decision 7). Sign-in-first state
+ * (v0.10, H-143, brain/04-UI/Brief H-143 H-122.md decisions 1-6): the SYNC-096 step 1 sentence as plain body
+ * text, no field, no Delete account, and Cancel + Sign out (filled, not danger). Without data it is the
+ * type-to-confirm state.
+ */
 @Component({
   selector: 'app-delete-account-dialog',
   imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, MatFormField, MatLabel, MatInput],
@@ -196,21 +531,37 @@ export class SignOutDialog {
         This deletes your account and the collection, tags, decks and locks saved in it, including the copy on
         this device and on every other device that syncs it. This can't be undone.
       </p>
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Type delete to confirm</mat-label>
-        <input matInput autocomplete="off" [value]="typed()" (input)="onType($event)" />
-      </mat-form-field>
+      @if (signInFirst) {
+        <!-- Plain body text, no role or live region: it is there from the start (Brief decisions 3-4). -->
+        <p [id]="stepId">{{ reauthNeeded }}</p>
+      } @else {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Type delete to confirm</mat-label>
+          <input matInput autocomplete="off" [value]="typed()" (input)="onType($event)" />
+        </mat-form-field>
+      }
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button matButton type="button" mat-dialog-close>Cancel</button>
-      <button matButton="filled" type="button" class="danger" [disabled]="typed() !== 'delete'" (click)="confirm()">
-        Delete account
-      </button>
+      @if (signInFirst) {
+        <button matButton="filled" type="button" [attr.aria-describedby]="stepId" [mat-dialog-close]="'sign-out'">
+          Sign out
+        </button>
+      } @else {
+        <button matButton="filled" type="button" class="danger" [disabled]="typed() !== 'delete'" (click)="confirm()">
+          Delete account
+        </button>
+      }
     </mat-dialog-actions>
   `,
 })
 export class DeleteAccountDialog {
-  private readonly ref = inject(MatDialogRef<DeleteAccountDialog, boolean>);
+  private readonly ref = inject(MatDialogRef<DeleteAccountDialog, DeleteAccountDialogResult>);
+  private readonly data = inject<DeleteAccountDialogData | null>(MAT_DIALOG_DATA, { optional: true });
+  protected readonly signInFirst = this.data?.signInFirst === true;
+  /** SYNC-095 reuses the SYNC-096 step 1 text, so there is one string. */
+  protected readonly reauthNeeded = MESSAGES.reauthNeeded;
+  protected readonly stepId = `delete-step1-${++deleteDialogSeq}`;
   protected readonly typed = signal('');
 
   protected onType(e: Event): void {

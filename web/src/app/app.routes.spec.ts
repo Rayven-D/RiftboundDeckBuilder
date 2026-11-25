@@ -2,11 +2,13 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from './app.routes';
+import { SIGN_IN_ENABLED } from './core/sync/sign-in-flag';
 
 describe('routes', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideRouter(routes, withComponentInputBinding())],
+      // Local-only mode (SYNC-008): no sign-in gate. The gate is covered in pages/gated-pages.spec.ts.
+      providers: [provideRouter(routes, withComponentInputBinding()), { provide: SIGN_IN_ENABLED, useValue: false }],
     });
   });
 

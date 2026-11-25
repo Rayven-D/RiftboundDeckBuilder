@@ -1,6 +1,5 @@
 import {
   CollectionCard,
-  LIMITS,
   StoredCollection,
   StoredDeckLocks,
   StoredTags,
@@ -70,7 +69,6 @@ export interface MergeInput {
   local: LocalSnapshot;
   log: StoredSyncLog;
   pulled: PulledDocs;
-  mode: 'regular' | 'combine';
   /** SYNC-044 applies only on a device that completed a full read with this uid before. */
   absentMeansDeleted: boolean;
   now: Ms;
@@ -147,7 +145,7 @@ const addCloudDoc = (log: StoredSyncLog, ref: string) => {
 };
 
 export function mergePulled(input: MergeInput): MergeResult {
-  const { local, pulled, mode, now, absentMeansDeleted } = input;
+  const { local, pulled, now, absentMeansDeleted } = input;
   const log = cloneLog(input.log);
   const result: MergeResult = { decksPut: [], decksDelete: [], log, notices: [], invalid: false, newerSchema: [] };
   const iso = msToIso(now);
@@ -264,11 +262,11 @@ export function mergePulled(input: MergeInput): MergeResult {
   }
 
   // ---- Tags and assignments (SYNC-015, SYNC-064…066) ----
-  if (local.tags !== 'unreadable' && (pulled.tags || mode === 'combine')) {
+  if (local.tags !== 'unreadable' && pulled.tags) {
     const doc = pulled.tags;
     if (doc && doc.schemaVersion > KNOWN_DOC_SCHEMA) result.newerSchema.push('tags');
     else {
-      const merged = mergeTags(local.tags, doc, log, mode, absentMeansDeleted, now, result);
+      const merged = mergeTags(local.tags, doc, log, absentMeansDeleted, now, result);
       if (merged) {
         result.tags = { ...merged, updatedAt: iso };
         log.recordUpdatedAt.tags = iso;
@@ -343,7 +341,6 @@ function mergeTags(
   local: StoredTags | null,
   doc: TagsDoc | undefined,
   log: StoredSyncLog,
-  mode: 'regular' | 'combine',
   absentMeansDeleted: boolean,
   now: Ms,
   result: MergeResult,
@@ -386,39 +383,18 @@ function mergeTags(
       unreject(log, 'tags', id);
     }
 
-    let capped = 0;
     for (const [target, ca] of Object.entries(doc.assignments ?? {})) {
       if (!validAssignment(ca)) {
         result.invalid = true;
         continue;
       }
       const e = log.assignments[target];
-      const mine = lists.get(target) ?? [];
-      if (mode === 'combine' && mine.length > 0) {
-        // SYNC-064: union, cloud ids first, capped at 20.
-        const union = [...ca.a, ...mine.filter((x) => !ca.a.includes(x))];
-        if (union.length > LIMITS.maxTagsPerTarget) capped++;
-        const list = union.slice(0, LIMITS.maxTagsPerTarget);
-        if (canonicalJson(list) === canonicalJson(ca.a)) takeCloudList(target, ca.a, ca.t);
-        else {
-          if (canonicalJson(list) !== canonicalJson(mine)) changed = true;
-          lists.set(target, list);
-          log.assignments[target] = {
-            t: Math.max(nextStamp(now, ca.t), nextStamp(now, e?.t)),
-            deleted: false,
-            h: hashAssignment(list),
-          };
-          addPending(log, 'assignments', target);
-        }
-        continue;
-      }
       if (ca.t < (e?.t ?? -Infinity)) {
         addPending(log, 'assignments', target);
         continue;
       }
       takeCloudList(target, ca.a, ca.t);
     }
-    if (capped > 0) result.notices.push(`${capped} entries had more than 20 tags; some tags were not added.`);
 
     if (absentMeansDeleted) {
       for (const id of Object.keys(log.tags)) {
@@ -493,30 +469,3 @@ function mergeTags(
     changed = true;
   }
 }
-
-/** Live counts for the Combine dialog and summary (SYNC-049). */
-export function liveCounts(s: {
-  collection: Area<StoredCollection>;
-  tags: Area<StoredTags>;
-  decks: readonly UserDeck[];
-  locks?: Area<StoredDeckLocks>;
-}): { cards: number; decks: number; tags: number; locks: number } {
-  const rec = <T>(a: Area<T> | undefined): T | null => (a && a !== 'unreadable' ? a : null);
-  return {
-    cards: Object.keys(rec(s.collection)?.cards ?? {}).length,
-    decks: s.decks.length,
-    tags: rec(s.tags)?.tags.length ?? 0,
-    locks: rec(s.locks)?.locks.length ?? 0,
-  };
-}
-
-/** Live counts of what the cloud holds (SYNC-048 "has data", SYNC-049). */
-export function cloudCounts(p: PulledDocs): { cards: number; decks: number; tags: number; locks: number } {
-  return {
-    cards: Object.values(p.collection?.cards ?? {}).filter((c) => c.q > 0).length,
-    decks: Object.values(p.decks).filter((d) => !isDeckTombstone(d)).length,
-    tags: Object.values(p.tags?.tags ?? {}).filter((t) => !isTagTombstone(t)).length,
-    locks: Object.values(p.locks?.locks ?? {}).filter((l) => l.lockedAt !== null).length,
-  };
-}
-

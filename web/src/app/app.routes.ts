@@ -15,7 +15,7 @@ export const routes: Routes = [
   {
     path: 'collection',
     title: 'Collection · Rift Builder',
-    loadComponent: () => import('./pages/collection/collection-page').then((m) => m.CollectionPage),
+    loadComponent: () => import('./pages/collection/collection-gate').then((m) => m.CollectionGate),
   },
   {
     path: 'decks',

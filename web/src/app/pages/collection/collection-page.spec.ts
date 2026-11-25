@@ -10,6 +10,7 @@ import { AppStores } from '../../core/storage/app-stores';
 import { BrowserStores, createBrowserStores } from '../../core/storage/browser-stores';
 import { MemoryBackend } from '../../core/storage/kv-backend';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
+import { SIGN_IN_ENABLED } from '../../core/sync/sign-in-flag';
 import { generateLargeSample, sampleDeck } from '../../shared/collection/sample-data';
 import type { SampleData } from '../../shared/collection/sample-data';
 
@@ -57,6 +58,8 @@ async function setup(url: string, s: Setup = {}) {
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       { provide: AppStores, useValue: { stores } },
       { provide: CardData, useValue: cardData },
+      // Local-only mode (SPEC-010 SYNC-008): no sign-in gate. The gate is covered in pages/gated-pages.spec.ts.
+      { provide: SIGN_IN_ENABLED, useValue: false },
     ],
   });
   const harness = await RouterTestingHarness.create(url);

@@ -61,6 +61,29 @@ html {
     )
   );
 
+  /* H-110: menu dividers are the app's hairline. Material's menu default is --mat-sys-surface-variant (a teal
+     tint), not outline-variant; --mat-sys-surface-variant itself is left alone (other components use it). */
+  @include mat.menu-overrides(
+    (
+      divider-color: var(--color-border),
+    )
+  );
+
+  /* H-113 (Brief H-113 H-116 H-123 H-126): dialogs lift off the page (--mat-sys-surface is the page bg) and the
+     title and body text use --color-text, not Material's teal-tinted on-surface-variant, so the main line and the
+     muted .note differ. Lines with their own class (.note, .error, the import dialog's muted lines) keep their
+     colour. M3's dialog draws no shadow, so the lift shadow is added. .card-dialog-panel sets its own container
+     colour closer to the pane, so the card dialog keeps its own surface and border; it does get the lift shadow
+     (checked by the ui-engineer, kept). */
+  @include mat.dialog-overrides(
+    (
+      container-color: var(--color-surface-dialog),
+      container-elevation-shadow: var(--shadow-lift),
+      subhead-color: var(--color-text),
+      supporting-text-color: var(--color-text),
+    )
+  );
+
   /* Buttons use our accent and text colours, not Material's generated tones. */
   @include mat.button-overrides(
     (
@@ -70,6 +93,63 @@ html {
       outlined-label-text-color: var(--color-text),
       outlined-outline-color: var(--color-border),
       text-label-text-color: var(--color-accent-text),
+    )
+  );
+}
+
+/* H-102 danger variant (brain/04-UI/Brief H-102.md): class="danger" on any Material button. The mixin only
+ * sets --mat-button-* properties on the element, so the global overrides above and the H-139 focus ring
+ * (2px OUTSIDE: ring vs the fill is only 1.20 / 1.29) are untouched. Disabled is neutral, not red or teal:
+ * muted label on a 12% text-colour fill (H-113 dialog surface: 3.52 dark on raised, 5.04 light on white;
+ * inactive controls are exempt from WCAG 1.4.3 and it stays readable). The green preview
+ * doesn't change danger. */
+.mat-mdc-button-base.danger {
+  @include mat.button-overrides(
+    (
+      filled-container-color: var(--color-danger),
+      filled-label-text-color: var(--color-danger-contrast),
+      filled-state-layer-color: var(--color-danger-contrast),
+      filled-ripple-color: color-mix(in srgb, var(--color-danger-contrast) 12%, transparent),
+      filled-disabled-container-color: color-mix(in srgb, var(--color-text) 12%, transparent),
+      filled-disabled-label-text-color: var(--color-text-muted),
+      text-label-text-color: var(--color-danger),
+      outlined-label-text-color: var(--color-danger),
+      outlined-outline-color: var(--color-danger),
+    )
+  );
+}
+
+/* H-102 danger menu item (Delete account and data). Plain `color` loses to Material's token.
+ * On the panel surface: 6.51 dark / 7.07 light at rest. */
+.mat-mdc-menu-item.danger {
+  @include mat.menu-overrides(
+    (
+      item-label-text-color: var(--color-danger),
+    )
+  );
+}
+
+/* H-106 (brain/04-UI/Brief H-104 H-106 H-124.md): the sign-in email field after a failed Send link. The dialog
+ * puts the field in Material's error state (aria-invalid), so the error tokens apply; the plain ones are set
+ * too so the field is red whichever set Material picks. Outline and label at rest, on hover and on focus use
+ * the danger colour (not Material's generated error tone, and no teal label on a red outline). Extra only: the
+ * icon and text under the field carry the meaning. */
+.mat-mdc-form-field.send-failed {
+  @include mat.form-field-overrides(
+    (
+      outlined-outline-color: var(--color-danger),
+      outlined-hover-outline-color: var(--color-danger),
+      outlined-focus-outline-color: var(--color-danger),
+      outlined-label-text-color: var(--color-danger),
+      outlined-hover-label-text-color: var(--color-danger),
+      outlined-focus-label-text-color: var(--color-danger),
+      outlined-error-outline-color: var(--color-danger),
+      outlined-error-hover-outline-color: var(--color-danger),
+      outlined-error-focus-outline-color: var(--color-danger),
+      outlined-error-label-text-color: var(--color-danger),
+      outlined-error-hover-label-text-color: var(--color-danger),
+      outlined-error-focus-label-text-color: var(--color-danger),
+      outlined-error-caret-color: var(--color-danger),
     )
   );
 }
@@ -89,6 +169,10 @@ html {
   /* Control edges (H-086, brain/04-UI/Collection Components.md): bg 3.95, surface 3.45, raised
      3.00. --color-border is only 1.29:1 on the surface and fails WCAG 1.4.11 for controls. */
   --color-border-strong: #727d89;
+  /* H-113: dialogs sit on the raised surface (vs page behind the scrim 1.46; text 10.26, muted 4.93, danger 5.66).
+     --color-border is only 1.13:1 there, so hairlines inside a dialog use --color-border-dialog (1.44). */
+  --color-surface-dialog: var(--color-surface-raised);
+  --color-border-dialog: #434c56;
   --color-text: #e6e8eb;
   --color-text-muted: #9aa3ad;
   /* Teal accent (RJ, 2026-11-24). Ratios (WCAG): fill on bg 6.65, on surface 5.82; label
@@ -100,7 +184,10 @@ html {
   --color-owned: #14b8a6;
   --color-missing: #9aa3ad;
   --color-focus: #2dd4bf;
+  /* Danger (H-102). Fill #f09595 on bg 7.44; label #3b0a0a on the fill 7.65 (6.68 under the 8% hover
+     layer, 6.17 under the 12% focus/pressed layer). Danger text on surface 6.51. */
   --color-danger: #f09595;
+  --color-danger-contrast: #3b0a0a;
   --color-warning: #ef9f27;
 
   /* Spacing (4px scale) */
@@ -137,6 +224,8 @@ html {
   --header-height: 4rem;
   /* Phone bottom tab bar (below 40rem), without the safe-area inset. */
   --tabbar-height: 4rem;
+  /* Its top hairline, drawn on top of --tabbar-height (H-101: offsets above the bar must add it). */
+  --tabbar-border: 1px;
 
   /* Motion (RJ, 2026-11-24, "fluid, but doesn't hinder"): one UI ease-out, one entrance curve. */
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -168,6 +257,10 @@ html {
     --color-border: #d3d9e0;
     /* Light control edges: white 3.55, bg 3.28, raised 3.02. */
     --color-border-strong: #7f8994;
+    /* H-113: in light mode raised (#e9edf1) is darker than the page, so the lifted dialog is white (as the card
+       dialog): text 16.60, muted 6.40, danger 7.07; hairlines 1.42. */
+    --color-surface-dialog: var(--color-surface);
+    --color-border-dialog: #d3d9e0;
     --color-text: #1a1f24;
     --color-text-muted: #56606b;
     /* Light teal: fill #0f766e on bg 5.05, on surface 5.47; white label on it 5.47. */
@@ -178,7 +271,10 @@ html {
     --color-owned: #0f766e;
     --color-missing: #56606b;
     --color-focus: #0f766e;
+    /* Light danger: fill #a32d2d on bg 6.53; white label on it 7.07 (hover 6.06, focus 5.58);
+       danger text on surface 7.07. */
     --color-danger: #a32d2d;
+    --color-danger-contrast: #ffffff;
     --color-warning: #854f0b;
     --shadow-rest: 0 1px 2px rgb(15 23 42 / 10%);
     --shadow-lift: 0 6px 18px rgb(15 23 42 / 14%);
@@ -234,6 +330,23 @@ html {
   }
 }
 
+/* H-101: on phones the fixed tab bar is always shown, so lift every snack bar above it: bar height + its
+ * hairline + safe-area inset + space-2 gap. Bottom margin only; Material keeps its side/top margins and width.
+ * The class is doubled (0,2,0) because Material's `.mat-mdc-snack-bar-container { margin: 8px }` is (0,1,0)
+ * and loads after this file, so a single class would tie and lose. No !important.
+ * The margin makes the CDK overlay pane grow over the bar, so the pane is click-through and only the snack
+ * bar itself takes taps. Matched with :has(), not .mat-mdc-snack-bar-handset: 600-640px panes lack that class. */
+@media (max-width: 40rem) {
+  .cdk-overlay-pane:has(> .mat-mdc-snack-bar-container) {
+    pointer-events: none;
+  }
+
+  .mat-mdc-snack-bar-container.mat-mdc-snack-bar-container {
+    margin-bottom: calc(var(--tabbar-height) + var(--tabbar-border) + env(safe-area-inset-bottom) + var(--space-2));
+    pointer-events: auto;
+  }
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);
@@ -252,11 +365,35 @@ a {
   outline-offset: 2px;
 }
 
-/* Material icon buttons get the app's focus ring instead of only Material's faint grey state
-   layer (H-095 fix 6). */
-.mat-mdc-icon-button.mat-mdc-button-base:focus-visible {
+/* H-139 (also covers icon buttons; replaces the icon-only rule of H-095 fix 6): Material sets
+ * `outline: none` on its buttons (.mdc-button, .mat-mdc-icon-button: 0,1,0) and
+ * `outline: 0` on .mat-mdc-menu-item:focus (0,2,0). Its component styles load after this file, so the
+ * global ring above never showed on them; .mdc-button:active (0,2,0) also hid it while Space is held.
+ * The button class is doubled and the menu rules are scoped to the panel, so every selector here is
+ * (0,3,0) and wins whatever the load order, without !important.
+ * Ring vs what it touches (brain/04-UI/Brief H-139.md), dark teal / light teal: page bg 8.90 / 5.05,
+ * surface 7.78 / 5.47, raised 6.76 / 4.65 (dialogs, H-113: raised 6.76 dark, white 5.47 light). On the accent fill it is
+ * only 1.34 / 1.00, so buttons keep the 2px OUTSIDE offset (ring sits on the page/dialog bg); never
+ * inset it on a filled button. Menu items are flush with the panel edge, so their ring is inset.
+ * Not animated: outline stays out of the button transition list. */
+.mat-mdc-button-base.mat-mdc-button-base:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
+}
+
+/* cdk-keyboard-focused: a keyboard-opened menu focuses its first item; mouse-opened stays ringless. */
+.mat-mdc-menu-panel .mat-mdc-menu-item:focus-visible,
+.mat-mdc-menu-panel .mat-mdc-menu-item.cdk-keyboard-focused {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+@media (forced-colors: active) {
+  .mat-mdc-button-base.mat-mdc-button-base:focus-visible,
+  .mat-mdc-menu-panel .mat-mdc-menu-item:focus-visible,
+  .mat-mdc-menu-panel .mat-mdc-menu-item.cdk-keyboard-focused {
+    outline-color: Highlight;
+  }
 }
 
 h1,
@@ -487,6 +624,14 @@ html.vt-instant::view-transition-new(main) {
   object-fit: cover;
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);
+}
+
+/* H-113: hairlines inside a dialog (the import dialog's summary and issue-list rules) keep a visible edge on the
+ * dialog surface, without changing the component files. The card dialog keeps its own surface and border (it does get the lift shadow from mat.dialog-overrides). */
+.cdk-overlay-pane:not(.card-dialog-panel) .mat-mdc-dialog-surface {
+  --color-border: var(--color-border-dialog);
+  /* Outlined buttons (Upload file, Sign out anyway, the providers) get the same edge; .danger still sets its own. */
+  --mat-button-outlined-outline-color: var(--color-border-dialog);
 }
 
 /* Collection card dialog panel (brain/04-UI/Collection Components.md §6): radius lg, our surface;

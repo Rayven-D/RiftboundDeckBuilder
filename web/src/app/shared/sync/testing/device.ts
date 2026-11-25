@@ -6,7 +6,8 @@ import { MemoryBackend } from '../../../core/storage/kv-backend';
 import { BrowserStores, createBrowserStores } from '../../../core/storage/browser-stores';
 import type { DeckCard, StoredCollection, StoredTags, UserDeck } from '../../storage/records';
 import { emptySyncLog } from '../sync-log';
-import { CombineQuestion, SyncEngine } from '../sync-engine';
+import { SyncEngine } from '../sync-engine';
+import type { NoticeKind } from '../notice';
 import type { StoredSyncLog, SyncStatus } from '../sync-types';
 import { FakeAuth, FakeFirestore, FakeRemote } from './fakes';
 
@@ -27,12 +28,18 @@ export class Device {
   readonly stores: BrowserStores;
   readonly engine: SyncEngine;
   readonly notices: string[] = [];
-  readonly questions: CombineQuestion[] = [];
-  combineAnswer: 'combine' | 'cancel' = 'combine';
+  /** H-116: each notice with the kind the engine sent it as (same order as `notices`). */
+  readonly noticeKinds: { message: string; kind: NoticeKind }[] = [];
   online = true;
   now: number;
   adaptersLoaded = 0;
   status: SyncStatus = { kind: 'signed-out' };
+  /** H-145: each `leaveSignInLink` call, with the Firestore reads and notices that had happened by then. */
+  readonly linkLeaves: { reads: number; notices: number }[] = [];
+  /** H-145: what `leaveSignInLink` does (the app navigates; a test may make it fail). */
+  onLeaveLink: () => Promise<void> = async () => undefined;
+  /** H-145: set to make the lazy adapter load fail (the `firebase` chunk didn't load). */
+  adapterError: unknown = null;
   private timers: { fn: () => void; at: number; id: number }[] = [];
   private timerSeq = 0;
 
@@ -53,18 +60,22 @@ export class Device {
       log: this.stores.log,
       queue: this.stores.queue,
       adapters: async () => {
+        if (this.adapterError) throw this.adapterError;
         this.adaptersLoaded++;
         return { auth: this.auth, remote: this.remote };
       },
       now: () => this.now,
       appVersion: opts.appVersion ?? 'test-1',
       isOnline: () => this.online,
-      confirmCombine: async (q) => {
-        this.questions.push(q);
-        return this.combineAnswer;
+      notify: (message, kind) => {
+        this.notices.push(message);
+        this.noticeKinds.push({ message, kind });
       },
-      notify: (m) => this.notices.push(m),
       onStatus: (s) => (this.status = s),
+      leaveSignInLink: () => {
+        this.linkLeaves.push({ reads: this.db.reads, notices: this.notices.length });
+        return this.onLeaveLink();
+      },
       setTimer: (fn, ms) => {
         const id = ++this.timerSeq;
         this.timers.push({ fn, at: this.now + ms, id });

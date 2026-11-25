@@ -182,7 +182,7 @@
     z-index: 20;
     display: block;
     padding-bottom: env(safe-area-inset-bottom);
-    border-top: 1px solid var(--color-border);
+    border-top: var(--tabbar-border) solid var(--color-border);
     background: color-mix(in srgb, var(--color-surface) 92%, transparent);
     backdrop-filter: blur(12px) saturate(1.2);
     view-transition-name: tab-bar;

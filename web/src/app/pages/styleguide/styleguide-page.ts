@@ -72,6 +72,27 @@ interface SampleCard {
       </div>
     </header>
 
+    <section class="buttons-preview" aria-labelledby="sg-buttons">
+      <h2 id="sg-buttons" class="zone">Buttons</h2>
+      <dl class="button-rows">
+        <dt>Filled (accent)</dt>
+        <dd><button matButton="filled" type="button">Import</button></dd>
+        <dt>Outlined</dt>
+        <dd><button matButton="outlined" type="button">Sign out</button></dd>
+        <dt>Text</dt>
+        <dd><button matButton type="button">Cancel</button></dd>
+        <dt>Filled danger (H-102)</dt>
+        <dd><button matButton="filled" type="button" class="danger">Delete account</button></dd>
+        <dt>Filled danger, disabled</dt>
+        <dd><button matButton="filled" type="button" class="danger" disabled>Delete account</button></dd>
+      </dl>
+      <h3 class="sub">Dialog actions</h3>
+      <div class="dialog-actions">
+        <button matButton type="button">Cancel</button>
+        <button matButton="filled" type="button" class="danger">Delete account</button>
+      </div>
+    </section>
+
     <section aria-labelledby="zone-main">
       <h2 id="zone-main" class="zone">Main Deck</h2>
       <div class="tiles">
@@ -222,6 +243,33 @@ interface SampleCard {
       padding-bottom: var(--space-1);
       border-bottom: 1px solid var(--color-border);
       font-size: var(--font-size-md);
+    }
+    .buttons-preview {
+      margin: var(--space-6) 0 var(--space-7);
+    }
+    .button-rows {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      align-items: center;
+      gap: var(--space-2) var(--space-4);
+      margin: 0;
+    }
+    .button-rows dt {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+    }
+    .button-rows dd {
+      margin: 0;
+    }
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--space-2);
+      max-width: 28rem;
+      padding: var(--space-2) var(--space-4);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      background: var(--color-bg);
     }
     .collection-preview {
       margin-top: var(--space-7);

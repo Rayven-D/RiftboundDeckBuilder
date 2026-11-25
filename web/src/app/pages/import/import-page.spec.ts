@@ -3,11 +3,14 @@ import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../../app.routes';
+import { SIGN_IN_ENABLED } from '../../core/sync/sign-in-flag';
 
 async function setup(url = '/import') {
   TestBed.configureTestingModule({
     providers: [
       provideRouter(routes, withComponentInputBinding()),
+      // Local-only mode (SYNC-008): no sign-in gate. The gate is covered in pages/gated-pages.spec.ts.
+      { provide: SIGN_IN_ENABLED, useValue: false },
       // Close the dialog immediately instead of waiting for its exit animation.
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
     ],
@@ -54,7 +57,7 @@ async function settle(harness: RouterTestingHarness): Promise<void> {
   await harness.fixture.whenStable();
 }
 
-describe('ImportPage', () => {
+describe('ImportPage (local-only mode, SYNC-008 / AC 45)', () => {
   afterEach(() =>
     document.querySelectorAll('.cdk-overlay-container').forEach((el) => (el.innerHTML = '')),
   );

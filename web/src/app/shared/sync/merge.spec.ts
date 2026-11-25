@@ -34,7 +34,6 @@ const merge = (over: Partial<MergeInput>) =>
     local: local(),
     log: emptySyncLog(),
     pulled: { decks: {}, fullRead: false },
-    mode: 'regular',
     absentMeansDeleted: true,
     now: NOW,
     ...over,
@@ -170,25 +169,6 @@ describe('mergePulled (SPEC-010 sections E and F)', () => {
       syncedAt: 1,
       tags: t,
       assignments: a,
-    });
-
-    it('SYNC-064 Combine unions each list (cloud first) and stamps it later than the cloud', () => {
-      const r = merge({
-        mode: 'combine',
-        absentMeansDeleted: false,
-        local: local({ tags: tags([tag('t_Trad01', 'Trade Binder', 100)], { 'p:OGN-001a': ['t_Trad01'] }) }),
-        pulled: {
-          tags: tdoc(
-            { t_Coll01: { label: 'Collector', key: 'collector', colour: null, excludeFromDecks: true, createdAt: 50, updatedAt: 60 } },
-            { 'p:OGN-001a': { a: ['t_Coll01'], t: 70 } },
-          ),
-          decks: {},
-          fullRead: true,
-        },
-      });
-      expect(r.tags!.assignments['p:OGN-001a']).toEqual(['t_Coll01', 't_Trad01']);
-      expect(r.log.assignments['p:OGN-001a'].t).toBeGreaterThan(70);
-      expect(r.log.pending.assignments).toEqual(['p:OGN-001a']);
     });
 
     it('SYNC-065 same key: the earlier tag is kept, assignments move, the other becomes a pending tombstone (AC 14)', () => {
