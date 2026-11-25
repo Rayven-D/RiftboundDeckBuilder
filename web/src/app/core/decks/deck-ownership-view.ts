@@ -5,6 +5,7 @@ import {
   availability,
   cardsShortText,
   sharedIndicator,
+  storedLockState,
   zoneEntries,
 } from './shared-pool';
 import { tileOwnership } from './tile-ownership';
@@ -16,6 +17,7 @@ import type {
   CollectionCatalogView,
   CollectionOwnership,
   DeckCard,
+  DeckLockState,
   DeckOwnership,
   DeckOwnershipInput,
   DeckOwnershipView,
@@ -57,7 +59,8 @@ export function formatIsoDate(iso: IsoDate): string {
  * The pool for counted card k is SPEC-008 `availability(shared, deck.id, k).available` (OWN-020),
  * allocated over the deck's counted entries of k in zone order, Main before Sideboard (OWN-022).
  * Rune entries are counted, allocated and listed like any entry (OWN-028). With ownership
- * unavailable or no catalog (OWN-062/063) every tile is full colour without a label.
+ * unavailable or no catalog (OWN-062/063) every tile is full colour without a label, and `lock`
+ * comes from the stored locks (SHARE-053, OWN-065): locked, never short, holds not computed.
  * Entries must already be valid per SPEC-006 DECK-096 (`qty` an integer 1..999): this function
  * doesn't re-validate, and `tileOwnership` throws a RangeError for `qty < 1` (SHARE-003).
  */
@@ -69,7 +72,7 @@ export function computeDeckOwnership(
   today: IsoDate,
 ): DeckOwnershipView {
   const ok = ownership.status === 'ok' && catalog !== null ? ownership : null;
-  const lock = ok ? (ok.shared.byDeck[deck.id] ?? null) : null;
+  const lock = ok ? (ok.shared.byDeck[deck.id] ?? null) : unavailableLock(deck.id, ownership);
   const locked = lock?.locked ?? false;
 
   const tagLabels = new Map(ok ? ok.input.tags.tags.map((t) => [t.id, t.label]) : []);
@@ -272,6 +275,18 @@ export function computeDeckOwnership(
   };
 }
 
+/**
+ * SHARE-053 (a) lock state while ownership is unavailable. With the catalog not loaded (OWN-063) a
+ * pool may still exist; only its lock facts are used (holds unknown), and none when it ignored the
+ * lock store (SHARE-061).
+ */
+function unavailableLock(deckId: string, ownership: CollectionOwnership): DeckLockState | null {
+  if (ownership.status === 'unavailable') return storedLockState(ownership.locks ?? null, deckId);
+  const s = ownership.shared.byDeck[deckId];
+  if (ownership.shared.locksIgnored || !s?.locked) return null;
+  return { deckId, locked: true, lockedAt: s.lockedAt, complete: false, short: false, cardsShort: [] };
+}
+
 function cardBan(
   data: BanListFile | null,
   cardKey: CardKey,
@@ -317,7 +332,8 @@ function missingText(missing: readonly MissingLine[]): string {
 
 /**
  * SPEC-005 `summarizeDeck(deck, view, legality, format)` → `DeckTileSummary` (OWN-002…004,
- * SHARE-050, SHARE-051): pure. `legality` / `format` null → "Not fully checked".
+ * SHARE-050, SHARE-051, SHARE-053, OWN-065): pure. `legality` / `format` null → "Not fully checked".
+ * Ownership unavailable: line "Ownership unavailable", group `unavailable`, badge "Locked" only.
  */
 export function summarizeDeck(
   deck: UserDeck,
@@ -334,17 +350,23 @@ export function summarizeDeck(
   else if (r === 0) ownershipLine = 'No cards to count';
   else ownershipLine = `${a} of ${r} copies ${locked ? 'locked in' : 'available'}`;
 
-  // SHARE-051: first matching rule wins.
+  // SHARE-051: first matching rule wins; rule 0 (SHARE-053 (d), OWN-065 (d)) whatever the lock.
   let ownershipFilter: OwnershipFilter;
-  if (locked && !lock?.short && r > 0) ownershipFilter = 'locked';
+  if (!view.ownershipAvailable) ownershipFilter = 'unavailable';
+  else if (locked && !lock?.short && r > 0) ownershipFilter = 'locked';
   else if (r === 0) ownershipFilter = 'none';
   else if (!locked && lock?.complete) ownershipFilter = 'ready';
   else if (a === 0) ownershipFilter = 'none';
   else ownershipFilter = 'partial';
 
+  // SHARE-053 (b): with ownership unavailable a locked deck reads "Locked", never "cards short".
   let lockBadge: string | null = null;
-  if (locked)
-    lockBadge = lock?.short ? `Locked · ${cardsShortText(lock.cardsShort.length)}` : 'Locked';
+  if (locked) {
+    lockBadge =
+      lock?.short && view.ownershipAvailable
+        ? `Locked · ${cardsShortText(lock.cardsShort.length)}`
+        : 'Locked';
+  }
 
   const verdict = legality && format ? legality.verdict : 'incomplete';
   let legalityLabel = 'Not fully checked';

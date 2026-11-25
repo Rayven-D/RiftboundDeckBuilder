@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.22
+version: 1.23
 ---
 # API Contracts
 
@@ -165,9 +165,10 @@ cards: counted, shared and locked like any card, SHARE-006 / OWN-028), plus the 
 ```ts
 computeSharedPool(input: SharedPoolInput): SharedPool                              // SHARE-070
 availability(pool: SharedPool, deckId: string, cardKey: CardKey): CardAvailability // SHARE-010/011/015
-canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boolean): LockCheck     // SHARE-020; null = ownership unavailable; no-cards = no entry at all
+canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boolean, isLocked: boolean): LockCheck // SHARE-020; null = ownership unavailable; isLocked from the lock store; no-cards = no entry at all
+storedLockState(locks: readonly DeckLock[] | null, deckId: string): DeckLockState | null // SHARE-053 (a): lock state without a pool
 countedEntries(deck: UserDeck): { zone; entry }[]                                  // every entry of COUNTED_ZONES (= ZONE_ORDER, runes included)
-lockedShortfalls(before: SharedPool, after: SharedPool): LockedShortfall[]         // SHARE-034
+lockedShortfalls(before: SharedPool, after: SharedPool): LockedShortfall[]         // SHARE-034 v0.4.2: per cardKey hold drop
 computeDeckOwnership(deck, ownership: CollectionOwnership, catalog | null, banData | null, today): DeckOwnershipView // OWN-025
 summarizeDeck(deck, view, legality: { verdict; asOf } | null, format: { id; name } | null): DeckTileSummary
 // text helpers: lockCheckMessage(), cardsShortText(), sharedIndicator(), shortfallWarning(), shortfallNotice()
@@ -191,14 +192,25 @@ Notes for the UI:
 - Compute one `SharedPool` per input change and pass it to every deck view and tile (SHARE-071).
 - Lock order (SHARE-030) is a total order: parsed `lockedAt` ascending with unparseable values
   after every parseable one, then the raw `lockedAt` string, then `deckId`.
-- `canLock(null, …)`: with ownership unavailable the pool is `null`, and the pool is the engine's
-  only lock source, so `already-locked` can't be detected (a locked deck gets `read-only` or
-  `ownership-unavailable`). **The caller must check the lock store itself** and show Unlock, not a
-  disabled Lock in, for a locked deck.
-- With ownership unavailable (OWN-062/063), all **pending a spec-writer decision** (H-076): `OwnershipCard.label` is `''` (no count labels); `DeckOwnershipView.lock` is `null`, so
-  `DeckTileSummary.lockBadge` is `null` (no lock badge, even for a locked deck);
-  `DeckTileSummary.ownershipLine` is "Ownership unavailable" (wording pending spec); and
-  `DeckTileSummary.ownershipFilter` is `'none'`.
+- `canLock(pool, deck, readOnly, isLocked)` (SHARE-020 v0.4.2): `isLocked` = the deck has a `DeckLock` in a
+  **readable** lock store (pass `false` when the store is unreadable, SHARE-061). `already-locked` is checked first,
+  so it is returned also with a `null` pool (ownership unavailable) and on a read-only deck; the engine no longer
+  reads the lock from the pool for this check. Show Unlock (no reason line) for `already-locked`.
+- `lockedShortfalls(before, after)` (SHARE-034 v0.4.2): a deck locked in both pools is listed when, for **any**
+  `cardKey`, its hold in `after` is lower than in `before` (a Σ that stays equal does not hide it); `cardsShort` =
+  the deck's number of short cardKeys in `after`; order = `after`'s lock order. The caller appends " It stays locked."
+  in confirmations (`collection-import.ts`).
+- Ownership unavailable (OWN-062/063, SHARE-053, OWN-065): `CollectionOwnership` `{ status: 'unavailable', locks? }`
+  carries the stored locks (`readonly DeckLock[]`; `null` = lock store unreadable; omitted = no lock known, treated
+  like `null`). **The page must pass the stored locks** so locked decks keep their badge. Then:
+  `OwnershipCard.label` is `''` (no count labels); `DeckOwnershipView.lock` is
+  `{ deckId, locked: true, lockedAt, complete: false, short: false, cardsShort: [] }` for a deck with a stored lock
+  (earliest in lock order, SHARE-022), else `null` (`storedLockState`). With `status: 'ok'` and `catalog === null`
+  (OWN-063) the same state is built from the pool's lock facts (none when `locksIgnored`), holds discarded.
+  `DeckTileSummary`: `ownershipLine` "Ownership unavailable", `ownershipFilter` `'unavailable'` (SHARE-051 rule 0,
+  for every deck), `lockBadge` "Locked" for a locked deck, never "… cards short"; `null` otherwise.
+- `OwnershipFilter` = `'ready' | 'partial' | 'none' | 'locked' | 'unavailable'`; `unavailable` and `locked` match none
+  of the three ownership filter options (OWN-006).
 
 ## Browser stores and sync (SPEC-010, H-062)
 Not an HTTP API: the browser talks to Firestore directly ([[ADR-0007 Firebase Accounts and Firestore]]).
@@ -634,6 +646,10 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.23 (2026-11-25, H-155, SPEC-008 0.4.6, SPEC-005 0.10.2): no endpoint change. `canLock` takes `isLocked`
+  (`already-locked` first, also with a null pool); `lockedShortfalls` compares per cardKey; `OwnershipFilter` gains
+  `'unavailable'`; `CollectionOwnership` `'unavailable'` gains optional `locks`; new `storedLockState`;
+  `DeckOwnershipView.lock` keeps a stored lock while ownership is unavailable (SHARE-053, OWN-065).
 - v1.22 (2026-11-25, H-158, SPEC-003 0.12): no endpoint change. New "Owned Cards Import commit and Undo" section
   (`collection-commit.ts`, `ImportCommitter`, `CollectionImport`); `snapshotPrevious` keeps an empty snapshot when
   nothing was stored (`EMPTY_SNAPSHOT_AT`); new `clearPrevious()` on the raw and tracked collection stores.
