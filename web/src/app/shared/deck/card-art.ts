@@ -18,6 +18,7 @@ import { OwnershipState } from './ownership';
       class="art"
       [class]="'art art--' + state()"
       [class.art--fill-in]="animateFill()"
+      [class.art--fill-change]="animateChange()"
       [class.art--landscape]="isLandscape()"
       [style.--fill]="fill()"
     >
@@ -118,6 +119,14 @@ import { OwnershipState } from './ownership';
         opacity: 0;
       }
     }
+    /* OWN-035 (v0.9, H-060): a fill that changes while the view is open moves over --dur-fill (180 ms); the first
+       render has nothing to transition from, and reduced motion makes it instant (global rule). */
+    .art--fill-change .dimmed {
+      transition: clip-path var(--dur-fill, 180ms) var(--ease-out);
+    }
+    .art--fill-change::after {
+      transition: left var(--dur-fill, 180ms) var(--ease-out);
+    }
     @media (forced-colors: active) {
       .art--partial::after {
         background: CanvasText;
@@ -137,6 +146,9 @@ export class CardArt {
   readonly decorative = input(false, { transform: booleanAttribute });
   /** Play the left-to-right fill once when first shown (decorative use on the home page). */
   readonly animateFill = input(false, { transform: booleanAttribute });
+
+  /** Animate a fill change after the first render over `--dur-fill` (OWN-035; the deck tile's Legend art). */
+  readonly animateChange = input(false, { transform: booleanAttribute });
 
   /** First row of a list: load now, not lazily (it is likely the LCP image; NG0913). */
   readonly eager = input(false, { transform: booleanAttribute });

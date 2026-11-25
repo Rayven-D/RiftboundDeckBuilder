@@ -40,6 +40,7 @@ async function setup(url: string, seed = 0) {
   const cardData: Partial<CardData> = {
     loadCatalog: async (): Promise<CatalogResult> => ({ status: 'ok', catalog: CATALOG }),
     reload: async (): Promise<CatalogResult> => ({ status: 'ok', catalog: CATALOG }),
+    loadBans: async () => null,
   };
   TestBed.configureTestingModule({
     providers: [
@@ -105,7 +106,9 @@ describe('DecksPage Import deck save (H-253)', () => {
       expect(dialog()).toBeNull();
     });
     expect(TestBed.inject(Router).url).toBe('/decks');
-    expect(text(el.querySelector('.count-line'))).toBe('2 decks saved.');
+    expect(text(el.querySelector('.count-line'))).toBe('2 decks');
+    // H-060: the new deck's tile is first in the list (OWN-005), named after its Legend (DECK-070).
+    expect(text(el.querySelector('app-deck-tile .name-text'))).toBe('Kennen, Heart of the Tempest');
     expect(snackText()).toBe('Deck saved.');
     const decks = await stores.decks.list();
     const saved = decks.find((d) => d.name === 'Kennen, Heart of the Tempest')!;
@@ -125,7 +128,7 @@ describe('DecksPage Import deck save (H-253)', () => {
     button('Save deck').click();
     await vi.waitFor(async () => {
       await settle(harness);
-      expect(text(el.querySelector('.count-line'))).toBe('1 deck saved.');
+      expect(text(el.querySelector('.count-line'))).toBe('1 deck');
     });
   });
 

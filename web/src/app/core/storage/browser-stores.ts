@@ -71,7 +71,9 @@ export function createBrowserStores(backend: KeyValueBackend, opts: BrowserStore
   const log = new LocalSyncLogStore(backend);
   const viewState = new LocalViewStateStore(backend);
   const rawDecks = new LocalDeckStore(backend);
-  const deckIds = async () => new Set((await rawDecks.list()).map((d) => d.id));
+  // SHARE-062: a lock is an orphan only when its deck is not in the store; a read-only (newer) deck still is (DECK-091).
+  const deckIds = async () =>
+    new Set([...(await rawDecks.list()), ...(await rawDecks.newerDecks())].map((d) => d.id));
   const takenTagIds = () => {
     // Short ids must not reuse a tag tombstone's id (SYNC-016).
     try {

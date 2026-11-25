@@ -139,10 +139,24 @@ Same box as `app-ownership-chip` (inline-flex, gap `--space-1`, padding 1px `--s
 | `unavailable`, locked | `lock` | Locked | as locked |
 Forced colors: border `CanvasText`. Never color alone: always icon + text.
 
+> **RJ 2026-11-25 (H-382 (2), built in the H-060 follow-up):** on the deck tile the lock is a
+> **separate badge next to the chip**: `app-lock-badge` (§6) with `label` = `lockBadge` and no date
+> (the "Locked in on <date>" stays in the Deck detail header, SHARE-041), sized like the chip
+> (`--font-size-xs`, icon 14px). The tile binds the chip with `filter` only, so the chip shows the
+> ownership group: a locked complete deck (group `locked`) has **no chip, only "Locked"**; a short
+> locked deck shows **Partly / None available + "Locked · 2 cards short"**; ownership unavailable
+> shows **no chip + "Locked"** (SHARE-053 (b), OWN-065). The locked rows above still work when a
+> caller passes `lockBadge`.
+
 ## 4. Toolbar, `app-deck-toolbar`
 Reuse Collection's sticky toolbar rule (top `--header-height`, translucent bar + blur, sentinel
 border). Controls are 40px tall on desktop and 44px on phones; control edges use
 `--color-border-strong`.
+- **One row at 1440** (RJ 2026-11-25, H-382 (1)): search, Ownership chips, Lock, Filters and Sort
+  share one row at 1440 (content 1152px). Desktop only: search `flex: 1 1 10rem` (max 20rem; the
+  right padding for the clear button only while it has text), toolbar gap `--space-2`, Ownership
+  chip side padding `--space-2`, Lock select min 7.5rem, Sort select min 8.5rem. Narrower desktop
+  widths still wrap (Sort keeps `margin-left: auto`). Phone (≤ 40rem) unchanged.
 - **Search:** as Collection's search field. Placeholder `Search decks`, `aria-label="Search decks
   by name"`, clear button `Clear search`. `/` focuses it.
 - **Ownership segmented chips** (desktop/tablet): `role="radiogroup" aria-label="Ownership"`, 4

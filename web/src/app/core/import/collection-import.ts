@@ -32,7 +32,6 @@ import {
   computeSharedPool,
   lockedShortfalls,
   shortfallNotice,
-  shortfallWarning,
 } from '../decks';
 import { StorageFullError } from '../storage/kv-backend';
 import { AppStores } from '../storage/app-stores';
@@ -56,8 +55,6 @@ interface LastCommit {
   /** `updatedAt` of the snapshot it kept (IMP-075 d: still ours?). */
   snapshotAt: string;
 }
-
-const STAYS_LOCKED = ' It stays locked.';
 
 /**
  * SPEC-003 Owned Cards Import commit and its Undo (IMP-049…052, IMP-072…075; SPEC-007 COLL-058, COLL-088, COLL-091).
@@ -107,7 +104,7 @@ export class CollectionImport implements ImportCommitter {
       const ok = await confirmImport(this.dialog, {
         title: COMMIT_TEXT.replaceTitle,
         text: replaceConfirmText(replaceChanges(before, after, nameOf)),
-        warnings: shortfalls.map((s) => shortfallWarning(s) + STAYS_LOCKED),
+        shortfalls,
         confirm: COMMIT_TEXT.replaceConfirm,
       });
       if (!ok) return { status: 'cancelled' };
@@ -172,7 +169,7 @@ export class CollectionImport implements ImportCommitter {
       const ok = await confirmImport(this.dialog, {
         title: UNDO_TEXT.confirmTitle,
         text: changed ? UNDO_TEXT.changedSince : UNDO_TEXT.lockedOnly,
-        warnings: shortfalls.map((s) => shortfallWarning(s) + STAYS_LOCKED),
+        shortfalls,
         confirm: UNDO_TEXT.confirm,
       });
       refocusAfterDialog(undefined);
