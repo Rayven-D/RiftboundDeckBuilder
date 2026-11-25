@@ -1,4 +1,4 @@
-import type { StoredViewState, UserDeck } from '../../shared/storage/records';
+import { EMPTY_SNAPSHOT_AT, type StoredViewState, type UserDeck } from '../../shared/storage/records';
 import { SHORT_TAG_ID, newTagId } from '../../shared/storage/tag-id';
 import { MemoryBackend } from './kv-backend';
 import {
@@ -47,6 +47,16 @@ describe('browser stores (SPEC-003/006/007/008 as mapped by SPEC-010)', () => {
     await s.save({ ...a, updatedAt: 'c' }, { snapshotPrevious: true });
     expect((await s.loadPrevious())!.updatedAt).toBe('b');
     expect((await s.load())!.updatedAt).toBe('c');
+  });
+
+  it('IMP-052 / IMP-075 (H-158): the first import keeps an empty snapshot; clearPrevious spends it', async () => {
+    const s = new LocalCollectionStore(backend);
+    const a = { schemaVersion: 1 as const, updatedAt: 'a', catalogVersion: 'cv', cards: { x: { quantity: 1, byPrinting: {} } } };
+    await s.save(a, { snapshotPrevious: true });
+    expect(await s.loadPrevious()).toEqual({ schemaVersion: 1, updatedAt: EMPTY_SNAPSHOT_AT, catalogVersion: 'cv', cards: {} });
+    await s.clearPrevious();
+    expect(await s.loadPrevious()).toBeNull();
+    expect((await s.load())!.updatedAt).toBe('a');
   });
 
   it('SYNC-033 / COLL-071 a newer or corrupt record is unreadable and never overwritten', async () => {

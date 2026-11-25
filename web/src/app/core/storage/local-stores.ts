@@ -3,6 +3,7 @@ import {
   CollectionViewStateStore,
   DeckLockStore,
   DeckStore,
+  EMPTY_SNAPSHOT_AT,
   IsoDateTime,
   LIMITS,
   PrintingCodeStore,
@@ -111,14 +112,26 @@ export class LocalCollectionStore implements CollectionStore {
 
   /**
    * `snapshotPrevious` keeps the record being replaced for the import Undo (IMP-052); a plain edit
-   * leaves the Undo snapshot alone.
+   * leaves the Undo snapshot alone. With no record yet, the snapshot is an empty collection stamped
+   * `EMPTY_SNAPSHOT_AT`, so undoing the first import restores the empty state (SPEC-007 AC 27).
    */
   async save(c: StoredCollection, opts: { snapshotPrevious?: boolean } = {}): Promise<void> {
     const current = await this.load();
-    if (opts.snapshotPrevious && current) {
-      this.backend.set(STORAGE_KEYS.collectionPrevious, JSON.stringify(current));
+    if (opts.snapshotPrevious) {
+      const previous: StoredCollection = current ?? {
+        schemaVersion: 1,
+        updatedAt: EMPTY_SNAPSHOT_AT,
+        catalogVersion: c.catalogVersion,
+        cards: {},
+      };
+      this.backend.set(STORAGE_KEYS.collectionPrevious, JSON.stringify(previous));
     }
     this.backend.set(STORAGE_KEYS.collection, JSON.stringify(c));
+  }
+
+  /** IMP-075 (b): the snapshot is spent once an Undo used it. */
+  async clearPrevious(): Promise<void> {
+    this.backend.remove(STORAGE_KEYS.collectionPrevious);
   }
 }
 

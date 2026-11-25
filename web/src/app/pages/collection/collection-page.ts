@@ -64,10 +64,9 @@ import {
 import { exportCollectionCsv } from '../../shared/collection/export-csv';
 import { EmptyState } from '../../shared/empty-state';
 import { FileDrop } from '../../shared/import/file-drop';
-import { ImportDialog, ImportDialogData } from '../../shared/import/import-dialog';
+import { ImportDialog, ImportDialogData, ImportDialogResult } from '../../shared/import/import-dialog';
 import { IMPORT_PARAMS, dialogOpener, importFocusTarget, launchDecision } from '../../shared/import/import-launch';
-import { ImportPending } from '../../shared/import/import-pending';
-import { ParseResult } from '../../shared/import/parse-card-list';
+import { CollectionImport } from '../../core/import/collection-import';
 import { PageFab } from '../../shared/page-fab';
 import { Icon } from '../../shared/icon';
 import type { StoredPrintingCodes } from '../../shared/storage/records';
@@ -120,10 +119,11 @@ interface Loaded {
  * brain/04-UI/Collection Components.md): every owned entry as an image-only tile, search, three
  * sorts, read-only card dialog, CSV export, unresolved cards, virtual scroll by rows.
  *
+ * "Add to your collection" opens here (COLL-094, SYNC-159: floating button, empty state, `?add=1`, a dropped file);
+ * its commit and Undo are `CollectionImport` (H-158, SPEC-003 IMP-072…075): the page stays put and refreshes in place
+ * (COLL-091).
+ *
  * Seams left on purpose:
- * - H-087: where an import lands and its Undo snack bar; the missing-catalog banner wording.
- * - H-176 (COLL-094, SYNC-159): "Add to your collection" opens here (floating button, empty state, `?add=1`, a dropped
- *   file); the dialog's list is shown as not saved yet until the import commit is built.
  * - H-091: the SPEC-007 parts the brief §9 defers (tags, exclude, steppers, filters, group view).
  * - H-089 / H-090: the dialog's Keywords section.
  */
@@ -134,7 +134,6 @@ interface Loaded {
     Icon,
     PageFab,
     FileDrop,
-    ImportPending,
     CollectionTile,
     CdkVirtualScrollViewport,
     CdkVirtualScrollableWindow,
@@ -162,6 +161,7 @@ export class CollectionPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly breakpoints = inject(BreakpointObserver);
   private readonly injector = inject(Injector);
+  private readonly importer = inject(CollectionImport);
 
   protected readonly sorts = SORTS;
   protected readonly phase = signal<Phase>('loading');
@@ -183,8 +183,6 @@ export class CollectionPage {
   protected readonly urlNotice = signal<string | null>(null);
   /** COLL-094 (g) empty state. */
   protected readonly emptyText = COLLECTION_EMPTY;
-  /** The list the import dialog closed with (not saved yet; see ImportPending). */
-  protected readonly pending = signal<ParseResult | null>(null);
   private readonly fab = viewChild(PageFab);
   private readonly emptyAdd = viewChild<ElementRef<HTMLButtonElement>>('emptyAdd');
   /** SYNC-159 (c): the `add` parameter as the page was opened; handled once. */
@@ -330,6 +328,8 @@ export class CollectionPage {
         this.scheduleReload();
     };
     addEventListener('storage', onStorage);
+    // COLL-091: a commit or an Undo written in this tab (from any screen) refreshes the list in place.
+    this.importer.written.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.scheduleReload());
     this.destroyRef.onDestroy(() => {
       this.destroyed = true;
       removeEventListener('storage', onStorage);
@@ -653,15 +653,19 @@ export class CollectionPage {
       return;
     }
     const opener = dialogOpener(document);
-    const ref = this.dialog.open<ImportDialog, ImportDialogData, ParseResult>(ImportDialog, {
-      data: file ? { kind: 'collection', file } : { kind: 'collection' },
+    const committer = this.importer;
+    const ref = this.dialog.open<ImportDialog, ImportDialogData, ImportDialogResult>(ImportDialog, {
+      data: file ? { kind: 'collection', file, committer } : { kind: 'collection', committer },
       width: '40rem',
       maxWidth: 'calc(100vw - 2rem)',
       autoFocus: 'textarea',
       restoreFocus: false,
     });
-    ref.afterClosed().subscribe((result) => {
-      if (result) this.pending.set(result);
+    ref.afterClosed().subscribe(async (result) => {
+      if (this.destroyed) return;
+      // IMP-072: a written commit stays here; the list (or, after the first import, the grid that replaced the empty
+      // state) is read again before focus goes back to the floating button.
+      if (result === 'committed') await this.load(false);
       if (this.destroyed) return;
       afterNextRender(
         () =>
