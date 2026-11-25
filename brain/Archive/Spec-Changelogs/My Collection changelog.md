@@ -9,6 +9,27 @@ superseded_by: "[[My Collection]]"
 
 Moved out of [[My Collection]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.13 (2026-11-25, H-091, `status: review`): the Collection page is simplified per [[Collection]] rev 3 (RJ 2026-11-24).
+  **New section K, COLL-100…109:** page scope (owned cards only, always full colour, the deferral rule); image-only tile
+  with the accessible-name composition; card-level lock band (Σ `hold` per `cardKey`, on every printing tile, never
+  allocated to a printing); read-only card dialog (COLL-004 details and the ban label moved here, "n not counted in
+  your decks" for existing excluded tags); "You own N across all printings" with switchable printing lines; Locked in;
+  Could fit in (unlocked decks, SHARE-040 "a of q available"); Keywords pointer to SPEC-011 (KW-001); search, three
+  sorts (Set & number, Name, Copies) and URL `q` + `sort`; lock, ban and deck data-state notices. Status table of every
+  v0.12 ID. **Changed:** COLL-004 / 008 / 009 moved to the dialog (the tile's accessible name has "banned"); COLL-010 is
+  "N copies of M cards" / "Showing X of Y" without "entries". **Narrowed:** COLL-032, 034, 060, 061, 062. **Deferred,
+  not deleted** (Level cell marked, text kept): COLL-005, 013, 021…028, 030, 037, 041…049, 050…056, 064, 082, 084, 085;
+  UI parts of COLL-019, 020, 083 (replaced by COLL-103 (e)); edit part of COLL-088 (Replace and Undo warnings stay).
+  Data, stores, sync, COLL-080/081 `deckOwnership()` unchanged. ACs 32–41 added; v0.13 status of ACs 1–31; ACs 15, 16
+  replaced by AC 37. Open questions 11–16. RJ decided: per-printing tiles, owned cards only, badge from 2 copies, Could
+  fit in = unlocked decks using the card, ban in the dialog only; the deferrals (c–f), sort set, count wording and the
+  dialog's details line are proposals pending RJ. Depends on SPEC-011 0.2.1 (new pointer, closes its note).
+  Impacts: builder item for the code that differs (dialog details line, count line check, tests per ID); pins in
+  SPEC-005, SPEC-008, SPEC-010 and the Spec Index moved to 0.13.
+- 0.12 (2026-11-25, H-174, RJ 2026-11-24 header decision / gate H-178): new COLL-094 "Add to your collection" button on
+  Collection (floating, bottom right; collapses on phones; hidden on the empty state and when the list isn't shown;
+  page-end and snack-bar clearance; empty-state button; `/collection?add=1`; drop a file; phone Export CSV icon);
+  COLL-091 (Collection is already open, no navigation); ACs 27, 30 reworded, AC 31 new; pins SPEC-003 0.12.
 - 0.11 (2026-11-24, H-171, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2, account-only): COLL-070 rewritten:
   quantities and tags belong to the account (`state/collection`, `state/tags`), the stores are the browser cache of
   them (SPEC-010 SYNC-140…SYNC-145); printing codes and view state are not account data and never synced (view
