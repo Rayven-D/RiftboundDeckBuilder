@@ -16,13 +16,17 @@ function lockedOn(lockedAt: string | null): string | null {
  * in the warning colour. While ownership is unavailable the engine's label is "Locked", never "… cards short"
  * (SHARE-053 (b)). Plain text, read in order (SHARE-044). Renders nothing when the deck is not locked.
  *
- * Inputs: `lock` = `DeckOwnershipView.lock`; `label` = `DeckTileSummary.lockBadge`; `showDate` (default true).
+ * Inputs: `lock` = `DeckOwnershipView.lock` (optional, default null: only the date comes from it); `label` =
+ * `DeckTileSummary.lockBadge`, non-null exactly when the deck is locked; `showDate` (default true). It renders when
+ * `label` is set, unless `lock` says the deck is not locked. The deck tile uses `label` alone with `showDate` false
+ * (H-060 RJ 2026-11-25: the badge sits next to the ownership chip; the date is the header's, SHARE-041).
+ * Size: `--lock-badge-font-size` (default `--font-size-sm`) and `--lock-badge-icon-size` (default 16px).
  */
 @Component({
   selector: 'app-lock-badge',
   imports: [Icon],
   template: `
-    @if (lock()?.locked && label()) {
+    @if (label() && lock()?.locked !== false) {
       <span class="badge" [class.badge--short]="short()">
         <app-icon [name]="short() ? 'warning' : 'lock'" />
         <span class="label">{{ label() }}</span>
@@ -38,7 +42,7 @@ function lockedOn(lockedAt: string | null): string | null {
       flex-wrap: wrap;
       align-items: center;
       gap: var(--space-1);
-      font-size: var(--font-size-sm);
+      font-size: var(--lock-badge-font-size, var(--font-size-sm));
     }
     :host:empty {
       display: none;
@@ -59,7 +63,7 @@ function lockedOn(lockedAt: string | null): string | null {
       color: var(--color-warning);
     }
     app-icon {
-      font-size: 16px;
+      font-size: var(--lock-badge-icon-size, 16px);
     }
     .date {
       color: var(--color-text-muted);
@@ -72,7 +76,7 @@ function lockedOn(lockedAt: string | null): string | null {
   `,
 })
 export class LockBadge {
-  readonly lock = input.required<DeckLockState | null>();
+  readonly lock = input<DeckLockState | null>(null);
   readonly label = input.required<string | null>();
   readonly showDate = input(true);
   protected readonly short = computed(() => (this.label() ?? '').includes('short'));

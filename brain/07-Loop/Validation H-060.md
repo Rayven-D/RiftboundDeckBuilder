@@ -51,3 +51,30 @@ None blocking. Proposed, for the orchestrator to place (IDs H-380…H-382):
 - H-380 · P2 · builder · `todo` · depends H-060 · from validator: "Add a spec for `app-lock-badge` (SHARE-041 "Locked in on Nov 23, 2026" local date, SHARE-030 no date when `lockedAt` doesn't parse (SPEC-008 AC 20), SHARE-033 "Locked · 2 cards short" warning style, SHARE-053 (b) label "Locked" while ownership is unavailable (AC 19)); add tests for loading state L2 and in-place recompute L11 of [[Decks]] §10." Accept: those tests pass; lint, build, tests pass.
 - H-381 · P2 · builder · `todo` · depends H-060 · from validator: "`decks-page.scss` is 7.84 kB of the 8 kB budget error: move shared tile / toolbar rules into the shared components or global styles so H-254 and later UI changes keep room." Accept: build with no style-budget warning.
 - H-382 · P2 · spec-writer / orchestrator · row text: add to H-060 Accept "SPEC-008 AC 11 and the Collection-edit part of AC 9 are covered by H-254 and the deferred Collection edit item".
+
+## Round 2 (follow-up, RJ H-382 answers)
+
+2026-11-25 · H-060 follow-up (uncommitted on c995ab1) · PASS · lint, build, tests, V-009, screenshots · 0 blocking failures
+
+| Check | Result |
+|---|---|
+| `npm run lint` | All files pass |
+| `npm run build` | Passes, no warnings and no budget message (`anyComponentStyle` now 10 / 12 kB in both configurations of `web/angular.json`) |
+| `npm test -- --watch=false` | 83 files, 1,201 tests pass (was 82 / 1,196; new `lock-badge.spec.ts`, 5 tests) |
+| V-009 on changed notes | `API Contracts.md` version 1.27 with a v1.27 changelog line; `Decks Components.md` notes added; no new broken wikilinks |
+
+- **(1) One-row toolbar:** PASS. `toolbar-1440-light.png` shows search, 4 chips, Lock, Filters and Sort on one row, no clipping. Phone unchanged: `decks-375-light.png` is as before, and the 375 `flex-basis: 14rem` / `max-width: none` are kept in `decks-page.scss`. The extra trims (gap 12 to 8 px, chip padding 12 to 8 px, Lock min 9 to 7.5rem, Sort 10 to 8.5rem, `:placeholder-shown` padding) are desktop-only (`decks-page.scss:130`, `:247`, `:327`, `:331`; the placeholder rule is behind `min-width: 40.0625rem`). They stay within RJ's "fit on one row" and the [[Decks]] / [[Decks Components]] §4 brief ("same row when it fits"), and the brief now records them. Not blocking; mention to RJ in the summary.
+- **(2) Separate lock badge:** PASS. `deck-tile.ts:94-96` binds the chip with `filter` only and `app-lock-badge [label] [showDate]="false"`. Tests in `decks-list.spec.ts:208-243`, `:407`, `:417`, `:438` cover: locked complete deck, no chip and "Locked"; short deck, "Partly available" chip then "Locked · 2 cards short" badge in warning style, in that order; no date; ownership unavailable, no chip and "Locked", never "short" (SHARE-053 (b), OWN-065). `tiles-1440-light-short.png` shows it.
+- **(3) Lock in / Unlock:** unchanged, `lock-actions` not in the diff.
+- **(4) Budget:** PASS, see build.
+- **`app-lock-badge.lock` optional:** compatible. `lock-badge.ts:79` is now `input<DeckLockState | null>(null)`; `@if (label() && lock()?.locked !== false)`. A bound `[lock]` with `locked: false` still hides; a null `lock` no longer hides (new, intended). The only user of the badge is `deck-tile.ts`, which passes no `lock`; H-254 reuse with `[lock]` and `[label]` works. `lock-badge.spec.ts` covers the date (SHARE-041), unparseable date (SHARE-030), short style (SHARE-033), label-only, and not-rendered cases. This closes non-blocking note 1 of round 1.
+
+### Finding (non-blocking): spec text still describes the lock inside the chip
+- `brain/02-Specs/Your Decks Ownership View.md:253` (OWN-102: "`locked` → **Locked**; a locked deck that is short → **Locked · n cards short** (the `lockBadge`...)" as one chip) and `:140` (OWN-002), AC 25 (SPEC-005) and SHARE-041 / SHARE-050 in `Shared Cards and Lock-in.md:178` read as the lock being the chip, while RJ's 2026-11-25 answer and the build make it a separate badge: a locked complete deck has no chip, a short one has its group chip plus the badge.
+- `brain/04-UI/Decks.md:92-93, 161-163` (wireframe and chip table) show the same old behaviour; `Decks Components.md` has the new note (§3) but the table above it still lists "locked" rows.
+- The tests assert the new behaviour, so the spec is the stale side.
+
+### Items I would file
+- H-383 · P2 · spec-writer · `todo` · from validator · depends none: "Update SPEC-005 OWN-002, OWN-102 and AC 25, SPEC-008 SHARE-041 / SHARE-050 and `brain/04-UI/Decks.md` (wireframe line 92-93, chip table lines 158-163) to RJ's 2026-11-25 answer (H-382 (2)): on the deck tile the lock is a separate badge next to the ownership chip, no date. A locked complete deck (group `locked`) shows no chip, only "Locked"; a short locked deck shows its Partly / None available chip plus "Locked · n cards short"; ownership unavailable shows no chip and "Locked". Keep the date in the Deck detail header." Accept: those notes agree with `deck-tile.ts` and `decks-list.spec.ts:208-243`; V-009 passes.
+
+Not blocking. The follow-up may be committed.
