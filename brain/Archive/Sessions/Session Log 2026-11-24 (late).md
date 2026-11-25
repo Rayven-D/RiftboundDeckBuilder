@@ -7,6 +7,12 @@ superseded_by: "[[Current State]]"
 ---
 # Session Log, late 2026-11-24 (archived)
 
+## 2026-11-25: dev lines merged (orchestrator)
+- Did: local `main` fast-forwarded to `origin/main` (`8acf4c6`). Merged the nightly `/board` line (local `dev` @ `ffb60cf`) into `loop/H-069-privacy-notice` (= `8acf4c6` + H-069), then fast-forwarded local `dev` to the result. Nightly items H-101…H-107 renumbered to H-153…H-159 first (they clashed with the UI review rows); `next_id` 161.
+- Conflicts (7 brain files) resolved: SPEC-010 keeps the v0.11 text, now **0.11.1** with the nightly pins (SPEC-003 0.10, SPEC-005 0.5.1, SPEC-006 0.7, SPEC-007 0.10, SPEC-008 0.4.2); H-071 had applied only the v0.7 Impacts wording, so the v0.8 per-mode wording, COLL-074 by mode and the gate notes are new item **H-160**. H-076 done (nightly). Board, Validation Runs, Session Log: both sides kept.
+- Not pushed. `origin/dev` (`79cb5c0`) is an ancestor of the result.
+- Next: H-160, H-152; RJ gate H-157.
+
 ## 2026-11-24: H-069 privacy notice research (orchestrator: researcher → validator)
 - Did: [[Privacy Notice Requirements]] (`partial`, not legal advice). CalOPPA most likely applies; GDPR probably not, but the notice is written to its standard; Google is the processor; no cookie banner needed (strictly necessary storage, no analytics); Riot sets no user-data rule. Ends with a 24-item checklist for SYNC-101. Validator PASS (one wording fix applied: Auth persistence is IndexedDB with a localStorage fallback).
 - Changed notes: [[Privacy Notice Requirements]], [[Research Index]], [[Handoff Board]] (H-069 done, H-152 new, `next_id` 153), [[Validation Runs]].
