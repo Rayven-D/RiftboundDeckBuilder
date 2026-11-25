@@ -1074,9 +1074,7 @@ are pending that item.
 **v0.12 (H-171, RJ decision 17, account-only): applied in the same change.** SPEC-003 0.11 (IMP-053, IMP-076,
 IMP-075 (d)), SPEC-004 0.6 (CAT-077, CAT-078, new CAT-079), SPEC-005 0.6 (OWN-066, OWN-093, new OWN-084), SPEC-006
 0.8 (DECK-090, DECK-097, DECK-087), SPEC-007 0.11 (COLL-070, **COLL-074 withdrawn**, COLL-092, new COLL-093) and
-SPEC-008 0.4.4 (SHARE-060) now say account-only; the "per mode" and "local-only mode" wording of the paragraphs
-below is **history** (kept so the earlier decisions can be traced) and is superseded wherever it differs. The
-header of this section still lists what v0.8 and v0.7 asked.
+SPEC-008 0.4.4 (SHARE-060) now say account-only.
 
 **Code changes H-172 must make** (the spec text is above; the builder works from the requirement IDs):
 1. **Remove `signInEnabled` and every branch on it** (SYNC-007, SYNC-008 withdrawn): `core/sync/sign-in-flag.ts`,
@@ -1111,62 +1109,13 @@ header of this section still lists what v0.8 and v0.7 asked.
 7. **Production today stays on the old build:** nothing in H-172 needs a data migration; browser data left by the old
    no-account build is cleared by the first sign-in (SYNC-048, AC 48).
 
-**Applied 2026-11-25 (H-160, v0.11.2):** the v0.8 Impacts for SPEC-003 0.10.1 (IMP-053, new IMP-076), SPEC-004 0.5.1
-(CAT-077, new CAT-078), SPEC-005 0.5.2 (new OWN-066), SPEC-006 0.7.1 (DECK-090, new DECK-097), SPEC-007 0.10.1 (COLL-070,
-COLL-074, new COLL-092) and SPEC-008 0.4.3 (SHARE-060) are written into those specs; the bullets below record what
-was asked. Wording used everywhere: "local-only mode: browser only; account-required mode: a browser cache of the
-signed-in account, cleared on sign-out". The one build consequence is H-154 (COLL-074 not offered in
-account-required mode; its Request is updated).
-
-**v0.8 (account required to import, RJ decision 13).** List only; those specs are not edited here (now applied, see above).
-- [[Collection Import]] (SPEC-003): the Import page and the Owned Cards Import are gated in account-required mode
-  (SYNC-009). IMP-053 should read by mode: "local-only mode: browser only (as today); account-required mode: a
-  browser cache of the signed-in account, cleared on sign-out (SPEC-010)". It cites
-  [[ADR-0005 MVP Product Defaults]] #1, which now holds only in local-only mode (ADR-0007 amendment). The import Undo snapshot (IMP-052)
-  is cleared on sign-out and on first sign-in.
-- [[Deck Import]] (SPEC-006): deck import is gated (SYNC-009). DECK-090 storage wording as IMP-053. DECK-005 /
-  section H ("Add to your decks") is not offered while the gate is not open (SYNC-009, decision 13 h). DECK-074 monotonic `updatedAt` is
-  unchanged from the v0.7 impact.
-- [[My Collection]] (SPEC-007): the Collection page is gated. COLL-070 storage wording as IMP-053. **COLL-074**
-  "Delete all local data": unchanged in local-only mode; **not offered** in account-required mode, where Sign out
-  clears the device (SYNC-052). The `TagId` short ids and `StoredTags` schemaVersion 3 impact is unchanged.
-- [[Shared Cards and Lock-in]] (SPEC-008): SHARE-060 storage wording as IMP-053; the Out of scope line "syncing
-  locks between browsers" is still superseded.
-- [[Tournament Deck Catalog]] (SPEC-004): Tournaments stays public in both modes. In account-required mode,
-  while the gate is not open (signed out, session lost, first sync running), Tournaments shows no "Add to your
-  decks" (CAT-070), "In your decks" or "Add another copy" (CAT-074) control, and the CAT-074 "already added"
-  check reads nothing from the local stores (SYNC-009, RJ decision 13 h). CAT-077 "stores the copy in
-  the browser only" should read by mode (in account-required mode the copy syncs to the account); its
-  no-popularity-data rule is unchanged (SYNC-102).
-- [[Your Decks Ownership View]] (SPEC-005): the Decks page and deck detail are gated (SYNC-009); ownership
-  rules unchanged.
-- **H-071 / H-160** (planned changes from v0.7 that now differ; H-071 applied only the v0.7 wording, the rest is H-160): the "browser by default, synced when signed in" wording
-  for IMP-053, COLL-070, DECK-090 and SHARE-060 should become the per-mode wording above; the planned COLL-074
-  change "while signed in clears this device and signs out" becomes "not offered in account-required mode". Still
-  as planned: DECK-074 monotonic `updatedAt`, SPEC-007 `TagId` / schemaVersion 3, SPEC-008 out-of-scope line,
-  ADR-0007 "Planned layout" pointer. New for H-071: gate notes in SPEC-003, SPEC-004, SPEC-005, SPEC-006,
-  SPEC-007.
-- **H-075:** its SYNC-052 / AC 31 part changes (no SPEC-010 confirmation line; the action is hidden in
-  account-required mode); "`halfDeleted()` also clears `uploadingUid`" is covered by clearing the whole log.
-- **H-077:** the resumed-Combine question is moot (no Combine, no upload resume); the write rule is SYNC-050 v0.8
-  (ACs 3, 4, 36, 40 count writes).
-- **Home page copy (done, H-126; v0.12):** the hero note read by `signInEnabled`: "Free" without sign-in, "Free
-  account" with it (RJ 2026-11-24, built and validated in H-126, which closed H-082). With the flag gone it is
-  "Free account" always (H-172). The retired note "Free · No account · Stored in your browser" is gone.
-- [[Current State]] constraints: "browser storage by default (optional sign-in and sync planned, ADR-0007)" →
-  per mode, as in the ADR-0007 amendment.
+**Earlier impact lists (v0.7, v0.8, H-071, H-160) are history, all applied, and moved to the archived note
+[[Accounts and Sync changelog]] ("Impacts history").** v0.12 supersedes their per-mode wording. Still-live items:
+- **Home page copy (done, H-126; v0.12):** the hero note is "Free account" always (H-172). The retired note
+  "Free · No account · Stored in your browser" is gone.
+- [[Current State]] constraints line "storage by mode" is replaced by account-only wording (RJ decision 17).
 - [[Firestore Data Shape]]: the first-sign-in upload and merge rows are superseded; a first sign-in now costs
   the download reads plus at most 1 write (SYNC-050, SYNC-120).
-
-**From v0.7: applied by H-071 (2026-11-24, nightly run, worked from v0.6):** [[Collection Import]] IMP-053 (0.9.1),
-[[My Collection]] COLL-070 (0.9), [[Deck Import]] DECK-090 (0.7) and [[Shared Cards and Lock-in]] SHARE-060 (0.4.1)
-read "browser by default; synced to the account when signed in (SPEC-010)"; SPEC-008's Out of scope line is
-superseded; [[Deck Import]] DECK-074 (0.7) monotonic `updatedAt` (SPEC-006 MAY still cap `importRemovedLines`, not
-done); [[My Collection]] 0.9 `TagId` `t_` + 6 base-62 and `StoredTags` `schemaVersion: 3` (COLL-071), COLL-074
-"while signed in clears this device and signs out"; ADR-0007 "Planned layout" pointer. **Still to apply (H-160):**
-the v0.8 per-mode wording in place of "browser by default" for IMP-053, COLL-070, DECK-090, SHARE-060 (and
-CAT-077), COLL-074 "not offered in account-required mode", and the gate notes in SPEC-003…SPEC-007 listed above.
-**Done in H-160 (2026-11-25).**
 - [[Firestore Data Shape]] read estimates are now low: a reopen is 3 reads (account check + 2 queries, SYNC-040),
   not 2; a first sign-in adds up to 3 + N rule-lookup reads and each new deck up to 1 (SYNC-113, SYNC-120). The
   per-day table (typical ≈ 15 reads) and the DAU figures should be recomputed; the effect is small (≈ +3 reads
@@ -1263,8 +1212,8 @@ Superseded decisions stay listed and are marked.
     unfinished deletion (1), no sign-out offline (2), the sent state (3), "Signed in as {email}" (4), the
     deletion-state menu (5), the delete dialog's sign-in-first state (6), the lost-session line (7), no panel
     heading (8), the return and "You're signed in." rules (9). No requirement changes.
-17. **Account-only, local-only mode dropped** (RJ, 2026-11-24, in chat, board H-171; [[ADR-0007 Firebase Accounts
-    and Firestore]] amendment 2026-11-24 (2), accepted): "let's drop the local-only mode... all data will live and
+17. **Account-only, local-only mode dropped** (RJ, 2026-11-24, in chat, board H-171;
+    [[ADR-0007 Firebase Accounts and Firestore]] amendment 2026-11-24 (2), accepted): "let's drop the local-only mode... all data will live and
     be from the account that's signed in. if someone deletes their account, their information will be deleted as
     well. However, we can keep cached data in the browser to speed up load times like we can cache their
     authentication and a few cards/decks. As users scroll through their decks /cards it should feel smooth. No
@@ -1276,6 +1225,8 @@ Superseded decisions stay listed and are marked.
     (SYNC-141); view state and printing-code memory stay per-device and are cleared with the cache.
 
 ## Open questions
+*Note for board H-152 (privacy notice): the question it means is **RJ decision 10, "Privacy notice"** (RJ's approval of the notice, SYNC-101 and its BLOCKED legal content, H-069), not Open question 10 below, which is "Holding production back". Open questions are not renumbered.*
+
 **v0.12 (H-171), for RJ (defaults specced, nothing blocks H-172):**
 10. **Holding production back** (SYNC-007, AC 64): the account-only build must not reach production until H-063,
     H-152 and the rules are done, but the GitHub Actions deploy of `main` publishes whatever is merged. Default

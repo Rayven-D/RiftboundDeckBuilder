@@ -23,3 +23,12 @@ tags: [validation, loop]
 
 ## Follow-up items
 - H-177 (P1, spec-writer): fix the broken wikilink, the two stale Out of scope lines, and the Impacts history bullets.
+
+## Attempt 2 (H-177 fixes, uncommitted on top of WIP 4db70b1) · PASS
+2026-11-24 · H-171 / H-177 · **PASS** · checked with `git diff --ignore-cr-at-eol` and grep.
+- **Broken wikilink:** decision 17 now has the link on one line. V-009 script over all changed files plus `Build Matching.md`: 0 unresolved links.
+- **Stale Out of scope lines:** [[Deck Import]] now says sharing and storage outside the user's own account are out of scope and that accounts, sync and the browser cache are in scope (SPEC-010; ADR-0005 #1 superseded). [[Collection Import]] says accounts and cloud sync are not "later" and are specified by SPEC-010. The other specs' Out of scope sections have no account or sync exclusion.
+- **SPEC-010 Impacts:** now v0.12 only (applied list plus "Code changes H-172 must make", items 1-7); the v0.8 per-mode bullets moved to "Impacts history" in the archived changelog note.
+- **H-152 / open question 10:** a note under Open questions says H-152 means RJ decision 10 (privacy notice), not open question 10 (holding production back).
+- **Leftover-wording grep (SPEC-003…010):** remaining hits are only withdrawal notes, changelog and "Current:" lines, decision 17, ACs that assert absence (31, 45, 63), the H-172 code list ("delete the tests that assert local-only behaviour"), and "in this browser" meaning the session. No live requirement describes local-only or browser-only storage.
+- Versions unchanged (SPEC-010 0.12; other pins as in attempt 1); no ID changes, so pins and ID uniqueness from attempt 1 still hold.

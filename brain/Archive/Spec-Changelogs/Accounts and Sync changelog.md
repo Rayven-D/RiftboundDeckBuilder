@@ -9,6 +9,22 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+## Impacts history (moved here from SPEC-010 "Impacts on other specs" in v0.12, H-177; all applied; the per-mode wording is superseded by v0.12)
+- **v0.7 impacts, applied by H-071 (2026-11-24):** IMP-053 (0.9.1), COLL-070 (0.9), DECK-090 (0.7) and SHARE-060
+  (0.4.1) read "browser by default; synced to the account when signed in"; SPEC-008's Out of scope line superseded;
+  DECK-074 monotonic `updatedAt` (0.7); SPEC-007 0.9 `TagId` `t_` + 6 base-62 and `StoredTags` schemaVersion 3
+  (COLL-071), COLL-074 "while signed in clears this device and signs out"; ADR-0007 "Planned layout" pointer.
+- **v0.8 impacts (account required to import, RJ decision 13), applied by H-160 (2026-11-25):** wording was
+  "local-only mode: browser only; account-required mode: a browser cache of the signed-in account, cleared on
+  sign-out". SPEC-003: Import page and Owned Cards Import gated (IMP-053, new IMP-076; Undo snapshot cleared on
+  sign-out and first sign-in). SPEC-006: deck import gated, DECK-090 as IMP-053, "Add to your decks" not offered
+  while the gate is closed (new DECK-097, decision 13 h). SPEC-007: Collection page gated (new COLL-092), COLL-070
+  as IMP-053, COLL-074 "not offered in account-required mode". SPEC-008: SHARE-060 as IMP-053. SPEC-004: Tournaments
+  public, deck controls hidden while the gate is closed (CAT-077, new CAT-078). SPEC-005: Decks gated (new OWN-066).
+  H-075: SYNC-052 / AC 31 changed (action hidden in account-required mode). H-077: no Combine, write rule SYNC-050.
+  Home copy (H-126): hero note by flag, "Free" / "Free account". Current State constraints line "by mode".
+- Other notes from that list still live in SPEC-010 (Firestore Data Shape reads, V-011 adapter path).
+
 - 0.12 (2026-11-24, H-171, RJ decision 17, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2, account-only;
   build H-172): **removed** the `signInEnabled` flag and local-only mode. SYNC-008 ("Two modes") and SYNC-052
   ("Delete all local data by mode") withdrawn, IDs retired. SYNC-007 rewritten from "Sign-in is gated by a build

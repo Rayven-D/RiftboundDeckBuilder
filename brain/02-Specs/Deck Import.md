@@ -509,7 +509,7 @@ shown in the display format (`Nov 23, 2026`).
 
 ## Out of scope
 - **Fetching URLs** or importing from a deck site by link or API (DECK-072; IMP-005).
-- **Accounts, sync, cloud backup** ([[ADR-0005 MVP Product Defaults]] #1).
+- **Sharing decks with other users, public deck pages, and any storage outside the user's own account.** Accounts, sync and the browser cache are in scope and specified by SPEC-010 ([[ADR-0007 Firebase Accounts and Firestore]] amendment 2026-11-24 (2); ADR-0005 #1 is superseded).
 - **Sharing decks** (share links, public decks, deck codes as output). Export is text for the user only.
 - Importing several decks at once; Pixelborn codes. (CSV/Excel deck import is in scope since v0.4, DECK-011.)
 - Ownership display, partial colouring and the deck-level owned summary (SPEC-005 [[Your Decks Ownership View]]).

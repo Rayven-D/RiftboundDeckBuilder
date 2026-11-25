@@ -682,7 +682,7 @@ Card names below come from the 2026-11 RC Europe decklists in `01-Research/Deckl
 - Deck legality, bans, copy limits (SPEC-002). Deck lists the user wants to build: [[Deck Import]] (SPEC-006). Per-card owned/required display: [[Your Decks Ownership View]] (SPEC-005). Tags, sorting and filtering of owned cards: [[My Collection]] (SPEC-007).
 - Curated alias tables or any card data source other than the Riot API ([[ADR-0005 MVP Product Defaults]] #4).
 - Pixelborn codes (Pixelborn reportedly shut down 2025-08-07; low priority per research).
-- Camera scanning, price data, accounts and cloud sync ([[Product Vision]] "Later").
+- Camera scanning and price data ([[Product Vision]] "Later"). Accounts and cloud sync are **not** later: they are in scope and specified by SPEC-010 ([[ADR-0007 Firebase Accounts and Firestore]] amendment 2026-11-24 (2)).
 - Importing from third-party sites by URL or API (would conflict with IMP-005 / [[Riot Developer Rules]] #7).
 - Condition, language, foil-vs-nonfoil tracking beyond the printing key.
 
