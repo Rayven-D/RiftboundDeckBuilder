@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import {
   MAT_DIALOG_DATA,
@@ -14,6 +14,8 @@ import { MatRadioButton, MatRadioGroup } from '@angular/material/radio';
 import { countLine } from '../collection/collection-view';
 import { Icon } from '../icon';
 import { CommitMode, ImportCommitter, PreparedOk } from './collection-commit';
+import type { DeckImportCommitter, PreparedDeck } from './deck-import';
+import { DeckReview } from './deck-review';
 import {
   ParseResult,
   SECTION_LABELS,
@@ -31,9 +33,14 @@ export interface ImportDialogData {
   /**
    * Owned Cards Import (H-158): with a committer, Continue goes to the review step (resolved cards, lines left out,
    * Add / Replace) and the dialog closes with `'committed'` only after a written commit (IMP-072). Without one it
-   * closes with the ParseResult (Deck Import until H-253).
+   * closes with the ParseResult.
    */
   readonly committer?: ImportCommitter;
+  /**
+   * Deck Import (H-253, same seam): Continue resolves the list and shows the deck review (name, lines to fix, zone
+   * questions, source); Save closes with `'committed'` only after the deck is written (DECK-098).
+   */
+  readonly deckCommitter?: DeckImportCommitter;
 }
 
 /** What the dialog closes with: the parsed list (no committer), `'committed'`, or nothing (Cancel, Escape). */
@@ -54,6 +61,8 @@ export const REVIEW_TEXT = {
   replaceAction: 'Replace collection',
   saving: 'Saving…',
   back: 'Back',
+  /** Deck Import (H-253). */
+  saveDeck: 'Save deck',
 } as const;
 
 const COPY: Readonly<Record<ImportKind, { title: string; lede: string; action: string }>> = {
@@ -80,7 +89,8 @@ export function hasFiles(event: DragEvent): boolean {
 /**
  * Paste-or-upload dialog shared by both imports. Uploaded CSV / Excel / text rows are written into
  * the text box, so everything is checked by the same line rule and can be fixed before continuing.
- * Closes with the ParseResult; nothing is saved here (IMP-002).
+ * Without a committer it closes with the ParseResult; with one (Owned Cards H-158, Deck Import H-253) it closes with
+ * `'committed'` after a written save. Parsing writes nothing (IMP-002, DECK-003).
  */
 @Component({
   selector: 'app-import-dialog',
@@ -97,10 +107,31 @@ export function hasFiles(event: DragEvent): boolean {
     MatRadioGroup,
     MatRadioButton,
     Icon,
+    DeckReview,
   ],
   template: `
     <h2 mat-dialog-title>{{ copy.title }}</h2>
-    @if (review(); as r) {
+    @if (deckReview(); as d) {
+      <mat-dialog-content>
+        <app-deck-review [prepared]="d" />
+        @if (submitError(); as err) {
+          <p class="error commit-error" role="alert"><app-icon name="error" />{{ err }}</p>
+        }
+      </mat-dialog-content>
+      <mat-dialog-actions align="end">
+        <button matButton type="button" class="back" (click)="back()">{{ words.back }}</button>
+        <button matButton type="button" mat-dialog-close>Cancel</button>
+        <button
+          matButton="filled"
+          type="button"
+          class="commit save-deck"
+          [aria-disabled]="busy() || !canSaveDeck()"
+          (click)="saveDeck(d)"
+        >
+          {{ busy() ? words.saving : words.saveDeck }}
+        </button>
+      </mat-dialog-actions>
+    } @else if (review(); as r) {
       <mat-dialog-content>
         @if (r.resolved.cardCount) {
           <p class="totals" role="status">
@@ -282,6 +313,10 @@ export class ImportDialog {
   protected readonly maxIssues = MAX_ISSUES_SHOWN;
   /** The review step (Owned Cards Import): set by Continue once the list is resolved. */
   protected readonly review = signal<PreparedOk | null>(null);
+  /** The Deck Import review step (H-253): set by Continue once the list is resolved. */
+  protected readonly deckReview = signal<PreparedDeck | null>(null);
+  private readonly deckReviewStep = viewChild(DeckReview);
+  protected readonly canSaveDeck = computed(() => this.deckReviewStep()?.view().canSave ?? false);
   /** IMP-049: Add is the default. */
   protected readonly mode = signal<CommitMode>('add');
   protected readonly busy = signal(false);
@@ -384,6 +419,8 @@ export class ImportDialog {
       this.submitError.set('Add at least one line with a number and a card name first.');
       return;
     }
+    const deckCommitter = this.data.deckCommitter;
+    if (deckCommitter) return this.prepareDeck(deckCommitter);
     const committer = this.data.committer;
     if (!committer) {
       this.dialogRef.close(this.result());
@@ -391,7 +428,7 @@ export class ImportDialog {
     }
     this.busy.set(true);
     try {
-      const prepared = await committer.prepare(this.result());
+      const prepared = await committer.prepare(this.result(), this.text());
       if (prepared.status === 'error') this.submitError.set(prepared.message);
       else {
         this.submitError.set(null);
@@ -406,10 +443,45 @@ export class ImportDialog {
     return REVIEW_TEXT.ready(r.resolved.copies, r.resolved.cardCount);
   }
 
-  /** Back to the list (the text and the upload are kept). */
+  /** DECK-003: Continue resolves the list; nothing is written. */
+  private async prepareDeck(committer: DeckImportCommitter): Promise<void> {
+    this.busy.set(true);
+    try {
+      const prepared = await committer.prepare(this.result(), this.text());
+      if (prepared.status === 'error') this.submitError.set(prepared.message);
+      else {
+        this.submitError.set(null);
+        this.deckReview.set(prepared);
+      }
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /**
+   * DECK-003 / DECK-098: only Save writes; the dialog closes only after the deck is written, and a failed save
+   * (DECK_LIMIT, DECK_TOO_LARGE, STORAGE_FULL) keeps it open with the error. Save waits for DECK-038 / DECK-041.
+   */
+  protected async saveDeck(prepared: PreparedDeck): Promise<void> {
+    const committer = this.data.deckCommitter;
+    const view = this.deckReviewStep()?.view();
+    if (!committer || !view || !view.canSave || this.busy()) return;
+    this.busy.set(true);
+    this.submitError.set(null);
+    try {
+      const out = await committer.commit(prepared, { draft: view.draft });
+      if (out.status === 'written') this.dialogRef.close('committed');
+      else if (out.status === 'error') this.submitError.set(out.message);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** Back to the list (the text and the upload are kept; the deck review's choices start over). */
   protected back(): void {
     if (this.busy()) return;
     this.review.set(null);
+    this.deckReview.set(null);
     this.submitError.set(null);
   }
 
