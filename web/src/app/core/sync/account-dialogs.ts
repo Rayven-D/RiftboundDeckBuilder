@@ -22,7 +22,7 @@ import type { ErrorStateMatcher } from '@angular/material/core';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import {
-  USERNAME_MAX_GRAPHEMES,
+  USERNAME_MAX,
   USERNAME_TEXT,
   checkUsername,
   normalizeUsername,
@@ -33,7 +33,7 @@ import { Icon } from '../../shared/icon';
 import { MESSAGES } from '../../shared/sync/sync-engine';
 
 /**
- * SPEC-010 v0.14 account dialogs: the username dialog (SYNC-154 prompt, SYNC-155 change / add) and Account
+ * SPEC-010 v0.14 / v0.15 account dialogs: the username dialog (SYNC-154 prompt, SYNC-155 change / add) and Account
  * Information (SYNC-152). There is no Settings page and no `/account` route (RJ, H-178 decision 2).
  */
 
@@ -105,7 +105,11 @@ let usernameDialogSeq = 0;
         </mat-form-field>
         <!-- H-189 N1: not a mat-hint. Material's subscript wrapper is aria-live, so a hint counter was read on every
              keystroke; here it is plain text, read with the field through aria-describedby. -->
-        <p class="counter" [id]="counterId">{{ count() }} / {{ max }}</p>
+        <p class="counter" [class.over]="over()" [id]="counterId">
+          @if (over()) {
+            <app-icon name="error" />
+          }{{ count() }} / {{ max }}
+        </p>
         @if (error(); as err) {
           <p class="error" [id]="errorId"><app-icon name="error" />{{ err }}</p>
         }
@@ -136,6 +140,13 @@ let usernameDialogSeq = 0;
       color: var(--color-text-muted);
       font-size: var(--font-size-xs);
     }
+    .counter.over {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: var(--space-1);
+      color: var(--color-danger);
+    }
     .error {
       display: flex;
       align-items: flex-start;
@@ -158,7 +169,9 @@ export class UsernameDialog {
   protected readonly errorId = `username-error-${this.seq}`;
   protected readonly counterId = `username-count-${this.seq}`;
   protected readonly blockerId = `username-blocker-${this.seq}`;
-  protected readonly max = USERNAME_MAX_GRAPHEMES;
+  protected readonly max = USERNAME_MAX;
+  /** SYNC-153: above 20 the counter turns to the error colour with an icon (the text is never cut). */
+  protected readonly over = computed(() => this.count() > this.max);
   protected readonly title =
     this.data.mode === 'choose'
       ? USERNAME_DIALOG_TEXT.chooseTitle
@@ -206,13 +219,14 @@ export class UsernameDialog {
   protected async submit(e: Event): Promise<void> {
     e.preventDefault();
     if (this.blocker() || this.saving()) return; // disabledInteractive still sends the press
-    const check = checkUsername(this.value());
-    if (!check.ok) return this.fail(usernameErrorText(check.error));
-    // SYNC-155: saving the unchanged value just closes.
-    if (this.data.current !== null && check.value === normalizeUsername(this.data.current)) {
+    // SYNC-155: saving the unchanged value just closes. Checked before the rules, so a name saved under older rules
+    // (v0.14: an emoji, over 20) is never re-checked or rewritten unless the user changes it (SPEC-010 v0.15 build).
+    if (this.data.current !== null && normalizeUsername(this.value()) === normalizeUsername(this.data.current)) {
       this.ref.close();
       return;
     }
+    const check = checkUsername(this.value());
+    if (!check.ok) return this.fail(usernameErrorText(check.error));
     this.saving.set(true);
     const r = await this.data.save(check.value).catch(() => 'failed' as const);
     this.saving.set(false);

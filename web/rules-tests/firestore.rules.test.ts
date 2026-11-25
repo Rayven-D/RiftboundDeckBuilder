@@ -227,21 +227,23 @@ describe('SYNC-112 field validation', () => {
   });
 });
 
-describe('SYNC-112 / SYNC-156 account username (v0.14, H-176; AC 22, AC 74, AC 76)', () => {
+describe('SYNC-112 / SYNC-156 account username (v0.15, H-206 / H-207; AC 22, AC 74, AC 76)', () => {
   const upd = (f: Firestore, username: unknown) =>
     updateDoc(ref(f, 'users/uA'), { username, updatedAt: T, syncedAt: serverTimestamp() });
-  /** 👨🏽\u{200D}👩🏽\u{200D}👧🏽\u{200D}👦🏽: 11 code points, 19 UTF-16 units, 41 UTF-8 bytes; 24 of them is the worst name the client accepts. */
+  /** U+1D400 MATHEMATICAL BOLD CAPITAL A: 20 of them is the widest name the client accepts. */
+  const BOLD_A = '\u{1D400}';
+  /** 👨🏽\u{200D}👩🏽\u{200D}👧🏽\u{200D}👦🏽: a v0.14 client accepted 24 of them (456 UTF-16 units). */
   const FAMILY = '\u{1F468}\u{1F3FD}\u{200D}\u{1F469}\u{1F3FD}\u{200D}\u{1F467}\u{1F3FD}\u{200D}\u{1F466}\u{1F3FD}';
 
   it("AC 22 / SYNC-112 an update with username 'RJ Smith' (createdAt kept) is allowed", async () => {
     await assertSucceeds(upd(db('uA'), 'RJ Smith'));
   });
 
-  it('AC 22 / AC 74 / H-183 24 × the skin-tone family emoji (264 code points, 456 UTF-16 units, 984 UTF-8 bytes) is allowed', async () => {
-    const name = FAMILY.repeat(24);
-    expect([...name].length).toBe(264);
-    expect(name.length).toBe(456);
-    expect(new TextEncoder().encode(name).length).toBe(984);
+  it('AC 22 / AC 74 / AC 76 20 × U+1D400 (20 code points, 40 UTF-16 units, 80 UTF-8 bytes) is allowed', async () => {
+    const name = BOLD_A.repeat(20);
+    expect([...name].length).toBe(20);
+    expect(name.length).toBe(40);
+    expect(new TextEncoder().encode(name).length).toBe(80);
     await assertSucceeds(upd(db('uA'), name));
   });
 
@@ -251,12 +253,30 @@ describe('SYNC-112 / SYNC-156 account username (v0.14, H-176; AC 22, AC 74, AC 7
     await assertSucceeds(setDoc(ref(db('uA'), 'users/uA'), account()));
   });
 
-  it('AC 22 / SYNC-112 a username of 2001 characters, an empty one or a numeric one is denied; 2000 is allowed', async () => {
+  it('AC 22 / SYNC-112 a username of 81 × a, an empty one or a numeric one is denied; 80 × a (the cap) is allowed', async () => {
     const a = db('uA');
-    await assertFails(upd(a, 'x'.repeat(2001)));
+    await assertFails(upd(a, 'a'.repeat(81)));
     await assertFails(upd(a, ''));
     await assertFails(upd(a, 42));
-    await assertSucceeds(upd(a, 'x'.repeat(2000)));
+    await assertSucceeds(upd(a, 'a'.repeat(80)));
+  });
+
+  it('AC 22 / SYNC-153 the rules do not check the character set: 😀 is allowed by the rules (the client refuses it)', async () => {
+    await assertSucceeds(upd(db('uA'), '\u{1F600}'));
+  });
+
+  it('AC 22 / SYNC-112 an unchanged legacy username (24 × the skin-tone family emoji, saved under v0.14) does not block a lastClientVersion update; a new 81 × a is denied', async () => {
+    const legacy = FAMILY.repeat(24);
+    expect(legacy.length).toBe(456);
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(ref(ctx.firestore() as unknown as Firestore, 'users/uA'), { username: legacy });
+    });
+    const a = db('uA');
+    await assertSucceeds(updateDoc(ref(a, 'users/uA'), { lastClientVersion: 'web-prod-abc1234', updatedAt: T, syncedAt: serverTimestamp() }));
+    // the same name written back unchanged is not re-checked either
+    await assertSucceeds(upd(a, legacy));
+    await assertFails(upd(a, 'a'.repeat(81)));
+    await assertSucceeds(upd(a, 'RJ Smith'));
   });
 
   it('AC 76 / SYNC-155 the username write is one update() of username, updatedAt and syncedAt; a client syncedAt is denied', async () => {
@@ -267,20 +287,21 @@ describe('SYNC-112 / SYNC-156 account username (v0.14, H-176; AC 22, AC 74, AC 7
     await assertFails(upd(db('uB'), 'Mallory'));
   });
 
-  it('H-183 which unit string.size() counts: probed with 😀 × 700 and × 1100 (code points 700 / 1100, UTF-16 1400 / 2200, UTF-8 2800 / 4400)', async () => {
+  it('H-183 which unit string.size() counts: probed with 😀 × 30 and × 50 (code points 30 / 50, UTF-16 60 / 100, UTF-8 120 / 200)', async () => {
     const a = db('uA');
     const probe = async (n: number) => {
       try {
+        // a fresh name each time, so the unchanged-name shortcut never applies
         await assertSucceeds(upd(a, '\u{1F600}'.repeat(n)));
         return true;
       } catch {
         return false;
       }
     };
-    const r700 = await probe(700);
-    const r1100 = await probe(1100);
-    const unit = r1100 ? 'code points' : r700 ? 'UTF-16 units' : 'UTF-8 bytes';
-    console.log(`[H-183] Firestore rules string.size() counts ${unit} (700 emoji: ${r700}, 1100 emoji: ${r1100})`);
+    const r30 = await probe(30);
+    const r50 = await probe(50);
+    const unit = r50 ? 'code points' : r30 ? 'UTF-16 units' : 'UTF-8 bytes';
+    console.log(`[H-183] Firestore rules string.size() counts ${unit} (30 emoji: ${r30}, 50 emoji: ${r50})`);
     expect(unit).toBe(SIZE_UNIT);
   });
 });

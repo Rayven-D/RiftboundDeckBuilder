@@ -4,6 +4,7 @@ import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatDivider } from '@angular/material/divider';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { usernameInitial } from '../../shared/account/username';
 import { Icon } from '../../shared/icon';
@@ -44,12 +45,12 @@ let accountMenuSeq = 0;
  * username (or "Account" with a person icon) and a chevron, named "Account: {username}". The menu, top to bottom:
  * the username, "Signed in as {email}" (H-141), the status (SYNC-084) / divider / Sync now, or during an unfinished
  * deletion Try deleting again and Cancel deletion (SYNC-096) / divider / Account Information, the Theme radio group
- * (and Privacy notice there, SYNC-104 d, built by H-180) / divider / Sign out. Exactly 3 dividers (H-110). Delete
- * account and data lives in the Account Information dialog (SYNC-152); there is no Settings item or `/account` link.
+ * (and Privacy notice there, SYNC-104 d, built by H-180), What's new (SPEC-012 LOG-011) / divider / Sign out.
+ * Exactly 3 dividers (H-110). Delete account and data lives in the Account Information dialog (SYNC-152); there is no Settings item or `/account` link.
  */
 @Component({
   selector: 'app-account-menu',
-  imports: [Icon, MatButton, MatDivider, MatMenu, MatMenuItem, MatMenuTrigger],
+  imports: [Icon, MatButton, MatDivider, MatMenu, MatMenuItem, MatMenuTrigger, RouterLink],
   template: `
     @if (!sync.signedIn()) {
       <button matButton="outlined" type="button" class="header-account" aria-haspopup="dialog" (click)="openSignIn($event)">
@@ -76,7 +77,7 @@ let accountMenuSeq = 0;
         <app-icon class="chevron" name="expand_more" />
       </button>
       <!-- H-110 groups: [username, identity, status, offline] / [Sync now] or [deletion actions] /
-           [Account Information, Theme, (Privacy notice, H-180)] / [Sign out]. Always 3 dividers, never first or last. -->
+           [Account Information, Theme, (Privacy notice, H-180), What's new] / [Sign out]. Always 3 dividers, never first or last. -->
       <mat-menu #menu="matMenu" xPosition="before" class="account-menu-panel" [aria-describedby]="describedBy()">
         @if (sync.username(); as name) {
           <p class="menu-text username" [id]="usernameId">{{ name }}</p>
@@ -130,6 +131,8 @@ let accountMenuSeq = 0;
             </button>
           }
         </div>
+        <!-- LOG-011: a same-tab link, enabled offline and during an unfinished deletion (it needs no network). -->
+        <a mat-menu-item routerLink="/changelog">What's new</a>
         <mat-divider />
         <button mat-menu-item type="button" [disabled]="!sync.online()" (click)="openSignOut()">Sign out</button>
       </mat-menu>

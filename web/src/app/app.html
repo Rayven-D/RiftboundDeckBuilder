@@ -28,9 +28,18 @@
 </main>
 
 <footer class="site-footer">
-  <!-- SYNC-158 (a): the device theme for everyone, signed in or out. The privacy notice link (SYNC-104 e) joins
-       this row in H-180. -->
-  <app-theme-switch class="footer-theme" />
+  <!-- SYNC-158 (a): the device theme for everyone, signed in or out, then the footer links in this order: Privacy
+       notice (SYNC-104 e, H-180), What's new (SPEC-012 LOG-010). -->
+  <div class="footer-row">
+    <app-theme-switch class="footer-theme" />
+    <nav class="footer-links" aria-label="Footer">
+      <ul>
+        <li>
+          <a routerLink="/changelog" routerLinkActive="active" ariaCurrentWhenActive="page">What's new</a>
+        </li>
+      </ul>
+    </nav>
+  </div>
   <p class="legal">
     Rift Builder was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by
     Riot Games. Riot Games does not endorse or sponsor this project.
