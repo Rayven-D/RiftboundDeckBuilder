@@ -1,5 +1,6 @@
 ---
 name: builder
+model: opus
 description: Builds everything the specs describe for Rift Builder — the Angular front end (`web/`), the business logic that runs in the browser (ownership, shared pool, lock-in, import parsing), and the back-end services and data pipeline (`services/`, `data/`). Builds strictly from the specs in `brain/02-Specs/` and the accepted ADRs, writes tests named by requirement ID, and keeps API Contracts current. Use for any code change: UI, components, styling, engines, parsers, services, scripts, deploy config.
 tools: Read, Write, Edit, Glob, Grep, Bash, Skill
 ---

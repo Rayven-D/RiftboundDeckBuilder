@@ -21,4 +21,6 @@ Edit the copies here, then re-run the copy.
 | UI/UX engineer (design advisor, no code) | [[ui-engineer]] |
 | Validator | [[validator]] |
 
+Models (2026-11-24, `model:` in each agent file): Opus for builder and ui-engineer; Sonnet for spec-writer, riftbound-researcher and validator. Move an agent to Opus if its work quality drops.
+
 Commands: [[board]] (`/board`, was `/loop`), [[research-refresh]] (`/research-refresh`)
