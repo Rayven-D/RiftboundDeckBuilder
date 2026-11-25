@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.23
+version: 1.24
 ---
 # API Contracts
 
@@ -478,7 +478,7 @@ Not an endpoint. Writes go through the **tracked** `stores.collection` only.
   passed as `ImportDialogData.committer`): with it, Continue shows the review step and the dialog closes with `'committed'`
   only after `{ status: 'written' }`; `{ status: 'error', message }` stays in the dialog; `'cancelled'` (Replace
   confirmation cancelled) stays too. Without a committer the dialog closes with the `ParseResult` (no caller does
-  this any more since H-253). v1.23: generic over the review shape `P` and the action's choice `C`; `prepare` also
+  this any more since H-253). v1.24: generic over the review shape `P` and the action's choice `C`; `prepare` also
   gets the text box as parsed (`text`, used by Deck Import for `importRemovedLines`; the collection ignores it).
 - **Service** (`web/src/app/core/import/collection-import.ts`, `CollectionImport`, root): implements
   `ImportCommitter`; `undo()`; `written: Subject<void>` (fires after a commit or Undo this tab wrote; Collection
@@ -505,10 +505,15 @@ writes nothing (DECK-003).
   DECK-070), `sourceText`, `sourceUrl`. `draft` is the `UserDeck` without `id`, `createdAt`, `updatedAt`:
   `schemaVersion: 1`, `format: 'standard'`, `source: { kind: 'user', text, url }`, `sourceFormat` (`riot-text` /
   `plain-text` / `csv`), `notes: ''`, `catalogVersion`, `importRemovedLines` only when non-empty (removed lines,
-  rejected tokens, Legend / Champion lines not picked), zones merged by `cardKey` per zone. Helpers: `deckSource()`
+  rejected tokens, Legend lines not picked), zones merged by `cardKey` per zone. Helpers: `deckSource()`
   (DECK-071), `displayDate()` (`MMM D, YYYY`), `expectedZone()`, `isChampionUnit()`; strings `DECK_REVIEW_TEXT`.
-  Zone rules in code: DECK-020…026 and DECK-030…038 as specified; with 2+ cards in a single slot (`legend`,
-  `champion`) the user picks one and the others are left out into `importRemovedLines`.
+  Zone rules in code: DECK-020…026 and DECK-030…038 as specified. 2+ Legends (`Legend:` or unsectioned): the
+  user picks one (PICK_LEGEND) and the others are left out into `importRemovedLines` (Legends are never Main Deck
+  cards). 2+ cards under `Champion:` (e.g. a precon's Champion Unit Options): the user picks one (PICK_CHAMPION);
+  one copy of the pick goes to `champion` and every other copy (unpicked cards, extra copies of the pick) goes to
+  `main` with `zoneMethod: 'user'` and the line reason `DECK_REVIEW_TEXT.championNotPicked` /
+  `.championExtraToMain` (DECK-034 "copies not picked stay in `main`", as for unsectioned lists); "Leave empty"
+  puts them all in `main`. Save still waits for every answer (DECK-038).
 - **Parser additions** (`parse-card-list.ts`): `sourceLines(text)` (the parser's line split), `sectionLabelOf(raw)`;
   section labels accept `*` bold marks (`**Legend:**`, `**Legend**:`, SPEC-003 IMP-016 v0.14).
 - **Service** (`web/src/app/core/import/deck-import.ts`, `DeckImport`, root): `prepare` loads the catalog
@@ -672,7 +677,9 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
-- v1.23 (2026-11-25, H-253, SPEC-006 0.11.1): no endpoint change. New "Deck Import save" section: `deck-import.ts`
+- v1.24 (H-253): unpicked cards under `Champion:` (and extra copies of the picked one) go to `main` with a line
+  reason instead of `importRemovedLines` (DECK-034; RJ 2026-11-25); unpicked Legends are still left out.
+  Also (2026-11-25, H-253, SPEC-006 0.11.1): no endpoint change. New "Deck Import save" section: `deck-import.ts`
   (pure review and draft), `DeckReview` step in the shared dialog, `DeckImport` committer (`stores.decks.create`, "Deck
   saved." / View deck), `NEW_DECK_ID`; `ImportCommitter` is generic and `prepare` gets the text; parser
   `sourceLines()`, `sectionLabelOf()` and bold section labels (IMP-016); `ImportPending` removed.

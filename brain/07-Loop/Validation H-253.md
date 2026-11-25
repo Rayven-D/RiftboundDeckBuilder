@@ -49,3 +49,20 @@ Judged against SPEC-006 [[Deck Import]] 0.11.1 (`review`) and [[API Contracts]] 
 3. builder P2: leading-article rule (CARD-034 / DECK-040) for both imports, if H-272 does not already include it.
 4. builder P2: legality display in the review (DECK-050…056) once the engine lands (H-194).
 5. Handoff Board: H-273 is satisfied by H-253 (seam used); close it with H-253.
+
+## Re-check 2026-11-25 (champion fix)
+
+2026-11-25 · H-253 (champion fix, uncommitted on 88eece5) · **PASS** · `ng lint`, `npm run build`, `npm test` (76 files, 1088 tests), diff review against the research and spec, `core/decks/` status, V-009 · no failures
+
+| Check | Result |
+|---|---|
+| 2+ cards under `Champion:` | PASS. The picked card gives one copy to `champion`, extra copies of that line go to `main` (`championExtraToMain`), unpicked cards go to `main` (`championNotPicked`), none go to `importRemovedLines`. "Leave empty" puts all in `main`. Matches DECK-034 "Copies not picked stay in `main`", [[Deck Construction Rules]] facts 1, 4, 15 and [[Physical Copies Across Decks]] fact 5 (4 options + 36 main = 40) |
+| Legend behaviour unchanged | PASS. The diff touches only the `championCards.length > 1` branch; the `dropped` flag now only applies to unpicked Legends (DECK-033), covered by the new "unpicked Legends are still left out" test |
+| DECK-036 / DECK-038 / DECK-050 | PASS. "Leave empty" still available; Save waits for the answer; nothing blocks on legality |
+| `ng lint` / `npm run build` / `npm test` | PASS. 1088 tests green, matching the builder |
+| `web/src/app/core/decks/` untouched | PASS (no status output) |
+| V-009 | PASS. Six new tests name DECK-034 / 033 / 036 / 022; API Contracts v1.24 documents the change |
+
+Notes (not failures):
+- A single card under `Champion:` with quantity 2 is kept as written (DECK-025); builder flagged this for spec-writer. Not part of this fix.
+- The two new reason strings are plain UI text; ui-engineer wording review (earlier follow-up 2) now also covers them.

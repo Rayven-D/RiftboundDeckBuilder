@@ -205,6 +205,10 @@ export const DECK_REVIEW_TEXT = {
   token: (name: string) => `${name} is a token and can't be put in a deck`,
   /** DECK-022 */
   mismatch: (name: string, type: string) => `${name} is a ${type}`,
+  /** DECK-034: a card under `Champion:` that was not picked as the Chosen Champion (a line's zone reason). */
+  championNotPicked: 'Not picked as the Chosen Champion, so it is in the Main Deck',
+  /** DECK-034: the picked card's line had more than one copy (a line's zone reason). */
+  championExtraToMain: 'One copy is the Chosen Champion; the other copies are in the Main Deck',
   /** DECK-037 */
   noSideboard:
     'This list has no Sideboard section, so all cards are in the Main Deck. Move sideboard cards if needed.',
@@ -377,9 +381,9 @@ interface Placed {
   mismatch: ReviewLine['mismatch'];
   /** Unsectioned legend (DECK-033) or Champion Unit (DECK-034) waiting for the slot rules. */
   pending: 'legend' | null;
-  /** Copies moved to `champion` from this `main` line (DECK-034). */
+  /** Copies moved to `champion` from this `main` line (DECK-034, unsectioned or under `Champion:`). */
   movedToChampion: number;
-  /** Dropped by the slot rules (an unpicked Legend / Champion), saved in `importRemovedLines`. */
+  /** Dropped by the slot rules (an unpicked Legend; DECK-033), saved in `importRemovedLines`. */
   dropped: boolean;
 }
 
@@ -496,11 +500,26 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
     championMethod = inChampion[0].method;
     championReason = inChampion[0].reason;
   } else if (championCards.length > 1) {
-    // Two or more cards under `Champion:` (single slot): the user picks one; the others leave the deck.
+    // Two or more cards under `Champion:` (single slot, e.g. a precon's "Champion Unit Options"): the user picks
+    // one. One copy of the pick is the Chosen Champion; every other copy is an ordinary Main Deck card (DECK-034:
+    // copies not picked stay in `main`; Deck Construction Rules #1, #4). "Leave empty" puts them all in `main`.
     const picked = answerChampion(championCards, inChampion.map((x) => x.line.id), false);
+    let pickedLine: Placed | undefined;
     for (const x of inChampion) {
-      if (picked === 'open') x.zone = null;
-      else if (!picked || x.card.cardKey !== picked.cardKey) x.dropped = true;
+      if (picked === 'open') {
+        x.zone = null;
+        continue;
+      }
+      x.zone = 'main';
+      x.method = 'user';
+      if (x.mismatch?.moveTo === 'main') x.mismatch = null; // now in the zone its card data expects
+      if (picked && !pickedLine && x.card.cardKey === picked.cardKey) {
+        pickedLine = x;
+        x.movedToChampion = 1;
+        x.reason = T.championExtraToMain;
+      } else {
+        x.reason = T.championNotPicked;
+      }
     }
     champion = picked === 'open' ? null : picked;
   } else if (!p.sections.has('champion') && legend && !legendOpen) {

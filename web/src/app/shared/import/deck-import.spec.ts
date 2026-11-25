@@ -166,6 +166,93 @@ describe('SPEC-006 Deck Import review (H-253)', () => {
       expect(qtyOf(r.draft.main, 'kennen storm of shuriken')).toBe(1);
     });
 
+    describe('DECK-034: several cards under Champion: (H-253 follow-up, Deck Construction Rules #1, #4)', () => {
+      // Precon style: 4 "Champion Unit Options" next to a 36-card main deck.
+      const PRECON = [
+        'Legend:',
+        '1 Kennen, Heart of the Tempest',
+        'Champion:',
+        '1 Kennen, Storm of Shuriken',
+        '1 Kennen, Second Form',
+        '2 Riven, Broken Blade',
+        'Main Deck:',
+        '12 Lightning Rush',
+        '12 Gust',
+        '12 Hextech Ray',
+      ].join('\n');
+      const mainPlusChampion = (r: ReturnType<typeof review>) => r.byZone.main + r.byZone.champion;
+
+      it('DECK-034: several cards under Champion: ask PICK_CHAMPION and block Save until answered', () => {
+        const r = review(prep(PRECON));
+        const q = r.questions.find((x) => x.kind === 'PICK_CHAMPION')!;
+        expect(q.answer).toBeNull();
+        expect(q.kind === 'PICK_CHAMPION' && q.candidates.map((c) => c.name)).toEqual([
+          'Kennen, Storm of Shuriken',
+          'Kennen, Second Form',
+          'Riven, Broken Blade',
+        ]);
+        expect(r.draft.champion).toBeNull();
+        expect(r.byZone.main).toBe(36);
+        expect(r.canSave).toBe(false);
+      });
+
+      it('DECK-034: unpicked cards under Champion: stay in the Main Deck (precon: 4 options + 36 main = 40)', () => {
+        const r = review(prep(PRECON), { champion: 'kennen second form' });
+        expect(r.draft.champion).toEqual({ cardKey: 'kennen second form', name: 'Kennen, Second Form', qty: 1 });
+        expect(qtyOf(r.draft.main, 'kennen second form')).toBeUndefined();
+        expect(qtyOf(r.draft.main, 'kennen storm of shuriken')).toBe(1);
+        expect(qtyOf(r.draft.main, 'riven broken blade')).toBe(2);
+        expect(r.byZone).toMatchObject({ legend: 1, champion: 1, main: 39 });
+        expect(mainPlusChampion(r)).toBe(40);
+        expect(r.draft.importRemovedLines).toBeUndefined();
+        const lines = Object.fromEntries(r.lines.map((l) => [l.name, [l.zone, l.zoneMethod, l.zoneReason]]));
+        expect(lines['Kennen, Second Form']).toEqual(['champion', 'user', null]);
+        expect(lines['Kennen, Storm of Shuriken']).toEqual(['main', 'user', DECK_REVIEW_TEXT.championNotPicked]);
+        expect(lines['Riven, Broken Blade']).toEqual(['main', 'user', DECK_REVIEW_TEXT.championNotPicked]);
+        expect(r.slots.champion).toEqual({ name: 'Kennen, Second Form', method: 'user', reason: null });
+        expect(r.canSave).toBe(true);
+      });
+
+      it('DECK-034: the picked line with quantity > 1 gives one copy to champion and the extra copies to main', () => {
+        const r = review(prep(PRECON), { champion: 'riven broken blade' });
+        expect(r.draft.champion).toEqual({ cardKey: 'riven broken blade', name: 'Riven, Broken Blade', qty: 1 });
+        expect(qtyOf(r.draft.main, 'riven broken blade')).toBe(1);
+        expect(qtyOf(r.draft.main, 'kennen storm of shuriken')).toBe(1);
+        expect(qtyOf(r.draft.main, 'kennen second form')).toBe(1);
+        expect(mainPlusChampion(r)).toBe(40);
+        const riven = r.lines.find((l) => l.name === 'Riven, Broken Blade')!;
+        expect([riven.zone, riven.zoneReason]).toEqual(['main', DECK_REVIEW_TEXT.championExtraToMain]);
+      });
+
+      it('DECK-034 / DECK-036: "Leave empty" on PICK_CHAMPION puts every card under Champion: in the Main Deck', () => {
+        const r = review(prep(PRECON), { champion: 'empty' });
+        expect(r.questions.find((x) => x.kind === 'PICK_CHAMPION')?.answer).toBe('empty');
+        expect(r.draft.champion).toBeNull();
+        expect(r.byZone).toMatchObject({ champion: 0, main: 40 });
+        expect(r.draft.importRemovedLines).toBeUndefined();
+        expect(r.lines.filter((l) => l.line >= 4 && l.line <= 6).every((l) => l.zone === 'main')).toBe(true);
+        expect(r.canSave).toBe(true);
+      });
+
+      it('DECK-034 / DECK-022: a known non-Champion under Champion: that is not picked goes to main without a warning', () => {
+        const r = review(prep('Legend: 1 Kennen, Heart of the Tempest\nChampion:\n1 Kennen, Storm of Shuriken\n1 Gust'), {
+          champion: 'kennen storm of shuriken',
+        });
+        expect(qtyOf(r.draft.main, 'gust')).toBe(1);
+        expect(r.issues.filter((i) => i.code === 'ZONE_CATEGORY_MISMATCH')).toEqual([]);
+      });
+
+      it('DECK-033: unpicked Legends are still left out of the deck (Legends are never Main Deck cards)', () => {
+        const r = review(prep('Legend:\n1 Kennen, Heart of the Tempest\n1 Riven, The Exile\nMain Deck:\n3 Gust'), {
+          legend: 'kennen heart of the tempest',
+          champion: 'empty',
+        });
+        expect(r.draft.legend?.name).toBe('Kennen, Heart of the Tempest');
+        expect(r.draft.importRemovedLines).toEqual(['1 Riven, The Exile']);
+        expect(qtyOf(r.draft.main, 'riven the exile')).toBeUndefined();
+      });
+    });
+
     it('DECK-026 / AC 20: a token is rejected with TOKEN_NOT_DECK_CARD, kept in importRemovedLines, and does not block', () => {
       const r = review(prep('3 Lightning Rush\n1 Spark Token'), { legend: 'empty' });
       expect(r.issues).toContainEqual({
