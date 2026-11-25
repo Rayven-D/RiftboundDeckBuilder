@@ -7,6 +7,11 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-25: H-244 spec text for the FAB, theme toggle, phone account tab and slim footer (spec-writer)
+- Wrote RJ's 2026-11-25 decisions into the specs from [[Brief H-245 H-246 H-247]]: [[Accounts and Sync]] **0.17.0** (SYNC-157, 158, 150 g, 151 item 6 withdrawn, 104 d and e, 003, ACs 54, 68, 69, 71, 72, 77, 79 reworded, 81 and 82 new, decision 22, Open question 15), [[My Collection]] **0.14** (COLL-094 d, e, AC 31), [[Your Decks Ownership View]] **0.8** (OWN-094, AC 22), [[Changelog]] **0.1.2** (LOG-010, LOG-013, ACs 2 and 3). Pins updated in Shared Cards and Lock-in, Test Data, Spec Index.
+- RJ's four brief choices were answered mid-task: three accepted, the fourth changed (signed in on the phone tab: the letter avatar alone, no label, 40 px, my reading of "a little bigger"). Recorded as decisions in the specs, the brief and the H-246 row. H-244 row set to `verify`.
+- Conflict found, not edited: [[Privacy Notice Draft]] says "theme choice (light, dark or system)"; RJ re-reads that text (Open question 15 f). Builds H-245, H-246, H-247 are ready for a builder.
+
 ## 2026-11-25: `/board 5` (orchestrator; RJ's sign-in release items first, split into parallel sessions)
 - RJ asked for the sign-in release items first, then to split independent chains into parallel sessions (each in its own worktree, own ID range). This run worked well past 5 items because of the split.
 - **Here: H-200** (spec-writer, with H-181): applied RJ's H-182 answers to [[Privacy Notice Draft]] 0.3 and SPEC-010 SYNC-101/103/104. **FAIL** attempt 1 (image-host blank, H-208) and attempt 2 (check wording, H-209), **PASS** attempt 3 ([[Validation H-200]]). Renumbered SPEC-010 0.15.1 after H-206 landed. Board data fix: H-200 depends `—`, H-182 depends on H-200. **PR #48 merged** (RJ opened it during GitHub's PR outage; the loop resolved conflicts and merged).

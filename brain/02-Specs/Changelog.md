@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-012
-version: 0.1.1
+version: 0.1.2
 status: draft
 depends_on: [SPEC-010]
 research: []
@@ -33,10 +33,10 @@ Give players one short, readable list of what changed in each release. It is als
 ### B. Links
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| LOG-010 | MUST | **Footer link.** A text link `What's new` in the site footer on every page, signed in or out, placed **after** the `Privacy notice` link (SYNC-104 e) in the same row as the theme switch and legal line. Opens `/changelog` in the **same tab**. | RJ 2026-11-25; SYNC-104 e, SYNC-158 |
+| LOG-010 | MUST | **Footer link.** A text link `What's new` in the site footer on every page, signed in or out, placed **after** the `Privacy notice` link (SYNC-104 e) in the same footer row as the legal line at 40rem and wider (v0.1.2: the theme switch is no longer in the footer, SPEC-010 SYNC-158). Opens `/changelog` in the **same tab**. | RJ 2026-11-25; SYNC-104 e, SYNC-158 |
 | LOG-011 | MUST | **Account menu item.** A menu item `What's new` placed **after `Privacy notice` and before `Sign out`**, in the same divider group as Privacy notice (the divider before Sign out stays; the menu keeps exactly 3 dividers, SYNC-151). It navigates to `/changelog` in the same tab and closes the menu. Stays enabled offline and during an unfinished deletion (it needs no network). | SYNC-151, SYNC-104 d |
 | LOG-012 | MUST | Both links are real anchors with the exact text `What's new` (no icon-only link), keyboard reachable. They are not added to the main tabs, the phone tab bar or the sign-in dialog. | SYNC-104 g |
-| LOG-013 | SHOULD | **Merge note for the builder.** H-180 (Privacy notice, SYNC-104) adds its links in the same two places. Whichever build lands second only adds its own link next to the other one; the final order is footer: Privacy notice, What's new; menu: Theme, Privacy notice, What's new, Sign out. | board H-180 |
+| LOG-013 | SHOULD | **Merge note for the builder.** H-180 (Privacy notice, SYNC-104) adds its links in the same two places. Whichever build lands second only adds its own link next to the other one; the final order is footer: Privacy notice, What's new; menu: Account Information, Privacy notice, What's new, Sign out (v0.1.2: no Theme item, SPEC-010 SYNC-151 item 6). | board H-180 |
 
 ### C. Entries
 | ID | Level | Requirement | Source |
@@ -95,9 +95,9 @@ Example first file content: `[ { "version": "0.0.1", "date": null, "title": "Acc
 1. **Public route** (LOG-001, LOG-002, LOG-003)
    **Given** a signed-out visitor with empty browser storage **When** they open `/changelog` directly **Then** the tab title is `What's new · Rift Builder`, the one `<h1>` reads `What's new`, the intro line shows, no sign-in panel appears, no request goes to Firebase or any host other than the app's own, and no cookie or storage key is added. **Given** instead RJ is signed in, or the browser is offline after the app loaded **When** he opens `/changelog` **Then** the same page shows. **Given** `/changelogs` **Then** the app goes to Home.
 2. **Footer link** (LOG-010, LOG-012)
-   **Given** any page, signed in or out, desktop and phone **When** RJ scrolls to the footer **Then** `Privacy notice` and then `What's new` links show in the same row as the theme switch (once H-180 is built; before that, `What's new` alone), the Riot legal line is unchanged, and choosing `What's new` opens `/changelog` in the same tab.
+   **Given** any page, signed in or out, desktop and phone **When** RJ scrolls to the footer **Then** `Privacy notice` and then `What's new` links show in the same footer row as the Riot legal line at 40rem and wider (once H-180 is built; before that, `What's new` alone), with no theme control in the footer (v0.1.2), the Riot legal line is unchanged, and choosing `What's new` opens `/changelog` in the same tab.
 3. **Account menu item** (LOG-011)
-   **Given** signed in as `uA` **When** RJ opens the account menu **Then** the items run: username, Signed in as, sync status, Sync now, Account Information, Theme, Privacy notice, **What's new**, Sign out, with exactly 3 dividers; **When** he chooses `What's new` **Then** `/changelog` opens in the same tab and the menu closes. **Given** offline, or an unfinished deletion **Then** the item is still there and enabled.
+   **Given** signed in as `uA` **When** RJ opens the account menu **Then** the items run: username, Signed in as, sync status, Sync now, Account Information, Privacy notice, **What's new**, Sign out (v0.1.2: no Theme item), with exactly 3 dividers; **When** he chooses `What's new` **Then** `/changelog` opens in the same tab and the menu closes. **Given** offline, or an unfinished deletion **Then** the item is still there and enabled.
 4. **Entry layout and dates** (LOG-020, LOG-021, LOG-070)
    **Given** the test data `[ {version "0.0.3", date "2026-12-04", title "Faster Collection", bullets ["Pages open faster."]}, {version "0.0.2", date "2026-11-28", ...} ]` **When** the page renders **Then** 0.0.3 comes first, its `<h2>` is `Faster Collection`, its meta line reads `Version 0.0.3` and `December 4, 2026` inside `<time datetime="2026-12-04">`, and its bullets are a `<ul>`. **Given** `date` `null` **Then** the entry shows `Coming soon` and no `<time>` element.
 5. **Bad data** (LOG-024)
@@ -121,7 +121,7 @@ Example first file content: `[ { "version": "0.0.1", "date": null, "title": "Acc
 - Entries for preview deploys or for dev-only work.
 
 ## Impacts (other notes and specs that must match; this spec edits none of them)
-**Applied 2026-11-25 (H-220):** the SPEC-010 items below (SYNC-009, SYNC-104 d and e, SYNC-151 item 7, SYNC-158, ACs 54, 68, 69, 72) are in [[Accounts and Sync]] 0.16.1. The first item (Privacy Notice Draft / SYNC-103 item 3) is H-200's and already in SPEC-010 0.15.1.
+**Applied 2026-11-25 (H-220):** the SPEC-010 items below (SYNC-009, SYNC-104 d and e, SYNC-151 item 7, SYNC-158, ACs 54, 68, 69, 72) are in [[Accounts and Sync]] 0.16.1 (0.17.0, H-244, removes Theme from the menu and the footer; LOG-010, LOG-013 and ACs 2 and 3 follow in this spec's 0.1.2). The first item (Privacy Notice Draft / SYNC-103 item 3) is H-200's and already in SPEC-010 0.15.1.
 - **[[Privacy Notice Draft]] / SPEC-010 SYNC-103 item 3 (H-200):** the changes-announcement line should call it "the public changelog (the What's new page)" and link the text `What's new` to `/changelog` once the route exists (until then, no link). SPEC-012 changes no privacy fact: no new data is collected (LOG-003).
 - **SPEC-010 0.14.x SYNC-104 d and SYNC-151 (menu order) and SYNC-104 e (footer):** the menu gains `What's new` after `Privacy notice`; SYNC-151 item (7) and AC 68's order list, and the footer wording, need a one-line mention. The code is built from this spec (H-202); the SPEC-010 text catch-up is a spec-writer follow-up after H-200 and H-206 land (to avoid clashing edits). The divider count (3) is unchanged.
 - **SPEC-010 SYNC-009:** add `/changelog` to the public, never-gated list (it already includes "the privacy notice"); same follow-up.
@@ -135,4 +135,5 @@ No `BLOCKED` items. For RJ (defaults apply if no answer):
 
 ## Changelog
 - 0.1 (2026-11-25, H-201): draft from RJ's request; route `/changelog`, "What's new" links, JSON data file, `0.0.X` rule, null-date placeholder with a release-time check, first entry `0.0.1`. Build item: H-202.
+- 0.1.2 (2026-11-25, H-244, patch, text only): follows [[Accounts and Sync]] 0.17.0 (RJ 2026-11-25: theme toggle moves to the header, no Theme in the menu or footer). LOG-010 and AC 2 (footer row has the legal line, no theme switch), LOG-013 and AC 3 (menu without Theme). Pin SPEC-010 0.17.0. No requirement is added or removed; the `What's new` links are unchanged.
 - 0.1.1 (2026-11-25, H-220, patch, text only): LOG-024 now names the run-time skip check exactly as built and accepted in H-202 (LOG-031 field rules, LOG-022 limits, hash guard on titles and bullets, a bare 7+ digit run counts as a hash), so it agrees with AC 5 (which gains the other skip cases); LOG-053 records the release-script messages for invalid JSON and not-an-array; LOG-071 notes the shared 65ch column with `/privacy`; Impacts marked applied (SPEC-010 0.16.1). No requirement is added or removed.
