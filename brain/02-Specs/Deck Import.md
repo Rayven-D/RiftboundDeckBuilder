@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-006
-version: 0.8
+version: 0.9
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-003, SPEC-004, SPEC-008]
 consumers: [SPEC-005, SPEC-008]
@@ -15,10 +15,10 @@ as_of: 2026-11-23
 ## Summary
 > Read this first. Full detail below only if needed.
 
-**Purpose:** import a complete community deck (paste, or upload `.txt` / `.csv` / `.xlsx`) into Decks: parse → review (zones, names, legality) → save. Second path: "Add to your decks" from Tournaments.
+**Purpose:** import a complete community deck (paste, or upload `.txt` / `.csv` / `.xlsx`) into Decks: parse → review (zones, names, legality) → save. Labelled **"Import deck"** and opened in a dialog from a floating button on the Decks page (v0.9, DECK-001); there is no import page. Second path: "Add to your decks" from Tournaments.
 
 **Key requirements**
-- DECK-001: the shared paste-or-upload dialog (SPEC-003 IMP-062/063); uploads land in the editable text box; every line needs a quantity (IMP-021).
+- DECK-001 (v0.9, H-174): **"Import deck"** opens the shared paste-or-upload dialog (SPEC-003 IMP-062/063) from a floating button on `/decks` (SPEC-005 OWN-094), the empty state's button, or `/decks?import=1` (SPEC-010 SYNC-159); a saved deck stays on Decks; `/import` is removed and goes to Home. Uploads land in the editable text box; every line needs a quantity (IMP-021).
 - DECK-002/003: one import = at most one deck; only Save writes; the collection is never changed.
 - DECK-010/013: reuses SPEC-003 Part A, incl. CSV/Excel (v0.4); only IMP-009 and IMP-015 are not applicable to decks.
 - DECK-011: CSV/Excel rows follow the same line rule; section labels work in one-cell rows.
@@ -36,7 +36,7 @@ as_of: 2026-11-23
   Undo and Duplicate give unlocked decks. Locks live in SPEC-008's `DeckLockStore`, not in `UserDeck`.
 
 **Shared types:** `UserDeck` · `DeckCard` (`cardKey`, name, qty) · `DeckSource` = `UserDeckSource | TournamentDeckSource` · `DeckZone` (= SPEC-002 `Zone`) · `DeckImportResult` · `ZoneQuestion` · `DeckStore`.
-**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3.1, [[Collection Import]] v0.11, [[Tournament Deck Catalog]] v0.6, [[Shared Cards and Lock-in]] v0.4.4 (lock rules for DECK-080/082…084). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
+**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3.1, [[Collection Import]] v0.12, [[Tournament Deck Catalog]] v0.6, [[Shared Cards and Lock-in]] v0.4.4 (lock rules for DECK-080/082…084). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
 **BLOCKED (needs research):**
 - Whether Piltover deck codes encode Legend, champion, runes and battlefields (DECK-039).
 - API type strings and champion/signature fields (via SPEC-001), so inference mostly asks zone questions.
@@ -48,8 +48,9 @@ list) because they want to build it. They may own none of it. The result is a **
 **Decks** ([[ADR-0006 Two Imports - Collection and Decks]]). [[Your Decks Ownership View]]
 (SPEC-005) is the consumer: it shows each card of a user deck against the user's collection.
 
-Deck import is the second card on the Import screen, "Deck Import: Created deck list that you want
-to make" ([[Design Direction]]). The first card, Owned Cards Import, is [[Collection Import]] (SPEC-003).
+Deck import is **"Import deck"** on the Decks page, "Created deck list that you want to make"
+([[Design Direction]]); there is no import page since v0.9 (RJ 2026-11-24, [[ADR-0006 Two Imports - Collection and Decks]]).
+The other import, **"Add to your collection"** (owned cards), is [[Collection Import]] (SPEC-003), opened from Collection.
 
 How it differs from owned-card import (SPEC-003):
 
@@ -96,7 +97,7 @@ without parsing.
 ### A. Entry paths and general flow
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| DECK-001 | MUST | Deck import is reached from the **Deck Import** card on the Import screen. It opens the shared paste-or-upload dialog (SPEC-003 IMP-062, IMP-063; title "Import deck", hint "Section labels like "Main Deck:" are kept."). Input is pasted text or an uploaded `.txt`, `.csv` or `.xlsx` file (IMP-001, IMP-061), written into the editable text box. Every line needs a quantity (IMP-021). The dialog also shows copies per section as parsed (unlabelled entries as "No section"). | [[Design Direction]] 2026-11-23; [[ADR-0006 Two Imports - Collection and Decks]]; RJ decision 2026-11-23 (H-043) |
+| DECK-001 | MUST | **Entry point and label (v0.9, H-174).** Deck import is labelled **"Import deck"** and is reached from the **Decks** page, in a dialog, from exactly these places: (a) the **floating button** at the bottom right of `/decks` (SPEC-005 OWN-094; same form, position, phone collapse and page-end spacing as Collection's, SPEC-007 COLL-094); (b) the **Import deck** button of the Decks empty state (OWN-008); (c) the one-shot address `/decks?import=1` (Home's "Import deck" button and the sign-in return path, SPEC-010 SYNC-159). There is **no import page**: `/import` is removed and goes to Home (SYNC-159). A saved deck **stays on Decks**: the dialog closes and the page does not navigate. The dialog is the shared paste-or-upload dialog (SPEC-003 IMP-062, IMP-063; title "Import deck", hint "Section labels like "Main Deck:" are kept."). Input is pasted text or an uploaded `.txt`, `.csv` or `.xlsx` file (IMP-001, IMP-061), written into the editable text box. Every line needs a quantity (IMP-021). The dialog also shows copies per section as parsed (unlabelled entries as "No section"). | [[Design Direction]] 2026-11-23; [[ADR-0006 Two Imports - Collection and Decks]]; RJ decision 2026-11-23 (H-043) |
 | DECK-002 | MUST | One import produces **at most one** deck. It goes into **Decks** only and never changes the collection. | [[ADR-0006 Two Imports - Collection and Decks]] |
 | DECK-003 | MUST | Parsing and review MUST NOT write to the deck store. Only an explicit **Save** creates the deck (same principle as IMP-002). Leaving or reloading the page before saving stores nothing. | design rule |
 | DECK-004 | MUST | Import is tolerant: one bad line never aborts it (IMP-003). Every issue is reported with its location (IMP-056). | [[Collection Import]] IMP-003, IMP-056 |
@@ -213,7 +214,7 @@ information about a deck the user wants to build, so it never blocks (DECK-050).
 | DECK-094 | SHOULD | A save carries the `updatedAt` it was based on; if the stored record has a newer `updatedAt` (another tab), ask "This deck changed in another tab. Overwrite or reload?" | design rule |
 | DECK-095 | MUST | Stored decks contain card **keys, names and quantities only**: no card text, images or other Riot content copies (those come from the catalog at display time). | [[Card Data Model]] CARD-007 |
 | DECK-096 | MUST | **Deck entries are by `cardKey`, never by printing.** A `DeckCard` stores no printing, variant, set, ownership, owned count or tag. A printing named by the source (deck code, TTS, or a printing code on a text line, DECK-015) is used only to resolve the `cardKey` and is then dropped; entries of one name in one zone merge (DECK-021). Ownership is computed by the consumer, [[Your Decks Ownership View]] (SPEC-005): it groups each deck card by card name, can expand it to the exact owned printings, and does not count printings carrying a tag marked "exclude from decks". Nothing in this spec changes when collection, printings or tags change. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 #5, #6; [[Card Data Model]] CARD-012, CARD-013 |
-| DECK-097 | MUST | **Sign-in gate (SYNC-009, always on).** While the gate is not open (signed out, session lost, or first sync running), Deck Import (wherever it is opened from; today the Import page, whose entry points H-174 changes) shows the SPEC-010 sign-in panel instead of the import and nothing can be saved, and the Tournaments "Add to your decks" path (DECK-005, DECK-060…065; SPEC-004 CAT-070) is **not offered**: no Add, "In your decks" or "Add another copy" control, and the SPEC-004 CAT-074 "already added" check reads nothing from the browser cache. When the gate opens the controls appear without a reload. There is no mode without the gate. Panel text and gate rules are SPEC-010's. | [[Accounts and Sync]] SYNC-009 (decision 13 h; amendment 2) |
+| DECK-097 | MUST | **Sign-in gate (SYNC-009, always on).** While the gate is not open (signed out, session lost, or first sync running), Deck Import ("Import deck") is not offered: the Decks page shows the SPEC-010 sign-in panel instead of the list, so the Import deck button and dialog (DECK-001) do not exist, a `?import=1` address (SYNC-159) opens no dialog until the gate opens, and nothing can be saved, and the Tournaments "Add to your decks" path (DECK-005, DECK-060…065; SPEC-004 CAT-070) is **not offered**: no Add, "In your decks" or "Add another copy" control, and the SPEC-004 CAT-074 "already added" check reads nothing from the browser cache. When the gate opens the controls appear without a reload. There is no mode without the gate. Panel text and gate rules are SPEC-010's. | [[Accounts and Sync]] SYNC-009 (decision 13 h; amendment 2) |
 
 ## Data contract
 ```ts
@@ -507,6 +508,16 @@ shown in the display format (`Nov 23, 2026`).
     only `cardKey`, `name` and `qty` (no printing). **Given** instead `Main Deck:` / `3 Lightning Rush RAD 999`
     **Then** `Lightning Rush ×3` is in `main` with warning `UNKNOWN_PRINTING` and Save is not blocked.
 
+24. **Entry point, label and landing** (DECK-001, DECK-097; v0.9, H-174)
+    **Given** a signed-in user with the gate open and at least one deck **When** they open `/decks` **Then** the
+    floating button **Import deck** is at the bottom right (SPEC-005 OWN-094); **When** they press it **Then** the
+    dialog titled exactly "Import deck" opens over Decks, and **When** they paste a valid deck and press Save **Then**
+    the deck appears in the Decks list, the dialog closes, and the app is still at `/decks` (it did not navigate).
+    **Given** instead `/decks?import=1` with the gate open **Then** the same dialog opens once and the address
+    becomes `/decks`. **Given** a signed-out visitor **Then** no button or dialog exists and the sign-in panel shows;
+    **When** they open `/import` **Then** the app shows Home. No text in the app calls this flow "Deck Import" or
+    "Import" alone.
+
 ## Out of scope
 - **Fetching URLs** or importing from a deck site by link or API (DECK-072; IMP-005).
 - **Sharing decks with other users, public deck pages, and any storage outside the user's own account.** Accounts, sync and the browser cache are in scope and specified by SPEC-010 ([[ADR-0007 Firebase Accounts and Firestore]] amendment 2026-11-24 (2); ADR-0005 #1 is superseded).
@@ -539,4 +550,4 @@ shown in the display format (`Nov 23, 2026`).
   and the label "Not fully checked".
 
 ## Changelog
-Current: 0.8 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: DECK-090 and DECK-097 without modes; DECK-087 restore wording; pins SPEC-003 0.11, SPEC-004 0.6, SPEC-008 0.4.4). Previous: 0.7.1 (2026-11-25, H-160). Earlier: 0.7 (2026-11-24, H-071: DECK-074 monotonic `updatedAt`). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.
+Current: 0.9 (2026-11-25, H-174, RJ 2026-11-24 header decision / gate H-178: DECK-001 is the "Import deck" entry point (FAB on Decks, empty-state button, `/decks?import=1`; a saved deck stays on Decks; no import page, `/import` goes to Home); DECK-097 gate note names the Decks page; Purpose wording; AC 24 new; no parsing or deck rule changed; pins SPEC-003 0.12, SPEC-010 0.14). Previous: 0.8 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: DECK-090 and DECK-097 without modes; DECK-087 restore wording; pins SPEC-003 0.11, SPEC-004 0.6, SPEC-008 0.4.4). Previous: 0.7.1 (2026-11-25, H-160). Earlier: 0.7 (2026-11-24, H-071: DECK-074 monotonic `updatedAt`). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.
