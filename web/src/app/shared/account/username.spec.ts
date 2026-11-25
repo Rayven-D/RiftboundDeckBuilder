@@ -1,9 +1,8 @@
 /**
- * SPEC-010 SYNC-153 username rules (v0.14.1, H-176), AC 74. Pure functions: no Angular, no Firebase.
+ * SPEC-010 SYNC-153 username rules (v0.15, H-206 / H-207), AC 74 and AC 76. Pure functions: no Angular, no Firebase.
  */
 import {
-  USERNAME_MAX_GRAPHEMES,
-  USERNAME_MAX_UNITS,
+  USERNAME_MAX,
   USERNAME_TEXT,
   checkUsername,
   graphemes,
@@ -13,18 +12,21 @@ import {
   usernameLength,
 } from './username';
 
-/** 👨🏽‍👩🏽‍👧🏽‍👦🏽: one grapheme of 11 code points, 19 UTF-16 units. */
+const NOT_ALLOWED = "Use letters, numbers, spaces and . _ - ' only. No emoji.";
+/** 👨🏽‍👩🏽‍👧🏽‍👦🏽: one grapheme of 11 code points (a v0.14 name may still hold one). */
 const FAMILY_TONES = '\u{1F468}\u{1F3FD}\u{200D}\u{1F469}\u{1F3FD}\u{200D}\u{1F467}\u{1F3FD}\u{200D}\u{1F466}\u{1F3FD}';
 /** 👨‍👩‍👧 */
 const FAMILY = '\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}';
-const COMBINING_ACUTE = '\u{0301}';
+/** U+1D400 MATHEMATICAL BOLD CAPITAL A: a letter outside the BMP (2 UTF-16 units, 4 UTF-8 bytes). */
+const BOLD_A = '\u{1D400}';
 
-describe('SYNC-153 username rules (AC 74)', () => {
+describe('SYNC-153 username rules (v0.15, AC 74)', () => {
   it("AC 74 / SYNC-153 (1), (2) '  RJ   Smith  ' is stored as 'RJ Smith' (trimmed, inner spaces collapsed)", () => {
     expect(normalizeUsername('  RJ   Smith  ')).toBe('RJ Smith');
     expect(checkUsername('  RJ   Smith  ')).toEqual({ ok: true, value: 'RJ Smith' });
-    // a no-break space run collapses too
-    expect(normalizeUsername('RJ\u{00A0}\u{00A0}Smith')).toBe('RJ Smith');
+    // a run of no-break / ideographic spaces (\p{Zs}) collapses to one U+0020 too
+    expect(normalizeUsername('RJ\u{00A0}\u{3000}Smith')).toBe('RJ Smith');
+    expect(checkUsername('RJ\u{00A0}Smith')).toEqual({ ok: true, value: 'RJ Smith' });
   });
 
   it('AC 74 / SYNC-153 (6) empty, or only spaces: "Enter a username."', () => {
@@ -33,65 +35,125 @@ describe('SYNC-153 username rules (AC 74)', () => {
     expect(usernameErrorText('empty')).toBe('Enter a username.');
   });
 
-  it('AC 74 / SYNC-153 (3) 24 letters are accepted; 25 show "Use 24 characters or fewer." and are not cut', () => {
-    expect(USERNAME_MAX_GRAPHEMES).toBe(24);
-    expect(checkUsername('a'.repeat(24))).toEqual({ ok: true, value: 'a'.repeat(24) });
-    expect(checkUsername('a'.repeat(25))).toEqual({ ok: false, error: 'too-long' });
-    expect(usernameErrorText('too-long')).toBe('Use 24 characters or fewer.');
-    expect(usernameLength('a'.repeat(25))).toBe(25); // the counter shows 25 / 24: nothing is cut
+  it('AC 74 / SYNC-153 (3) 20 letters are accepted (counter 20 / 20); 21 show "Use 20 characters or fewer." and are not cut', () => {
+    expect(USERNAME_MAX).toBe(20);
+    expect(checkUsername('a'.repeat(20))).toEqual({ ok: true, value: 'a'.repeat(20) });
+    expect(usernameLength('a'.repeat(20))).toBe(20);
+    expect(checkUsername('a'.repeat(21))).toEqual({ ok: false, error: 'too-long' });
+    expect(usernameErrorText('too-long')).toBe('Use 20 characters or fewer.');
+    expect(usernameLength('a'.repeat(21))).toBe(21); // the counter shows 21 / 20: nothing is cut
   });
 
-  it(`AC 74 / SYNC-153 (3) '${FAMILY} Squad' and 24 emoji are accepted; the family emoji counts as 1 (counter 7 / 24)`, () => {
-    expect(checkUsername(`${FAMILY} Squad`)).toEqual({ ok: true, value: `${FAMILY} Squad` });
-    expect(usernameLength(`${FAMILY} Squad`)).toBe(7);
-    expect(checkUsername('\u{1F600}'.repeat(24)).ok).toBe(true);
+  it('AC 74 / SYNC-153 (3) the counter counts the value after normalizing: a trailing space does not count', () => {
+    expect(usernameLength('RJ   Smith ')).toBe(8);
+    expect(checkUsername('a'.repeat(20) + '   ').ok).toBe(true);
   });
 
-  it('AC 74 / H-183 24 × the skin-tone family emoji (264 code points, 456 UTF-16 units) is accepted', () => {
-    const name = FAMILY_TONES.repeat(24);
-    expect([...name]).toHaveLength(264);
-    expect(name.length).toBe(456);
-    expect(graphemes(name)).toHaveLength(24);
+  it("AC 74 / SYNC-153 (4) Zoë O'Neil-Smith_2.0 (20 characters) is accepted, and ’ is accepted for '", () => {
+    const name = "Zoë O'Neil-Smith_2.0";
+    expect([...name]).toHaveLength(20);
     expect(checkUsername(name)).toEqual({ ok: true, value: name });
+    expect(checkUsername('Zoë O\u{2019}Neil-Smith_2.0').ok).toBe(true);
   });
 
-  it('AC 74 / H-183 25 of them, or 24 letters each with 30 combining accents (over 500 UTF-16 units), show "Use 24 characters or fewer."', () => {
-    expect(checkUsername(FAMILY_TONES.repeat(25))).toEqual({ ok: false, error: 'too-long' });
-    const stacked = ('a' + COMBINING_ACUTE.repeat(30)).repeat(24);
-    expect(graphemes(stacked)).toHaveLength(24); // 24 graphemes: only the unit cap catches it
-    expect(stacked.length).toBeGreaterThan(USERNAME_MAX_UNITS);
-    expect(checkUsername(stacked)).toEqual({ ok: false, error: 'too-long' });
+  it('SYNC-153 (4) letters and digits of any script with their marks are accepted', () => {
+    for (const ok of ['José García', '李小龙', 'Влад', 'محمد', 'नमस्ते', 'ไทย', '١٢٣ Team', 'R.J. Smith', 'a_b-c']) {
+      expect(checkUsername(ok)).toEqual({ ok: true, value: ok });
+    }
   });
 
-  it('AC 74 / SYNC-153 (5) a line feed, a tab, U+2028, U+202E, U+2066, U+200B or U+FEFF inside: "Use letters, numbers, spaces and punctuation."', () => {
-    for (const bad of ['\n', '\t', '\r', '\u{2028}', '\u{2029}', '\u{202E}', '\u{202A}', '\u{2066}', '\u{2069}', '\u{200B}', '\u{FEFF}', '\u{0007}']) {
+  it(`AC 74 / SYNC-153 (5) emoji and symbols are refused: "${NOT_ALLOWED}"`, () => {
+    for (const bad of [
+      'Squad \u{1F600}',
+      `${FAMILY} Squad`,
+      'Squad \u{2764}',
+      'Squad \u{2764}\u{FE0F}',
+      'Squad\u{2122}',
+      '1\u{FE0F}\u{20E3}',
+      'RJ@Smith',
+      'Squad \u{1F1FA}\u{1F1F8}', // a flag (regional indicators)
+      'RJ\u{1F3FD}', // a skin-tone modifier
+      'RJ!',
+      'Rift \u{2605}',
+      '$RJ',
+      'RJ+1',
+      'RJ^2',
+    ]) {
+      expect(checkUsername(bad), bad).toEqual({ ok: false, error: 'not-allowed' });
+    }
+    expect(usernameErrorText('not-allowed')).toBe(NOT_ALLOWED);
+  });
+
+  it('AC 74 / SYNC-153 (4) a variation selector is refused, even after a letter', () => {
+    for (const vs of ['\u{FE00}', '\u{FE0E}', '\u{FE0F}', '\u{E0100}', '\u{E01EF}']) {
+      expect(checkUsername(`RJ${vs}`), vs.codePointAt(0)!.toString(16)).toEqual({ ok: false, error: 'not-allowed' });
+    }
+  });
+
+  it('AC 74 / SYNC-153 (0) Zoë typed with a combining mark is stored as the NFC form and counts 3', () => {
+    // The AC names U+0301, which is the acute (e + U+0301 = é); ë is e + U+0308. Both compose under NFC.
+    const typed = 'Zoe\u{0308}';
+    expect([...typed]).toHaveLength(4);
+    expect(usernameLength(typed)).toBe(3);
+    expect(checkUsername(typed)).toEqual({ ok: true, value: 'Zo\u{00EB}' });
+    expect(checkUsername('Zoe\u{0301}')).toEqual({ ok: true, value: 'Zo\u{00E9}' });
+    expect(usernameLength('Zoe\u{0301}')).toBe(3);
+  });
+
+  it('AC 74 / AC 76 20 × U+1D400 (20 code points, 40 UTF-16 units, 80 UTF-8 bytes) is accepted; 21 are not', () => {
+    const name = BOLD_A.repeat(20);
+    expect(name.length).toBe(40);
+    expect(new TextEncoder().encode(name).length).toBe(80);
+    expect(usernameLength(name)).toBe(20);
+    expect(checkUsername(name)).toEqual({ ok: true, value: name });
+    expect(checkUsername(BOLD_A.repeat(21))).toEqual({ ok: false, error: 'too-long' });
+  });
+
+  it('AC 74 / SYNC-153 (3) 7 Devanagari letters each with two combining marks (21 code points): "Use 20 characters or fewer." (marks count)', () => {
+    // क + ् (U+094D, Mn) + ि (U+093F, Mc): NFC leaves them as they are
+    const cluster = '\u{0915}\u{094D}\u{093F}';
+    expect([...cluster.repeat(7).normalize('NFC')]).toHaveLength(21);
+    expect(checkUsername(cluster.repeat(7))).toEqual({ ok: false, error: 'too-long' });
+    expect(checkUsername(cluster.repeat(6)).ok).toBe(true); // 18 code points: the marks themselves are allowed
+  });
+
+  it("AC 74 / SYNC-153 (4) the first character must be a letter or digit: -Smith, .Smith, _Smith, 'Smith and a leading mark are refused", () => {
+    for (const bad of ['-Smith', '.Smith', '_Smith', "'Smith", '\u{0301}Smith']) {
+      expect(checkUsername(bad), bad).toEqual({ ok: false, error: 'not-allowed' });
+    }
+    expect(checkUsername('2Smith').ok).toBe(true);
+  });
+
+  it('AC 74 / SYNC-153 (5) a line feed, a tab, U+2028, U+202E, U+2066, U+200B, U+200D (ZWJ), U+FEFF or private use inside is refused', () => {
+    const bads = ['\n', '\t', '\r', '\u{2028}', '\u{2029}', '\u{202E}', '\u{202A}', '\u{2066}', '\u{2069}', '\u{200B}', '\u{200D}', '\u{200E}', '\u{2060}', '\u{FEFF}', '\u{0007}', '\u{E000}'];
+    for (const bad of bads) {
       expect(checkUsername(`Line one${bad}Line two`)).toEqual({ ok: false, error: 'not-allowed' });
     }
-    expect(usernameErrorText('not-allowed')).toBe('Use letters, numbers, spaces and punctuation.');
   });
 
-  it('SYNC-153 (4) any script, punctuation, symbols, accents, the zero-width joiner and variation selectors are allowed', () => {
-    for (const ok of ['Zoë', 'José García', '李小龙', 'Влад', 'محمد', "O'Brien-Smith!", '★ Rift ★', '\u{2764}\u{FE0F} cards', FAMILY]) {
-      expect(checkUsername(ok).ok).toBe(true);
-    }
+  it('AC 74 / SYNC-153 21 characters that include an emoji: the length error shows first', () => {
+    expect(checkUsername('a'.repeat(20) + '\u{1F600}')).toEqual({ ok: false, error: 'too-long' });
+    expect(checkUsername('\u{1F600}'.repeat(21))).toEqual({ ok: false, error: 'too-long' });
   });
 
-  it('SYNC-153 not unique: the same name is valid for two accounts (no lookup exists)', () => {
+  it('AC 74 / SYNC-153 not unique: the same name is valid for two accounts (no lookup exists)', () => {
     expect(checkUsername('RJ Smith')).toEqual(checkUsername('RJ Smith'));
   });
 
-  it('SYNC-153 (3) without Intl.Segmenter the count falls back to code points', () => {
+  it('SYNC-153 (3) the count does not depend on Intl.Segmenter (code points in every browser)', () => {
     const original = (Intl as unknown as { Segmenter?: unknown }).Segmenter;
+    const withSegmenter = usernameLength('Zoe\u{0301} \u{1F600}');
     (Intl as unknown as { Segmenter?: unknown }).Segmenter = undefined;
     try {
-      expect(graphemes(FAMILY)).toHaveLength(5);
-      expect(usernameLength('abc')).toBe(3);
+      expect(usernameLength('Zoe\u{0301} \u{1F600}')).toBe(withSegmenter);
+      expect(withSegmenter).toBe(5);
+      expect(graphemes(FAMILY)).toHaveLength(5); // the initial's fallback
     } finally {
       (Intl as unknown as { Segmenter?: unknown }).Segmenter = original;
     }
   });
 
-  it('SYNC-150 (b) the initial is the first grapheme, upper-cased where the script has case; emoji stay whole', () => {
+  it('SYNC-150 (b) the initial is the first grapheme, upper-cased where the script has case; a v0.14 emoji name stays whole', () => {
     expect(usernameInitial('rj Smith')).toBe('R');
     expect(usernameInitial('élan')).toBe('É');
     expect(usernameInitial(`${FAMILY_TONES} Squad`)).toBe(FAMILY_TONES);

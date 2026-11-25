@@ -59,14 +59,18 @@ service cloud.firestore {
         && shortString(d.lastClientVersion, 40);
     }
 
-    // Update: the same keys plus the optional username (v0.14, SYNC-153, SYNC-156; H-183). size() 1 to 2000 is a
-    // backstop: the client allows 24 graphemes and at most 500 UTF-16 units, far below 2000 in any unit.
-    function validAccountUpdate(d) {
+    // Update: the same keys plus the optional username (v0.14, SYNC-153, SYNC-156; v0.15, H-206). size() 1 to 80 is a
+    // backstop, not the user limit: the client allows at most 20 code points (worst case 20 x U+1D400 = 40 UTF-16
+    // units, 80 UTF-8 bytes), so 80 is enough in any unit size() may count. The rules do not check which characters
+    // the name holds (the client does, SYNC-153). The length test runs only when the request changes the username: a
+    // name saved under older limits (v0.14) never blocks another update of the account document (SYNC-112).
+    function validAccountUpdate(d, before) {
       return exactKeys(d, ['schemaVersion', 'createdAt', 'updatedAt', 'syncedAt', 'lastClientVersion'], ['username'])
         && validMeta(d)
         && d.createdAt is timestamp
         && shortString(d.lastClientVersion, 40)
-        && (!('username' in d) || (d.username is string && d.username.size() >= 1 && d.username.size() <= 2000));
+        && (!('username' in d) || (d.username is string
+          && (before.get('username', null) == d.username || (d.username.size() >= 1 && d.username.size() <= 80))));
     }
 
     // ---- state documents (SYNC-013, SYNC-015, SYNC-017; caps: design decision 7) ----
@@ -130,7 +134,7 @@ service cloud.firestore {
       allow get, delete: if isOwner(uid);
       allow create: if isOwner(uid) && validAccount(request.resource.data);
       // SYNC-012: updated, never replaced: createdAt keeps its first value.
-      allow update: if isOwner(uid) && validAccountUpdate(request.resource.data)
+      allow update: if isOwner(uid) && validAccountUpdate(request.resource.data, resource.data)
         && request.resource.data.createdAt == resource.data.createdAt;
 
       match /state/{name} {

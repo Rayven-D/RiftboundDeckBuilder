@@ -32,8 +32,9 @@ export interface AccountDoc extends DocMeta {
   createdAt: Ms;
   lastClientVersion: string;
   /**
-   * v0.14 (SYNC-156): absent until the user chooses one; never set at creation. Normalized (SYNC-153): 1-24
-   * graphemes and at most 500 UTF-16 units; the rules allow `size()` 1-2000 on update only (SYNC-112, H-183).
+   * v0.14 (SYNC-156): absent until the user chooses one; never set at creation. Normalized (SYNC-153, v0.15): NFC,
+   * 1-20 code points, no emoji (allowed set in SYNC-153 (4)); the rules allow `size()` 1-80 on update only, checked
+   * only when the request changes it (SYNC-112, H-206). A name saved under v0.14 may break the v0.15 client rules.
    */
   username?: string;
 }

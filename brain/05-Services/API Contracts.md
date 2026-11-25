@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.17
+version: 1.18
 ---
 # API Contracts
 
@@ -343,13 +343,18 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   creates) and `firestore.indexes.json` (every field but `syncedAt` exempt). Not deployed: deploy with
   `firebase deploy --only firestore` before sign-in ships (SYNC-117).
 
-- **Header account, username, theme, imports from their pages (SPEC-010 v0.14 SYNC-150…159, H-176):**
+- **Header account, username, theme, imports from their pages (SPEC-010 v0.14 SYNC-150…159, H-176; username limits v0.15, H-207):**
   - **Account document:** `AccountDoc.username?: string` (SYNC-156): absent until chosen, never written at creation.
     Rules (`firestore.rules`): `validAccount` (create) allows exactly the five keys, so a `username` on create is
-    denied; `validAccountUpdate` (update) allows `username` as a string with `size()` 1 to 2000 (SYNC-112, H-183).
-    **`string.size()` counts UTF-16 code units on the Firestore emulator** (verified 2026-11-25 by the H-183 probe in
-    `web/rules-tests/firestore.rules.test.ts`: 700 × U+1F600 = 1,400 units allowed, 1,100 × U+1F600 = 2,200 units
-    denied; production `unverified`). The client caps a name at 500 UTF-16 units, so the backstop never bites.
+    denied; `validAccountUpdate(d, resource.data)` (update) allows `username` as a string with `size()` 1 to **80**
+    (SYNC-112, v0.15 H-206 / H-207), and runs the length test **only when the request changes `username`**: an update
+    that leaves the stored name as it is (or absent) passes without it, so a name saved under v0.14 (up to 456 UTF-16
+    units) never blocks the per-build `lastClientVersion` update. The rules check no character set (the client does,
+    SYNC-153). **`string.size()` counts UTF-16 code units on the Firestore emulator** (verified 2026-11-25 by the
+    H-183 probe in `web/rules-tests/firestore.rules.test.ts`, re-run for the 80 cap in H-207: 30 × U+1F600 = 60 units
+    allowed, 50 × U+1F600 = 100 units denied; production `unverified`). The client caps a name at 20 code points
+    (worst case 20 × U+1D400 = 40 UTF-16 units = 80 UTF-8 bytes), so the backstop never rejects a name the client
+    accepted, whichever unit production counts.
   - **`RemoteStore.setUsername(uid, username): Promise<'ok' | RemoteErrorCode>`** (SYNC-155): one `updateDoc` of
     `users/{uid}` with `username`, `updatedAt` (client ms) and `syncedAt: serverTimestamp()`; never a `set()` (a missing
     account is `not-found`, not recreated); 20 s timeout as other writes (`'unconfirmed'`); never throws.
@@ -365,9 +370,15 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
     `saveUsername(value)` (notifies "Username saved." as `success`), `promptUsername()`; `signedIn` is also true while
     the log expects a session that is not lost (gate `open` / `first-sync` / `first-sync-failed`), so the header shows
     the account control at the first frame; `statusLine` reads "Syncing…" until the restore finishes.
-  - **Username rules (pure, `web/src/app/shared/account/username.ts`):** `normalizeUsername`, `checkUsername(raw)` →
-    `{ ok: true, value } | { ok: false, error: 'empty' | 'too-long' | 'not-allowed' }`, `usernameLength` (the `n / 24`
-    counter), `graphemes` (`Intl.Segmenter`, code points as the fallback), `usernameInitial`, `USERNAME_TEXT`.
+  - **Username rules (pure, `web/src/app/shared/account/username.ts`, SPEC-010 v0.15 SYNC-153):**
+    `normalizeUsername` (NFC, trim, collapse every `\p{Zs}` run to one space), `checkUsername(raw)` →
+    `{ ok: true, value } | { ok: false, error: 'empty' | 'too-long' | 'not-allowed' }` (order: empty, then over
+    `USERNAME_MAX` = 20 code points, then not matching `^[\p{L}\p{Nd}][\p{L}\p{Mn}\p{Mc}\p{Nd} ._'’-]*$` (`u`) or
+    holding a variation selector), `usernameLength` (the `n / 20` counter: code points of the normalized value),
+    `graphemes` (`Intl.Segmenter`, code points as the fallback; used only for `usernameInitial`, never for counting),
+    `usernameInitial`, `USERNAME_TEXT` (`tooLong` "Use 20 characters or fewer.", `notAllowed` "Use letters, numbers,
+    spaces and . _ - ' only. No emoji."). The dialog closes on a Save of the unchanged value before checking it, so a
+    stored v0.14 name that breaks the v0.15 rules is never rewritten unless the user changes it.
   - **Theme (SYNC-157, 158):** `THEME_KEY = 'device-theme'` (`web/src/app/shared/theme/theme.ts`), values `light` /
     `dark`, absent = System; `parseTheme()`. `ThemeService` (`core/theme/theme.service.ts`): `choice` signal and `set()`;
     writes `html[data-theme]` and both `theme-color` metas; follows the `storage` event. The inline script in
@@ -503,6 +514,11 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.18 (2026-11-25, H-202, SPEC-012 0.1): no endpoint change. New "Release changelog" section: `ChangelogEntry`,
+  `CHANGELOG_DATA`, the pure changelog rules, the `/changelog` page, `check:changelog-release` and the release step.
+- v1.17 (2026-11-25, H-207, SPEC-010 v0.15.0): no endpoint change. Username: client 20 NFC code points and the
+  SYNC-153 (4) allowed set (no emoji), counter `n / 20`, `USERNAME_MAX` replaces `USERNAME_MAX_GRAPHEMES` /
+  `USERNAME_MAX_UNITS`; rules `size()` 1 to 80 (was 2000), checked only when `username` changes.
 - v1.16 (2026-11-25, H-176, SPEC-010 v0.14.1): no endpoint change. New "Header account, username, theme, imports
   from their pages" note: `AccountDoc.username?`, `StoredSyncLog.username?`, `RemoteStore.setUsername`,
   `EngineDeps.onAccountCreated`, the rules' create / update split for `username` (`string.size()` counts UTF-16 units
@@ -512,5 +528,3 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   `SignInGate.offerDeleteLocalData`, `BrowserStores.clearCollectionData()`, `COLLECTION_DATA_KEYS`. Changed:
   `gateState(log, runtime?)` (no mode parameter); `AUTH_PROVIDERS` moved to `core/sync/auth-providers.ts`. New
   "Browser cache" note (SYNC-140…146). Test helper `provideOpenGate()` (`core/sync/testing/open-gate.ts`).
-- v1.17 (2026-11-25, H-202, SPEC-012 0.1): no endpoint change. New "Release changelog" section: `ChangelogEntry`,
-  `CHANGELOG_DATA`, the pure changelog rules, the `/changelog` page, `check:changelog-release` and the release step.

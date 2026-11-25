@@ -130,8 +130,8 @@ describe('Header account control, menu and Account Information (SPEC-010 SYNC-15
       expect(b.getAttribute('aria-expanded')).toBe('true');
     });
 
-    it('AC 71 a 24-character name: the accessible name still holds all 24 characters (the visible one may be cut by CSS)', async () => {
-      const name = 'Abcdefghijklmnopqrstuvwx';
+    it('AC 71 a 20-character name (20 × W): the accessible name still holds all 20 characters (the visible one may be cut by CSS)', async () => {
+      const name = 'W'.repeat(20);
       const auth = new FakeAuth();
       auth.uid = 'uA';
       const db = new FakeFirestore();
@@ -491,15 +491,16 @@ describe('UsernameDialog (SPEC-010 SYNC-153…155, AC 74, AC 75, AC 76)', () => 
     expect(t.input().getAttribute('aria-describedby')).toBe(t.el.querySelector('.counter')!.id);
   });
 
-  it('SYNC-153 / H-189 N1 the n / 24 counter is outside every aria-live region (not read on each keystroke) but describes the field', async () => {
+  it('SYNC-153 / H-189 N1 the n / 20 counter is outside every aria-live region (not read on each keystroke) but describes the field', async () => {
     const t = open();
     await t.fixture.whenStable();
     await t.type('Kai S');
     const counter = t.el.querySelector('.counter')!;
-    expect(text(counter)).toBe('5 / 24');
+    expect(text(counter)).toBe('5 / 20');
+    expect(counter.classList).not.toContain('over');
     expect(t.el.querySelector('mat-hint')).toBeNull();
     expect(counter.closest('[aria-live]')).toBeNull();
-    for (const live of Array.from(t.el.querySelectorAll('[aria-live]'))) expect(text(live)).not.toContain('/ 24');
+    for (const live of Array.from(t.el.querySelectorAll('[aria-live]'))) expect(text(live)).not.toContain('/ 20');
     expect(t.input().getAttribute('aria-describedby')!.split(' ')).toContain(counter.id);
   });
 
@@ -520,22 +521,73 @@ describe('UsernameDialog (SPEC-010 SYNC-153…155, AC 74, AC 75, AC 76)', () => 
     expect(document.activeElement).toBe(t.input());
   });
 
-  it('AC 74 25 characters: "Use 24 characters or fewer." and the text is not cut; the counter reads 25 / 24', async () => {
+  it('AC 74 20 letters: accepted, the counter reads 20 / 20 in the normal colour', async () => {
     const t = open();
     await t.fixture.whenStable();
-    await t.type('a'.repeat(25));
-    expect(text(t.el.querySelector('.counter'))).toBe('25 / 24');
+    await t.type('a'.repeat(20));
+    const counter = t.el.querySelector('.counter')!;
+    expect(text(counter)).toBe('20 / 20');
+    expect(counter.classList).not.toContain('over');
+    expect(counter.querySelector('app-icon')).toBeNull();
     await t.save();
-    expect(text(t.el.querySelector('.error'))).toBe('Use 24 characters or fewer.');
-    expect(t.input().value).toBe('a'.repeat(25));
+    expect(t.saved).toEqual(['a'.repeat(20)]);
   });
 
-  it('AC 74 a right-to-left override (U+202E): "Use letters, numbers, spaces and punctuation." (a pasted line feed is covered by username.spec.ts: a single-line input strips it)', async () => {
+  it('AC 74 21 characters: "Use 20 characters or fewer.", the counter reads 21 / 20 in the error colour with an icon, the text is not cut', async () => {
+    const t = open();
+    await t.fixture.whenStable();
+    await t.type('a'.repeat(21));
+    const counter = t.el.querySelector('.counter')!;
+    expect(text(counter)).toBe('21 / 20');
+    expect(counter.classList).toContain('over');
+    expect(counter.querySelector('app-icon')).not.toBeNull();
+    expect(t.input().hasAttribute('maxlength')).toBe(false);
+    await t.save();
+    expect(text(t.el.querySelector('.error'))).toBe('Use 20 characters or fewer.');
+    expect(t.input().value).toBe('a'.repeat(21));
+    expect(t.saved).toEqual([]);
+  });
+
+  it(`AC 74 an emoji (Squad 😀): "Use letters, numbers, spaces and . _ - ' only. No emoji." and nothing is saved`, async () => {
+    const t = open();
+    await t.fixture.whenStable();
+    await t.type('Squad \u{1F600}');
+    await t.save();
+    expect(text(t.el.querySelector('.error'))).toBe("Use letters, numbers, spaces and . _ - ' only. No emoji.");
+    expect(t.saved).toEqual([]);
+  });
+
+  it('AC 74 21 characters that include an emoji: the length error shows first', async () => {
+    const t = open();
+    await t.fixture.whenStable();
+    await t.type('a'.repeat(20) + '\u{1F600}');
+    await t.save();
+    expect(text(t.el.querySelector('.error'))).toBe('Use 20 characters or fewer.');
+  });
+
+  it('SYNC-155 / H-207 a name saved under v0.14 that breaks the v0.15 rules (an emoji) just closes when saved unchanged; a change runs the new check', async () => {
+    const legacy = 'Squad \u{1F600}';
+    const t = open({ current: legacy });
+    await t.fixture.whenStable();
+    expect(t.input().value).toBe(legacy);
+    await t.save();
+    expect(t.saved).toEqual([]);
+    expect(t.closed).toEqual([undefined]);
+    TestBed.resetTestingModule();
+    const u = open({ current: legacy });
+    await u.fixture.whenStable();
+    await u.type('Squad \u{1F601}');
+    await u.save();
+    expect(text(u.el.querySelector('.error'))).toBe("Use letters, numbers, spaces and . _ - ' only. No emoji.");
+    expect(u.saved).toEqual([]);
+  });
+
+  it(`AC 74 a right-to-left override (U+202E): "Use letters, numbers, spaces and . _ - ' only. No emoji." (a pasted line feed is covered by username.spec.ts: a single-line input strips it)`, async () => {
     const t = open();
     await t.fixture.whenStable();
     await t.type(`Line one${String.fromCodePoint(0x202e)}Line two`);
     await t.save();
-    expect(text(t.el.querySelector('.error'))).toBe('Use letters, numbers, spaces and punctuation.');
+    expect(text(t.el.querySelector('.error'))).toBe("Use letters, numbers, spaces and . _ - ' only. No emoji.");
   });
 
   it('AC 74 / AC 76 a valid name is saved normalized and the dialog closes with it; the unchanged value just closes', async () => {
