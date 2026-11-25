@@ -40,7 +40,7 @@ as_of: 2026-11-24
 - Part A preamble: not applicable to decks: IMP-009 and IMP-015 only (= DECK-013). Since v0.4 CSV/Excel is shared with decks.
 
 **Shared types:** `CardKey`, `PrintingId`, `PrintingCode` (keys) · `ImportResult` / `ParsedLine` / `PrintingHint` / `ImportIssue` / `UploadInfo` (parser output, reused by SPEC-006) · `SourceFormat` · `StoredCollection` (`cardKey` → quantity + `byPrinting`) · `CollectionStore`.
-**Depends on:** [[Card Data Model]] v0.4.1; [[Shared Cards and Lock-in]] v0.4.4 (IMP-050a locked-deck warning only). **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
+**Depends on:** [[Card Data Model]] v0.4.1; [[Shared Cards and Lock-in]] v0.4.5 (IMP-050a locked-deck warning only; pin-only, H-252). **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
 **BLOCKED (needs research):**
 - Real deck codes with known contents for fixtures (AC 16); which section tag the V3…V6 groups (chosen champion, runes, additional legends) get (IMP-031).
 - Whether the Riot API's printings use the same suffix letters and `SP` numbers as Piltover codes and TTS art numbers (IMP-033, IMP-036a; needs H-020).
