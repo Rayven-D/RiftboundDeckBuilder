@@ -16,6 +16,7 @@ import {
   lockedShortfalls,
   shortfallNotice,
   shortfallWarning,
+  storedLockState,
 } from './shared-pool';
 import type { CollectionCatalogView, DeckLock, OwnershipCard, SharedPool, UserDeck } from './types';
 
@@ -32,6 +33,7 @@ const catalog = makeCatalog([
   'Kennen, Heart of the Tempest',
   'Kennen, Storm of Shuriken',
   'Zaun Warrens',
+  'Gust',
   { name: 'Chaos Rune', category: 'rune' },
   { name: 'Order Rune', category: 'rune' },
 ]);
@@ -92,7 +94,7 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
     const p = pool([deck1, deck2], [], { [RAY]: 2 });
     expect(availability(p, 'd1', 'hextech ray').available).toBe(2);
     expect(availability(p, 'd2', 'hextech ray').available).toBe(2);
-    const check = canLock(p, deck1, false);
+    const check = canLock(p, deck1, false, false);
     expect(check).toEqual({ ok: false, reason: 'incomplete', cardsShort: 1 });
     expect(lockCheckMessage(check)).toBe('Lock in needs every card available: 1 card short');
   });
@@ -137,10 +139,10 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
 
     it('SHARE-020 Deck 2 cannot be locked: 1 card short', () => {
       const p = pool(decks, locks, { [RAY]: 3 });
-      const check = canLock(p, deck2, false);
+      const check = canLock(p, deck2, false, false);
       expect(check).toEqual({ ok: false, reason: 'incomplete', cardsShort: 1 });
       expect(lockCheckMessage(check)).toBe('Lock in needs every card available: 1 card short');
-      expect(canLock(p, deck1, false)).toEqual({ ok: false, reason: 'already-locked' });
+      expect(canLock(p, deck1, false, true)).toEqual({ ok: false, reason: 'already-locked' });
     });
   });
 
@@ -158,7 +160,7 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
     expect(availability(p, 'd2', 'hextech ray').otherUses).toEqual([
       { deckId: 'd1', deckName: 'Kennen Tempo', need: 3, locked: false, hold: 0 },
     ]);
-    expect(canLock(p, deck2, false)).toEqual({ ok: true });
+    expect(canLock(p, deck2, false, false)).toEqual({ ok: true });
   });
 
   it('AC 5 (SHARE-024) delete releases; Undo restores the deck unlocked behind the newer lock', () => {
@@ -337,20 +339,20 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
     const p = pool([d], [], {});
     expect(p.byDeck['r1'].complete).toBe(false);
     expect(p.byDeck['r1'].cardsShort).toEqual(['chaos rune', 'order rune']);
-    const check = canLock(p, d, false);
+    const check = canLock(p, d, false, false);
     expect(check).toEqual({ ok: false, reason: 'incomplete', cardsShort: 2 });
     expect(lockCheckMessage(check)).toBe('Lock in needs every card available: 2 cards short');
     // After an Add import of 9 Chaos Rune and 3 Order Rune: complete, Lock in enabled.
     const after = pool([d], [], { 'Chaos Rune': 9, 'Order Rune': 3 });
     expect(after.byDeck['r1'].complete).toBe(true);
-    expect(canLock(after, d, false)).toEqual({ ok: true });
+    expect(canLock(after, d, false, false)).toEqual({ ok: true });
   });
 
   it('AC 13 (SHARE-061) unreadable lock store: counts ignore locks and Lock in is disabled', () => {
     const p = pool([deck1, deck2], null, { [RAY]: 3 });
     expect(p.locksIgnored).toBe(true);
     expect(availability(p, 'd2', 'hextech ray').available).toBe(3);
-    expect(canLock(p, deck2, false)).toEqual({ ok: false, reason: 'locks-unreadable' });
+    expect(canLock(p, deck2, false, false)).toEqual({ ok: false, reason: 'locks-unreadable' });
   });
 
   it('AC 14 (SHARE-030, SHARE-035, SHARE-070) same lockedAt: deckId breaks the tie; pure and deterministic', () => {
@@ -437,7 +439,7 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
     });
 
     it('SHARE-020 Rune Test is incomplete (2 cards short) with darkened 0-of rune tiles; Empty Draft is no-cards', () => {
-      const runeCheck = canLock(shared, runeTest, false);
+      const runeCheck = canLock(shared, runeTest, false, false);
       expect(runeCheck).toEqual({ ok: false, reason: 'incomplete', cardsShort: 2 });
       expect(lockCheckMessage(runeCheck)).toBe('Lock in needs every card available: 2 cards short');
       const v = computeDeckOwnership(
@@ -451,7 +453,7 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
         ['0 of 9 available', 'none'],
         ['0 of 3 available', 'none'],
       ]);
-      const emptyCheck = canLock(shared, emptyDraft, false);
+      const emptyCheck = canLock(shared, emptyDraft, false, false);
       expect(emptyCheck).toEqual({ ok: false, reason: 'no-cards' });
       expect(lockCheckMessage(emptyCheck)).toBe('Lock in needs at least one card');
     });
@@ -469,7 +471,7 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
         TODAY,
       );
       expect(summarizeDeck(runeTest, v, null, null).ownershipFilter).toBe('ready');
-      expect(canLock(p, runeTest, false)).toEqual({ ok: true });
+      expect(canLock(p, runeTest, false, false)).toEqual({ ok: true });
     });
   });
 
@@ -513,11 +515,11 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
   describe('SHARE-020 canLock check order', () => {
     const p = pool([deck1], [], { [RAY]: 3 });
     it('SHARE-020 read-only comes before every other failure', () => {
-      expect(canLock(p, deck1, true)).toEqual({ ok: false, reason: 'read-only' });
+      expect(canLock(p, deck1, true, false)).toEqual({ ok: false, reason: 'read-only' });
       expect(lockCheckMessage({ ok: false, reason: 'read-only' })).toBe('This deck is read-only');
     });
     it('SHARE-020 a null pool means ownership unavailable', () => {
-      expect(canLock(null, deck1, false)).toEqual({ ok: false, reason: 'ownership-unavailable' });
+      expect(canLock(null, deck1, false, false)).toEqual({ ok: false, reason: 'ownership-unavailable' });
       expect(lockCheckMessage({ ok: false, reason: 'ownership-unavailable' })).toBe(
         'Ownership unavailable',
       );
@@ -572,11 +574,113 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
     ]);
   });
 
-  it('SHARE-020 a null pool cannot see locks: a locked deck gets ownership-unavailable, not already-locked', () => {
-    // Pinned behaviour: with ownership unavailable the pool is null, so canLock can't report
-    // 'already-locked'. The caller checks the lock store itself and shows Unlock for a locked deck.
-    expect(canLock(null, deck1, false)).toEqual({ ok: false, reason: 'ownership-unavailable' });
-    expect(canLock(null, deck1, true)).toEqual({ ok: false, reason: 'read-only' });
+  describe('SPEC-008 AC 19: ownership unavailable, locked deck (SHARE-020, SHARE-051, SHARE-053)', () => {
+    const locks = [lock('d1', '2026-11-23T10:00:00Z')];
+    const unavailable = { status: 'unavailable' as const, locks };
+
+    it('SHARE-053 (a)/(b)/(d) Kennen Tempo: stored lock state, "Locked", line and group unavailable', () => {
+      const v = computeDeckOwnership(deck1, unavailable, catalog, null, TODAY);
+      expect(v.lock).toEqual({
+        deckId: 'd1',
+        locked: true,
+        lockedAt: '2026-11-23T10:00:00Z',
+        complete: false,
+        short: false,
+        cardsShort: [],
+      });
+      expect(summarizeDeck(deck1, v, null, null)).toMatchObject({
+        lockBadge: 'Locked',
+        ownershipLine: 'Ownership unavailable',
+        ownershipFilter: 'unavailable',
+      });
+    });
+
+    it('SHARE-020 / SHARE-053 (c) canLock(null, deck1, false, true) is already-locked; Unlock stays', () => {
+      expect(canLock(null, deck1, false, true)).toEqual({ ok: false, reason: 'already-locked' });
+      expect(lockCheckMessage({ ok: false, reason: 'already-locked' })).toBeNull();
+      // already-locked comes before every other check, read-only included.
+      expect(canLock(null, deck1, true, true)).toEqual({ ok: false, reason: 'already-locked' });
+    });
+
+    it('SHARE-020 / SHARE-053 Kennen Control: lock null, same line and group, ownership-unavailable', () => {
+      const v = computeDeckOwnership(deck2, unavailable, catalog, null, TODAY);
+      expect(v.lock).toBeNull();
+      expect(summarizeDeck(deck2, v, null, null)).toMatchObject({
+        lockBadge: null,
+        ownershipLine: 'Ownership unavailable',
+        ownershipFilter: 'unavailable',
+      });
+      const check = canLock(null, deck2, false, false);
+      expect(check).toEqual({ ok: false, reason: 'ownership-unavailable' });
+      expect(lockCheckMessage(check)).toBe('Ownership unavailable');
+    });
+
+    it('SHARE-053 (a) / SHARE-061 lock store also unreadable: both decks have lock null', () => {
+      for (const d of [deck1, deck2]) {
+        const v = computeDeckOwnership(d, { status: 'unavailable', locks: null }, catalog, null, TODAY);
+        expect(v.lock).toBeNull();
+      }
+    });
+
+    it('SHARE-022 / SHARE-053 (a) two stored locks for one deck: the earliest lockedAt is kept', () => {
+      expect(
+        storedLockState([lock('d1', '2026-11-24T10:00:00Z'), lock('d1', '2026-11-23T10:00:00Z')], 'd1')
+          ?.lockedAt,
+      ).toBe('2026-11-23T10:00:00Z');
+      expect(storedLockState([lock('d1')], 'd2')).toBeNull();
+    });
+  });
+
+  it('SHARE-030 / SPEC-008 AC 20: unparseable lockedAt sorts after every parseable one, then by raw string', () => {
+    const ids = ['a', 'b', 'c', 'd'];
+    const decks = ids.map((id) => makeDeck(id, `Deck ${id}`, { main: [[RAY, 1]] }));
+    const locks = [
+      lock('a', '2026-11-23T10:00:00Z'),
+      lock('b', 'yesterday'),
+      lock('c', '2026-11-23T09:00:00Z'),
+      lock('d', 'soon'),
+    ];
+    const p = pool(decks, locks, { [RAY]: 4 });
+    expect(p.byCard['hextech ray'].uses.map((u) => u.deckId)).toEqual(['c', 'a', 'd', 'b']);
+    // b is still locked and not short: its tile badge is "Locked" (the date text is SHARE-041, UI).
+    const vb = computeDeckOwnership(
+      decks[1],
+      { status: 'ok', input: makeInput(catalog, { owned: { [RAY]: 4 } }), shared: p },
+      catalog,
+      null,
+      TODAY,
+    );
+    expect(vb.lock).toMatchObject({ locked: true, lockedAt: 'yesterday', short: false });
+    expect(summarizeDeck(decks[1], vb, null, null).lockBadge).toBe('Locked');
+  });
+
+  describe('SHARE-034 / SPEC-008 AC 21: Replace import that moves copies between cards', () => {
+    const tempo = makeDeck('d1', 'Kennen Tempo', {
+      main: [
+        [RAY, 3],
+        ['Gust', 2],
+      ],
+    });
+    const locks = [lock('d1')];
+    const at = (owned: Record<string, number>) =>
+      computeSharedPool({ decks: [tempo], locks, ownership: makeInput(catalog, { owned }) });
+    const before = at({ [RAY]: 3, Gust: 1 });
+
+    it('SHARE-034 Σ hold stays 4 but Hextech Ray drops 3 → 2: warned, 1 card short', () => {
+      expect(before.byDeck['d1']).toMatchObject({ short: true, cardsShort: ['gust'] });
+      const after = at({ [RAY]: 2, Gust: 2 });
+      const held = (p: SharedPool) =>
+        Object.values(p.byCard).reduce((n, c) => n + c.heldTotal, 0);
+      expect([held(before), held(after)]).toEqual([4, 4]);
+      const s = lockedShortfalls(before, after);
+      expect(s).toEqual([{ deckId: 'd1', deckName: 'Kennen Tempo', cardsShort: 1 }]);
+      expect(after.byDeck['d1'].cardsShort).toEqual(['hextech ray']);
+      expect(shortfallWarning(s[0])).toBe("'Kennen Tempo' (locked) will be 1 card short.");
+    });
+
+    it('SHARE-034 3 Hextech Ray and 2 Gust: no hold drops, no warning', () => {
+      expect(lockedShortfalls(before, at({ [RAY]: 3, Gust: 2 }))).toEqual([]);
+    });
   });
 
   it('SHARE-072 200 decks × 150 entries with 100 locks computes in under 100 ms', () => {

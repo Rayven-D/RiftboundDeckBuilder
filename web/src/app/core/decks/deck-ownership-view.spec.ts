@@ -112,18 +112,87 @@ describe('SPEC-005 computeDeckOwnership', () => {
     expect(v.missing).toHaveLength(1);
   });
 
-  it('AC 13 (OWN-062) ownership unavailable: full colour, no labels, no missing list, no lock state', () => {
+  it('AC 13 (OWN-062) ownership unavailable: full colour, no labels, no missing list', () => {
     const deck = makeDeck('d', 'D', { main: [['Lightning Rush', 3]] });
     const v = computeDeckOwnership(deck, { status: 'unavailable' }, catalog, null, TODAY);
     expect(v.ownershipAvailable).toBe(false);
     expect(v.lock).toBeNull();
     expect(v.sections[2].cards[0]).toMatchObject({ state: 'full', fill: 1, label: '' });
     expect(v.missing).toEqual([]);
-    // Tile values pending a spec-writer decision (see API Contracts, engine notes).
     expect(summarizeDeck(deck, v, null, null)).toMatchObject({
       ownershipLine: 'Ownership unavailable',
       lockBadge: null,
-      ownershipFilter: 'none',
+      ownershipFilter: 'unavailable',
+    });
+  });
+
+  describe('AC 13 second Given (OWN-065; SPEC-008 AC 19): stored locks while the collection is unreadable', () => {
+    const tempo = makeDeck('d1', 'Kennen Tempo', { main: [['Hextech Ray', 3]] });
+    const control = makeDeck('d2', 'Kennen Control', { main: [['Hextech Ray', 3]] });
+    const locks = [lock('d1', '2026-11-23T10:00:00Z')];
+    const unavailable = { status: 'unavailable' as const, locks };
+
+    it('OWN-065 (a)-(d) Kennen Tempo keeps its lock: badge "Locked", line and group unavailable', () => {
+      const v = computeDeckOwnership(tempo, unavailable, catalog, null, TODAY);
+      expect(v.ownershipAvailable).toBe(false);
+      expect(v.lock).toEqual({
+        deckId: 'd1',
+        locked: true,
+        lockedAt: '2026-11-23T10:00:00Z',
+        complete: false,
+        short: false,
+        cardsShort: [],
+      });
+      const s = summarizeDeck(tempo, v, null, null);
+      expect(s).toMatchObject({
+        lockBadge: 'Locked',
+        ownershipLine: 'Ownership unavailable',
+        ownershipFilter: 'unavailable',
+      });
+      // OWN-006: lock=locked lists it (view.lock); own=ready|partial|none don't (group unavailable).
+      expect(v.lock?.locked).toBe(true);
+      expect(['ready', 'partial', 'none']).not.toContain(s.ownershipFilter);
+    });
+
+    it('OWN-065 (a) Kennen Control has no lock: lock null, the same line and group', () => {
+      const v = computeDeckOwnership(control, unavailable, catalog, null, TODAY);
+      expect(v.lock).toBeNull();
+      expect(summarizeDeck(control, v, null, null)).toMatchObject({
+        lockBadge: null,
+        ownershipLine: 'Ownership unavailable',
+        ownershipFilter: 'unavailable',
+      });
+    });
+
+    it('OWN-065 (a) / SHARE-061 lock store also unreadable: both decks lock null', () => {
+      for (const d of [tempo, control]) {
+        const v = computeDeckOwnership(d, { status: 'unavailable', locks: null }, catalog, null, TODAY);
+        expect(v.lock).toBeNull();
+        expect(summarizeDeck(d, v, null, null).ownershipFilter).toBe('unavailable');
+      }
+    });
+
+    it('OWN-063 / SHARE-053 catalog not loaded: the pool gives the lock facts only, never short', () => {
+      const input = makeInput(catalog, { owned: { 'Hextech Ray': 1 } });
+      const shared = computeSharedPool({ decks: [tempo], locks, ownership: input });
+      expect(shared.byDeck['d1'].short).toBe(true); // short with the catalog …
+      const v = computeDeckOwnership(tempo, { status: 'ok', input, shared }, null, null, TODAY);
+      expect(v.ownershipAvailable).toBe(false);
+      expect(v.lock).toEqual({
+        deckId: 'd1',
+        locked: true,
+        lockedAt: '2026-11-23T10:00:00Z',
+        complete: false,
+        short: false,
+        cardsShort: [],
+      }); // … but holds are not computed without it (SHARE-053 (f))
+      expect(summarizeDeck(tempo, v, null, null)).toMatchObject({
+        lockBadge: 'Locked',
+        ownershipFilter: 'unavailable',
+      });
+      const ignored = computeSharedPool({ decks: [tempo], locks: null, ownership: input });
+      const vi = computeDeckOwnership(tempo, { status: 'ok', input, shared: ignored }, null, null, TODAY);
+      expect(vi.lock).toBeNull();
     });
   });
 

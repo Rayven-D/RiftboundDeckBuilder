@@ -331,10 +331,30 @@ export const SECTION_LABELS: Readonly<Record<DeckSection, string>> = {
   sideboard: 'Sideboard',
 };
 
+/** The section a label line sets (IMP-016, IMP-017), or null when the line is not a label. */
+export function sectionLabelOf(raw: string): DeckSection | null {
+  const outcome = classifyLine(raw);
+  return outcome.kind === 'section' ? outcome.section : null;
+}
+
+/**
+ * IMP-016 (v0.14, H-166): `*` bold marks at the start or end of the label text and a trailing `:` inside or outside
+ * the closing marks are dropped, so `**Legend:**` and `**Legend**:` read as `Legend:` (an entry may follow, IMP-023).
+ * A line without a leading `*` (after any `#`) is returned unchanged; a `*` inside the text stays.
+ */
+const BOLD_LABEL_RE = /^(#*\s*)\*+([^*:]*?)\*+\s*:\s*(.*)$|^(#*\s*)\*+([^*:]*?):\*+\s*(.*)$|^(#*\s*)\*+([^*:]*?)\*+$/u;
+function unboldLabel(line: string): string {
+  const m = BOLD_LABEL_RE.exec(line);
+  if (!m) return line;
+  if (m[2] !== undefined) return `${m[1]}${m[2].trim()}:${m[3] ? ` ${m[3]}` : ''}`;
+  if (m[5] !== undefined) return `${m[4]}${m[5].trim()}:${m[6] ? ` ${m[6]}` : ''}`;
+  return `${m[7]}${m[8].trim()}`;
+}
+
 function classifyLine(raw: string): LineOutcome {
   const line = raw.trim();
   if (!line) return { kind: 'skip' };
-  const label = LABEL_RE.exec(line);
+  const label = LABEL_RE.exec(unboldLabel(line));
   if (label && !/^\d/.test(line)) {
     const section = SECTION_ALIASES[label[1].toLowerCase().replace(/\s+/g, '')];
     if (section) return { kind: 'section', section, rest: (label[2] ?? '').trim() };
@@ -566,6 +586,11 @@ function decodeUtf8(bytes: ArrayBuffer, fileName: string): string {
 
 function stripBom(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+/** The text box split into lines the way `parseCardText` numbers them (`ParsedEntry.line` is 1-based). */
+export function sourceLines(text: string): string[] {
+  return splitLines(text);
 }
 
 function splitLines(text: string): string[] {

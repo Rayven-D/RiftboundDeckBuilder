@@ -13,18 +13,17 @@ import {
 } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { map, take } from 'rxjs';
+import { DeckImport } from '../../core/import/deck-import';
 import { AppStores } from '../../core/storage/app-stores';
 import { SignInGate } from '../../core/sync/sign-in-gate';
 import { SignInPanel } from '../../core/sync/sign-in-panel';
 import { refocusAfterDialog } from '../../core/sync/sync.service';
 import { EmptyState } from '../../shared/empty-state';
 import { FileDrop } from '../../shared/import/file-drop';
-import { ImportDialog, ImportDialogData } from '../../shared/import/import-dialog';
+import { ImportDialog, ImportDialogData, ImportDialogResult } from '../../shared/import/import-dialog';
 import { IMPORT_PARAMS, dialogOpener, importFocusTarget, launchDecision } from '../../shared/import/import-launch';
-import { ImportPending } from '../../shared/import/import-pending';
-import { ParseResult } from '../../shared/import/parse-card-list';
 import { PageFab } from '../../shared/page-fab';
 
 /** SPEC-005 OWN-008 (v0.7) empty state. */
@@ -36,12 +35,13 @@ export const DECKS_EMPTY = {
 /**
  * `/decks` (SYNC-009 gated). SPEC-005 OWN-094 / SPEC-006 DECK-001 (v0.9, H-174): "Import deck" opens from this page,
  * from the floating button (shown with the deck list) or the empty state's button (OWN-008), or from the one-shot
- * address `/decks?import=1` (SYNC-159); a saved deck stays here. The deck list itself is H-060: until it exists the
- * page shows a count line in its place.
+ * address `/decks?import=1` (SYNC-159); a saved deck stays here (DECK-098: `DeckImport` writes it and shows "Deck
+ * saved."; the count re-reads in place, H-253). The deck list itself is H-060: until it exists the page shows a count
+ * line in its place.
  */
 @Component({
   selector: 'app-decks-page',
-  imports: [EmptyState, RouterLink, SignInPanel, PageFab, FileDrop, ImportPending],
+  imports: [EmptyState, RouterLink, SignInPanel, PageFab, FileDrop],
   template: `
     <header class="page-header">
       <h1>Decks</h1>
@@ -59,9 +59,6 @@ export const DECKS_EMPTY = {
           <a class="button button--outlined" routerLink="/tournaments">Tournaments</a>
         </app-empty-state>
       }
-      @if (pending(); as p) {
-        <app-import-pending kind="deck" [result]="p" (again)="openImport()" (cleared)="pending.set(null)" />
-      }
     } @else {
       <app-sign-in-panel />
     }
@@ -74,6 +71,7 @@ export class DecksPage {
   private readonly stores = inject(AppStores).stores;
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
+  private readonly deckImport = inject(DeckImport);
   private readonly fab = viewChild(PageFab);
   private readonly emptyImport = viewChild<ElementRef<HTMLButtonElement>>('emptyImport');
   private readonly doc = inject(DOCUMENT);
@@ -83,7 +81,6 @@ export class DecksPage {
   protected readonly empty = DECKS_EMPTY;
   /** null while loading (and while the gate is closed: nothing is read from the cache, SYNC-009). */
   protected readonly deckCount = signal<number | null>(null);
-  protected readonly pending = signal<ParseResult | null>(null);
   /** The page can import: the gate is open and the decks are read. */
   protected readonly ready = signal(false);
   private readonly importParam = toSignal(
@@ -93,6 +90,10 @@ export class DecksPage {
 
   constructor() {
     inject(DestroyRef).onDestroy(() => (this.destroyed = true));
+    // DECK-098: a deck saved in this tab shows up at once (the count now; the list first by updatedAt with H-060).
+    this.deckImport.saved.pipe(takeUntilDestroyed()).subscribe(() => {
+      if (this.gate.open()) void this.loadCount();
+    });
     // Read only while the gate is open, so the cache of a signed-out device stays hidden (SYNC-009).
     effect(() => {
       if (!this.gate.open()) {
@@ -147,15 +148,15 @@ export class DecksPage {
    */
   protected openImport(file?: File): void {
     const opener = dialogOpener(this.doc);
-    const ref = this.dialog.open<ImportDialog, ImportDialogData, ParseResult>(ImportDialog, {
-      data: file ? { kind: 'deck', file } : { kind: 'deck' },
+    const deckCommitter = this.deckImport;
+    const ref = this.dialog.open<ImportDialog, ImportDialogData, ImportDialogResult>(ImportDialog, {
+      data: file ? { kind: 'deck', file, deckCommitter } : { kind: 'deck', deckCommitter },
       width: '40rem',
       maxWidth: 'calc(100vw - 2rem)',
       autoFocus: 'textarea',
       restoreFocus: false,
     });
-    ref.afterClosed().subscribe((result) => {
-      if (result) this.pending.set(result);
+    ref.afterClosed().subscribe(() => {
       if (this.destroyed) return;
       afterNextRender(
         () =>

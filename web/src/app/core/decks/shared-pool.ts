@@ -213,25 +213,53 @@ export function availability(pool: SharedPool, deckId: string, cardKey: CardKey)
 }
 
 /**
- * SPEC-008 `canLock(pool, deck, readOnly)` (SHARE-020): the first failing check, in the order
- * already-locked → read-only → locks-unreadable → ownership-unavailable → no-cards → incomplete.
- * `pool === null` means ownership is unavailable (OWN-062/063). The pool is the only lock source
- * here, so with a null pool `already-locked` can't be detected: a locked deck then gets
- * `read-only` or `ownership-unavailable`. The caller must check the lock store itself first and
- * show Unlock (not a disabled Lock in) for a deck that is locked.
+ * SPEC-008 `canLock(pool, deck, readOnly, isLocked)` (SHARE-020): the first failing check, in the
+ * order already-locked → read-only → locks-unreadable → ownership-unavailable → no-cards → incomplete.
+ * `pool === null` means ownership is unavailable (OWN-062/063). `isLocked` = the deck has a `DeckLock`
+ * in a readable lock store (v0.4.2): whether a deck is locked comes from the lock store, not from the
+ * pool, so `already-locked` is returned also with a null pool (SHARE-053). With an unreadable lock
+ * store the caller passes `false` and the reason is `locks-unreadable`.
  */
-export function canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boolean): LockCheck {
-  const state = pool?.byDeck[deck.id];
-  if (state?.locked) return { ok: false, reason: 'already-locked' };
+export function canLock(
+  pool: SharedPool | null,
+  deck: UserDeck,
+  readOnly: boolean,
+  isLocked: boolean,
+): LockCheck {
+  if (isLocked) return { ok: false, reason: 'already-locked' };
   if (readOnly) return { ok: false, reason: 'read-only' };
   if (pool?.locksIgnored) return { ok: false, reason: 'locks-unreadable' };
   if (!pool) return { ok: false, reason: 'ownership-unavailable' };
   // SHARE-020 v0.4: `no-cards` only for a deck with no entry at all (runes count, SHARE-006).
   if (countedEntries(deck).length === 0) return { ok: false, reason: 'no-cards' };
+  const state = pool.byDeck[deck.id];
   if (!state || !state.complete) {
     return { ok: false, reason: 'incomplete', cardsShort: state?.cardsShort.length ?? 0 };
   }
   return { ok: true };
+}
+
+/**
+ * SPEC-008 SHARE-053 (a) / SPEC-005 OWN-065 (a): a deck's lock state while ownership is unavailable,
+ * built from the stored locks. `{ locked: true, lockedAt, complete: false, short: false,
+ * cardsShort: [] }` for a deck with a stored lock (the earliest in lock order, SHARE-022); `null`
+ * for a deck without one, or for every deck when the lock store is unreadable (`locks === null`,
+ * SHARE-061). Holds are unknown, so it is never short (SHARE-053 (f)).
+ */
+export function storedLockState(
+  locks: readonly DeckLock[] | null,
+  deckId: string,
+): DeckLockState | null {
+  const own = (locks ?? []).filter((l) => l.deckId === deckId).sort(compareLockOrder);
+  if (own.length === 0) return null;
+  return {
+    deckId,
+    locked: true,
+    lockedAt: own[0].lockedAt,
+    complete: false,
+    short: false,
+    cardsShort: [],
+  };
 }
 
 /** "1 card short" / "3 cards short" (SHARE-020, SHARE-033, SHARE-034). */
@@ -258,37 +286,48 @@ export function lockCheckMessage(check: LockCheck): string | null {
   }
 }
 
-/** Σ hold and the deck name per deck, from every use in the pool. */
-function heldByDeck(pool: SharedPool): Map<string, { held: number; name: string }> {
-  const m = new Map<string, { held: number; name: string }>();
+/** hold(L, k) and the deck name per locked deck, from the uses in the pool. */
+function holdsByDeck(pool: SharedPool): Map<string, { name: string; holds: Map<CardKey, number> }> {
+  const m = new Map<string, { name: string; holds: Map<CardKey, number> }>();
   for (const card of Object.values(pool.byCard)) {
     for (const u of card.uses) {
-      const t = m.get(u.deckId);
-      if (t) t.held += u.hold;
-      else m.set(u.deckId, { held: u.hold, name: u.deckName });
+      if (!u.locked) continue;
+      const t = m.get(u.deckId) ?? { name: u.deckName, holds: new Map<CardKey, number>() };
+      t.holds.set(card.cardKey, u.hold);
+      m.set(u.deckId, t);
     }
   }
   return m;
 }
 
 /**
- * SPEC-008 `lockedShortfalls(before, after)` (SHARE-034): decks locked in both pools whose total
- * held copies drop from `before` to `after`, with the number of short cardKeys in `after`, in
- * `after`'s lock order. `after` is the pool for the collection as it would be after the change
- * (computed on a parsed Replace import before commit), or, for an import Undo, as it now is.
+ * SPEC-008 `lockedShortfalls(before, after)` (SHARE-034, v0.4.2 per card): decks locked in both pools
+ * that hold fewer copies of at least one cardKey in `after` than in `before` (a Σ that stays equal
+ * does not hide a drop), with the number of short cardKeys in `after`, in `after`'s lock order.
+ * `after` is the pool for the collection as it would be after the change (computed on a parsed
+ * Replace import before commit), or, for an import Undo, as it now is.
  */
 export function lockedShortfalls(before: SharedPool, after: SharedPool): LockedShortfall[] {
   const lockedAfter = Object.values(after.byDeck)
     .filter((s) => s.locked && before.byDeck[s.deckId]?.locked)
     .map((s) => ({ deckId: s.deckId, lockedAt: s.lockedAt as string, state: s }))
     .sort(compareLockOrder);
-  const heldBefore = heldByDeck(before);
-  const heldAfter = heldByDeck(after);
+  const holdsBefore = holdsByDeck(before);
+  const holdsAfter = holdsByDeck(after);
   const out: LockedShortfall[] = [];
   for (const { deckId, state } of lockedAfter) {
-    const now = heldAfter.get(deckId);
-    if ((now?.held ?? 0) >= (heldBefore.get(deckId)?.held ?? 0)) continue;
-    out.push({ deckId, deckName: now?.name ?? '', cardsShort: state.cardsShort.length });
+    const was = holdsBefore.get(deckId);
+    const now = holdsAfter.get(deckId);
+    if (!was) continue;
+    let dropped = false;
+    for (const [k, hold] of was.holds) {
+      if ((now?.holds.get(k) ?? 0) < hold) {
+        dropped = true;
+        break;
+      }
+    }
+    if (!dropped) continue;
+    out.push({ deckId, deckName: now?.name ?? was.name, cardsShort: state.cardsShort.length });
   }
   return out;
 }

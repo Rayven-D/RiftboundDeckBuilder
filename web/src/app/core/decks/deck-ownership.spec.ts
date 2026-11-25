@@ -129,6 +129,44 @@ describe('SPEC-002 LEGAL-B10 banStatus (minimal)', () => {
     expect(a.status).toBe('banned');
   });
 
+  it('LEGAL-B02 / SPEC-002 AC 21: inside one wave remove runs before add', () => {
+    const wave = (
+      id: string,
+      effective: string,
+      add: string[],
+      remove: string[],
+    ): BanListFile['lists'][number]['waves'][number] => ({
+      id,
+      name: id,
+      announced: effective,
+      effective,
+      sourceUrl: '',
+      add: add.map((name) => ({ name, kind: 'card' as const })),
+      remove: remove.map((name) => ({ name, kind: 'card' as const })),
+    });
+    const list = (later: BanListFile['lists'][number]['waves'][number]): BanListFile => ({
+      ...data,
+      lists: [{ ...data.lists[0], waves: [wave('early', '2026-11-01', ['Card A'], []), later] }],
+    });
+    // Later wave removes and re-adds Card A: banned after it (remove first, then add).
+    const both = list(wave('late', '2026-12-01', ['Card A'], ['Card A']));
+    expect(banStatus(both, 'card a', 'standard', 'global', '2026-12-01')).toEqual({
+      status: 'banned',
+      waveId: 'late',
+      waveName: 'late',
+      bannedSince: '2026-12-01',
+    });
+    // The same wave with only the remove: not banned from 2026-12-01, still banned the day before.
+    const removeOnly = list(wave('late', '2026-12-01', [], ['Card A']));
+    expect(banStatus(removeOnly, 'card a', 'standard', 'global', '2026-12-01')).toEqual({
+      status: 'not-banned',
+    });
+    expect(banStatus(removeOnly, 'card a', 'standard', 'global', '2026-11-30')).toMatchObject({
+      status: 'banned',
+      waveId: 'early',
+    });
+  });
+
   it('LEGAL-B03 an unknown region falls back to global', () => {
     expect(status('stealthy pursuer', '2026-11-23', 'EU')).toMatchObject({
       status: 'banned',

@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.22
+version: 1.24
 ---
 # API Contracts
 
@@ -165,9 +165,10 @@ cards: counted, shared and locked like any card, SHARE-006 / OWN-028), plus the 
 ```ts
 computeSharedPool(input: SharedPoolInput): SharedPool                              // SHARE-070
 availability(pool: SharedPool, deckId: string, cardKey: CardKey): CardAvailability // SHARE-010/011/015
-canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boolean): LockCheck     // SHARE-020; null = ownership unavailable; no-cards = no entry at all
+canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boolean, isLocked: boolean): LockCheck // SHARE-020; null = ownership unavailable; isLocked from the lock store; no-cards = no entry at all
+storedLockState(locks: readonly DeckLock[] | null, deckId: string): DeckLockState | null // SHARE-053 (a): lock state without a pool
 countedEntries(deck: UserDeck): { zone; entry }[]                                  // every entry of COUNTED_ZONES (= ZONE_ORDER, runes included)
-lockedShortfalls(before: SharedPool, after: SharedPool): LockedShortfall[]         // SHARE-034
+lockedShortfalls(before: SharedPool, after: SharedPool): LockedShortfall[]         // SHARE-034 v0.4.2: per cardKey hold drop
 computeDeckOwnership(deck, ownership: CollectionOwnership, catalog | null, banData | null, today): DeckOwnershipView // OWN-025
 summarizeDeck(deck, view, legality: { verdict; asOf } | null, format: { id; name } | null): DeckTileSummary
 // text helpers: lockCheckMessage(), cardsShortText(), sharedIndicator(), shortfallWarning(), shortfallNotice()
@@ -191,14 +192,25 @@ Notes for the UI:
 - Compute one `SharedPool` per input change and pass it to every deck view and tile (SHARE-071).
 - Lock order (SHARE-030) is a total order: parsed `lockedAt` ascending with unparseable values
   after every parseable one, then the raw `lockedAt` string, then `deckId`.
-- `canLock(null, …)`: with ownership unavailable the pool is `null`, and the pool is the engine's
-  only lock source, so `already-locked` can't be detected (a locked deck gets `read-only` or
-  `ownership-unavailable`). **The caller must check the lock store itself** and show Unlock, not a
-  disabled Lock in, for a locked deck.
-- With ownership unavailable (OWN-062/063), all **pending a spec-writer decision** (H-076): `OwnershipCard.label` is `''` (no count labels); `DeckOwnershipView.lock` is `null`, so
-  `DeckTileSummary.lockBadge` is `null` (no lock badge, even for a locked deck);
-  `DeckTileSummary.ownershipLine` is "Ownership unavailable" (wording pending spec); and
-  `DeckTileSummary.ownershipFilter` is `'none'`.
+- `canLock(pool, deck, readOnly, isLocked)` (SHARE-020 v0.4.2): `isLocked` = the deck has a `DeckLock` in a
+  **readable** lock store (pass `false` when the store is unreadable, SHARE-061). `already-locked` is checked first,
+  so it is returned also with a `null` pool (ownership unavailable) and on a read-only deck; the engine no longer
+  reads the lock from the pool for this check. Show Unlock (no reason line) for `already-locked`.
+- `lockedShortfalls(before, after)` (SHARE-034 v0.4.2): a deck locked in both pools is listed when, for **any**
+  `cardKey`, its hold in `after` is lower than in `before` (a Σ that stays equal does not hide it); `cardsShort` =
+  the deck's number of short cardKeys in `after`; order = `after`'s lock order. The caller appends " It stays locked."
+  in confirmations (`collection-import.ts`).
+- Ownership unavailable (OWN-062/063, SHARE-053, OWN-065): `CollectionOwnership` `{ status: 'unavailable', locks? }`
+  carries the stored locks (`readonly DeckLock[]`; `null` = lock store unreadable; omitted = no lock known, treated
+  like `null`). **The page must pass the stored locks** so locked decks keep their badge. Then:
+  `OwnershipCard.label` is `''` (no count labels); `DeckOwnershipView.lock` is
+  `{ deckId, locked: true, lockedAt, complete: false, short: false, cardsShort: [] }` for a deck with a stored lock
+  (earliest in lock order, SHARE-022), else `null` (`storedLockState`). With `status: 'ok'` and `catalog === null`
+  (OWN-063) the same state is built from the pool's lock facts (none when `locksIgnored`), holds discarded.
+  `DeckTileSummary`: `ownershipLine` "Ownership unavailable", `ownershipFilter` `'unavailable'` (SHARE-051 rule 0,
+  for every deck), `lockBadge` "Locked" for a locked deck, never "… cards short"; `null` otherwise.
+- `OwnershipFilter` = `'ready' | 'partial' | 'none' | 'locked' | 'unavailable'`; `unavailable` and `locked` match none
+  of the three ownership filter options (OWN-006).
 
 ## Browser stores and sync (SPEC-010, H-062)
 Not an HTTP API: the browser talks to Firestore directly ([[ADR-0007 Firebase Accounts and Firestore]]).
@@ -474,11 +486,12 @@ Not an endpoint. Writes go through the **tracked** `stores.collection` only.
   with a line message. `addToCollection(before, imp, at)`, `replaceCollection(imp, at)`, `replaceChanges` +
   `replaceConfirmText` (IMP-050, AC 19 form), `commitNotice(mode, imp, written)` (IMP-073), `changedSinceCommit`,
   `snapshotIsOurs`, `nextUpdatedAt(now, previous)` (monotonic), `UNDO_TEXT`.
-- **Dialog seam** (`ImportCommitter { prepare(parse), commit(prepared, mode) }`, passed as
-  `ImportDialogData.committer`): with it, Continue shows the review step and the dialog closes with `'committed'`
+- **Dialog seam** (`ImportCommitter<P = PreparedOk, C = CommitMode> { prepare(parse, text), commit(prepared, choice) }`,
+  passed as `ImportDialogData.committer`): with it, Continue shows the review step and the dialog closes with `'committed'`
   only after `{ status: 'written' }`; `{ status: 'error', message }` stays in the dialog; `'cancelled'` (Replace
-  confirmation cancelled) stays too. Without it the dialog closes with the `ParseResult` (Deck Import until H-253,
-  which can implement the same interface).
+  confirmation cancelled) stays too. Without a committer the dialog closes with the `ParseResult` (no caller does
+  this any more since H-253). v1.24: generic over the review shape `P` and the action's choice `C`; `prepare` also
+  gets the text box as parsed (`text`, used by Deck Import for `importRemovedLines`; the collection ignores it).
 - **Service** (`web/src/app/core/import/collection-import.ts`, `CollectionImport`, root): implements
   `ImportCommitter`; `undo()`; `written: Subject<void>` (fires after a commit or Undo this tab wrote; Collection
   reloads in place, COLL-091). Notice: `MatSnackBar` `(message, 'Undo', { duration: COMMIT_NOTICE_MS = 10_000,
@@ -486,6 +499,48 @@ Not an endpoint. Writes go through the **tracked** `stores.collection` only.
   kept; COLL-058 confirmation when the stored record's `updatedAt` differs from the commit's; IMP-050a warnings from
   `lockedShortfalls` over `computeSharedPool`; restore = `save({ ...snapshot, updatedAt: next }, { replace: true })`
   then `clearPrevious()`. Error strings: `COMMIT_TEXT`.
+
+## Deck Import save (SPEC-006 DECK-001…098; H-253)
+Not an endpoint. "Import deck" on `/decks` reuses the H-158 dialog seam (folds in H-273): `ImportDialogData.deckCommitter`
+is an `ImportCommitter<PreparedDeck, DeckSaveRequest>`. Writes go through the **tracked** `stores.decks.create()` only
+(one new `decks/{id}` document per Save, stamped for sync, SYNC-031); nothing else is written (DECK-002), and Continue
+writes nothing (DECK-003).
+- **Pure logic** (`web/src/app/shared/import/deck-import.ts`): `prepareDeckImport(parse, sourceLines(text), catalog)` →
+  `PreparedDeck { lines: DeckImportLine[], sourceFormat, catalogVersion, sections, legends, champions, catalog }`
+  (exact `nameKey` names and printing codes through `printingLookup`, as the collection commit; a line that can't
+  resolve carries `attention: { code: 'UNKNOWN_CARD' | 'UNKNOWN_PRINTING' | 'PRINTING_NAME_MISMATCH' |
+  'AMBIGUOUS_PRINTING', message }` and, for a code/name mismatch, two `choices`).
+  `reviewDeck(prepared, state: DeckReviewState, today)` → `DeckReview { attention, lines: ReviewLine[], slots,
+  questions: ZoneQuestion[], issues, notes, byZone, defaultName, name, nameError, sourceError, blockers, canSave, draft }`.
+  `DeckReviewState` = the user's choices: `removed`, `picks`, `zones` (PICK_ZONE answers, "Move to", changed inferred
+  zones), `legend` / `champion` (`cardKey` or `'empty'` = Leave empty), `typedName` (null = follow the Legend,
+  DECK-070), `sourceText`, `sourceUrl`. `draft` is the `UserDeck` without `id`, `createdAt`, `updatedAt`:
+  `schemaVersion: 1`, `format: 'standard'`, `source: { kind: 'user', text, url }`, `sourceFormat` (`riot-text` /
+  `plain-text` / `csv`), `notes: ''`, `catalogVersion`, `importRemovedLines` only when non-empty (removed lines,
+  rejected tokens, Legend lines not picked), zones merged by `cardKey` per zone. Helpers: `deckSource()`
+  (DECK-071), `displayDate()` (`MMM D, YYYY`), `expectedZone()`, `isChampionUnit()`; strings `DECK_REVIEW_TEXT`.
+  Zone rules in code: DECK-020…026 and DECK-030…038 as specified. 2+ Legends (`Legend:` or unsectioned): the
+  user picks one (PICK_LEGEND) and the others are left out into `importRemovedLines` (Legends are never Main Deck
+  cards). 2+ cards under `Champion:` (e.g. a precon's Champion Unit Options): the user picks one (PICK_CHAMPION);
+  one copy of the pick goes to `champion` and every other copy (unpicked cards, extra copies of the pick) goes to
+  `main` with `zoneMethod: 'user'` and the line reason `DECK_REVIEW_TEXT.championNotPicked` /
+  `.championExtraToMain` (DECK-034 "copies not picked stay in `main`", as for unsectioned lists); "Leave empty"
+  puts them all in `main`. Save still waits for every answer (DECK-038).
+- **Parser additions** (`parse-card-list.ts`): `sourceLines(text)` (the parser's line split), `sectionLabelOf(raw)`;
+  section labels accept `*` bold marks (`**Legend:**`, `**Legend**:`, SPEC-003 IMP-016 v0.14).
+- **Service** (`web/src/app/core/import/deck-import.ts`, `DeckImport`, root): `prepare` loads the catalog
+  (`CardData.loadCatalog()`; error → `DECK_SAVE_TEXT.catalogError`, retried on the next Continue); `commit(prepared,
+  { draft })` refuses while the SYNC-009 gate is closed (DECK-097), creates `{ ...draft, id: NEW_DECK_ID(),
+  createdAt: now, updatedAt: now }` (the store stamps the monotonic `updatedAt`), reads it back, emits
+  `saved: Subject<UserDeck>` and opens the snack bar `Deck saved.` / `View deck` (`noticeOptions('success')`: 6 s,
+  polite; the action navigates to `/decks/<id>`). Errors (`DeckStoreError` codes) → `{ status: 'error', message }`:
+  `DECK_LIMIT` → `DECK_SAVE_TEXT.limit`, `DECK_TOO_LARGE` → `.tooLarge`, `STORAGE_FULL` → `.storageFull`, other →
+  `.failed`; `ReadOnlyAreaError` → its message. `NEW_DECK_ID` is an `InjectionToken<() => string>`
+  (`crypto.randomUUID()`), replaceable in tests.
+- **Decks page:** passes `deckCommitter: inject(DeckImport)`; `DeckImport.saved` re-reads the count in place (the
+  list itself is H-060). `ImportPending` is removed (no import closes with a bare `ParseResult` any more).
+- **Not built:** legality in the review (DECK-050…056, no SPEC-002 engine or ban data in `web/`), fuzzy suggestions
+  (DECK-043, IMP-026…030, H-272), the optional leading article (CARD-034), deck codes / TTS (DECK-012, DECK-039, H-047).
 
 ## Test data on live (SPEC-013, H-205)
 Not an endpoint and no new Firestore field: test data is ordinary account data told apart by reserved values
@@ -634,6 +689,16 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.24 (2026-11-25, H-253, SPEC-006 0.11.1): no endpoint change. Unpicked cards under `Champion:` (and extra copies of the
+  picked one) go to `main` with a line reason instead of `importRemovedLines` (DECK-034; RJ 2026-11-25); unpicked Legends
+  are still left out. New "Deck Import save" section: `deck-import.ts`
+  (pure review and draft), `DeckReview` step in the shared dialog, `DeckImport` committer (`stores.decks.create`, "Deck
+  saved." / View deck), `NEW_DECK_ID`; `ImportCommitter` is generic and `prepare` gets the text; parser
+  `sourceLines()`, `sectionLabelOf()` and bold section labels (IMP-016); `ImportPending` removed.
+- v1.23 (2026-11-25, H-155, SPEC-008 0.4.6, SPEC-005 0.10.2): no endpoint change. `canLock` takes `isLocked`
+  (`already-locked` first, also with a null pool); `lockedShortfalls` compares per cardKey; `OwnershipFilter` gains
+  `'unavailable'`; `CollectionOwnership` `'unavailable'` gains optional `locks`; new `storedLockState`;
+  `DeckOwnershipView.lock` keeps a stored lock while ownership is unavailable (SHARE-053, OWN-065).
 - v1.22 (2026-11-25, H-158, SPEC-003 0.12): no endpoint change. New "Owned Cards Import commit and Undo" section
   (`collection-commit.ts`, `ImportCommitter`, `CollectionImport`); `snapshotPrevious` keeps an empty snapshot when
   nothing was stored (`EMPTY_SNAPSHOT_AT`); new `clearPrevious()` on the raw and tracked collection stores.

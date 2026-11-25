@@ -168,7 +168,7 @@ describe('Runes are cards (SPEC-005 OWN-028/029, SPEC-008 SHARE-006, SPEC-007 CO
   it('SPEC-008 AC 12 (SHARE-006, SHARE-014, SHARE-020) runes not owned block lock in: 2 cards short; owned → lockable', () => {
     const { shared } = viewOf(kennen1, makeInput(catalog, { owned: ownAllNonRunes() }));
     expect(shared.byDeck['k1'].complete).toBe(false);
-    const check = canLock(shared, kennen1, false);
+    const check = canLock(shared, kennen1, false, false);
     expect(check).toEqual({ ok: false, reason: 'incomplete', cardsShort: 2 });
     expect(lockCheckMessage(check)).toBe('Lock in needs every card available: 2 cards short');
     const after = viewOf(
@@ -176,7 +176,7 @@ describe('Runes are cards (SPEC-005 OWN-028/029, SPEC-008 SHARE-006, SPEC-007 CO
       makeInput(catalog, { owned: { ...ownAllNonRunes(), 'Chaos Rune': 9, 'Order Rune': 3 } }),
     ).shared;
     expect(after.byDeck['k1'].complete).toBe(true);
-    expect(canLock(after, kennen1, false)).toEqual({ ok: true });
+    expect(canLock(after, kennen1, false, false)).toEqual({ ok: true });
   });
 
   describe('SPEC-008 AC 17 (SHARE-001, SHARE-006, SHARE-031, SHARE-042, SHARE-043) runes are shared and held', () => {
@@ -212,7 +212,7 @@ describe('Runes are cards (SPEC-005 OWN-028/029, SPEC-008 SHARE-006, SPEC-007 CO
         { deckId: 'k1', deckName: 'Kennen: ASC Evansrhim', need: 9, locked: true, hold: 9 },
       ]);
       expect(order).toMatchObject({ label: '0 of 3 available', state: 'none' });
-      const check = canLock(shared, kennen7, false);
+      const check = canLock(shared, kennen7, false, false);
       expect(lockCheckMessage(check)).toBe('Lock in needs every card available: 2 cards short');
     });
   });
