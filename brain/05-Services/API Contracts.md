@@ -444,6 +444,31 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
 - **Dev only:** `localStorage['rift.dev.sample'] = 'large'` makes `CardData` return a generated
   5,000-entry catalog (`sample-data.ts`), set by the `/styleguide` sample loader.
 
+## Test data on live (SPEC-013, H-205)
+Not an endpoint and no new Firestore field: test data is ordinary account data told apart by reserved values
+([[Test Data]] TEST-030). No `firestore.rules` change (rules test `web/rules-tests/test-data.test.ts`).
+- **Marker and ids** (`web/src/app/shared/collection/test-data.ts`, pure, no generator import): `TEST_SETS`
+  (`small` 150, `large` 5000 entries), `TEST_MARKER_PREFIX = 'test-data-'`, `testMarker(n)`, `testEntries(catalogVersion)`
+  (`n` or null), `isTestCollection(c)` (≥ 1 card **and** the prefix; an empty collection never is),
+  `TEST_DECK_IDS` (`00000000-0000-4000-8000-00000000000{1,2,3}`, same as `sampleDeckId(1…3)`), `isTestDeck(d)` (reserved
+  id **and** the prefix, so the dev tool's `catalogVersion: 'sample'` decks are not test decks), `canLoadTestData(c)`,
+  `planTestLoad(sample, n, locks, nowIso)`, `planTestRemove(collection, decks, locks, nowIso, { removeCollection? })`,
+  and the spec strings `TEST_TEXT`.
+- **Operations** (`web/src/app/core/test-data/test-data-ops.ts`, over the **tracked** stores `collection`, `decks`,
+  `locks` only): `loadTestData(stores, 'small'|'large', now) → 'ok' | 'real-cards'` (decks by id: `create` when
+  missing, then always `update`, so a Load inside a just-removed deck's Undo window is still stamped; then the
+  collection `save(…, { replace: true })`, one `set()`; then the locks with the two test locks added);
+  `removeTestData(stores, now)` (locks without the test ids, the test decks deleted (tombstones after the 10 s Undo
+  window), the collection saved with `cards: {}` and `catalogVersion: ""`: one `update()` with a tombstone per card);
+  `removeTestDecks(stores, now)`: the TEST-033 part for a Replace import (test decks and their locks only). **The
+  import commit is not built yet (imports can't save); when it is, a Replace must call `removeTestDecks` in the same
+  commit** (H-233).
+- **Catalog** (`CardData.loadCatalog()`): reads the stored collection (`stores.raw.collection`, read only); with the
+  marker it returns `generateLargeSample(n).catalog` (dynamic import, its own lazy chunk), with no `/api` call and no
+  dev key; the cached catalog follows the marker (a Remove goes back to `/api`). The dev key path is unchanged.
+- **Flag:** `environment.testDataEnabled` (true in `environment.ts` and `environment.development.ts`), injected as
+  `TEST_DATA_ENABLED` (`core/test-data/test-data-flag.ts`). False hides Load and Change set; the banner and Remove stay.
+
 ## Builds and deploys (SPEC-010 SYNC-007, SYNC-012, H-078)
 - **`appVersion` per build (SYNC-012).** `web/scripts/build.mjs` computes it and passes it to `ng build` as the
   define `APP_VERSION` (nothing is written into the source tree). Format `web-<prod|preview>-<id>`: `<id>` is
@@ -545,6 +570,9 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   from their pages" note: `AccountDoc.username?`, `StoredSyncLog.username?`, `RemoteStore.setUsername`,
   `EngineDeps.onAccountCreated`, the rules' create / update split for `username` (`string.size()` counts UTF-16 units
   on the emulator), `device-theme`, the `/import` route and page removed, one-shot `?add=1` / `?import=1`.
+- v1.19 (2026-11-25, H-205, SPEC-013 0.1.2): no endpoint change. New "Test data on live" note: the `test-data-<n>`
+  marker and reserved deck ids, the pure plans, `loadTestData` / `removeTestData` / `removeTestDecks` over the tracked
+  stores, `CardData` serving the generated catalog for a marked collection, `environment.testDataEnabled`.
 - v1.15 (2026-11-25, H-172, SPEC-010 v0.12 account-only): no endpoint change. Removed: the `signInEnabled`
   environment flag, `SIGN_IN_ENABLED`, `environment.preview.ts` (preview builds `environment.ts`),
   `SignInGate.offerDeleteLocalData`, `BrowserStores.clearCollectionData()`, `COLLECTION_DATA_KEYS`. Changed:
