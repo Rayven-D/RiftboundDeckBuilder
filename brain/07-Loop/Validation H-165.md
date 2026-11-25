@@ -22,3 +22,17 @@ item: H-165
 ## Follow-ups (not blocking beyond the above)
 - `brain/05-Services/API Contracts.md` lines 10, 131, 403 still pin SPEC-001 **v0.2** (stale since 0.3 too). Reported, not fixed. Owner `builder` (owns 05-Services), after SPEC-001 0.4 settles.
 - Open question 17 (ARC legality) and 15 (alias scope) remain for RJ / researcher.
+
+## Attempt 2 (2026-11-25)
+
+2026-11-25 · H-165 attempt 2 (SPEC-001 0.4 `review` + SPEC-003 0.13, SPEC-006 0.9.1, SPEC-007 0.13.1) · **PASS** · checks: `git diff dev -- brain/`, attempt-1 failures, RJ decision fidelity, research over-claim check, pin grep across `brain/` (excl. Archive), cross-spec read of SPEC-001/002/003/006/007, V-009 wikilinks and Given/When/Then · no failures.
+
+- **(a) AC 6 fixed.** `Echo, Twice` + `The Echo` asked `Echo` now gives `found` for `The Echo` (loose key `echo`); with `Echo, Twice` alone, `not-found`. Agrees with CARD-034 and AC 21.
+- **(b) Ambiguous reachable.** `A Pit` / `The Pit` asked `Pit` (neither equals `pit`, both loose key `pit`) gives `ambiguous`; `The Pit` / `A Pit` asked exactly still `found` (exact first). Also `A Pit` + `Pit` asked `The Pit` is ambiguous. I traced CARD-034 by hand: all AC 6 and 21 cases hold.
+- **(c) SPEC-003 conflict reconciled.** IMP-025 now uses the CARD-033/034 lookup (`method: "article"`, ambiguous gives `needs-review` / `AMBIGUOUS_NAME`), IMP-059 reworded (no alias table, generic rule), AC 24 rewritten, `ImportResult` method union includes `article`. SPEC-006 DECK-040 and SPEC-007 COLL-040 follow it; both point at CARD-038 for search.
+- **RJ decision applied faithfully.** `the` and `dreaming` both find The Dreaming Tree (CARD-038 tokens, AC 24); full name with article matches (exact step 1); article optional both ways; no alias table; Open question 15 closed. Edge: a lone `the` does not match a card named `Dreaming Tree` (stated in AC 24). Fine.
+- **No research over-claim.** CARD-034 states the article rule is RJ's product choice, not research; Dreaming Tree name still "not checked against the Riot payload (H-020)". ARC stays `unverified` (Sets #6), promo codes OPP/JDG/PR are community data as of 2026-11-24, legality deferred to SPEC-002 LEGAL-C07 (`partial`, TR 601.2 transcription); CARD-044 SAMPLE defines no field, notes RJ's "left out entirely" (H-193). Spec status `review` is right (matching behaviour changes).
+- **Pins consistent.** Every live pin is SPEC-001 0.4, SPEC-003 0.13, SPEC-006 0.9.1, SPEC-007 0.13.1 (Spec Index, Accounts and Sync, Shared Cards, Your Decks x2, Collection Import, Deck Import, My Collection). Remaining older versions are changelog history or old inline import comments (see follow-up).
+- **V-009.** All new wikilinks resolve (the only grep misses are pre-existing links broken across lines); new requirements numbered, new ACs are Given/When/Then.
+
+Follow-ups (non-blocking, no new row): inline `import type` comments in Accounts and Sync (`SPEC-003 v0.11`, `SPEC-006 v0.8`), Shared Cards (`SPEC-006 v0.8`, `SPEC-007 v0.11`) and My Collection (`SPEC-003 v0.11`) were already stale before H-165 and are only code-sample comments. `brain/05-Services/API Contracts.md` still pins SPEC-001 v0.2 (lines 10, 131, 403): already board row H-195 (depends on H-165, now unblocked).

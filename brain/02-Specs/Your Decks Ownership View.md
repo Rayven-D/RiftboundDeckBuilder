@@ -44,7 +44,7 @@ as_of: 2026-11-24
 - **Sign-in gate (v0.5.2, OWN-066; account-only since v0.6):** the Decks page and deck detail always sit behind the SPEC-010 SYNC-009 gate (sign-in panel under the page header while it is not open); ownership rules unchanged.
 - **Smooth scrolling (v0.6, OWN-084):** the deck list scrolls continuously: no page numbers, no Previous / Next, load as you scroll (rule: SPEC-007 COLL-093).
 - **Import deck entry (v0.7, OWN-008, OWN-094, H-174):** a floating **Import deck** button at the bottom right of Decks (like Collection's, SPEC-007 COLL-094), hidden on the empty state, which has its own **Import deck** button (and a Tournaments link); a saved deck stays on Decks; no `/import` page.
-- **Depends on:** SPEC-001 v0.4, SPEC-002 v0.4, SPEC-004 v0.6, SPEC-006 v0.9, SPEC-007 v0.13, SPEC-008 v0.4.4.
+- **Depends on:** SPEC-001 v0.4, SPEC-002 v0.4, SPEC-004 v0.6, SPEC-006 v0.9.1, SPEC-007 v0.13.1, SPEC-008 v0.4.4.
   Nothing is stored by this spec; everything is computed on display.
 - **Blocked / open:** foil as its own printing (SPEC-007 open question 1, H-020); card image aspect
   ratio and battlefield orientation in the API (OWN-081). Unknown card = 0 owned is a Claude default RJ

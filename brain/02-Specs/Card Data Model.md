@@ -25,7 +25,7 @@ as_of: 2026-11-24
 - CARD-030: `nameKey()` normalization; CARD-036/037: set + collector-number lookup and `collectorKey()`.
 - CARD-068: `catalogVersion` = `schemaVersion+lastUpdated`, echoed by other specs' results.
 - CARD-070/071: `printingSortKey` default order (API set order, overnumbered after the regular range).
-- **0.4 (H-165, `review`):** CARD-034 (MUST, `partial`) a name lookup that finds no exact `nameKey` also tries the name without a leading "The", so "Dreaming Tree" finds "The Dreaming Tree" ([[Ban List]] #10); CARD-023a the `ARC` set code (Arcane Box Set, not a Standard set; [[Sets]] #6, `unverified`); CARD-023 promo codes OPP, JDG, PR, legal by name via SPEC-002 LEGAL-C07 ([[Deck Construction Rules]] #17); CARD-044 SAMPLE marker reserved, field name and source BLOCKED (H-020). Name check against the Riot payload still pending H-020.
+- **0.4 (H-165, `review`, RJ decision 2026-11-25):** a leading "a" or "the" is optional in name matching and in search, and the full name with the article also matches, with no alias table. CARD-034 (MUST) a name lookup with no exact `nameKey` match retries with `looseKey` (leading `a ` / `the ` dropped on both sides): "Dreaming Tree" finds "The Dreaming Tree" ([[Ban List]] #10, name still unchecked against the Riot payload); two cards sharing a loose key (e.g. `A Pit`, `The Pit`) give `ambiguous`. SPEC-003 import (IMP-025) and SPEC-006 use that lookup. CARD-038 (MUST) name search: "the" and "dreaming" both find The Dreaming Tree, and a query with the article also finds a card without it. CARD-023a the `ARC` set code (Arcane Box Set, not a Standard set; [[Sets]] #6, `unverified`); CARD-023 promo codes OPP, JDG, PR, legal by name via SPEC-002 LEGAL-C07 ([[Deck Construction Rules]] #17); CARD-044 SAMPLE marker reserved (RJ, H-193: SAMPLE printings are left out entirely; the per-spec rules are H-197), field name and source BLOCKED (H-020). Name check against the Riot payload still pending H-020.
 
 **Shared types:** `CardSnapshot` (the file) · `CardSet` (code, `setOrder`, `releaseStatus`) · `PlayableCard` (one card name, gameplay fields) · `Printing` (one physical version) · `CardCategory`, `VariantKind` (enums) · `CardLookup` (lookup result) · `cardKey` / `catalogVersion` (card key, snapshot id).
 **Consumers:** [[Deck Legality]], [[Collection Import]], [[Tournament Deck Catalog]], [[Your Decks Ownership View]], [[Deck Import]], [[My Collection]].
@@ -33,7 +33,7 @@ as_of: 2026-11-24
 - API schema unverified (field names, `id` format, `faction`).
 - Variant representation: CARD-036 suffix mapping, CARD-040/041 rules.
 - Champion/Signature/champion-tag fields (CARD-026/027); full type and domain lists (CARD-024/025).
-- Preview flags for cards and sets (CARD-006/008); whether the API returns promo sets and `ARC` (CARD-023, CARD-023a); the exact API name of "The Dreaming Tree" (CARD-034); how the API marks SAMPLE printings (CARD-044); set order (CARD-071).
+- Preview flags for cards and sets (CARD-006/008); whether the API returns promo sets and `ARC` (CARD-023, CARD-023a); the exact API name of "The Dreaming Tree" (CARD-034; the rule works with either spelling); how the API marks SAMPLE printings (CARD-044); set order (CARD-071).
 - External IDs (CARD-050, MAY): needs Riot's answer via H-011.
 
 ## Purpose
@@ -62,6 +62,7 @@ alias, release-date or external-ID tables.
 - **Canonical name**: the `name` string exactly as the Riot API returns it (official English text,
   [[Card Data & Images]] #3).
 - **Name key**: the normalized form of a name used for lookups and matching (see CARD-030…CARD-033).
+- **Loose key** (`looseKey`): `nameKey` with one leading article token (`a ` or `the `) removed, so the article is optional when matching (CARD-034). It is never a `cardKey`.
 - **`cardKey`**: the key of a playable card, `cardKey = nameKey(canonical name)`. It is the only
   identifier for playable cards; there is no `cardId`. All specs reference cards by `cardKey`.
 - **Unknown (`null`)**: a gameplay attribute whose API source is not verified is stored as `null`.
@@ -129,11 +130,12 @@ alias, release-date or external-ID tables.
 | CARD-030 | MUST | `nameKey(s)` is computed in this order: (1) Unicode NFKC; (2) map typographic apostrophes and quotes (`’ ‘ ʼ ´ \``) to `'` and `“ ”` to `"`; (3) map dashes (`‐ ‑ – —`) to `-`; (4) decompose (NFD) and remove combining accent marks; (5) lower-case (Unicode case fold); (6) remove every character that is not a letter, digit or space (this drops `' , - . : ! ? "` etc.); (7) collapse runs of whitespace to one space and trim. | [[Collection Import Formats]] (name matching); decklist notes |
 | CARD-031 | MUST | `nameKey` is used for **lookups only**. Displays and exports always use the canonical name. | [[Card Data & Images]] #3 |
 | CARD-032 | MUST | Ingestion fails if two different canonical names produce the same `nameKey` (collision), naming both cards. No silent merge. | design safeguard for CARD-013 |
-| CARD-033 | MUST | Lookups that find no exact `nameKey` and no match under CARD-034 return "not found"; fuzzy matching (typos, partial names) is SPEC-003's job, not this model's. | [[Collection Import Formats]] |
-| CARD-034 | MUST | **Leading-article alias** (v0.4; replaces the curated alias table removed in 0.2, so there is still **no alias table**). A name lookup that finds no exact `nameKey` (CARD-033) tries once more with `looseKey(s)` = `nameKey(s)` with one leading `the ` removed, compared with the same function applied to every card's `cardKey`. Exactly one card matches → `found` for that card; more than one → `ambiguous` (with their `cardKey`s); none → `not-found`. An exact `nameKey` match always wins and the fallback never runs. The result is the card's own `cardKey` and canonical name: the alias never creates or changes a `cardKey`, and display and export keep the canonical name (CARD-031). Motivating case: **"The Dreaming Tree"** is the canonical name (the first-ban announcement and Riftcodex spell it so) and the Rules Hub prints **"Dreaming Tree"**, so a lookup for `Dreaming Tree` MUST find `The Dreaming Tree`. The fallback applies to lookups by name only; it is not used by the ingestion collision check (CARD-032) or by SPEC-002's ban-list name check (LEGAL-B05), which stay exact. **Status: `partial`.** Research backs only this one name ([[Ban List]] #10, note status `verified`, but the fact itself says the name is "Not yet checked against the official card gallery (no API) or the Riot payload (H-020)"); applying the rule to every leading "The" is this spec's mechanism, not a research finding (open question 15). | [[Ban List]] #10 (as of 2026-11-24; Riftcodex is community-db, the announcement is official); [[ADR-0005 MVP Product Defaults]] #4 (no curated alias table) |
+| CARD-033 | MUST | A name lookup is: exact `nameKey` match first, then CARD-034. Lookups that match under neither return "not found"; fuzzy matching (typos, partial names) is SPEC-003's job, not this model's. | [[Collection Import Formats]] |
+| CARD-034 | MUST | **Optional leading article** (v0.4; RJ decision 2026-11-25; replaces the curated alias table removed in 0.2, so there is still **no alias table**: the rule is generic and reads only Riot data). `looseKey(s)` = `nameKey(s)` with one leading article token, `a ` or `the `, removed; if nothing would remain after it, `looseKey(s) = nameKey(s)`. **Name lookup** (the one lookup used by SPEC-003 import and SPEC-006, so import, deck import and any other name lookup agree): (1) if `nameKey(s)` equals a card's `cardKey`, that card is `found` and step 2 never runs (the full name, article included, always matches); (2) otherwise compare `looseKey(s)` with `looseKey(cardKey)` of every card: exactly one card → `found`; more than one → `ambiguous` with their `cardKey`s (reachable when the catalog holds names that differ only in the article, e.g. `A Pit` and `The Pit`: neither equals `pit`, both have loose key `pit`); none → `not-found`. The comparison runs both ways, so an input with the article finds a card without it (`The Dreaming Tree` finds a card the API names `Dreaming Tree`) and the reverse. The result is the card's own `cardKey` and canonical name: the rule never creates or changes a `cardKey`, and display and export keep the canonical name (CARD-031). Motivating case: **"The Dreaming Tree"** is the canonical name (the first-ban announcement and Riftcodex spell it so) and the Rules Hub prints **"Dreaming Tree"**, so a lookup for `Dreaming Tree` MUST find it. Not used by the ingestion collision check (CARD-032, exact `nameKey`) or by SPEC-002's ban-list name check (LEGAL-B05), which stay exact. **Status: the article rule is an RJ product decision (2026-11-25), not a research finding.** Research backs only the one name ([[Ban List]] #10, note status `verified`, but the fact itself says the name is "Not yet checked against the official card gallery (no API) or the Riot payload (H-020)"); no other card is known to need it. | RJ decision 2026-11-25 (H-165 board row); [[Ban List]] #10 (as of 2026-11-24; Riftcodex is community-db, the announcement is official); [[ADR-0005 MVP Product Defaults]] #4 (no curated alias table) |
 | CARD-035 | MUST | Every card name in our decklist notes resolves to exactly one `PlayableCard` (validation check V-003). | [[Collection Import Formats]]; V-003 |
 | CARD-036 | MUST | `lookupPrinting(setCode, collectorNumber)` resolves **without a variant** to the playable card: set code compared upper-case (CARD-020), collector number compared by collector key (CARD-037). Result: `found` with the `cardKey` and the matching printings (base / no-suffix printing first, then `printingSortKey`); `not-found`; or `ambiguous` if matching printings have different `cardKey`s (also an ingestion warning `collector-collision`). A variant suffix in the input narrows the printings but never changes the `cardKey`; if no printing has that suffix, the lookup still returns `found` with all printings of that number plus a `variant-not-found` note. Inputs accepted: `SET` + number as separate fields, public code `SET-NUMBER[suffix]` (e.g. `OGN-007a`, `RAD-SP1/005`), TTS token `SET-NUMBER-COPY` (copy index dropped). Exact suffix → `variant.kind` mapping stays BLOCKED by CARD-040. | [[Collection Import Formats]] (formats table); [[Card Data & Images]] #10 |
 | CARD-037 | MUST | `collectorKey(raw)` normalizes a collector number in this order: (1) Unicode NFKC, trim, remove a leading `#`; (2) upper-case; (3) parse one of: **(a)** block form `^([A-Z]+[0-9]*)/([0-9]+)([A-Z*]*)$` (e.g. `SP1/005`) → `block = SP1`, `number = 5`; **(b)** fraction form `^([0-9]+)([A-Z*]*)/([0-9]+)$` (e.g. `005/298`, `300/250`) → `number` = the part before `/`, the total after `/` is ignored; **(c)** plain `^([0-9]+)([A-Z*]*)$` (e.g. `007a`, `7`) → `number`; **(d)** anything else → `code` = the whole upper-cased string, `number = null`; (4) numbers are compared as integers, so leading zeros don't matter (`001` = `01` = `1`); (5) the trailing letters/`*` are the `suffix` (variant hint, upper-cased). The key is `block + '/' + number` for (a), `number` for (b)/(c), `'#' + code` for (d); the suffix is kept separately. `Printing.collectorNumber` stays verbatim; the key, suffix and parsed parts are stored beside it in `Printing.collector`. Examples: `" 007a"` → key `7`, suffix `A`; `"sp1/005"` → key `SP1/5`; `"300/250"` → key `300`. | [[Collection Import Formats]] (`OGN-007a`, TTS `OGN-265-1`); [[Card Data & Images]] #10 (`RAD-SP1/005`); [[Deck Construction Rules]] #13 (300/250) |
+| CARD-038 | MUST | **Name search match** (RJ decision 2026-11-25; the one rule for SPEC-007 COLL-040 and SPEC-006's catalog search). For a query `q`, let `T` = the space-separated tokens of `nameKey(q)` and `L` = those of `looseKey(q)` (CARD-034). A card matches when **every token of `T` is a substring of its `cardKey`, or every token of `L` is** (`L` equals `T` when `q` has no leading article, or is only the article). An empty query matches everything. Because `cardKey` keeps its article, `the` and `dreaming` each find `The Dreaming Tree`; because `L` drops the query's article, `the dreaming tree` also finds a card the API names `Dreaming Tree`. Token order is free. Ranking is not specified. | RJ decision 2026-11-25 (H-165 board row); [[My Collection]] COLL-040 |
 
 ### Variants (unverified API representation; CARD-044 SAMPLE marker reserved)
 | ID | Level | Requirement | Source |
@@ -142,7 +144,7 @@ alias, release-date or external-ID tables.
 | CARD-041 | MUST | Variant detection is a **versioned, data-driven rule list** (`data/variant-rules.json`), each rule matching on API fields (e.g. `rarity == "Showcase"`, collector-number pattern `SP\d+/`, suffix letter) and naming the `kind` it sets and the research note that backs it. Changing rules re-derives variants from the stored raw payload without a new API call. | [[Card Data & Images]] #10 (`RAD-SP1/005`, rarity "Showcase"); [[Collection Import Formats]] (suffixes a/s/b) |
 | CARD-042 | MUST | The ingestion job keeps the unmodified API response for the snapshot (`data/raw/riot-contents-<lastUpdated>.json`) so CARD-041 and new-property handling can be reapplied. It holds no API key. | [[Card Data & Images]] #4, #7 |
 | CARD-043 | MUST | `variant.kind` never affects `cardKey`, copy limits or matching (CARD-013). It affects display, printing-level lookups, `printingSortKey`, and SPEC-002 LEGAL-018, which reads `variant.kind === 'overnumbered'` (and treats `unknown` as not evaluated). There is no separate `overnumbered` field. | [[Deck Construction Rules]] #5, #13; [[ADR-0005 MVP Product Defaults]] #2 |
-| CARD-044 | MAY | **Reserved: SAMPLE marker.** SPEC-002 LEGAL-C10 says SAMPLE-stamped printings are not legal for organized play (Riot's Organized Play article, [[Deck Construction Rules]] #17, as of 2026-11-24) and needs a per-printing marker to act on it. This spec defines **no field yet**: its name, type and API source are undecided and the API representation is unknown (**BLOCKED: needs research**, H-020). When it is added it follows CARD-029: `null` = unknown, never guessed from set code or collector number, and it does not affect `cardKey` (CARD-013). Until then no printing is treated as SAMPLE. | [[Deck Construction Rules]] #17; [[Deck Legality]] LEGAL-C10 |
+| CARD-044 | MAY | **Reserved: SAMPLE marker.** SPEC-002 LEGAL-C10 says SAMPLE-stamped printings are not legal for organized play (Riot's Organized Play article, [[Deck Construction Rules]] #17, as of 2026-11-24) and needs a per-printing marker to act on it. RJ decided on 2026-11-25 (H-193) that SAMPLE printings are **left out entirely** (not imported, counted, shown or matched in import, collection or decks); this marker is what those rules will read, and their requirements live in the consuming specs (H-197), not here. This spec defines **no field yet**: its name, type and API source are undecided and the API representation is unknown (**BLOCKED: needs research**, H-020). When it is added it follows CARD-029: `null` = unknown, never guessed from set code or collector number, and it does not affect `cardKey` (CARD-013). Until then no printing is treated as SAMPLE. | [[Deck Construction Rules]] #17; [[Deck Legality]] LEGAL-C10 |
 
 ### Ordering (default printing order)
 | ID | Level | Requirement | Source |
@@ -325,10 +327,12 @@ real cards from research notes.
    model is asked for `Dreaming Tree`, `dreaming tree` or `The Dreaming Tree` **Then** each returns
    `found` with `cardKey: "the dreaming tree"` (the first two through CARD-034), and the card is shown
    as `The Dreaming Tree` (CARD-031). **Given** no card has the name `The Dreaming Tree` or `Dreaming
-   Tree` **When** asked for `Dreaming Tree` **Then** `not-found`. **Given** (hypothetical names) two cards `The Mirror` and
-   `Mirror` **When** asked for `Mirror` **Then** `found` for `Mirror` (the exact match wins; no
-   fallback). **Given** hypothetical cards `The Echo` and `Echo, Twice` only **When** asked for `Echo`
-   **Then** `not-found` (a partial name is not an article alias). **Given** the live payload returns
+   Tree` **When** asked for `Dreaming Tree` **Then** `not-found`. **Given** (hypothetical names) two
+   cards `The Mirror` and `Mirror` **When** asked for `Mirror` **Then** `found` for `Mirror`, and for
+   `The Mirror` **Then** `found` for `The Mirror` (the exact match wins; no fallback). **Given**
+   hypothetical cards `Echo, Twice` and `The Echo` **When** asked for `Echo` **Then** `found` for
+   `The Echo` (CARD-034: loose key `echo`), while with `Echo, Twice` as the only card the result is
+   `not-found` (a partial name is not an article match). **Given** the live payload returns
    `Dreaming Tree` (no article) **When** asked for `The Dreaming Tree` **Then** `found` for it.
 7. **Decklists resolve** (CARD-035, V-003)
    **Given** the decklist [[2026-11 RC Europe - 2 - Sonecon - Riven]] (e.g. `Riven, The Exile`,
@@ -390,11 +394,14 @@ real cards from research notes.
     `printingSortKey` **Then** the order is OGN `001`, `002`, `002a`, `250`, `300`, `SP1/005`, then
     SFD `001`.
 
-21. **Alias ambiguity** (CARD-034)
+21. **Article ambiguity** (CARD-034)
     **Given** (hypothetical names) two cards `The Pit` and `Pit, Twice` **When** asked for `Pit` **Then**
-    `found` for `The Pit` only (`Pit, Twice` is a different name, CARD-014). **Given** (hypothetical,
-    test data) two cards whose `looseKey` both equal the input's and neither matches the input exactly
-    **When** asked **Then** the result is `ambiguous` listing both `cardKey`s.
+    `found` for `The Pit` only (`Pit, Twice` is a different name, CARD-014). **Given** (hypothetical
+    names) two cards `A Pit` and `The Pit` **When** asked for `Pit` **Then** `ambiguous` with `cardKeys`
+    `["a pit", "the pit"]` (neither equals `pit`; both have loose key `pit`). **When** asked for `The
+    Pit` **Then** `found` for `The Pit` (exact wins), and for `A Pit` **Then** `found` for `A Pit`.
+    **Given** instead cards `A Pit` and `Pit` **When** asked for `The Pit` **Then** `ambiguous` with
+    `["a pit", "pit"]`.
 22. **ARC and promo codes are ordinary sets** (CARD-021, CARD-023, CARD-023a; hypothetical payload)
     **Given** the previous snapshot has no `ARC` or `OPP` and the API now returns a set `Arc` named
     `Arcane Box Set` and a set `Opp` **When** ingestion runs **Then** `CardSet.code` values are `ARC`
@@ -407,6 +414,13 @@ real cards from research notes.
     **Given** no verified API source for the SAMPLE stamp **When** ingestion runs **Then** no printing is
     marked SAMPLE from its set code or collector number, and SPEC-002 AC 24 still sees "no way to mark
     SAMPLE".
+24. **Name search** (CARD-038)
+    **Given** the card `The Dreaming Tree` **When** the query is `the`, `dreaming`, `the dreaming`,
+    `DREAMING TREE` or `tree the` **Then** it matches in each case. **Given** instead the API names the
+    card `Dreaming Tree` **When** the query is `the dreaming tree` **Then** it matches (`L` = `dreaming
+    tree`); the query `the` alone does not match it (no `the` in `dreaming tree`; a lone article is not
+    dropped). **Given** cards `Mirror` and `The Mirror` **When** the query is `mirror` **Then** both
+    match. **When** the query is empty **Then** every card matches.
 
 ## Out of scope
 - Deck legality, ban list, format/set legality and out-of-range reprints (SPEC-002).
@@ -433,16 +447,16 @@ real cards from research notes.
     set's printing. Confirm with RJ / researcher that this matches how errata are published.
 12. **Canonical spelling of "The Dreaming Tree"** in the API. Research says "The Dreaming Tree" is canonical
     (first-ban announcement, Riftcodex) and the Rules Hub prints "Dreaming Tree" ([[Ban List]] #10, as of
-    2026-11-24); not yet checked against the Riot payload (H-020). CARD-034 accepts both spellings either
-    way; SPEC-002 LEGAL-B05 stays exact and uses whatever the API returns. → researcher (live payload).
+    2026-11-24); not yet checked against the Riot payload (H-020). CARD-034 and CARD-038 accept both
+    spellings either way; SPEC-002 LEGAL-B05 stays exact and uses whatever the API returns. → researcher (live payload).
 13. **Set order** (CARD-071): does the API return `sets[]` in release order? If not, RJ decides how to order
     sets without a curated table (e.g. Riot-published dates where cited in research, API order otherwise).
 14. **Collector-number forms** (CARD-037): confirm against the live payload that no other forms exist
     (e.g. promo codes); form (d) catches them meanwhile.
-15. **Scope of the leading-article alias** (CARD-034, for RJ): research backs only "Dreaming Tree" for
-    "The Dreaming Tree". CARD-034 applies a generic "optional leading The" fallback instead of a
-    one-name alias list, because ADR-0005 forbids curated alias tables and a list would need one.
-    Default: the generic rule. Alternative: a single sourced entry, which needs an ADR-0005 exception.
+15. ~~Scope of the leading-article alias~~: **closed by RJ 2026-11-25** (H-165 board row): a leading "a" or
+    "the" is optional in search and in name matching (import too), the full name also matches, and there
+    is no curated alias table. Now CARD-034 (lookup, import) and CARD-038 (search). Research still backs
+    only "Dreaming Tree" for "The Dreaming Tree"; the generic rule is RJ's product choice.
 16. **SAMPLE marker** (CARD-044): field name, type and API source for SPEC-002 LEGAL-C10. → researcher
     (H-020), then spec-writer.
 17. **Legality of `ARC` printings** (CARD-023a): [[Sets]] #6 only says ARC is not on the Standard list.
@@ -450,4 +464,4 @@ real cards from research notes.
     researched.
 
 ## Changelog
-Current: 0.4 (2026-11-25, H-165: CARD-034 leading-article alias, CARD-023 / CARD-023a promo codes and ARC, CARD-044 SAMPLE marker reserved; `review`). Before: 0.3 (2026-11-23). Full history: [[Card Data Model changelog]] (archived). New entries go in the archive note.
+Current: 0.4 (2026-11-25, H-165 attempt 2, RJ decision 2026-11-25: CARD-034 optional leading "a" / "the" in name lookup (exact first, then `looseKey` both ways, reachable `ambiguous`; used by SPEC-003 import and SPEC-006), new CARD-038 name search, CARD-033 reworded, `looseKey` definition, ACs 6 and 21 fixed, AC 24 new, Open question 15 closed; CARD-023 / CARD-023a promo codes and ARC; CARD-044 SAMPLE marker reserved, RJ H-193 "left out entirely" noted; `review` because matching behaviour changes). Before: 0.3 (2026-11-23). Full history: [[Card Data Model changelog]] (archived). New entries go in the archive note.
