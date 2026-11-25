@@ -27,6 +27,10 @@ jobs:
       - name: Install web dependencies
         run: npm ci --prefix web
 
+      # SPEC-012 LOG-053: a production deploy cannot go out while a changelog entry still has `"date": null`.
+      - name: Check every changelog entry is dated
+        run: npm --prefix web run check:changelog-release
+
       # firebase.json's predeploy hook runs `npm --prefix web run build`: the production build
       # (appVersion web-prod-<first 7 hex of the commit>, from git or GITHUB_SHA). The account-only build must
       # not reach production until the SPEC-010 SYNC-007 release rule is met (H-063, H-152, rules deployed).

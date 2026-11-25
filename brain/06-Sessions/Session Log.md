@@ -7,6 +7,10 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-25: H-202 builder, `/changelog` "What's new" (SPEC-012 0.1)
+- Built the public `/changelog` page (no Firebase, no storage), `core/changelog/changelog.json` with `0.0.1` (date `null` → "Coming soon"), pure rules in `shared/changelog/changelog.ts`, the footer link (new `.footer-row` next to the theme switch) and the account-menu link (after Theme, before the last divider), `check:changelog-release` plus a step in the `main` deploy workflow, and the release step in README and [[API Contracts]] v1.17. Lint, build, preview build and the web unit tests green. Nothing deployed.
+- Choices to specify: the run-time skip check is the full per-entry rule set (LOG-031 + LOG-022 + hash guard), so AC 5's empty-bullets entry is skipped (H-220 item 2); script messages for invalid JSON and a non-array.
+
 ## 2026-11-25: `/board 5` (orchestrator; RJ asked for H-176 first)
 - Round 1: **H-176** (builder): built the header account control, account menu and Account Information dialog, username (client 24 graphemes / 500 UTF-16 units; rules `size()` 1–2000; the emulator counts **UTF-16 units**), theme per device `device-theme` (inline script before first paint, footer and menu), Collection / Decks import FABs, and removed `/import`. Validator **PASS** ([[Validation H-176]]): lint, build, 777 unit tests; rules 40/40 on a partial run because the builder's leftover emulators held the ports. **PR #35 open for RJ**, gate **H-189**, follow-ups H-190, H-191. RJ asked for H-189 to run in its own session (worktree on the PR branch), which reviews, fixes and re-validates.
 - Rounds 2–4: **H-164** (spec-writer), SPEC-002 0.4 `review` from H-022 research. **FAIL** on attempt 1 (inferred 2v2 split, stale pins) and attempt 2 (dated AC 22 count), **PASS** on attempt 3 ([[Validation H-164]]). **PR #36 merged by the loop.** Filed gate **H-193** (SPEC-002 review: promos by name, SAMPLE, 2v2 as data), build H-194, research tidy-ups H-192.
