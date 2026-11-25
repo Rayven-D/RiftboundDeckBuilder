@@ -35,7 +35,7 @@ import {
     <div class="body" [class.body--wide]="wide()">
       <div class="art-col">
         <div class="art-frame" [class.art-frame--dim]="c.state !== 'full'">
-          <app-card-art [name]="c.name" [state]="c.state" [fill]="c.fill" [imageUrl]="artUrl()" [landscape]="landscape()" />
+          <app-card-art [name]="c.name" [state]="c.state" [fill]="c.fill" [imageUrl]="artUrl()" [landscape]="landscape()" animateChange />
         </div>
         @if (ban(); as b) {
           <app-status-label class="ban" [variant]="b.variant" [text]="b.text" />
@@ -134,7 +134,6 @@ import {
   styles: `
     :host {
       display: block;
-      --dur-fill: 180ms;
     }
     .title {
       margin: 0 0 var(--space-3);

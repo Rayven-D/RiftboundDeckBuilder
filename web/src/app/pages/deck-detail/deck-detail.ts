@@ -37,7 +37,7 @@ import {
   type DeckTileSummary,
   type DeckZone,
   type OwnershipCard,
-  type StoredDeckLocks,
+  type SharedPool,
   type StoredTags,
   type UserDeck,
   type ZoneSection,
@@ -83,6 +83,9 @@ import {
   sectionCounts,
   sourceParts,
 } from '../../shared/deck-detail/detail-view';
+import { DeckLocks } from '../../shared/deck/deck-locks.service';
+import { LockActions } from '../../shared/deck/lock-actions';
+import { LockBadge } from '../../shared/deck/lock-badge';
 import { EmptyState } from '../../shared/empty-state';
 import { Icon } from '../../shared/icon';
 import type { StoredPrintingCodes } from '../../shared/storage/records';
@@ -125,6 +128,10 @@ interface Loaded {
   view: DeckOwnershipView;
   tile: DeckTileSummary;
   catalog: CollectionCatalogView | null;
+  /** The shared pool for Lock in (SHARE-020); null while ownership is unavailable. */
+  pool: SharedPool | null;
+  /** SHARE-061: the lock store could not be read (locks ignored, Lock in / Unlock refused). */
+  locksUnreadable: boolean;
   /** OWN-062: the collection or its tags could not be read. */
   collectionUnreadable: boolean;
   banUnknown: boolean;
@@ -152,8 +159,8 @@ function localToday(): string {
  * under the header. Rename only (no card editor, DECK-080 deferred).
  *
  * Every number comes from `computeDeckOwnership` / `summarizeDeck` over all decks and one `computeSharedPool` run, as on
- * the list (OWN-073). The lock controls, the lock badge and the shortfall warnings are H-060's shared pieces: their
- * places are marked `TODO(H-060)` in the template.
+ * the list (OWN-073). The lock badge and Lock in / Unlock are H-060's shared pieces (`app-lock-badge`,
+ * `app-lock-actions`); a lock change re-reads the page through `DeckLocks.changed`.
  */
 @Component({
   selector: 'app-deck-detail',
@@ -165,6 +172,8 @@ function localToday(): string {
     DeckCardRow,
     DeckCardContent,
     DeckMissing,
+    LockActions,
+    LockBadge,
     MatButton,
     MatIconButton,
     MatMenu,
@@ -199,6 +208,7 @@ export class DeckDetail {
   private readonly rawRecord = inject(RAW_DECK_RECORD);
   private readonly device = inject(DEVICE_STORAGE);
   private readonly breakpoints = inject(BreakpointObserver);
+  private readonly deckLocks = inject(DeckLocks);
 
   protected readonly text = DETAIL_TEXT;
   protected readonly zoneLabel = ZONE_LABEL;
@@ -259,6 +269,8 @@ export class DeckDetail {
   private today = localToday();
   private destroyed = false;
   private loadedId: string | null = null;
+  /** Set once a delete is under way: the page is leaving, so lock-change re-reads are skipped. */
+  private leaving = false;
 
   constructor() {
     // A new id (first load, or another deck's link): reset what belongs to the old deck and read again.
@@ -318,6 +330,8 @@ export class DeckDetail {
     addEventListener('storage', onStorage);
     this.deckImport.saved.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
     this.collectionImport.written.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
+    // SHARE-029 / SHARE-064: a lock change this tab wrote raises no storage event; recompute in place.
+    this.deckLocks.changed.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
     this.destroyRef.onDestroy(() => {
       this.destroyed = true;
       removeEventListener('storage', onStorage);
@@ -331,7 +345,7 @@ export class DeckDetail {
     this.reloadScheduled = true;
     const run = () => {
       this.reloadScheduled = false;
-      if (!this.destroyed) void this.load(this.deckId(), false);
+      if (!this.destroyed && !this.leaving) void this.load(this.deckId(), false);
     };
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
     else setTimeout(run, 0);
@@ -429,9 +443,10 @@ export class DeckDetail {
       ownership = { status: 'ok', input, shared: computeSharedPool({ decks: all, locks, ownership: input }) };
     }
     const view = computeDeckOwnership(deck, ownership, catalog, banData, this.today);
+    const pool = ownership.status === 'ok' ? ownership.shared : null;
     // No SPEC-002 engine or format data in `web/` yet (H-194): legality is "Not fully checked" (OWN-004).
     const tile = summarizeDeck(deck, view, null, null);
-    return { deck, readOnly, view, tile, catalog, collectionUnreadable, banUnknown: banData === null };
+    return { deck, readOnly, view, tile, pool, locksUnreadable: locks === null, catalog, collectionUnreadable, banUnknown: banData === null };
   }
 
   protected async retryCatalog(): Promise<void> {
@@ -710,13 +725,18 @@ export class DeckDetail {
       return;
     }
     let removed: UserDeck | null;
+    this.leaving = true;
     try {
       removed = await this.stores.decks.delete(d.deck.id);
     } catch (err) {
+      this.leaving = false;
       this.snackBar.open(err instanceof ReadOnlyAreaError ? err.message : DETAIL_TEXT.saveFailed, 'OK', noticeOptions('error'));
       return;
     }
-    if (!removed) return;
+    if (!removed) {
+      this.leaving = false;
+      return;
+    }
     await this.releaseLock(removed.id);
     const stores = this.stores;
     const saved = this.deckImport.saved;
@@ -732,20 +752,20 @@ export class DeckDetail {
     });
   }
 
-  /** SHARE-024: deleting a locked deck removes its lock too (the store also drops orphan locks, SHARE-062). */
+  /** SHARE-024: deleting a locked deck removes its lock too, through DeckLocks (the store also drops orphans, SHARE-062). */
   private async releaseLock(deckId: string): Promise<void> {
-    let stored: StoredDeckLocks | null;
+    const locks = await this.deckLocks.load().catch(() => null);
+    if (!locks?.some((l) => l.deckId === deckId)) return; // none, or unreadable: never overwritten (SHARE-061)
     try {
-      stored = await this.stores.locks.load();
-    } catch {
-      return; // unreadable: never overwritten (SHARE-061)
-    }
-    if (!stored?.locks.some((l) => l.deckId === deckId)) return;
-    try {
-      await this.stores.locks.save({ ...stored, updatedAt: new Date().toISOString(), locks: stored.locks.filter((l) => l.deckId !== deckId) });
+      await this.deckLocks.unlock(deckId);
     } catch {
       // the orphan lock is ignored and dropped on the next lock save (SHARE-062)
     }
+  }
+
+  /** `app-lock-actions` saved a change: recompute (DeckLocks.changed does the same; the reload is coalesced). */
+  protected lockChanged(): void {
+    this.scheduleReload();
   }
 
   protected toggleDesc(): void {

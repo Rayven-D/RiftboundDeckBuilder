@@ -132,7 +132,7 @@ export class LockActions {
   private readonly locks = inject(DeckLocks);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
-  private readonly action = viewChild<ElementRef<HTMLButtonElement>>('action');
+  private readonly action = viewChild('action', { read: ElementRef<HTMLButtonElement> });
   private readonly injector = inject(Injector);
   /** After a saved change the other button replaces this one once the page recomputes: focus it then (§7). */
   private refocus = false;

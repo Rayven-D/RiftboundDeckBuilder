@@ -69,9 +69,8 @@
           }
         </p>
         <div class="meta">
-          <!-- TODO(H-060): app-lock-badge goes here (SHARE-041: "Locked · Locked in on <date>" / "Locked · n cards short"),
-               fed by view.lock and d.tile.lockBadge. -->
-          <div class="deck-detail__badge-slot"></div>
+          <!-- SHARE-041 / SHARE-033: "Locked · Locked in on <date>" or "Locked · n cards short" (nothing when unlocked). -->
+          <app-lock-badge [lock]="v.lock" [label]="d.tile.lockBadge" />
           <span class="legality" [class]="'legality legality--' + d.tile.legalityVerdict">
             <app-icon [name]="d.tile.legalityVerdict === 'legal' ? 'check_circle' : d.tile.legalityVerdict === 'illegal' ? 'block' : 'help'" />{{
               d.tile.legalityLabel
@@ -93,10 +92,16 @@
           }
         </div>
         <div class="actions">
-          <!-- TODO(H-060): app-lock-actions goes here (Lock in / Unlock, SHARE-020…023, SHARE-029), with its reason line
-               under the actions (OWN-116, aria-describedby). Inputs: deck, view (lock, ownershipAvailable, locksIgnored),
-               readOnly; it writes the lock store and the page recomputes (DeckDetail.scheduleReload). -->
-          <div class="deck-detail__lock-slot"></div>
+          <!-- OWN-116 / SHARE-020…023, SHARE-029: Lock in / Unlock with its own reason line and snack bars. It saves
+               through DeckLocks; the page re-reads on DeckLocks.changed and passes the new view back in. -->
+          <app-lock-actions
+            [deck]="d.deck"
+            [view]="v"
+            [pool]="d.pool"
+            [readOnly]="d.readOnly"
+            [locksUnreadable]="d.locksUnreadable"
+            (changed)="lockChanged()"
+          />
           @if (canCopyMissing() && !isPhone()) {
             <div class="split">
               <button matButton="outlined" type="button" class="split-main" (click)="copyMissing('sections')">

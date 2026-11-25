@@ -14,9 +14,9 @@ SPEC-005 OWN-010…119. Contracts: [[API Contracts]] → "Deck detail" (v1.27). 
 ## Layout
 - **Header (OWN-010):** back link "Decks"; h1 deck name; description (`notes`) clamped to 3 lines with Show more /
   Show less, nothing when empty; source line, then "· pilot" and "· Source ↗" for tournament decks; meta row
-  (Lock badge slot, legality label, "Rule check" text button → dialog); summary "X of Y copies available · N%"
+  (`app-lock-badge`: "Locked · Locked in on <date>" or the warning "Locked · n cards short", legality label, "Rule check" text button → dialog); summary "X of Y copies available · N%"
   (locked: "copies locked in"; the percentage is `aria-hidden` with a visually hidden ", N percent"; nothing when
-  `completionPercent` is null) and "N of M cards fully available" (no percentage); actions (Lock slot, Copy missing
+  `completionPercent` is null) and "N of M cards fully available" (no percentage); actions (`app-lock-actions`: Lock in / Unlock with its reason line under the button, Copy missing
   list split button with "Copy as one list", More menu: Copy deck list, Download .txt, Duplicate, Rename, divider,
   Delete).
 - **Notices** under the header: read-only (info), ownership unavailable, card data not loaded with Try again, locks
@@ -33,10 +33,10 @@ SPEC-005 OWN-010…119. Contracts: [[API Contracts]] → "Deck detail" (v1.27). 
   the tile. On phones the header Copy button moves into that missing panel.
 
 ## Tokens
-Local to the page (`:host`), not `:root`: `--deck-aside: 20rem`, `--deck-bar: 3.25rem`, `--dur-fill: 180ms`.
-Shared component tweaks: `app-card-art` fill transitions use `--dur-fill` (0 ms elsewhere);
-`app-ownership-chip` border uses `--color-border-strong` (Decks Components §0, the "none" state contrast).
-New icons: `arrow_back`, `open_in_new`, `edit`, `delete`, `grid_view`, `view_list`.
+Local to the page (`:host`): `--deck-aside: 20rem`, `--deck-bar: 3.25rem`. `--dur-fill: 180ms` is global (H-060);
+the tile, row and panel art use `app-card-art`'s `animateChange` for the OWN-035 fill change (e.g. after Lock in).
+Shared component tweak: `app-ownership-chip` border uses `--color-border-strong` (Decks Components §0, the "none"
+state contrast). New icons: `arrow_back`, `open_in_new`, `edit`, `delete`, `grid_view`, `view_list`.
 
 ## Choices made in the build (not settled by spec; for RJ or `spec-writer`)
 1. Ownership unavailable: the copies line reads "Ownership unavailable".
@@ -52,12 +52,15 @@ New icons: `arrow_back`, `open_in_new`, `edit`, `delete`, `grid_view`, `view_lis
 10. Copy strings "Deck list copied", "Missing list copied", clipboard failure "Couldn't copy. Select the list and copy it yourself."
 11. A ban-list or catalog load that throws is treated as not loaded (banner / ban notice), never a broken page.
 
-## Slots for H-060
-- `deck-detail.html` `.meta`: `<div class="deck-detail__badge-slot">` → `app-lock-badge` (`view.lock`, `tile.lockBadge`).
-- `deck-detail.html` `.actions` (first child): `<div class="deck-detail__lock-slot">` → `app-lock-actions`
-  (deck, view: lock / ownershipAvailable / locksIgnored, readOnly); its reason line goes under the actions with
-  `aria-describedby`. The page re-reads on lock-store changes.
-- Shortfall warning (Decks Components §10) not placed yet; it belongs under the notices.
+## Lock pieces (H-060, wired in H-254 phase 2)
+- `.meta`: `app-lock-badge` (`view.lock`, `tile.lockBadge`), before the legality label.
+- `.actions`, first: `app-lock-actions` (`deck`, `view`, `pool`, `readOnly`, `locksUnreadable`). Its reason line is
+  its own; the actions row aligns to the top so the line sits under the button, and Copy / More sit level with the
+  button. On phones the lock button fills the row with More beside it.
+- The page re-reads on `DeckLocks.changed` and `(changed)`; after a change focus moves to the new button (Lock in ↔
+  Unlock). Delete releases the lock through `DeckLocks.unlock`.
+- No `app-shortfall-warning` here: [[Decks]] §9 and [[Decks Components]] §10 keep SHARE-034 warnings in Collection's
+  confirmations. A short locked deck shows the warning badge (D8).
 
 ## Not done
 - The pieces are not on `/styleguide` (Decks Components asks for it).

@@ -35,6 +35,7 @@ import { DETAIL_TEXT, banText, cardAccessibleName, cardId, labelParts } from './
           [fill]="card().fill"
           [imageUrl]="card().imageUrl"
           [landscape]="landscape()"
+          animateChange
           [eager]="eager()"
           decorative
         />
@@ -67,7 +68,6 @@ import { DETAIL_TEXT, banText, cardAccessibleName, cardId, labelParts } from './
     :host {
       display: block;
       min-width: 0;
-      --dur-fill: 180ms;
     }
     .tile {
       display: flex;

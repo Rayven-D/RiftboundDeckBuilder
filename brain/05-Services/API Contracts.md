@@ -631,11 +631,19 @@ Not an endpoint. `/decks/:id` reads and writes through the **tracked** stores on
   replaceable in tests.
 - **Writes:** Rename → `stores.decks.update(deck, basedOnUpdatedAt)` (`'conflict'` → `DETAIL_TEXT.saveConflict`, the
   dialog stays open); Duplicate → `stores.decks.create(copy)`, snack "Deck duplicated." / Open; Delete →
-  `stores.decks.delete(id)`, then the deck's lock is removed (`locks.save`), navigate to `/decks`, snack "Deck
+  `stores.decks.delete(id)`, then the deck's lock is removed (`DeckLocks.unlock`), navigate to `/decks`, snack "Deck
   deleted." / Undo for 10 s; Undo → `stores.decks.create(removed)` (unlocked, SHARE-024) then
   `DeckImport.saved.next(removed)` so an open list re-reads. Read-only decks: Rename, Duplicate and Delete disabled.
-- **Not built here:** lock controls and badge (H-060; slots marked `TODO(H-060)` in `deck-detail.html`), legality
-  (no SPEC-002 engine in `web/`: always "Not fully checked"), real ban data (`loadBans()` is null).
+- **Lock pieces (H-060):** the header uses `app-lock-badge [lock]="view.lock" [label]="tile.lockBadge"` and
+  `app-lock-actions [deck] [view] [pool] [readOnly] [locksUnreadable]` (its own reason line, confirmation and
+  SHARE-029 snack bars). `Loaded` carries `pool` (the `SharedPool`, null while ownership is unavailable) and
+  `locksUnreadable`. The page re-reads on `DeckLocks.changed` and on the component's `(changed)` (coalesced), so
+  a lock written in this tab updates the badge, copies line and tiles without a storage event. Delete removes the
+  deck's lock through `DeckLocks.unlock` (only when one is stored; an unreadable lock store is never overwritten).
+  No `app-shortfall-warning` on this page: SHARE-034 warnings live in Collection's confirmations ([[Decks]] §9);
+  a short locked deck shows the warning badge "Locked · n cards short" (SHARE-033, D8).
+- **Not built here:** legality (no SPEC-002 engine in `web/`: always "Not fully checked"), real ban data
+  (`loadBans()` is null).
 
 ## Test data on live (SPEC-013, H-205)
 Not an endpoint and no new Firestore field: test data is ordinary account data told apart by reserved values
@@ -786,7 +794,8 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
 - v1.27 (2026-11-25, H-254, SPEC-005 0.10.2, SPEC-006 0.11.1): no endpoint change and no stored-shape change. New section
   "Deck detail": the pure helpers in `shared/deck-detail/detail-view.ts`, the page's reads, reload triggers and writes
-  (rename, duplicate, delete + Undo), and the device setting `deck-view`. (v1.26 is H-060's.)
+  (rename, duplicate, delete + Undo), and the device setting `deck-view`; the header uses H-060's `app-lock-badge`
+  and `app-lock-actions` and re-reads on `DeckLocks.changed`. (v1.26 is H-060's.)
 - v1.26 (2026-11-25, H-060, SPEC-005 0.10.2, SPEC-008 0.4.6): no endpoint change and no stored-shape change. New
   section "Decks list and shared lock pieces": `deck-list.ts`, `deck-locks.ts`, `DeckLocks`, `app-deck-tile`,
   `app-deck-status-chip`, `app-lock-badge`, `app-lock-actions` (+ `LockInDialog`), `app-shortfall-warning`;

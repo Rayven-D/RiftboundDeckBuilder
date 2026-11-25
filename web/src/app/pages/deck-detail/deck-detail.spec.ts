@@ -563,4 +563,133 @@ describe('Deck detail (H-254)', () => {
       expect(text(q(h, 'p[role="status"].visually-hidden'))).toBe('This deck is no longer in your decks.');
     });
   });
+
+  describe('lock in and unlock (SPEC-008 SHARE-020…029, SHARE-033, SHARE-041; SPEC-005 OWN-116; H-060 pieces)', () => {
+    const lockButton = (h: RouterTestingHarness) => root(h).querySelector<HTMLButtonElement>('app-lock-actions button')!;
+    const confirmLock = async (h: RouterTestingHarness) => {
+      dialogEl()!.querySelector<HTMLButtonElement>('button.confirm')!.click();
+      await settle(h, 10);
+      await new Promise((r) => setTimeout(r, 50));
+      await settle(h);
+    };
+
+    it('SHARE-041 / D7: a locked deck shows the badge "Locked · Locked in on Nov 23, 2026" and Unlock', async () => {
+      const h = await setup(URL_, { owned: DETAIL_ALL_OWNED, locks: [DETAIL_DECK_ID] });
+      expect(text(q(h, '.meta app-lock-badge'))).toBe('Locked · Locked in on Nov 23, 2026');
+      expect(text(lockButton(h))).toBe('Unlock');
+      expect(text(q(h, '.copies'))).toBe('23 of 23 copies locked in · 100%, 100 percent');
+    });
+
+    it('SHARE-033 / OWN-102 / D8: a locked deck that is short shows the warning badge "Locked · 6 cards short" and stays locked', async () => {
+      const h = await setup(URL_, { locks: [DETAIL_DECK_ID] });
+      const badge = q(h, '.meta app-lock-badge')!;
+      expect(text(badge)).toBe('Locked · 6 cards short · Locked in on Nov 23, 2026');
+      expect(badge.querySelector('.badge--short')).not.toBeNull();
+      expect(text(q(h, '.copies'))).toBe('12 of 23 copies locked in · 52%, 52 percent');
+      expect(text(lockButton(h))).toBe('Unlock');
+    });
+
+    it('SPEC-008 AC 23 / SHARE-021 / SHARE-029 (a): Lock in confirms, then the badge shows, the copies read "locked in" and the snack says "Kennen Tempo is locked in." (same tab, no storage event)', async () => {
+      const h = await setup(URL_, { owned: DETAIL_ALL_OWNED });
+      expect(q(h, '.meta app-lock-badge .badge')).toBeNull();
+      expect(text(lockButton(h))).toBe('Lock in');
+      lockButton(h).click();
+      await settle(h);
+      expect(text(dialogEl()?.querySelector('h2'))).toBe("Lock in 'Kennen Tempo'?");
+      await confirmLock(h);
+      expect((await stores.locks.load())!.locks.map((l) => l.deckId)).toEqual([DETAIL_DECK_ID]);
+      expect(snack()).toBe('Kennen Tempo is locked in.');
+      expect(snackAction()).toBeNull();
+      expect(text(q(h, '.meta app-lock-badge .badge'))).toBe('Locked');
+      expect(text(q(h, '.copies'))).toBe('23 of 23 copies locked in · 100%, 100 percent');
+      expect(text(q(h, '#zone-main'))).toBe('Main Deck · 6 cards · 6 locked in');
+      expect(text(lockButton(h))).toBe('Unlock');
+    });
+
+    it('SPEC-008 AC 23 / SHARE-023 / SHARE-029 (b): Unlock goes at once, the snack has no Undo, the badge goes and the copies read "available"', async () => {
+      const h = await setup(URL_, { owned: DETAIL_ALL_OWNED, locks: [DETAIL_DECK_ID] });
+      lockButton(h).click();
+      await settle(h, 10);
+      await new Promise((r) => setTimeout(r, 50));
+      await settle(h);
+      expect(dialogEl()).toBeNull();
+      expect((await stores.locks.load())!.locks).toEqual([]);
+      expect(snack()).toBe('Kennen Tempo is unlocked. Its cards count toward your other decks again.');
+      expect(snackAction()).toBeNull();
+      expect(q(h, '.meta app-lock-badge .badge')).toBeNull();
+      expect(text(q(h, '.copies'))).toBe('23 of 23 copies available · 100%, 100 percent');
+      expect(text(lockButton(h))).toBe('Lock in');
+      expect(document.activeElement).toBe(lockButton(h)); // Decks Components §7: focus moves to the new button
+    });
+
+    it('SPEC-008 AC 23 / SHARE-020 / OWN-116: an incomplete deck: Lock in is aria-disabled, focusable, and the reason line is visible and its aria-describedby', async () => {
+      const h = await setup(URL_);
+      const btn = lockButton(h);
+      expect(btn.getAttribute('aria-disabled')).toBe('true');
+      expect(btn.disabled).toBe(false);
+      const reason = q(h, 'app-lock-actions .reason')!;
+      expect(text(reason)).toBe('Lock in needs every card available: 6 cards short');
+      expect(btn.getAttribute('aria-describedby')).toBe(reason.id);
+      btn.click();
+      await settle(h);
+      expect(dialogEl()).toBeNull();
+    });
+
+    it("SPEC-008 AC 23 / SHARE-063: a failed lock save shows \"Couldn't save the lock. Try again.\" and nothing changes", async () => {
+      const h = await setup(URL_, { owned: DETAIL_ALL_OWNED });
+      vi.spyOn(stores.locks, 'save').mockRejectedValue(new Error('quota'));
+      lockButton(h).click();
+      await settle(h);
+      await confirmLock(h);
+      expect(snack()).toBe("Couldn't save the lock. Try again.");
+      expect(await stores.locks.load()).toBeNull();
+      expect(text(q(h, '.copies'))).toBe('23 of 23 copies available · 100%, 100 percent');
+      expect(text(lockButton(h))).toBe('Lock in');
+    });
+
+    it('DECK-091 / SHARE-020: a read-only deck cannot be locked (aria-disabled with its reason)', async () => {
+      const raw = { [`${STORAGE_KEYS.deckPrefix}${DETAIL_DECK_ID}`]: JSON.stringify({ ...detailDeck(), schemaVersion: 2 }) };
+      const h = await setup(URL_, { decks: [], raw, owned: DETAIL_ALL_OWNED });
+      expect(lockButton(h).getAttribute('aria-disabled')).toBe('true');
+      expect(text(q(h, 'app-lock-actions .reason'))).not.toBe('');
+    });
+
+    it('SPEC-008 AC 22 / SHARE-025: renaming locked Deck 1 keeps its lock, lockedAt and holds; Deck 2 still reads "0 of 3 available" and its other-deck row names "Kennen budget"', async () => {
+      const deck2Id = '0b7c0000-0000-4000-8000-0000000000a2';
+      const h = await setup(URL_, { decks: [detailDeck(), detailDeck(deck2Id, 'Jinx Aggro')], owned: DETAIL_ALL_OWNED, locks: [DETAIL_DECK_ID] });
+      await openMore(h);
+      menuItem('Rename').click();
+      await settle(h);
+      const name = dialogEl()!.querySelector<HTMLInputElement>('input')!;
+      name.value = 'Kennen budget';
+      name.dispatchEvent(new Event('input'));
+      const desc = dialogEl()!.querySelector('textarea')!;
+      desc.value = 'Budget list';
+      desc.dispatchEvent(new Event('input'));
+      Array.from(dialogEl()!.querySelectorAll('button')).find((b) => text(b) === 'Save')!.click();
+      await settle(h, 10);
+      expect((await stores.locks.load())!.locks).toEqual([lock(DETAIL_DECK_ID)]);
+      expect(text(q(h, '.meta app-lock-badge'))).toBe('Locked · Locked in on Nov 23, 2026');
+
+      await h.navigateByUrl(`/decks/${deck2Id}`);
+      await settle(h, 10);
+      expect(text(q(h, 'h1'))).toBe('Jinx Aggro');
+      expect(text(tile(h, 'main:lightning rush').querySelector('app-ownership-chip'))).toBe('0 of 3 available');
+      tile(h, 'main:lightning rush').click();
+      await settle(h);
+      expect(text(q(h, '.tabpanel'))).toContain('Kennen budget · needs 3 · Locked, holds 3');
+    });
+
+    it('SHARE-024: deleting a locked deck removes its lock through DeckLocks and the page leaves for /decks', async () => {
+      const h = await setup(URL_, { owned: DETAIL_ALL_OWNED, locks: [DETAIL_DECK_ID] });
+      await openMore(h);
+      menuItem('Delete').click();
+      await settle(h);
+      Array.from(dialogEl()!.querySelectorAll('button')).find((b) => text(b) === 'Delete')!.click();
+      await settle(h, 10);
+      expect((await stores.locks.load())!.locks).toEqual([]);
+      expect(TestBed.inject(Router).url).toBe('/decks');
+      expect(root(h).querySelector('app-deck-detail')).toBeNull();
+    });
+  });
 });

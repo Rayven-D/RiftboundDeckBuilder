@@ -1,10 +1,9 @@
 // Deck detail (brain/04-UI/Decks.md §6–§10 with RJ's H-260 answers; Decks Components §5, §8, §9, §11).
-// Layout tokens are local (Decks Components §0 `--deck-aside`, `--dur-fill`), so the shared :root stays untouched.
+// Layout tokens `--deck-aside` and `--deck-bar` are local; `--dur-fill` is global (H-060).
 :host {
   display: block;
   --deck-aside: 20rem;
   --deck-bar: 3.25rem;
-  --dur-fill: 180ms;
 }
 
 .visually-hidden {
@@ -126,9 +125,23 @@ p {
   font-size: var(--font-size-sm);
 }
 
-.deck-detail__badge-slot:empty,
-.deck-detail__lock-slot:empty {
-  display: none;
+app-lock-actions {
+  flex: 0 1 auto;
+  max-width: 100%;
+
+  // Phones: the lock button takes the row, More stays beside it.
+  @media (max-width: 39.99rem) {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+// 40px Copy / More next to the 44px lock button: centred on its first line (the reason line sits under it).
+@media (min-width: 40rem) and (pointer: fine) {
+  .actions > .split,
+  .actions > .more {
+    margin-top: 2px;
+  }
 }
 
 .legality {
@@ -173,7 +186,7 @@ p {
 .actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start; // the Lock in reason line (OWN-116) sits under its button
   gap: var(--space-2);
   margin-top: var(--space-1);
 }
