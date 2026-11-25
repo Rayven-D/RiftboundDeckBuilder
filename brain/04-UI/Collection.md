@@ -310,8 +310,8 @@ None of these are dropped silently. Each is either kept in a small form here or 
 | COLL-058 / IMP-050a / SHARE-034 Undo-import confirmation and locked-deck warnings | MUST/SHOULD | Only where the import lands (S12, GAP H-087) | Keep, placement per H-087 |
 | COLL-061 URL params | MUST | `q` and `sort` only | Spec change to match |
 | COLL-064 saved views | MAY | Not covered | Defer |
-| COLL-074 delete all local data | MUST | **Built H-154 (builder's placement, for RJ to confirm):** local-only mode only, as the last item of the header More menu (desktop: a More button beside Export CSV; phone: below Export CSV after a divider), danger style, Cancel-first confirmation. Not offered in account-required mode (SYNC-052). There is no settings page in local-only mode | — |
-| IMP-055 CSV export | SHOULD | **Kept** (header button / More menu) | — |
+| COLL-074 delete all local data | — | **Withdrawn** (SPEC-007 0.11, H-171; RJ dropped local-only mode, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2). The H-154 "Delete all local collection data" item and the desktop **More** button that held it go away (removal is builder work, see [[Brief H-175]]). Deleting data is only **Delete account and data** in Account settings (SPEC-010 SYNC-095) | — |
+| IMP-055 CSV export | SHOULD | **Kept** (desktop: header button; phone: the More menu, whose only item it is now that COLL-074 is withdrawn) | — |
 | COLL-015 unresolved cards, COLL-065…068 performance, COLL-070…073 storage | MUST | **Kept** | — |
 | **New, not in any spec:** lock band on tiles, dialog "Locked in" / "Could fit in", keyword explanations | — | This brief | Spec them in SPEC-007 (H-091). The keywords also need H-089 and H-090 |
 
