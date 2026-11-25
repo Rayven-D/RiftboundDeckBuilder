@@ -324,7 +324,25 @@ export class LocalDeckLockStore implements DeckLockStore {
   }
 }
 
-/** Removes every Rift Builder record from this browser (SYNC-091 "Remove", SYNC-096 step 4, COLL-074). */
+/** Removes every Rift Builder record from this browser (SYNC-091 sign-out, SYNC-096 step 4). */
 export function clearLocalData(backend: KeyValueBackend): void {
   for (const k of backend.keys()) if (k.startsWith(KEY_PREFIX)) backend.remove(k);
+}
+
+/**
+ * The records SPEC-007 COLL-074 "Delete all local collection data" removes: the collection (and its import
+ * Undo snapshot, so Undo can't bring it back), tags, printing codes and view state. Decks, locks and the sync
+ * log stay.
+ */
+export const COLLECTION_DATA_KEYS: readonly string[] = [
+  STORAGE_KEYS.collection,
+  STORAGE_KEYS.collectionPrevious,
+  STORAGE_KEYS.tags,
+  STORAGE_KEYS.printingCodes,
+  STORAGE_KEYS.viewState,
+];
+
+/** COLL-074 (local-only mode): deletes the local collection data. Nothing is sent anywhere. */
+export function clearCollectionData(backend: KeyValueBackend): void {
+  for (const k of COLLECTION_DATA_KEYS) backend.remove(k);
 }

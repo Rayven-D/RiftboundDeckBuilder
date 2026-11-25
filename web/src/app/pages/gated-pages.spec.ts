@@ -50,6 +50,18 @@ function storeLegacyData(): void {
   );
 }
 
+/**
+ * Waits until dev's Collection page has left its loading phase: ready (count line), empty, or one of its banners
+ * (these tests don't stub the card catalog, so it usually ends at "Card data couldn't load").
+ */
+async function pageSettled(harness: RouterTestingHarness, el: HTMLElement): Promise<void> {
+  await vi.waitFor(() => {
+    harness.fixture.detectChanges();
+    expect(el.querySelector('app-collection-page #count-line, app-collection-page [role="alert"], app-collection-page app-empty-state')).not.toBeNull();
+  });
+  harness.fixture.detectChanges();
+}
+
 describe('Sign-in gate on pages (SPEC-010 SYNC-008, SYNC-009)', () => {
   let adapterLoads = 0;
   afterEach(() => {
@@ -304,10 +316,14 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-008, SYNC-009)', () => {
       expect(gate.deckControls()).toBe(true);
     });
 
-    it('SYNC-052 / AC 31 Collection offers no Delete all local data in account-required mode, signed in', async () => {
+    it('SYNC-052 / AC 31 / COLL-074 Collection offers no Delete all local data in account-required mode, signed in', async () => {
+      storeLegacyData(); // a filled collection
       setup(true, SYNCED);
-      const { el } = await open('/collection');
-      expect(text(el)).not.toContain('Delete all local data');
+      const { harness, el } = await open('/collection');
+      await pageSettled(harness, el);
+      expect(text(el)).not.toContain('Delete all local');
+      // Desktop: Export CSV only, no More menu (it would hold only the COLL-074 action).
+      expect(el.querySelector('button[aria-label="More"]')).toBeNull();
       expect(TestBed.inject(SignInGate).offerDeleteLocalData).toBe(false);
     });
 
@@ -360,6 +376,30 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-008, SYNC-009)', () => {
       expect(content(el)).not.toBeNull();
       expect(userData()).toBe(before);
       expect(localStorage.getItem(STORAGE_KEYS.syncLog)).not.toBeNull();
+    });
+
+    it('COLL-074 / SYNC-052 / AC 31 Delete all local collection data: confirmation without SPEC-010 text, no Firebase request', async () => {
+      storeLegacyData();
+      setup(false);
+      const { harness, el } = await open('/collection');
+      await pageSettled(harness, el);
+      el.querySelector<HTMLButtonElement>('button[aria-label="More"]')!.click();
+      harness.fixture.detectChanges();
+      await harness.fixture.whenStable();
+      const overlay = document.querySelector('.cdk-overlay-container')!;
+      const item = Array.from(overlay.querySelectorAll<HTMLButtonElement>('.mat-mdc-menu-item')).find(
+        (b) => text(b) === 'Delete all local collection data',
+      )!;
+      item.click();
+      harness.fixture.detectChanges();
+      await harness.fixture.whenStable();
+      const dialog = overlay.querySelector('app-delete-collection-data-dialog')!;
+      expect(text(dialog)).not.toContain('Your account keeps its copy');
+      expect(text(dialog)).not.toMatch(/account|sign/i);
+      dialog.querySelector<HTMLButtonElement>('button.danger')!.click();
+      await vi.waitFor(() => expect(localStorage.getItem(STORAGE_KEYS.collection)).toBeNull());
+      expect(localStorage.getItem(`${STORAGE_KEYS.deckPrefix}legacy`)).not.toBeNull(); // decks stay
+      expect(adapterLoads).toBe(0); // no Firebase chunk, so no Firebase request (SYNC-002)
     });
 
     it('SYNC-007 / AC 45 the app shell shows no Sign in and loads no Firebase', async () => {

@@ -10,6 +10,7 @@ import {
   LocalViewStateStore,
   STORAGE_KEYS,
   UnreadableRecordError,
+  clearCollectionData,
   clearLocalData,
 } from './local-stores';
 
@@ -134,12 +135,31 @@ describe('browser stores (SPEC-003/006/007/008 as mapped by SPEC-010)', () => {
     expect((await s.load())!.locks).toEqual([{ deckId: 'd1', lockedAt: 'a' }]);
   });
 
-  it('SYNC-091 / COLL-074 clearLocalData removes every Rift Builder record and nothing else', () => {
+  it('SYNC-091 clearLocalData removes every Rift Builder record and nothing else', () => {
     backend.set(STORAGE_KEYS.collection, '{}');
     backend.set(STORAGE_KEYS.syncLog, '{}');
     backend.set(`${STORAGE_KEYS.deckPrefix}x`, '{}');
     backend.set('other-app', '1');
     clearLocalData(backend);
     expect(backend.keys()).toEqual(['other-app']);
+  });
+
+  it('COLL-074 clearCollectionData removes collection, Undo snapshot, tag, printing-code and view data only', () => {
+    for (const k of [
+      STORAGE_KEYS.collection,
+      STORAGE_KEYS.collectionPrevious,
+      STORAGE_KEYS.tags,
+      STORAGE_KEYS.printingCodes,
+      STORAGE_KEYS.viewState,
+      STORAGE_KEYS.locks,
+      STORAGE_KEYS.syncLog,
+      `${STORAGE_KEYS.deckPrefix}x`,
+      'other-app',
+    ])
+      backend.set(k, '{}');
+    clearCollectionData(backend);
+    expect(backend.keys().sort()).toEqual(
+      [STORAGE_KEYS.locks, STORAGE_KEYS.syncLog, `${STORAGE_KEYS.deckPrefix}x`, 'other-app'].sort(),
+    );
   });
 });

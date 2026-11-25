@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.13
+version: 1.14
 ---
 # API Contracts
 
@@ -216,6 +216,12 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   Owned Cards Import in Replace mode (one `set()`, SYNC-014) and keeps the Undo snapshot (IMP-052).
   Saves to an area whose cloud document is newer throw `ReadOnlyAreaError` (SYNC-046 message).
   `TagStore.load()` migrates long tag ids to `t_` + 6 base-62 (`schemaVersion: 3`, SYNC-016).
+- **Delete all local collection data (SPEC-007 COLL-074, H-154):** `BrowserStores.clearCollectionData(): Promise<void>`
+  (local-only mode only; account-required mode doesn't offer it, SYNC-052) removes `rift.collection`,
+  `rift.collection.previous` (the import Undo snapshot), `rift.tags`, `rift.printingCodes` and `rift.viewState`
+  on the store queue (`COLLECTION_DATA_KEYS`, `clearCollectionData(backend)` in `core/storage/local-stores.ts`).
+  Decks, locks and the sync log stay; no Firebase request. `clearLocalData(backend)` (every `rift.*` key) is
+  for sign-out (SYNC-091) and deletion (SYNC-096) only. There is no `SyncService.deleteLocalData()`.
 - **Engine form of documents:** every Firestore `Timestamp` is milliseconds inside the engine; the adapter
   (`web/src/app/core/sync/adapters/firebase-adapters.ts`, the only Firebase import, lazy-loaded) converts
   and writes `syncedAt` with `serverTimestamp()`.
@@ -427,3 +433,5 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
 - v1.13 (2026-11-24, H-145): no endpoint change. Email link return: `AuthService.sendEmailLink(email, returnTo?)`,
   `safeReturnPath` / `returnTarget`, `EngineDeps.leaveSignInLink` (only on a rejected code), `MESSAGES.signedIn`; the adapter no longer
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
+- v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
+  (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
