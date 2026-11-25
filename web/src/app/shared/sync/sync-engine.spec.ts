@@ -306,7 +306,7 @@ describe('SyncEngine (SPEC-010)', () => {
       expect(await phone.lockedIds()).toEqual([]);
     });
 
-    it('SYNC-072 a deck edited elsewhere while locked stays locked with its new cards and shows the notice', async () => {
+    it('SYNC-072 / H-116 a deck edited elsewhere while locked stays locked with its new cards and shows the notice (info)', async () => {
       const { laptop, phone, deck } = await twoDevicesWithDeck();
       laptop.now = at('10:00');
       await laptop.lock(deck.id);
@@ -321,6 +321,7 @@ describe('SyncEngine (SPEC-010)', () => {
       expect(await laptop.lockedIds()).toEqual([deck.id]);
       expect((await laptop.stores.decks.get(deck.id))!.main).toEqual([card('hextech ray', 4)]);
       expect(laptop.notices).toContain("'Kennen Tempo' changed on another device while it was locked.");
+      expect(laptop.noticeKinds.find((n) => n.message.startsWith("'Kennen Tempo' changed"))?.kind).toBe('info');
     });
 
     it('SYNC-073 the later of lock and unlock wins; two locks keep the later entry and its lockedAt', async () => {

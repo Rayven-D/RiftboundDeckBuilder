@@ -1,6 +1,7 @@
 import type { StoredCollection, StoredDeckLocks, StoredTags, TagStore, UserDeck } from '../storage/records';
 import { GateState, gateState } from './gate';
 import { LocalSnapshot, MergeResult, mergePulled } from './merge';
+import type { NoticeKind } from './notice';
 import { PushPlan, applyPushSuccess, planAccountPush, planPush } from './push-plan';
 import { reconcileCollection, reconcileDecks, reconcileLocks, reconcileTags } from './stamp';
 import { DAY_MS, cloneLog, emptySyncLog, itemRef, pendingCount } from './sync-log';
@@ -75,7 +76,8 @@ export interface EngineDeps {
   now: () => Ms;
   appVersion: string;
   isOnline: () => boolean;
-  notify: (message: string) => void;
+  /** H-116: the kind decides how long the notice stays and how it is announced (see `noticeOptions`). */
+  notify: (message: string, kind: NoticeKind) => void;
   onStatus?: (s: SyncStatus) => void;
   /** SPEC-008 `lockedShortfalls(before, after)` (SYNC-068, SYNC-074); optional until H-059 builds it. */
   shortfalls?: (before: LocalSnapshot, after: LocalSnapshot) => { deckName: string; cardsShort: number }[];
@@ -190,7 +192,7 @@ export class SyncEngine {
   /** SYNC-003 / SYNC-005 / SYNC-006. `email-link` completes a link the user opened. */
   async signIn(providerId: string, email?: string): Promise<'ok' | 'cancelled' | 'failed' | 'offline'> {
     if (!this.deps.isOnline()) {
-      this.deps.notify(MESSAGES.offline);
+      this.deps.notify(MESSAGES.offline, 'error');
       return 'offline';
     }
     let uid: string;
@@ -200,7 +202,7 @@ export class SyncEngine {
       if (r === 'cancelled') return 'cancelled';
       uid = r.uid;
     } catch {
-      this.deps.notify(MESSAGES.signInFailed);
+      this.deps.notify(MESSAGES.signInFailed, 'error');
       return 'failed';
     }
     await this.updateLog((log) => {
@@ -262,7 +264,7 @@ export class SyncEngine {
    */
   async signOut(): Promise<'ok' | 'offline'> {
     if (!this.deps.isOnline()) {
-      this.deps.notify(MESSAGES.offline);
+      this.deps.notify(MESSAGES.offline, 'error');
       return 'offline';
     }
     this.cancelTimer();
@@ -281,7 +283,7 @@ export class SyncEngine {
   async deleteAccount(): Promise<'ok' | 'cancelled' | 'needs-sign-in' | 'failed' | 'offline'> {
     if (!this.uid || !this.auth || !this.remote) return 'failed';
     if (!this.deps.isOnline()) {
-      this.deps.notify(MESSAGES.offline);
+      this.deps.notify(MESSAGES.offline, 'error');
       return 'offline';
     }
     const uid = this.uid;
@@ -290,8 +292,8 @@ export class SyncEngine {
     this.cancelTimer();
     const reauth = async (): Promise<'ok' | 'cancelled' | 'needs-sign-in'> => {
       const r = await this.auth!.reauthenticate();
-      if (r === 'needs-sign-in') this.deps.notify(MESSAGES.reauthNeeded);
-      else if (r === 'cancelled') this.deps.notify(MESSAGES.deleteNotDone);
+      if (r === 'needs-sign-in') this.deps.notify(MESSAGES.reauthNeeded, 'info');
+      else if (r === 'cancelled') this.deps.notify(MESSAGES.deleteNotDone, 'success');
       return r;
     };
     try {
@@ -317,7 +319,7 @@ export class SyncEngine {
         }, gen);
       }
       if (r !== 'ok') {
-        this.deps.notify(MESSAGES.deleteIncomplete);
+        this.deps.notify(MESSAGES.deleteIncomplete, 'error');
         return 'failed';
       }
       // (3) the Auth user, only after every document is gone
@@ -327,7 +329,7 @@ export class SyncEngine {
         if (again !== 'ok') return again;
         d = await this.auth.deleteUser();
         if (d !== 'ok') {
-          this.deps.notify(MESSAGES.deleteIncomplete);
+          this.deps.notify(MESSAGES.deleteIncomplete, 'error');
           return 'failed';
         }
       }
@@ -336,10 +338,10 @@ export class SyncEngine {
       await this.clearDevice();
       this.deletionPending = false;
       this.endSession();
-      this.deps.notify(MESSAGES.deletedOwn);
+      this.deps.notify(MESSAGES.deletedOwn, 'success');
       return 'ok';
     } catch {
-      this.deps.notify(MESSAGES.deleteIncomplete);
+      this.deps.notify(MESSAGES.deleteIncomplete, 'error');
       return 'failed';
     } finally {
       this.deleting = false;
@@ -375,7 +377,7 @@ export class SyncEngine {
     this.deletionPending = false;
     this.accountChecked = false;
     if (this.problem?.message === MESSAGES.deleteIncomplete) this.problem = null;
-    this.deps.notify(MESSAGES.deleteNotDone);
+    this.deps.notify(MESSAGES.deleteNotDone, 'success');
     this.emit();
     await this.syncNow();
     return true;
@@ -660,7 +662,7 @@ export class SyncEngine {
       await this.clearDevice();
       await this.auth!.signOut().catch(() => undefined);
       this.endSession();
-      this.deps.notify(MESSAGES.accountDeleted);
+      this.deps.notify(MESSAGES.accountDeleted, 'info');
     } else if (check === 'ok') {
       await this.halfDeleted();
     } else if (check === 'signed-out') {
@@ -679,7 +681,7 @@ export class SyncEngine {
     await this.auth?.signOut().catch(() => undefined);
     this.endSession();
     await this.clearDevice();
-    this.deps.notify(MESSAGES.halfDeleted);
+    this.deps.notify(MESSAGES.halfDeleted, 'info');
     this.emit();
   }
 
@@ -694,7 +696,7 @@ export class SyncEngine {
     if (check === 'deleted') {
       await this.clearDevice();
       this.endSession();
-      this.deps.notify(MESSAGES.accountDeleted);
+      this.deps.notify(MESSAGES.accountDeleted, 'info');
       return this.emit();
     }
     if (check === 'offline') {
@@ -720,7 +722,7 @@ export class SyncEngine {
     await this.updateLog((l) => {
       if (l.sessionExpected) l.sessionLostUid = l.uid;
     }, this.generation);
-    this.deps.notify(MESSAGES.sessionLost);
+    this.deps.notify(MESSAGES.sessionLost, 'info');
     this.emit();
   }
 
@@ -831,12 +833,12 @@ export class SyncEngine {
   private afterMerge(r: MergeResult, before: LocalSnapshot): void {
     for (const area of r.newerSchema) this.readOnlyAreas.add(area);
     if (r.invalid) this.setProblem('invalid', MESSAGES.invalid);
-    for (const n of r.notices) this.deps.notify(n);
+    for (const n of r.notices) this.deps.notify(n, 'info');
     if (this.deps.shortfalls) {
       void this.deps.queue.run(async () => {
         const after = (await this.snapshot()).local;
         for (const s of this.deps.shortfalls!(before, after)) {
-          this.deps.notify(`'${s.deckName}' (locked) is now ${s.cardsShort} ${s.cardsShort === 1 ? 'card' : 'cards'} short.`);
+          this.deps.notify(`'${s.deckName}' (locked) is now ${s.cardsShort} ${s.cardsShort === 1 ? 'card' : 'cards'} short.`, 'info');
         }
       });
     }
@@ -862,6 +864,7 @@ export class SyncEngine {
         });
         this.deps.notify(
           `Your device clock is off by about ${Math.round(Math.abs(offset) / 60_000)} minutes. If you edit on several devices, the wrong change may win.`,
+          'info',
         );
       }
       return;

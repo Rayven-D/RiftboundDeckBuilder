@@ -7,6 +7,7 @@ import { BrowserStores, createBrowserStores } from '../../../core/storage/browse
 import type { DeckCard, StoredCollection, StoredTags, UserDeck } from '../../storage/records';
 import { emptySyncLog } from '../sync-log';
 import { SyncEngine } from '../sync-engine';
+import type { NoticeKind } from '../notice';
 import type { StoredSyncLog, SyncStatus } from '../sync-types';
 import { FakeAuth, FakeFirestore, FakeRemote } from './fakes';
 
@@ -27,6 +28,8 @@ export class Device {
   readonly stores: BrowserStores;
   readonly engine: SyncEngine;
   readonly notices: string[] = [];
+  /** H-116: each notice with the kind the engine sent it as (same order as `notices`). */
+  readonly noticeKinds: { message: string; kind: NoticeKind }[] = [];
   online = true;
   now: number;
   adaptersLoaded = 0;
@@ -57,7 +60,10 @@ export class Device {
       now: () => this.now,
       appVersion: opts.appVersion ?? 'test-1',
       isOnline: () => this.online,
-      notify: (m) => this.notices.push(m),
+      notify: (message, kind) => {
+        this.notices.push(message);
+        this.noticeKinds.push({ message, kind });
+      },
       onStatus: (s) => (this.status = s),
       setTimer: (fn, ms) => {
         const id = ++this.timerSeq;

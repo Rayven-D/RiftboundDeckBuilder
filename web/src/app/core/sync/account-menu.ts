@@ -32,9 +32,11 @@ let accountMenuSeq = 0;
   template: `
     @if (sync.enabled) {
       @if (!sync.signedIn()) {
-        <button matButton="outlined" type="button" aria-haspopup="dialog" (click)="openSignIn($event)">Sign in</button>
+        <button matButton="outlined" type="button" class="header-account" aria-haspopup="dialog" (click)="openSignIn($event)">
+          Sign in
+        </button>
       } @else {
-        <button matButton="outlined" type="button" [matMenuTriggerFor]="menu" aria-label="Account and sync">
+        <button matButton="outlined" type="button" class="header-account" [matMenuTriggerFor]="menu" aria-label="Account and sync">
           Account
         </button>
         <!-- H-110 groups (Brief H-141 H-142 H-110): [identity, status, offline] / [deletion actions] or [Sync now] /
@@ -77,6 +79,13 @@ let accountMenuSeq = 0;
   `,
   styles: `
     :host { display: contents; }
+    /* H-123 (Brief H-113 H-116 H-123 H-126): the header trigger matches the 44px tabs and Import, and its edge is the
+       control-edge token (header bg 3.95 dark / 3.28 light; scrolled 3.54 / 3.52). Header only: the global outlined
+       border is unchanged. */
+    .header-account {
+      --mat-button-outlined-container-height: 44px;
+      --mat-button-outlined-outline-color: var(--color-border-strong);
+    }
     /* Text lines of the first group: 12px inline = Material's item leading spacing, so they line up with the labels. */
     .menu-text {
       margin: 0;
@@ -174,8 +183,9 @@ export class AccountMenu {
     this.busy.set(true);
     const result = await this.sync.deleteAccount().finally(() => this.busy.set(false));
     if (result === 'failed') {
+      // H-116: an error notice, so assertive, and it stays until Try again or dismissed (no duration).
       this.snackBar
-        .open(MESSAGES.deleteIncomplete, 'Try again')
+        .open(MESSAGES.deleteIncomplete, 'Try again', { politeness: 'assertive' })
         .onAction()
         .subscribe(() => void this.runDelete());
     }

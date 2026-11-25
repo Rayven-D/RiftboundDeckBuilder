@@ -3,7 +3,8 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { MESSAGES, SyncEngine } from '../../shared/sync/sync-engine';
+import { NoticeKind, noticeOptions } from '../../shared/sync/notice';
+import { SyncEngine } from '../../shared/sync/sync-engine';
 import { statusText } from '../../shared/sync/status-text';
 import { enabledProviders } from '../../shared/sync/sync-types';
 import type { AuthService, RemoteStore, SyncStatus } from '../../shared/sync/sync-types';
@@ -96,7 +97,7 @@ export class SyncService {
       now: () => Date.now(),
       appVersion: environment.appVersion,
       isOnline: () => navigator.onLine,
-      notify: (m) => this.notify(m),
+      notify: (m, kind) => this.notify(m, kind),
       onStatus: (s) => {
         this.status.set(s);
         this.deletion.set(this.engine.unfinishedDeletion());
@@ -224,8 +225,12 @@ export class SyncService {
     return email;
   }
 
-  private notify(message: string): void {
-    this.snackBar.open(message, 'OK', { duration: message === MESSAGES.sessionLost ? undefined : 8000 });
+  /**
+   * H-116 (WCAG 2.2.1): success closes after 6 s; instructions, events and errors stay until OK; only errors are
+   * assertive. A missing kind stays open. Focus is never moved into the notice; OK is reachable with Tab.
+   */
+  notify(message: string, kind?: NoticeKind): void {
+    this.snackBar.open(message, 'OK', noticeOptions(kind));
   }
 
   private readonly onOnline = () => {

@@ -812,3 +812,41 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     expectCleanDividers(l);
   });
 });
+
+describe('AccountMenu header trigger (H-123)', () => {
+  it('H-123 Sign in and Account both carry the header-only 44px class with the strong control edge', async () => {
+    const signedIn = signal(false);
+    TestBed.configureTestingModule({
+      imports: [AccountMenu],
+      providers: [
+        {
+          provide: SyncService,
+          useValue: {
+            enabled: true,
+            start: () => undefined,
+            signedIn,
+            online: () => true,
+            statusLine: () => '',
+            status: () => ({ kind: 'synced', at: 0, pendingCount: 0 }),
+            currentEmail: () => null,
+            deletion: () => null,
+          },
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(AccountMenu);
+    await fixture.whenStable();
+    const trigger = () => (fixture.nativeElement as HTMLElement).querySelector('button')!;
+    expect(text(trigger())).toBe('Sign in');
+    expect(trigger().classList).toContain('header-account');
+    signedIn.set(true);
+    await fixture.whenStable();
+    expect(text(trigger())).toBe('Account');
+    expect(trigger().classList).toContain('header-account');
+    const styles = Array.from(document.querySelectorAll('style'))
+      .map((s) => s.textContent ?? '')
+      .find((css) => css.includes('.header-account'));
+    expect(styles).toMatch(/--mat-button-outlined-container-height:\s*44px/);
+    expect(styles).toMatch(/--mat-button-outlined-outline-color:\s*var\(--color-border-strong\)/);
+  });
+});
