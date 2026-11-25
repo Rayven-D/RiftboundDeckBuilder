@@ -157,6 +157,15 @@ html {
   );
 }
 
+/* H-060 Decks toolbar Filters menu (desktop): the Legality and Source group labels inside the overlay. */
+.deck-filters-menu .menu-group {
+  margin: 0;
+  padding: var(--space-2) var(--space-4) var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
 /* H-106 (brain/04-UI/Brief H-104 H-106 H-124.md): the sign-in email field after a failed Send link. The dialog
  * puts the field in Material's error state (aria-invalid), so the error tokens apply; the plain ones are set
  * too so the field is red whichever set Material picks. Outline and label at rest, on hover and on focus use
@@ -271,6 +280,10 @@ html {
   /* Collection grid column minimum (144px) and the lock band behind white text (>= 9:1 over any art). */
   --tile-min: 9rem;
   --lock-scrim: rgb(0 0 0 / 72%);
+  /* Decks (Decks Components §0, H-060): list grid minimum (3 / 2 / 1 columns) and a fill change while a view is open
+   * (OWN-035 caps it at 200ms). */
+  --deck-tile-min: 22rem;
+  --dur-fill: 180ms;
 
   /* Keep Material surfaces on the same slate as our own tokens. */
   --mat-sys-surface: var(--color-bg);
