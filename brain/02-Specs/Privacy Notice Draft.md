@@ -3,7 +3,7 @@ tags: [spec, privacy, draft, review]
 id: SPEC-010-NOTICE
 version: 0.3
 status: review   # ready for RJ's final read; becomes `approved` only when RJ writes the date in "Approval gate" below
-spec: "[[Accounts and Sync]] SYNC-101, SYNC-103, SYNC-104 (v0.14.2)"
+spec: "[[Accounts and Sync]] SYNC-101, SYNC-103, SYNC-104 (v0.15.1)"
 research: ["[[Privacy Notice Requirements]]", "[[Card Data & Images]]"]
 board: H-152, H-181, H-182, H-200, H-208
 as_of: 2026-11-25
