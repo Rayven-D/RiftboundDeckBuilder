@@ -1,12 +1,12 @@
 ---
 tags: [spec]
 id: SPEC-013
-version: 0.1.3
+version: 0.1.4
 status: review
 depends_on: ["SPEC-007", "SPEC-003", "SPEC-008", "SPEC-010"]
 research: ["[[Firestore Data Shape]]", "[[Collection Test Data]]"]
 decisions: ["[[ADR-0007 Firebase Accounts and Firestore]]", "[[ADR-0004 Hosting (Deferred)]]"]
-board: H-204, H-205
+board: H-204, H-205, H-252
 as_of: 2026-11-25
 sources:
   - url: https://firebase.google.com/docs/firestore/quotas
@@ -32,10 +32,10 @@ sources:
 - **Sets on live: Small and Large, both from the generator** `generateLargeSample(n)`. The **fixture sample is not offered** (TEST-005): it needs card data from `/api`, which has no production host. It stays a dev-only tool on `/styleguide`.
 - **How test data is told apart from real data, with no new fields and no rules change:** the collection document's `catalogVersion` is the **reserved value `test-data-<n>`** (`test-data-150`, `test-data-5000`); a real import writes the real catalog version. Test decks have the **reserved ids** `00000000-0000-4000-8000-0000000000NN` (NN = 01…03) and the same `catalogVersion`. The marker travels with the account, so every device sees it (TEST-020…024).
 - **No mixing:** a test load is allowed only when the collection is empty or already test data (TEST-011); while test data is present, **Add to your collection** asks for "Remove test data" first (TEST-032); Replace import replaces it like any collection and ends the test state (TEST-033).
-- **Numbers (checked 2026-11-25, section "Size and quota"):** the Large collection document is **≈ 254 KB = 24 % of the 1 MiB limit** (4.1× headroom); the whole test set for one account is **≈ 265 KB**. One Load or one Remove is **5 writes** (6 on the first push after a build change), 0 reads; Remove's 3 deck writes go out after the 10 s Undo window. After Remove the collection's `catalogVersion` is `""` and an empty collection is never test data. The free tier allows ≈ **3,300 to 4,000 loads a day** across all testers (20,000 / 6 or 5) before anything else runs, and ≈ **1,300 cold pulls of the Large document a day** on the outbound-data limit. **Everything fits one document: no fallback needed**; RJ has nothing to decide on quota.
+- **Numbers (checked 2026-11-25, section "Size and quota"):** the Large collection document is **≈ 254 KB = 24 % of the 1 MiB limit** (4.1× headroom); the whole test set for one account is **≈ 268 KB** (v0.1.4: full-shape test decks, TEST-025). One Load or one Remove is **5 writes** (6 on the first push after a build change), 0 reads; Remove's 3 deck writes go out after the 10 s Undo window. After Remove the collection's `catalogVersion` is `""` and an empty collection is never test data. The free tier allows ≈ **3,300 to 4,000 loads a day** across all testers (20,000 / 6 or 5) before anything else runs, and ≈ **1,300 cold pulls of the Large document a day** on the outbound-data limit. **Everything fits one document: no fallback needed**; RJ has nothing to decide on quota.
 - **Sunset (TEST-040…043):** the tool is hidden when `testDataEnabled` is false; the Remove banner stays for anyone who still has test data until they remove it. The build item that turns on real imports (after H-020) sets the flag to `false`.
 
-**Depends on:** [[My Collection]] 0.14.1, [[Collection Import]] 0.14, [[Shared Cards and Lock-in]] 0.4.4, [[Accounts and Sync]] 0.17.2, [[Firestore Data Shape]], [[Collection Test Data]] (the existing generators). **Consumers:** builder item H-205.
+**Depends on:** [[My Collection]] 0.14.1, [[Collection Import]] 0.14, [[Shared Cards and Lock-in]] 0.4.5, [[Accounts and Sync]] 0.17.2, [[Firestore Data Shape]], [[Collection Test Data]] (the existing generators). **Consumers:** builder item H-205.
 **BLOCKED (needs research):** none. Nothing here states a game rule; the cards are invented.
 
 ## Purpose
@@ -74,6 +74,7 @@ Give testers real, synced, clearly fake data on the live site until real card da
 | TEST-022 | MUST | **Confirm.** When test data already exists, choosing a set shows a confirmation "Replace your test data with the {Small / Large} set? Your own decks are kept." (**Replace** / **Cancel**). First load needs no confirmation (the dialog is the confirmation, TEST-003). | H-204 |
 | TEST-023 | MUST | **Progress and result.** While writing, Load shows "Loading…" and is disabled; the Large write is one document `set()`. On success the dialog closes, the SYNC-087 success notice **Test data loaded.** shows and the list renders. A failed write leaves the account unchanged on the server (the sync engine retries as for any save); the dialog stays open with "Couldn't load test data. Check your connection and try again." | H-204; SYNC-087 |
 | TEST-024 | MUST | **Catalog for test data.** While the stored collection's `catalogVersion` starts with `test-data-`, the card-data layer returns the **generated catalog** for that `n` (`generateLargeSample(n).catalog`) instead of calling `/api`, so Collection renders on live, on every device and after a reload, with no dev flag and no `localStorage` key (the dev key `rift.dev.sample` stays dev-only). The generator is loaded on demand (outside the main bundle). If `/api` works (real card data exists) and the marker is present, the generated catalog is **still** used for the test entries until they are removed (TEST-043). | H-204; `CardData` today |
+| TEST-025 | MUST | **Full-shape test decks (v0.1.4).** Each of the three test decks has **all six zones filled** from the generated catalog: Legend 1, Chosen Champion 1, Main Deck (the rest, so that a deck holds about 66 copies in about 32 entries), Battlefields 3, Runes (at least one rune card with 3 or more copies) and Sideboard; across the three decks at least one card is in **both** Main Deck and Sideboard, and the two locked decks stay complete against the test collection (so each shows Locked) while the unlocked deck stays partly available. Names and ids stay as in TEST-011 and the Definitions. Limits: at most 150 entries and 300 copies per deck (DECK-092). This lets Decks (Legend art, fill, percentage) and Deck detail (every section, split label, rune) be checked on live. Shape only: the generator chooses the exact cards. | RJ default ([[Decks]] §13 choice 27a, 2026-11-25); H-252 |
 
 ### D. Marker and telling it apart from real data
 | ID | Level | Requirement | Source |
@@ -115,15 +116,15 @@ Give testers real, synced, clearly fake data on the live site until real card da
 | Document | Bytes (Large) | Notes |
 |---|---|---|
 | `state/collection` | ≈ 254,000 | 24 % of the limit; 4.1× headroom |
-| 3 decks | ≈ 8,000 | 20 entries × 95 B + ≈ 700 B base, each |
+| 3 decks | ≈ 11,200 | about 32 entries × 95 B + ≈ 700 B base, each (v0.1.4, TEST-025; was 20 entries, ≈ 8,000) |
 | `state/locks` | ≈ 300 | 2 locks × 45 B + overhead |
 | indexes | ≈ 2,000 | `syncedAt` only (≈ 400 B per document; heavy fields are exempt in `firestore.indexes.json`) |
-| **Total** | **≈ 265 KB** | Small ≈ 20 KB |
+| **Total** | **≈ 268 KB** | Small ≈ 21 KB |
 
 - **After Remove:** the collection document holds 1,667 tombstones × 103.3 B ≈ **172 KB** for up to 30 days (still ≤ 17 % of the limit); loading again within that time rewrites the same card keys (the generator is deterministic), so the document does not grow.
-- **Rules caps** (`firestore.rules`, read 2026-11-25): `cards.size() ≤ 6000`: Large has 1,667 keys; decks ≤ 150 entries per list: 20. The Large set fits with room; a generator size above ≈ 18,000 entries would reach the cap, which is not offered.
+- **Rules caps** (`firestore.rules`, read 2026-11-25): `cards.size() ≤ 6000`: Large has 1,667 keys; decks ≤ 150 entries per list: about 32 in the whole deck (TEST-025). The Large set fits with room; a generator size above ≈ 18,000 entries would reach the cap, which is not offered.
 - **Fits one document: no fallback needed.** (If a future set were > ≈ 700 KB, [[Firestore Data Shape]]'s 8-bucket split is the migration path; not required here.)
-- **Storage:** 1 GiB / 265 KB ≈ **4,000 accounts** with a Large set, ≈ 50,000 with Small. A tester count in the tens uses < 0.1 % of storage.
+- **Storage:** 1 GiB / 268 KB ≈ **4,000 accounts** with a Large set, ≈ 50,000 with Small. A tester count in the tens uses < 0.1 % of storage.
 
 ### Writes, reads and deletes per action
 | Action | Writes | Reads | Deletes | Why |
@@ -181,6 +182,7 @@ removeTestData(): Promise<void>;                 // TEST-050…051: cards, test 
 15. **Given** the generated catalog **When** its cards render **Then** every name carries a number, no image is a Riot asset and no Riot or Riftbound logo shows (TEST-011, V-012).
 16. **Given** a signed-in user on the dev build **When** they use the `/styleguide` sample tool **Then** it works as before (dev only, `stores.raw`), unaffected (TEST-005).
 17. **Given** this spec **When** V-009 is run **Then** every research fact carries a source, tier, status and `as_of`, requirements are numbered with MUST / SHOULD / MAY and Given/When/Then, and the wikilinks resolve.
+18. **Given** Small test data is loaded **When** `/decks` and a test deck open at 1440 px **Then** each test deck has all six sections filled (Legend 1, Chosen Champion 1, Main Deck, Battlefields 3, Runes, Sideboard) so its tile shows Legend art with a fill and a percentage and Deck detail shows six non-empty card sections; at least one test deck holds one card in both Main Deck and Sideboard (the "2 of 3 in this deck" label) and one rune card with 3 or more copies; each deck is at most 150 entries and 300 copies (TEST-025; [[Your Decks Ownership View]] OWN-100, OWN-111).
 
 ## Out of scope
 The fixture sample on live and an "Edge cases" set (TEST-006); other card data on live (H-020, ADR-0004); editing test data; per-tester roles (everyone signed in sees the tool while the flag is true; the data is the user's own account, nobody else can read it); analytics on use; any change to SYNC-151 or the header.
@@ -198,3 +200,4 @@ Nothing blocks the build. Defaults below stand unless RJ answers (the spec-write
 - 0.1.1 (2026-11-25, H-204 attempt 2): H-230: after Remove the collection's `catalogVersion` is `""`, a collection with no cards is never test data (TEST-030, TEST-050, TEST-051), new AC 10a. H-231: write counts corrected to 5 per Load or Remove (6 on the first push after a build change, the account update), Remove's three deck writes are pushed after the 10 s Undo window (SYNC-035); quota numbers and ACs 4 and 10 updated to ranges.
 - 0.1.2 (2026-11-25, H-204 merge into `dev`): renumbered SPEC-012 → SPEC-013 (H-201 [[Changelog]] took SPEC-012 first); depends-on pin [[Accounts and Sync]] 0.14.1 → 0.15.0 (H-206 changed only usernames, SYNC-112/153/156; SYNC-035, 095, 142, 151 used here are unchanged). No requirement changes.
 - 0.1.3 (2026-11-25, H-212): depends-on pin [[Accounts and Sync]] 0.15.0 → 0.16.0 (H-212 changed only the username rules, SYNC-112/153/156/160; nothing used here changed; test data writes no `username`). No requirement changes.
+- 0.1.4 (2026-11-25, H-252, RJ default for [[Decks]] §13 choice 27a): new TEST-025 and AC 18: the three test decks get all six zones (about 66 copies in about 32 entries, one split Main / Sideboard card, one rune with 3 or more copies); byte figures re-estimated (3 decks ≈ 11,200 B, total ≈ 268 KB, Small ≈ 21 KB, still far below the 1 MiB limit; the arithmetic is the table's, not re-measured); depends-on pin [[Shared Cards and Lock-in]] 0.4.4 → 0.4.5. Builder item for the generator: H-310.
