@@ -118,3 +118,13 @@ usernames are display names, not unique; editable in settings; theme is per devi
   (FAB), [[Your Decks Ownership View]] (Import deck on Decks), and every spec or brief that mentions `/import`.
 - Works with [[ADR-0007 Firebase Accounts and Firestore]] amendment 2 (account-only): both import entry points need a
   signed-in user.
+
+### Follow-up (RJ, 2026-11-24, gate H-178 on [[Brief H-175]])
+- Account settings live **in the header menu**, not on a page: **Account Information** (a dialog: change username,
+  delete account and data), **Theme**, **Sign out**.
+- **"Import deck" is a floating button on Decks**, behaving exactly like "Add to your collection" on Collection.
+- Both buttons collapse to an icon on phones while scrolling down and are hidden on empty pages (which have their own
+  button).
+- Username: 1–24 characters, any script, not unique, the prompt after the first sign-in can be skipped.
+- Theme can also be changed signed out, from a footer switch; it stays per device.
+- `/import` (like any unknown path) goes to Home; there is no not-found page.

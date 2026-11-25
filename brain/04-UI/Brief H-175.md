@@ -1,6 +1,6 @@
 ---
 title: Brief H-175 - Header account control, Account settings, username, "Add to your collection" FAB, "Import deck"
-status: rj-review
+status: rj-approved (H-178, with changes)
 board: H-175 (feeds spec H-174, build H-176)
 source: "[[ADR-0006 Two Imports - Collection and Decks]] \"Header and import entry points\" (RJ 2026-11-24, accepted); [[ADR-0007 Firebase Accounts and Firestore]] amendment 2 (account-only); [[Accounts and Sync]] v0.12 SYNC-003, SYNC-009, SYNC-090, SYNC-095, SYNC-100, SYNC-142; [[Collection Import]] IMP-072…076; [[Deck Import]] DECK-001, DECK-097; [[My Collection]] COLL-093"
 date: 2026-11-24
@@ -8,7 +8,7 @@ date: 2026-11-24
 
 # Brief H-175: the account moves into the header, imports move onto their pages
 
-**Status: waiting for RJ's review gate** (open choices at the end). After RJ answers, spec-writer folds the agreed
+**Status: RJ answered the gate (H-178, 2026-11-24): see "RJ decisions" below, which win over §2, §3 and §7.** After RJ answers, spec-writer folds the agreed
 behaviour and copy into the specs (H-174), then builder builds it (H-176). Where today's specs still say `/import`
 or "Import", this brief follows the ADR.
 
@@ -32,6 +32,26 @@ the same thing), with the accessibility-review, design-system and handoff criter
 connectors used).
 
 ---
+
+## RJ decisions (2026-11-24, gate H-178), these win over the sections above
+1. **Username:** 1–24 characters, any script and emoji (an emoji counts as 1), no line breaks, not unique; the
+   prompt after a new account's first sign-in is **skippable** ("Not now"). As recommended (§5).
+2. **No `/account` page. Settings live in the header menu** (replaces §3 and changes §2). RJ: settings go "inside
+   the menu. but have 'Account Information' as a menu item for username changing and deleting account". The menu:
+   username / "Signed in as {email}" / sync status, then **Account Information** (opens a **dialog** with the
+   username and Change, and a separated red "Delete account and data"), **Theme** (System / Light / Dark, in the
+   menu), then **Sign out**. The Account Information dialog replaces the `/account` page in the gate list (no new
+   route).
+3. **"Add to your collection" FAB:** collapses to a + icon on phones while scrolling down, label back on scroll up;
+   **hidden on the empty collection** (the empty state has its own button). As recommended (§6, F3).
+4. **"Import deck" behaves exactly like the collection button** (replaces §7): a FAB at the bottom right of Decks,
+   same form, position, page-end spacing, collapse on scroll and hidden on the empty state (with its own button).
+5. **Theme while signed out: yes, a footer switch** (light / dark / system) for everyone, plus the Theme item in the
+   signed-in menu; both set the same per-device value (§4).
+6. **`/import` goes to Home** like every other unknown path (no not-found page). As recommended (§9).
+7. **Copy in §11 approved**, including "New here? Signing in with your email creates your account.", with the
+   changes above (Account Information label and dialog, Import deck FAB, footer theme switch need strings: H-174
+   writes them in the same style).
 
 ## 1. Header account control
 
