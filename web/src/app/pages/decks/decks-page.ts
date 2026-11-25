@@ -21,7 +21,7 @@ import { EmptyState } from '../../shared/empty-state';
         <a class="button" routerLink="/import" [queryParams]="{ type: 'deck' }">Import a deck</a>
       </app-empty-state>
     } @else {
-      <app-sign-in-panel page="decks" />
+      <app-sign-in-panel />
     }
   `,
 })

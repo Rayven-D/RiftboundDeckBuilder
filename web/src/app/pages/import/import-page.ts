@@ -41,7 +41,7 @@ interface PendingImport {
 
     <!-- SYNC-009: gated in account-required mode; always open in local-only mode. -->
     @if (!gate.open()) {
-      <app-sign-in-panel page="import" />
+      <app-sign-in-panel />
     } @else {
       <div class="import-options">
         @for (option of options; track option.kind) {

@@ -1,19 +1,12 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, ElementRef, Injector, afterNextRender, effect, inject, viewChild } from '@angular/core';
 import { MatButton } from '@angular/material/button';
+import { EmptyState } from '../../shared/empty-state';
 import { SignInGate } from './sign-in-gate';
 
-export type GatedPage = 'collection' | 'decks' | 'import';
-
-/** SYNC-009 panel headings per gated page. */
-export const GATE_HEADINGS: Record<GatedPage, string> = {
-  collection: 'Sign in to see your collection',
-  decks: 'Sign in to see your decks',
-  import: 'Sign in to import cards and decks',
-};
-
+/** SPEC-010 v0.10 SYNC-009 / SYNC-086 panel lines. No panel heading in any state (RJ decision 15). */
 export const GATE_TEXT = {
-  signedOut: 'You need a free account to import cards or decks.',
-  sessionLost: "You've been signed out. Sign in again to see them.",
+  signedOut: 'Sign in or create an account to start keeping track of your collections and decks',
+  sessionLost: "You've been signed out. Sign in again to continue.",
   firstSync: 'Getting your collection and decks from your account…',
   firstSyncFailed: "Couldn't get your collection and decks. Check your connection and try again.",
 } as const;
@@ -21,62 +14,112 @@ export const GATE_TEXT = {
 /**
  * SPEC-010 SYNC-009: what a gated page shows instead of its content while the gate is not open. It reads
  * nothing from the local stores, so legacy local data and a lost session's kept data stay hidden.
+ *
+ * Every state is an `app-empty-state` with no heading (H-114, Brief H-144): the page header's h1 names the
+ * page. The running state shows a decorative indeterminate bar (H-115), static under reduced motion.
  */
 @Component({
   selector: 'app-sign-in-panel',
-  imports: [MatButton],
+  imports: [EmptyState, MatButton],
   template: `
     @switch (gate.state()) {
       @case ('first-sync') {
-        <section class="gate" aria-busy="true">
-          <p role="status">{{ text.firstSync }}</p>
-        </section>
+        <app-empty-state [message]="text.firstSync" messageRole="status" [focusable]="true">
+          <div class="progress" aria-hidden="true"><div class="progress-segment"></div></div>
+        </app-empty-state>
       }
       @case ('first-sync-failed') {
-        <section class="gate">
-          <p role="alert">{{ text.firstSyncFailed }}</p>
-          <button matButton="filled" type="button" (click)="gate.retry()">Try again</button>
-        </section>
+        <app-empty-state [message]="text.firstSyncFailed" messageRole="alert" [focusable]="true">
+          <button #retryButton matButton="filled" type="button" (click)="retry()">Try again</button>
+        </app-empty-state>
       }
       @default {
-        <section class="gate" [attr.aria-labelledby]="headingId">
-          <h2 [id]="headingId">{{ heading() }}</h2>
-          <p>{{ gate.state() === 'session-lost' ? text.sessionLost : text.signedOut }}</p>
+        <app-empty-state [message]="gate.state() === 'session-lost' ? text.sessionLost : text.signedOut">
           <button matButton="filled" type="button" aria-haspopup="dialog" (click)="signIn($event)">Sign in</button>
-        </section>
+        </app-empty-state>
       }
     }
   `,
   styles: `
-    .gate {
-      padding: var(--space-5) var(--space-4);
-      border: 1px dashed var(--color-border);
-      border-radius: var(--radius-lg);
-      background: var(--color-surface);
-      text-align: center;
+    /*
+     * min(): 16rem, or the action row's width (app-empty-state stretches the row to the box's content width), so
+     * the bar never sets the box's width and never overflows it on a narrow phone.
+     * margin-block 18px: 4px + 36px = the 40px filled button, so running and failed rows have the same height.
+     */
+    .progress {
+      width: min(16rem, 100%);
+      height: 4px;
+      margin-block: 18px;
+      border-radius: 999px;
+      background: var(--color-border);
+      overflow: hidden;
     }
-    h2 {
-      margin: 0 0 var(--space-2);
-      font-size: var(--font-size-lg);
+    .progress-segment {
+      width: 40%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--color-accent);
+      animation: gate-progress 1.4s linear infinite;
     }
-    p {
-      margin: 0 auto var(--space-3);
-      max-width: 50ch;
-      color: var(--color-text-muted);
+    @keyframes gate-progress {
+      from {
+        transform: translateX(-100%);
+      }
+      to {
+        transform: translateX(250%);
+      }
+    }
+    /* H-115: no motion; the segment rests centred so the bar still reads as "in progress". */
+    @media (prefers-reduced-motion: reduce) {
+      .progress-segment {
+        animation: none;
+        transform: translateX(75%);
+      }
     }
   `,
 })
 export class SignInPanel {
-  readonly page = input.required<GatedPage>();
   protected readonly gate = inject(SignInGate);
   protected readonly text = GATE_TEXT;
-  protected readonly heading = computed(() => GATE_HEADINGS[this.page()]);
-  protected readonly headingId = `gate-heading-${nextId++}`;
+  private readonly injector = inject(Injector);
+  private readonly panel = viewChild(EmptyState);
+  private readonly retryButton = viewChild('retryButton', { read: ElementRef<HTMLButtonElement> });
+  /**
+   * Set by Try again, so focus follows the panel through one running → failed cycle (Brief H-144 decision 9).
+   * One-shot: a later automatic rerun (back online, tab visible) must not move focus.
+   */
+  private retried = false;
+
+  constructor() {
+    effect(() => {
+      const state = this.gate.state();
+      if (!this.retried) return;
+      if (state === 'first-sync') {
+        this.afterRender(() => this.panel()?.focus());
+      } else if (state === 'first-sync-failed') {
+        this.afterRender(() => this.retryButton()?.nativeElement.focus());
+        this.retried = false;
+      } else {
+        this.retried = false; // the page content replaces the panel: leave focus alone
+      }
+    });
+  }
 
   /** H-125: the button is passed on, so focus returns to it when the Sign in dialog closes. */
   protected signIn(e: Event): void {
     this.gate.signIn(e.currentTarget as HTMLElement);
   }
-}
 
-let nextId = 0;
+  protected retry(): void {
+    this.retried = true;
+    this.gate.retry();
+    // The button is removed when the state turns to running; keep focus off <body>.
+    this.afterRender(() => {
+      if (this.gate.state() === 'first-sync') this.panel()?.focus();
+    });
+  }
+
+  private afterRender(fn: () => void): void {
+    afterNextRender(fn, { injector: this.injector });
+  }
+}

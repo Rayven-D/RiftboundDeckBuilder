@@ -19,7 +19,7 @@ import { CollectionPage } from './collection-page';
         <h1>Collection</h1>
         <p class="page-lede">Every card you own.</p>
       </header>
-      <app-sign-in-panel page="collection" />
+      <app-sign-in-panel />
     }
   `,
 })

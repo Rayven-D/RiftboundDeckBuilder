@@ -20,7 +20,7 @@ import { EmptyState } from '../../shared/empty-state';
         [message]="'Deck ' + id() + ' will show here once deck data is connected.'"
       />
     } @else {
-      <app-sign-in-panel page="decks" />
+      <app-sign-in-panel />
     }
   `,
 })

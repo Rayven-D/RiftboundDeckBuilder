@@ -90,7 +90,6 @@ describe('H-125 focus returns to the Sign in trigger (SPEC-010 SYNC-006)', () =>
     configure();
     const sync = TestBed.inject(SyncService); // registers the gate actions, as the app shell does
     const fixture = TestBed.createComponent(SignInPanel);
-    fixture.componentRef.setInput('page', 'import');
     await fixture.whenStable();
     const trigger = button(fixture.nativeElement as HTMLElement, 'Sign in')!;
     return { fixture, trigger, sync };

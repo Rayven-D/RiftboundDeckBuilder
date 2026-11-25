@@ -280,3 +280,15 @@ Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 ## 2026-11-24: ui-engineer build check H-143 / H-122 (`loop/H-143-delete-signout-dialogs`)
 - Real email-link sign-in on the emulators, 1440/375, dark/light, keyboard. Real pending changes (offline edit plus a blocked Firestore Write channel). No deletion, no sign-out.
 - One must-fix: the warning-to-explanation gap is 14px, not 8px (margin collapse, `sync-dialogs.ts:438`). Everything else passes. Details in [[Brief H-143 H-122]] "Build check". Tests 49/49.
+
+## 2026-11-24: ui-engineer brief H-144 / H-114 / H-115 (`loop/H-144-gate-panel`)
+- Wrote [[Brief H-144 H-114 H-115]] (no code, no browser): the gate panel is built from `app-empty-state` with an optional heading and a new `messageRole`. The deck mark shows in all four states, there's no heading and no landmark name, and `aria-busy` is dropped. Running state gets a CSS indeterminate bar (`aria-hidden`, resting centred under reduced motion). Focus rules for Try again. Linked from [[UI Index]].
+
+## 2026-11-24: builder H-144 / H-114 / H-115 (gate panel, `loop/H-144-gate-panel`, not committed)
+- Built from [[Brief H-144 H-114 H-115]] and [[Accounts and Sync]] v0.10 SYNC-009 / SYNC-086: `app-empty-state` gets an optional heading, `messageRole`, `focusable` + `focus()`, `text-wrap: balance`, and a body-colour line when there's no heading. `SignInPanel` drops `GATE_HEADINGS`, the `page` input and its own box; every state is a heading-less `app-empty-state`. New v0.10 lines; running state has a CSS indeterminate bar (`aria-hidden`, centred and still under reduced motion), no `aria-busy`; focus to the panel after Try again, to Try again on a second failure.
+- Tests: `gated-pages.spec.ts` (AC 46 / 26, AC 27 / 57, AC 47 / 57 running and failed, H-114, H-115 focus), `shared/empty-state.spec.ts`, `tooling/gate-panel.spec.ts` (bar and reduced-motion CSS, balance, no retired copy in `web/src`). 645 web / 34 rules; lint and build clean. Waiting for the ui-engineer Playwright pass and validator.
+- ui-engineer pass fixes: bar `width: min(16rem, 100%)` with the empty state's action row stretched (`justify-self: stretch`) so it can't overflow at 320; `linear` (was `ease-in-out`); `margin-block: 18px` so running and failed rows are both 40px. 645 web tests, lint and build clean.
+
+## 2026-11-24: H-144 / H-114 / H-115 validated and committed (`loop/H-144-gate-panel`)
+- ui-engineer Playwright check (signed-out and lost-session states from the sync log; first sync running and failed from a real Auth-emulator sign-in on `demo-rift-builder` with a stalled Firestore stub) at 1440/375/320, dark/light, keyboard, reduced motion: two bar fixes (overflow below ~337px; segment empty too often → `linear`), then PASS. Screens outside the repo (notes folder `h144-screens`).
+- Validator: all three PASS ([[Validation H-144 H-114 H-115]]). Code review: one real bug (Try again focus flag stayed set, so an automatic rerun moved focus), fixed one-shot with a test that fails without the fix. 646 web / 34 rules tests. No new board IDs; `next_id` stays 148. Rows moved to Done; [[Current State]] updated.
