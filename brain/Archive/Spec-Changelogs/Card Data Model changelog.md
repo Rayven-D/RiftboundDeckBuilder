@@ -9,6 +9,7 @@ superseded_by: "[[Card Data Model]]"
 
 Moved out of [[Card Data Model]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.4 (2026-11-25): H-165, from H-022 research ([[Ban List]] #10, [[Sets]] #6, [[Deck Construction Rules]] #17). New CARD-034 (MUST, `partial`): a lookup with no exact `nameKey` retries without one leading "the", exact match wins, unique match only, no alias table (so "Dreaming Tree" finds "The Dreaming Tree"); CARD-033 points to it; AC 6 rewritten (was `not-found`). CARD-023 promo codes OPP / JDG / PR stated with research status (legal by name is SPEC-002 LEGAL-C07, `partial`). New CARD-023a (`ARC` = Arcane Box Set, not a Standard set, `unverified` source). New CARD-044 (MAY, reserved SAMPLE marker, no field name, BLOCKED H-020) for SPEC-002 LEGAL-C10. Open questions 6, 12 updated, new 15–17. ACs 21–23. Data contract: comment only, `schemaVersion` stays `'0.2'`. Status `draft` → `review` (matching behaviour changed). Pins to SPEC-001 0.3 moved to 0.4 in SPEC-003, 005, 006, 007, 008 and the Spec Index.
 - 0.3 (2026-11-23): H-039. CARD-016 `defaultPrintingId` SHOULD → MUST, with rationale (SPEC-007 COLL-012/014 are MUST and depend on it). Summary block added; changelog moved to this archive note. Data contract unchanged (`schemaVersion` stays `'0.2'`).
 - 0.1 (2026-11-23): first draft (H-003).
 - 0.2 (2026-11-23): H-015, H-017, H-026 (ADR-0005/0006). Shared contract: `domains`, `isChampionUnit`
