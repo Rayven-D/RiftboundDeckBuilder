@@ -1,23 +1,26 @@
 /**
  * SPEC-010 v0.14 (H-176) at component level with the real SyncService and engine over the fakes: the header account
- * control (SYNC-150, AC 71), the menu's Theme group (SYNC-151, AC 72), Account Information (SYNC-152, AC 73), the
+ * control (SYNC-150, AC 71), the menu (SYNC-151, AC 72; no Theme group since v0.17.0), the phone account tab
+ * (SYNC-150 g, AC 81, H-246), Account Information (SYNC-152, AC 73), the
  * username dialog and its rules in the UI (SYNC-153, SYNC-155, AC 74, AC 76) and the one-time prompt, SYNC-154 and AC 75.
  */
 import { InteractivityChecker, LiveAnnouncer } from '@angular/cdk/a11y';
-import { Injectable, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { Component, Injectable, inject, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { MatMenuTrigger } from '@angular/material/menu';
+import { MatMenu, MatMenuTrigger } from '@angular/material/menu';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { provideRouter } from '@angular/router';
 import { Subject } from 'rxjs';
 import { STORAGE_KEYS } from '../storage/local-stores';
-import { ThemeService } from '../theme/theme.service';
 import { emptySyncLog } from '../../shared/sync/sync-log';
 import type { StoredSyncLog } from '../../shared/sync/sync-types';
 import { FakeAuth, FakeFirestore, FakeRemote } from '../../shared/sync/testing/fakes';
 import { AccountMenu, menuEdgeCorrection } from './account-menu';
+import { AccountTab } from './account-tab';
 import { UsernameDialog, UsernameDialogData, UsernameSaveResult } from './account-dialogs';
 import { SYNC_ADAPTERS, SyncService } from './sync.service';
 
@@ -68,6 +71,7 @@ describe('Header account control, menu and Account Information (SPEC-010 SYNC-15
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote: new FakeRemote(db) }) },
         { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
         { provide: InteractivityChecker, useClass: VisibleInteractivityChecker },
@@ -128,8 +132,8 @@ describe('Header account control, menu and Account Information (SPEC-010 SYNC-15
       expect(b.getAttribute('aria-expanded')).toBe('true');
     });
 
-    it('AC 71 a 24-character name: the accessible name still holds all 24 characters (the visible one may be cut by CSS)', async () => {
-      const name = 'Abcdefghijklmnopqrstuvwx';
+    it('AC 71 a 20-character name (20 × W): the accessible name still holds all 20 characters (the visible one may be cut by CSS)', async () => {
+      const name = 'W'.repeat(20);
       const auth = new FakeAuth();
       auth.uid = 'uA';
       const db = new FakeFirestore();
@@ -160,7 +164,7 @@ describe('Header account control, menu and Account Information (SPEC-010 SYNC-15
       localStorage.setItem(STORAGE_KEYS.syncLog, JSON.stringify(synced({ username: 'RJ Smith' })));
       TestBed.configureTestingModule({
         imports: [AccountMenu],
-        providers: [{ provide: SYNC_ADAPTERS, useValue: () => slow }],
+        providers: [provideRouter([]), { provide: SYNC_ADAPTERS, useValue: () => slow }],
       });
       void db;
       const fixture = TestBed.createComponent(AccountMenu);
@@ -191,24 +195,150 @@ describe('Header account control, menu and Account Information (SPEC-010 SYNC-15
       expect(document.querySelector('.mat-mdc-menu-panel')!.getAttribute('aria-describedby')).toBe(ids);
     });
 
-    it('AC 72 / SYNC-157 Theme: three radio items, exactly one checked with a check mark; choosing Dark applies it at once and closes the menu', async () => {
+    it('AC 72 / SYNC-151 (6) withdrawn (v0.17.0): the menu holds no Theme group or radio item', async () => {
       const db = new FakeFirestore();
       db.docs.set('users/uA', accountDoc());
       const auth = new FakeAuth();
       auth.uid = 'uA';
       const { fixture } = setup(db, auth, synced());
       const menu = await openMenu(fixture);
-      const group = menu.querySelector('[role="group"]')!;
-      expect(text(menu.querySelector(`#${group.getAttribute('aria-labelledby')}`))).toBe('Theme');
-      const radios = Array.from(group.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'));
-      expect(radios.map(text)).toEqual(['System', 'Light', 'Dark']);
-      expect(radios.map((r) => r.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false']);
-      expect(radios.map((r) => !!r.querySelector('.check app-icon'))).toEqual([true, false, false]);
-      radios[2].click();
-      await render(fixture);
-      expect(TestBed.inject(ThemeService).choice()).toBe('dark');
-      expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-      await vi.waitFor(() => expect(trigger(fixture).getAttribute('aria-expanded')).not.toBe('true'));
+      expect(menu.querySelector('[role="group"], [role="menuitemradio"], [role="radiogroup"]')).toBeNull();
+      expect(text(menu)).not.toMatch(/Theme|System/);
+    });
+  });
+
+  describe('SYNC-150 (g) phone account tab (AC 81, H-246)', () => {
+    /** The app shell's part: the tab bar's fourth column renders the template the account menu hands over. */
+    @Component({
+      imports: [AccountMenu, NgTemplateOutlet],
+      template: `<app-account-menu /><nav class="tab-bar"><ul><li class="tab-account">
+        @if (tab.template(); as t) { <ng-container [ngTemplateOutlet]="t" /> }
+      </li></ul></nav>`,
+    })
+    class Shell {
+      readonly tab = inject(AccountTab);
+    }
+
+    function setupShell(log: StoredSyncLog | null, username?: string) {
+      const db = new FakeFirestore();
+      db.docs.set('users/uA', accountDoc(username ? { username } : {}));
+      const auth = new FakeAuth();
+      if (log) auth.uid = 'uA';
+      localStorage.clear();
+      if (log) localStorage.setItem(STORAGE_KEYS.syncLog, JSON.stringify(log));
+      TestBed.configureTestingModule({
+        imports: [Shell],
+        providers: [
+          provideRouter([]),
+          { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote: new FakeRemote(db) }) },
+          { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
+        ],
+      });
+      const start = vi.spyOn(SyncService.prototype, 'start');
+      const fixture = TestBed.createComponent(Shell);
+      return { fixture, start, sync: TestBed.inject(SyncService) };
+    }
+    const tabOf = (f: ComponentFixture<unknown>) =>
+      (f.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.tab-account button.account-tab');
+    async function show(f: ComponentFixture<unknown>): Promise<void> {
+      f.detectChanges();
+      await f.whenStable();
+      f.detectChanges();
+    }
+
+    it('AC 81 the column is empty and not focusable until the account code has rendered; then exactly one tab button', async () => {
+      const { fixture } = setupShell(null);
+      const li = (fixture.nativeElement as HTMLElement).querySelector('.tab-account')!;
+      expect(li.querySelector('button, a, [tabindex]')).toBeNull();
+      await show(fixture);
+      expect(li.querySelectorAll('button')).toHaveLength(1);
+    });
+
+    it('AC 81 signed out: the person icon and the label "Sign in"; it opens the sign-in dialog with the tab as the focus return, looks open meanwhile, never aria-current', async () => {
+      const { fixture, sync } = setupShell(null);
+      await show(fixture);
+      const tab = tabOf(fixture)!;
+      expect(tab.getAttribute('type')).toBe('button');
+      expect(text(tab.querySelector('.tab-label'))).toBe('Sign in');
+      expect(text(tab)).toBe('Sign in');
+      expect(tab.querySelector('.tab-icon app-icon')).not.toBeNull();
+      expect(tab.getAttribute('aria-haspopup')).toBe('dialog');
+      let close!: () => void;
+      const openSignIn = vi.spyOn(sync, 'openSignIn').mockImplementation(() => new Promise<void>((r) => (close = r)));
+      tab.click();
+      await show(fixture);
+      expect(openSignIn).toHaveBeenCalledWith(tab);
+      expect(tab.classList).toContain('open');
+      close();
+      await flush();
+      await show(fixture);
+      expect(tab.classList).not.toContain('open');
+      expect(tab.hasAttribute('aria-current')).toBe(false);
+    });
+
+    it('AC 81 signed in as RJ Smith: only the letter avatar (40px class), no visible label, named "Account: RJ Smith"; it opens the same menu, aria-expanded and the open look while open, never aria-current', async () => {
+      const { fixture } = setupShell(synced({ username: 'RJ Smith' }), 'RJ Smith');
+      await show(fixture);
+      const tab = tabOf(fixture)!;
+      expect(tab.getAttribute('aria-label')).toBe('Account: RJ Smith');
+      expect(tab.querySelector('.tab-label')).toBeNull();
+      const avatar = tab.querySelector('.avatar.avatar--tab')!;
+      expect(text(avatar)).toBe('R');
+      expect(avatar.getAttribute('aria-hidden')).toBe('true');
+      expect(tab.getAttribute('aria-haspopup')).toBe('menu');
+      tab.click();
+      await show(fixture);
+      expect(tab.getAttribute('aria-expanded')).toBe('true');
+      expect(tab.classList).toContain('open');
+      expect(tab.hasAttribute('aria-current')).toBe(false);
+      const items = Array.from(document.querySelectorAll('.mat-mdc-menu-content [mat-menu-item]')).map(text);
+      expect(items).toEqual(['Sync now', 'Account Information', 'Privacy notice', "What's new", 'Sign out']);
+      expect(document.querySelectorAll('.mat-mdc-menu-content mat-divider')).toHaveLength(3);
+    });
+
+    it('AC 81 no username: the circle shows the person icon and the name is "Account"', async () => {
+      const { fixture } = setupShell(synced());
+      await show(fixture);
+      const tab = tabOf(fixture)!;
+      expect(tab.getAttribute('aria-label')).toBe('Account');
+      expect(tab.querySelector('.avatar--tab app-icon')).not.toBeNull();
+    });
+
+    it('SYNC-150 (g) one account component for both triggers: SyncService.start() runs once and one menu exists', async () => {
+      const { fixture, start } = setupShell(synced({ username: 'RJ Smith' }), 'RJ Smith');
+      await show(fixture);
+      expect(start).toHaveBeenCalledTimes(1);
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelectorAll('app-account-menu')).toHaveLength(1);
+      expect(el.querySelectorAll('mat-menu')).toHaveLength(1);
+      // both triggers point at that one menu
+      expect(el.querySelector('.account-trigger')!.getAttribute('aria-haspopup')).toBe('menu');
+      expect(tabOf(fixture)!.getAttribute('aria-haspopup')).toBe('menu');
+    });
+
+    it('SYNC-150 (g) on a phone width the menu opens upward (yPosition above), at 40rem and wider below', async () => {
+      const listeners: ((e: MediaQueryListEvent) => void)[] = [];
+      let matches = true;
+      vi.stubGlobal('matchMedia', (q: string) => ({
+        media: q,
+        get matches() {
+          return matches;
+        },
+        addEventListener: (_: string, l: (e: MediaQueryListEvent) => void) => listeners.push(l),
+        removeEventListener: () => undefined,
+      }));
+      try {
+        const { fixture } = setupShell(synced({ username: 'RJ Smith' }), 'RJ Smith');
+        await show(fixture);
+        const menu = fixture.debugElement.query(By.directive(MatMenu)).injector.get(MatMenu);
+        expect(menu.yPosition).toBe('above');
+        matches = false;
+        listeners.forEach((l) => l({ matches: false } as MediaQueryListEvent));
+        await show(fixture);
+        expect(menu.yPosition).toBe('below');
+      } finally {
+        vi.unstubAllGlobals();
+      }
     });
   });
 
@@ -489,15 +619,16 @@ describe('UsernameDialog (SPEC-010 SYNC-153…155, AC 74, AC 75, AC 76)', () => 
     expect(t.input().getAttribute('aria-describedby')).toBe(t.el.querySelector('.counter')!.id);
   });
 
-  it('SYNC-153 / H-189 N1 the n / 24 counter is outside every aria-live region (not read on each keystroke) but describes the field', async () => {
+  it('SYNC-153 / H-189 N1 the n / 20 counter is outside every aria-live region (not read on each keystroke) but describes the field', async () => {
     const t = open();
     await t.fixture.whenStable();
     await t.type('Kai S');
     const counter = t.el.querySelector('.counter')!;
-    expect(text(counter)).toBe('5 / 24');
+    expect(text(counter)).toBe('5 / 20');
+    expect(counter.classList).not.toContain('over');
     expect(t.el.querySelector('mat-hint')).toBeNull();
     expect(counter.closest('[aria-live]')).toBeNull();
-    for (const live of Array.from(t.el.querySelectorAll('[aria-live]'))) expect(text(live)).not.toContain('/ 24');
+    for (const live of Array.from(t.el.querySelectorAll('[aria-live]'))) expect(text(live)).not.toContain('/ 20');
     expect(t.input().getAttribute('aria-describedby')!.split(' ')).toContain(counter.id);
   });
 
@@ -518,22 +649,73 @@ describe('UsernameDialog (SPEC-010 SYNC-153…155, AC 74, AC 75, AC 76)', () => 
     expect(document.activeElement).toBe(t.input());
   });
 
-  it('AC 74 25 characters: "Use 24 characters or fewer." and the text is not cut; the counter reads 25 / 24', async () => {
+  it('AC 74 20 letters: accepted, the counter reads 20 / 20 in the normal colour', async () => {
     const t = open();
     await t.fixture.whenStable();
-    await t.type('a'.repeat(25));
-    expect(text(t.el.querySelector('.counter'))).toBe('25 / 24');
+    await t.type('a'.repeat(20));
+    const counter = t.el.querySelector('.counter')!;
+    expect(text(counter)).toBe('20 / 20');
+    expect(counter.classList).not.toContain('over');
+    expect(counter.querySelector('app-icon')).toBeNull();
     await t.save();
-    expect(text(t.el.querySelector('.error'))).toBe('Use 24 characters or fewer.');
-    expect(t.input().value).toBe('a'.repeat(25));
+    expect(t.saved).toEqual(['a'.repeat(20)]);
   });
 
-  it('AC 74 a right-to-left override (U+202E): "Use letters, numbers, spaces and punctuation." (a pasted line feed is covered by username.spec.ts: a single-line input strips it)', async () => {
+  it('AC 74 21 characters: "Use 20 characters or fewer.", the counter reads 21 / 20 in the error colour with an icon, the text is not cut', async () => {
+    const t = open();
+    await t.fixture.whenStable();
+    await t.type('a'.repeat(21));
+    const counter = t.el.querySelector('.counter')!;
+    expect(text(counter)).toBe('21 / 20');
+    expect(counter.classList).toContain('over');
+    expect(counter.querySelector('app-icon')).not.toBeNull();
+    expect(t.input().hasAttribute('maxlength')).toBe(false);
+    await t.save();
+    expect(text(t.el.querySelector('.error'))).toBe('Use 20 characters or fewer.');
+    expect(t.input().value).toBe('a'.repeat(21));
+    expect(t.saved).toEqual([]);
+  });
+
+  it(`AC 74 an emoji (Squad 😀): "Use letters, numbers, spaces and . _ - ' only. No emoji." and nothing is saved`, async () => {
+    const t = open();
+    await t.fixture.whenStable();
+    await t.type('Squad \u{1F600}');
+    await t.save();
+    expect(text(t.el.querySelector('.error'))).toBe("Use letters, numbers, spaces and . _ - ' only. No emoji.");
+    expect(t.saved).toEqual([]);
+  });
+
+  it('AC 74 21 characters that include an emoji: the length error shows first', async () => {
+    const t = open();
+    await t.fixture.whenStable();
+    await t.type('a'.repeat(20) + '\u{1F600}');
+    await t.save();
+    expect(text(t.el.querySelector('.error'))).toBe('Use 20 characters or fewer.');
+  });
+
+  it('SYNC-155 / H-207 a name saved under v0.14 that breaks the v0.15 rules (an emoji) just closes when saved unchanged; a change runs the new check', async () => {
+    const legacy = 'Squad \u{1F600}';
+    const t = open({ current: legacy });
+    await t.fixture.whenStable();
+    expect(t.input().value).toBe(legacy);
+    await t.save();
+    expect(t.saved).toEqual([]);
+    expect(t.closed).toEqual([undefined]);
+    TestBed.resetTestingModule();
+    const u = open({ current: legacy });
+    await u.fixture.whenStable();
+    await u.type('Squad \u{1F601}');
+    await u.save();
+    expect(text(u.el.querySelector('.error'))).toBe("Use letters, numbers, spaces and . _ - ' only. No emoji.");
+    expect(u.saved).toEqual([]);
+  });
+
+  it(`AC 74 a right-to-left override (U+202E): "Use letters, numbers, spaces and . _ - ' only. No emoji." (a pasted line feed is covered by username.spec.ts: a single-line input strips it)`, async () => {
     const t = open();
     await t.fixture.whenStable();
     await t.type(`Line one${String.fromCodePoint(0x202e)}Line two`);
     await t.save();
-    expect(text(t.el.querySelector('.error'))).toBe('Use letters, numbers, spaces and punctuation.');
+    expect(text(t.el.querySelector('.error'))).toBe("Use letters, numbers, spaces and . _ - ' only. No emoji.");
   });
 
   it('AC 74 / AC 76 a valid name is saved normalized and the dialog closes with it; the unchanged value just closes', async () => {

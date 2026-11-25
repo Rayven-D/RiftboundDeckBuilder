@@ -108,6 +108,8 @@ sources:
 - CalOPPA 30-day cure window and low enforcement risk for hobby sites do not remove Google's own "accurate privacy policy" requirement (row 13).
 
 ## Impacts
+**Note (2026-11-25, H-249, RJ's decision, not a research change):** the notice now states only the country ("stored by Google Firebase in the United States") for checklist item 10, and names the recipient as "Google (Firebase), our hosting and database provider" for items 5 and 9, without the city, region or product names. The facts in rows 16, 17 and 28 are unchanged; GDPR 13(1)(e) and (f) need the recipient category, the transfer and the safeguard, not the location. See [[Privacy Notice Draft]] 0.4.
+
 [[Accounts and Sync]] SYNC-101 (the notice contents beyond the facts it lists; this note replaces its `BLOCKED: needs research`), SYNC-007 (RJ approves the notice before `signInEnabled` goes on in production), and open question 10 (privacy notice: "yes", stays gated until this is turned into a notice and RJ approves it). Also [[Riot Developer Rules]], [[Riot App Application]] (H-011), [[Card Data & Images]] (H-020, image host as a recipient).
 
 ## Checklist: what the notice must state

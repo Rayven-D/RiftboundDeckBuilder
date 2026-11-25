@@ -11,7 +11,9 @@
   <meta name="theme-color" content="#1b1f24" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#f4f6f8" media="(prefers-color-scheme: light)">
   <!-- SPEC-010 SYNC-157 (e): the device theme is on <html> before the first paint. The key is `device-theme`
-       (outside the `rift.` cache, never cleared by sign-out); no attribute = System. Kept in step with
+       (outside the `rift.` cache, never cleared by sign-out). Only `light` and `dark` are applied; nothing stored,
+       a leftover `system` or any unknown value counts as nothing stored (no attribute: the stylesheet follows the
+       OS `prefers-color-scheme`), and an unknown value is removed (SYNC-157 b). Kept in step with
        src/app/shared/theme/theme.ts. A future CSP needs this script's hash. -->
   <script>
     try {
@@ -21,6 +23,8 @@
         var c = t === 'dark' ? '#1b1f24' : '#f4f6f8';
         var m = document.querySelectorAll('meta[name="theme-color"]');
         for (var i = 0; i < m.length; i++) m[i].setAttribute('content', c);
+      } else if (t !== null) {
+        localStorage.removeItem('device-theme');
       }
     } catch (e) {}
   </script>

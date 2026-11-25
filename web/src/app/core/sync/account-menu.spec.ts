@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { Router, provideRouter } from '@angular/router';
 import { AccountMenu } from './account-menu';
 import * as dialogs from './sync-dialogs';
 import { DeleteAccountDialog, SignInDialog, SignOutDialog } from './sync-dialogs';
@@ -27,6 +28,7 @@ describe('Sign-in UI (SPEC-010)', () => {
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         {
           provide: SYNC_ADAPTERS,
           useValue: async () => {
@@ -294,6 +296,7 @@ describe('AccountMenu delete outcomes (SPEC-010 SYNC-096)', () => {
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         {
           provide: SyncService,
           useValue: {
@@ -353,6 +356,7 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         {
           provide: SyncService,
           useValue: {
@@ -388,18 +392,18 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
     await menuFor({ canCancel: true });
     expect(overlayText()).toContain("Some data couldn't be deleted. Try again.");
     // SYNC-151 / AC 54 (v0.14): Delete account and data lives in Account Information.
-    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Cancel deletion', 'Account Information', 'System', 'Light', 'Dark', 'Sign out']);
+    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Cancel deletion', 'Account Information', 'Sign out']);
   });
 
   it('AC 43 once something was removed only Try deleting again is offered, and Sign out stays available', async () => {
     await menuFor({ canCancel: false });
-    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Account Information', 'System', 'Light', 'Dark', 'Sign out']);
+    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Account Information', 'Sign out']);
     expect(menuButton('Sign out')!.disabled).toBe(false);
   });
 
   it('SYNC-096 without an unfinished deletion the menu offers neither Try deleting again nor Cancel deletion', async () => {
     await menuFor(null);
-    expect(menuButtons().map(text)).toEqual(['Sync now', 'Account Information', 'System', 'Light', 'Dark', 'Sign out']);
+    expect(menuButtons().map(text)).toEqual(['Sync now', 'Account Information', 'Sign out']);
   });
 
   it('SYNC-151 / AC 72: no Delete account and data item, no Settings item and no /account link in the menu', async () => {
@@ -438,9 +442,9 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
     await menuFor(null, false);
     expect(menuButton('Sign out')!.disabled).toBe(true);
     expect(menuButton('Sync now')!.disabled).toBe(true);
-    // SYNC-151 / AC 72: Account Information and Theme need no network.
+    // SYNC-151 / AC 72: Account Information needs no network (v0.17.0: no Theme item in the menu).
     expect(menuButton('Account Information')!.disabled).toBe(false);
-    expect(menuButton('Dark')!.disabled).toBe(false);
+    expect(menuButton('Dark')).toBeUndefined();
     expect(overlayText()).toContain("You're offline.");
   });
 
@@ -466,6 +470,7 @@ describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)',
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote }) },
         {
           provide: MatSnackBar,
@@ -513,11 +518,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     Array.from(panel().children).map((el) => {
       const tag = el.tagName.toLowerCase();
       if (tag === 'mat-divider') return 'divider';
-      if (el.getAttribute('role') === 'group') {
-        const items = Array.from(el.querySelectorAll('button')).map(text).join(',');
-        return `group:${text(el.querySelector('p')!)}(${items})`;
-      }
-      return tag === 'button' ? `item:${text(el)}` : `text:${text(el)}`;
+      return tag === 'button' || tag === 'a' ? `item:${text(el)}` : `text:${text(el)}`;
     });
 
   const trigger = (fixture: ComponentFixture<AccountMenu>) =>
@@ -546,6 +547,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote: new FakeRemote(db) }) },
         {
           provide: MatSnackBar,
@@ -685,7 +687,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     expect(text(panel())).not.toContain('not synced yet');
     expect(status.classList.contains('error')).toBe(true);
     expect(status.querySelector('app-icon')?.getAttribute('aria-hidden')).toBe('true');
-    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Cancel deletion', 'Account Information', 'System', 'Light', 'Dark', 'Sign out']);
+    expect(menuButtons().map(text)).toEqual(['Try deleting again', 'Cancel deletion', 'Account Information', 'Sign out']);
     expect(menuButton('Sync now')).toBeUndefined();
 
     // Try deleting again fails again (nothing removed): the failure notice's action still reads "Try again".
@@ -705,7 +707,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     await vi.waitFor(() => expect(sync.pendingCount()).toBe(0));
     expect(Object.keys(db.get('users/uA/state/collection').cards).sort()).toEqual(['hextech ray', 'lightning rush', 'mystic shot']);
     await openMenu(fixture);
-    expect(menuButtons().map(text)).toEqual(['Sync now', 'Account Information', 'System', 'Light', 'Dark', 'Sign out']);
+    expect(menuButtons().map(text)).toEqual(['Sync now', 'Account Information', 'Sign out']);
   });
 
   /** H-110: exactly 3 dividers, none first, last or next to another. */
@@ -733,6 +735,10 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([
+          { path: 'changelog', children: [] },
+          { path: 'privacy', children: [] },
+        ]),
         {
           provide: SyncService,
           useValue: {
@@ -757,7 +763,7 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     return layout();
   }
 
-  it('H-110 / SYNC-151 / AC 72 normal: [identity, status] / [Sync now] / [Account Information, Theme] / [Sign out], 3 dividers, none leading, trailing or doubled', async () => {
+  it("H-110 / SYNC-151 / AC 72 normal: [identity, status] / [Sync now] / [Account Information, Privacy notice, What's new] / [Sign out], no Theme (v0.17.0), 3 dividers, none leading, trailing or doubled", async () => {
     const l = await stubMenu({ deletion: null, online: true, email: 'rj@example.com' });
     expect(l).toEqual([
       'text:Signed in as rj@example.com',
@@ -766,14 +772,15 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
       'item:Sync now',
       'divider',
       'item:Account Information',
-      'group:Theme(System,Light,Dark)',
+      'item:Privacy notice',
+      "item:What's new",
       'divider',
       'item:Sign out',
     ]);
     expectCleanDividers(l);
   });
 
-  it('H-110 / AC 54 deletion: [status] / [Try deleting again, Cancel deletion] / [Account Information, Theme] / [Sign out], no empty group', async () => {
+  it("H-110 / AC 54 deletion: [status] / [Try deleting again, Cancel deletion] / [Account Information, Privacy notice, What's new] / [Sign out], no Theme, no empty group", async () => {
     const l = await stubMenu({ deletion: { canCancel: true }, online: true, email: null });
     expect(l).toEqual([
       "text:Some data couldn't be deleted. Try again.",
@@ -782,7 +789,8 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
       'item:Cancel deletion',
       'divider',
       'item:Account Information',
-      'group:Theme(System,Light,Dark)',
+      'item:Privacy notice',
+      "item:What's new",
       'divider',
       'item:Sign out',
     ]);
@@ -805,7 +813,8 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
       'item:Sync now',
       'divider',
       'item:Account Information',
-      'group:Theme(System,Light,Dark)',
+      'item:Privacy notice',
+      "item:What's new",
       'divider',
       'item:Sign out',
     ]);
@@ -817,6 +826,56 @@ describe('AccountMenu identity line, deletion state and groups (SPEC-010 SYNC-00
     expect(l[1]).toBe("text:You're offline.");
     expectCleanDividers(l);
   });
+
+  it.each([
+    ['online', { deletion: null, online: true }],
+    ['offline', { deletion: null, online: false }],
+    ['during an unfinished deletion', { deletion: { canCancel: true }, online: true }],
+  ] as const)("SPEC-012 LOG-011 / LOG-012 / AC 3 %s: What's new is an enabled same-tab link to /changelog, right before the last divider", async (_l, opts) => {
+    const l = await stubMenu({ ...opts, email: 'rj@example.com' });
+    expect(l.slice(-3)).toEqual(["item:What's new", 'divider', 'item:Sign out']);
+    expectCleanDividers(l);
+    const link = Array.from(panel().querySelectorAll<HTMLAnchorElement>('a[mat-menu-item]')).find((a) => text(a) === "What's new")!;
+    expect(link.getAttribute('href')).toBe('/changelog');
+    expect(link.getAttribute('target')).toBeNull();
+    expect(link.getAttribute('aria-disabled')).not.toBe('true');
+    expect(link.classList.contains('mat-mdc-menu-item-disabled')).toBe(false);
+  });
+
+  it.each([
+    ['online', { deletion: null, online: true }],
+    ['offline', { deletion: null, online: false }],
+    ['during an unfinished deletion', { deletion: { canCancel: true }, online: true }],
+  ] as const)('SYNC-104 (d) / SYNC-151 (7) / AC 68 %s: Privacy notice is an enabled same-tab link to /privacy, right after Account Information (v0.17.0: no Theme) and before Sign out', async (_l, opts) => {
+    const l = await stubMenu({ ...opts, email: 'rj@example.com' });
+    expect(l[l.indexOf('item:Account Information') + 1]).toBe('item:Privacy notice');
+    expect(l.some((x) => /Theme|System|Light|Dark/.test(x))).toBe(false);
+    expect(l.slice(-4)).toEqual(['item:Privacy notice', "item:What's new", 'divider', 'item:Sign out']);
+    expectCleanDividers(l);
+    const link = Array.from(panel().querySelectorAll<HTMLAnchorElement>('a[mat-menu-item]')).find((a) => text(a) === 'Privacy notice')!;
+    expect(link.getAttribute('href')).toBe('/privacy');
+    expect(link.getAttribute('target')).toBeNull();
+    expect(link.getAttribute('aria-disabled')).not.toBe('true');
+    expect(link.classList.contains('mat-mdc-menu-item-disabled')).toBe(false);
+  });
+
+  it('SYNC-104 (d) / AC 68 choosing Privacy notice opens /privacy in the same tab and closes the menu', async () => {
+    await stubMenu({ deletion: null, online: true, email: 'rj@example.com' });
+    const router = TestBed.inject(Router);
+    const link = Array.from(panel().querySelectorAll<HTMLAnchorElement>('a[mat-menu-item]')).find((a) => text(a) === 'Privacy notice')!;
+    link.click();
+    await vi.waitFor(() => expect(router.url).toBe('/privacy'));
+    await vi.waitFor(() => expect(document.querySelector('.mat-mdc-menu-content')).toBeNull());
+  });
+
+  it("SPEC-012 LOG-011 / AC 3 choosing What's new opens /changelog and closes the menu", async () => {
+    await stubMenu({ deletion: null, online: true, email: 'rj@example.com' });
+    const router = TestBed.inject(Router);
+    const link = Array.from(panel().querySelectorAll<HTMLAnchorElement>('a[mat-menu-item]')).find((a) => text(a) === "What's new")!;
+    link.click();
+    await vi.waitFor(() => expect(router.url).toBe('/changelog'));
+    await vi.waitFor(() => expect(document.querySelector('.mat-mdc-menu-content')).toBeNull());
+  });
 });
 
 describe('AccountMenu header trigger (H-123)', () => {
@@ -825,6 +884,7 @@ describe('AccountMenu header trigger (H-123)', () => {
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         {
           provide: SyncService,
           useValue: {

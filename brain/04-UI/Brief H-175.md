@@ -18,6 +18,8 @@ Change username, Theme (light / dark / system, per device, system when nothing i
 and Sign out; collection import is **"Add to your collection"**, a FAB at the bottom right of Collection; deck import
 stays **"Import deck"** on Decks; both are dialogs; `/import` is removed with no redirect.
 
+> **Superseded (2026-11-25):** the theme "light / dark / system" below (here and in point 5, with the footer switch and the menu Theme item) is superseded by [[Accounts and Sync]] decision 22 (SYNC-157, SYNC-158) and the ADR-0006 amendment of 2026-11-25: light / dark only, one header toggle, the OS used only until the user picks.
+
 **What I looked at (2026-11-24, dev server, signed out, Playwright):** `/collection` at 1440 light
 (`.playwright-mcp/h175-collection-1440-dark.png`, the browser defaulted to light), 1024 light
 (`h175-collection-1024-light.png`), 768 dark (`h175-collection-768-dark.png`) and 390 dark

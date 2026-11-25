@@ -1,6 +1,8 @@
 import { Injectable, inject, isDevMode } from '@angular/core';
 import { API_BASE_URL } from '../api-base-url';
 import type { BanListFile, CardSet, CollectionCatalogView, PlayableCard, Printing } from '../decks';
+import { AppStores } from '../storage/app-stores';
+import { isTestCollection, testEntries } from '../../shared/collection/test-data';
 
 /** API shapes (brain/05-Services/API Contracts.md v1). */
 interface CardWithPrintings extends PlayableCard {
@@ -35,16 +37,44 @@ export const DEV_SAMPLE_DECKS_KEY = 'rift.dev.sampleDecks';
 @Injectable({ providedIn: 'root' })
 export class CardData {
   private readonly base = inject(API_BASE_URL);
+  private readonly app = inject(AppStores);
   private catalog: Promise<CatalogResult> | null = null;
+  /** Which catalog `catalog` holds: 'api' or the test set's entry count (SPEC-013 TEST-024). */
+  private source: 'api' | number | null = null;
 
-  loadCatalog(): Promise<CatalogResult> {
-    this.catalog ??= this.fetchCatalog().catch((): CatalogResult => ({ status: 'error' }));
+  /**
+   * SPEC-013 TEST-024: while the stored collection carries the test marker (`test-data-<n>`, with cards), the
+   * generated catalog for that `n` is returned instead of calling `/api`, on every device and after a reload, with
+   * no dev flag; the generator is loaded on demand (outside the main bundle). Otherwise the `/api` catalog.
+   */
+  async loadCatalog(): Promise<CatalogResult> {
+    const source = (await this.testSource()) ?? 'api';
+    if (this.catalog === null || this.source !== source) {
+      this.source = source;
+      this.catalog = (source === 'api' ? this.fetchCatalog() : this.generated(source)).catch(
+        (): CatalogResult => ({ status: 'error' }),
+      );
+    }
     return this.catalog;
   }
 
   reload(): Promise<CatalogResult> {
     this.catalog = null;
     return this.loadCatalog();
+  }
+
+  private async testSource(): Promise<number | null> {
+    try {
+      const c = await this.app.stores.raw.collection.load();
+      return isTestCollection(c) ? testEntries(c!.catalogVersion) : null;
+    } catch {
+      return null; // an unreadable collection is the page's to report (COLL-071)
+    }
+  }
+
+  private async generated(entries: number): Promise<CatalogResult> {
+    const { generateLargeSample } = await import('../../shared/collection/sample-data');
+    return { status: 'ok', catalog: generateLargeSample(entries).catalog };
   }
 
   async loadBans(): Promise<BanListFile | null> {

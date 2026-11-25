@@ -20,7 +20,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { MatIconButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatOption, MatSelect } from '@angular/material/select';
@@ -71,6 +71,11 @@ import { ParseResult } from '../../shared/import/parse-card-list';
 import { PageFab } from '../../shared/page-fab';
 import { Icon } from '../../shared/icon';
 import type { StoredPrintingCodes } from '../../shared/storage/records';
+import { noticeOptions } from '../../shared/sync/notice';
+import { TEST_TEXT, TestSetId, isTestCollection } from '../../shared/collection/test-data';
+import { TEST_DATA_ENABLED } from '../../core/test-data/test-data-flag';
+import { loadTestData, removeTestData } from '../../core/test-data/test-data-ops';
+import { TestLoadDialog, TestLoadDialogData, TestLoadOutcome, confirmTestData } from './test-data-dialogs';
 
 type Phase = 'loading' | 'empty' | 'ready' | 'unreadable' | 'catalog-error';
 
@@ -84,6 +89,9 @@ const PHONE = '(max-width: 39.99rem)';
 const DESKTOP = '(min-width: 64rem)';
 const SEARCH_DEBOUNCE_MS = 150;
 const SKELETON_DELAY_MS = 200;
+
+/** Not in SPEC-013: a local store write failed during Remove (storage full or a newer-schema area). */
+const MESSAGE_REMOVE_FAILED = "Couldn't remove test data. Reload the page and try again.";
 
 const EMPTY_TAGS: StoredTags = { schemaVersion: 3, updatedAt: '', tags: [], assignments: {} };
 const EMPTY_CODES: StoredPrintingCodes = { schemaVersion: 1, updatedAt: '', codes: {} };
@@ -138,6 +146,7 @@ interface Loaded {
     MatMenuItem,
     MatMenuTrigger,
     MatIconButton,
+    MatButton,
   ],
   templateUrl: './collection-page.html',
   styleUrl: './collection-page.scss',
@@ -185,6 +194,14 @@ export class CollectionPage {
   protected readonly locksDismissed = signal(false);
   protected readonly decksDismissed = signal(false);
   protected readonly decksUnreadable = DECKS_UNREADABLE;
+
+  // ---- SPEC-013 test data (H-205)
+  /** TEST-001 / TEST-040: the build flag; false hides Load and Change set, never the banner or Remove (TEST-041). */
+  protected readonly testDataEnabled = inject(TEST_DATA_ENABLED);
+  /** TEST-030: the stored collection has cards and the `test-data-` marker. */
+  protected readonly testData = signal(false);
+  protected readonly testText = TEST_TEXT;
+  private readonly emptyLoad = viewChild<ElementRef<HTMLButtonElement>>('emptyLoad');
 
   /** Id of the newest `load()`; results of older ones are dropped (H-086 review 2). */
   private loadSeq = 0;
@@ -353,6 +370,7 @@ export class CollectionPage {
         if (current()) this.phase.set('unreadable'); // COLL-071, SYNC-033: never overwritten
         return;
       }
+      if (current()) this.testData.set(isTestCollection(collection));
       if (!collection || Object.keys(collection.cards).length === 0) {
         if (!current()) return;
         this.loaded.set(null);
@@ -550,8 +568,12 @@ export class CollectionPage {
     const toolbar =
       host.ownerDocument.querySelector('.toolbar')?.getBoundingClientRect().height ?? 56;
     const visibleTop = scrollY + header + toolbar;
+    // H-245 Accept 6 (COLL-094 e): keep the row clear of the floating button (and the phone tab bar). A scripted
+    // scroll ignores scroll-padding, so read the page's bottom padding (the FAB clearance; 0 without a button).
+    const bottomPad = parseFloat(getComputedStyle(host.ownerDocument.documentElement).scrollPaddingBottom) || 0;
+    const visibleBottom = scrollY + innerHeight - bottomPad;
     if (top < visibleTop) scrollTo({ top: top - header - toolbar });
-    else if (top + h > scrollY + innerHeight) scrollTo({ top: top + h - innerHeight });
+    else if (top + h > visibleBottom) scrollTo({ top: top + h - innerHeight + bottomPad });
     let tries = 0;
     const attempt = () => {
       const el = host.querySelector<HTMLElement>(`[data-entry="${CSS.escape(entryId)}"]`);
@@ -626,6 +648,10 @@ export class CollectionPage {
    * closes (H-189: a `?add=1` launch may open before the floating button exists).
    */
   protected openImport(file?: File): void {
+    if (this.testData()) {
+      void this.blockedImport(file);
+      return;
+    }
     const opener = dialogOpener(document);
     const ref = this.dialog.open<ImportDialog, ImportDialogData, ParseResult>(ImportDialog, {
       data: file ? { kind: 'collection', file } : { kind: 'collection' },
@@ -645,6 +671,82 @@ export class CollectionPage {
         { injector: this.injector },
       );
     });
+  }
+
+  // ---------------------------------------------------------------- test data (SPEC-013)
+
+  /**
+   * TEST-002 / TEST-010 Change set: the TEST-003 dialog. With test data present a choice asks the TEST-022
+   * confirmation (inside the dialog). Focus goes back to the opener, or to #main when it is gone (the list replaced
+   * the empty state).
+   */
+  protected openTestLoad(): void {
+    if (!this.testDataEnabled) return;
+    const opener = dialogOpener(document);
+    const data: TestLoadDialogData = {
+      replacing: this.testData(),
+      load: (set) => this.runTestLoad(set),
+    };
+    const ref = this.dialog.open<TestLoadDialog, TestLoadDialogData, boolean>(TestLoadDialog, {
+      data,
+      width: '32rem',
+      maxWidth: 'calc(100vw - 2rem)',
+      autoFocus: 'first-tabbable',
+      restoreFocus: false,
+    });
+    this.dialogOpen = true;
+    ref.afterClosed().subscribe((ok) => {
+      this.dialogOpen = false;
+      if (this.destroyed) return;
+      if (ok) this.snackBar.open(TEST_TEXT.loaded, 'OK', noticeOptions('success'));
+      afterNextRender(() => refocusAfterDialog(opener ?? undefined), { injector: this.injector });
+    });
+  }
+
+  private async runTestLoad(set: TestSetId): Promise<TestLoadOutcome> {
+    const result = await loadTestData(this.stores, set, () => Date.now());
+    await this.load(false);
+    return result;
+  }
+
+  /** TEST-050…052: confirm, then remove only what the tool wrote; the empty state (with Load) comes back. */
+  protected async confirmRemoveTest(): Promise<void> {
+    const ok = await confirmTestData(this.dialog, {
+      title: TEST_TEXT.removeTitle,
+      text: TEST_TEXT.removeText,
+      confirm: 'Remove',
+      danger: true,
+    });
+    if (ok) await this.runTestRemove();
+    else afterNextRender(() => refocusAfterDialog(undefined), { injector: this.injector });
+  }
+
+  private async runTestRemove(): Promise<boolean> {
+    try {
+      await removeTestData(this.stores, () => Date.now());
+    } catch {
+      this.snackBar.open(MESSAGE_REMOVE_FAILED, 'OK', noticeOptions('error'));
+      return false;
+    }
+    await this.load(false);
+    if (this.destroyed) return true;
+    this.snackBar.open(TEST_TEXT.removed, 'OK', noticeOptions('success'));
+    afterNextRender(
+      () => refocusAfterDialog(this.emptyLoad()?.nativeElement ?? this.emptyAdd()?.nativeElement),
+      { injector: this.injector },
+    );
+    return true;
+  }
+
+  /** TEST-032: "Add to your collection" while test data is present asks to remove it first, then opens the import. */
+  private async blockedImport(file?: File): Promise<void> {
+    const opener = dialogOpener(document) ?? this.fab()?.element();
+    const ok = await confirmTestData(this.dialog, { text: TEST_TEXT.addBlocked, confirm: TEST_TEXT.removeButton });
+    if (!ok) {
+      if (!this.destroyed) afterNextRender(() => refocusAfterDialog(opener ?? undefined), { injector: this.injector });
+      return;
+    }
+    if ((await this.runTestRemove()) && !this.destroyed && !this.testData()) this.openImport(file);
   }
 
   protected exportCsv(): void {

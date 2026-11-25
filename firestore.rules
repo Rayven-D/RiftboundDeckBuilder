@@ -59,14 +59,32 @@ service cloud.firestore {
         && shortString(d.lastClientVersion, 40);
     }
 
-    // Update: the same keys plus the optional username (v0.14, SYNC-153, SYNC-156; H-183). size() 1 to 2000 is a
-    // backstop: the client allows 24 graphemes and at most 500 UTF-16 units, far below 2000 in any unit.
-    function validAccountUpdate(d) {
+    // Username (SPEC-010 v0.16 SYNC-160, SYNC-153, SYNC-112; H-212 / H-213). Checked only when the request changes it.
+    // In order, cheapest first: a string; size() 1 to 80 (a bound that keeps long strings away from the pattern, not
+    // the user limit; 20 code points is at most 80 in any unit size() may count); the allowed pattern, which is the
+    // SYNC-153 (4) set (letters, digits and marks of any script, the space and . _ ' ’ -, first a letter or digit)
+    // and 1 to 20 code points (RE2 repetitions count code points, so {0,19} is exact); no variation selector (they
+    // are Mn, so the class admits them); no trailing space; no two spaces in a row. matches() takes the whole string.
+    // The rules cannot check NFC (SYNC-160 (f)): the client always sends the NFC form. The pattern is in double quotes
+    // because the rules compiler refuses \' inside a single-quoted string (H-213: "Unexpected ']'"); SYNC-160 (c)
+    // allows either.
+    function validUsername(u) {
+      return u is string && u.size() >= 1 && u.size() <= 80
+        && u.matches("^[\\p{L}\\p{Nd}][\\p{L}\\p{Mn}\\p{Mc}\\p{Nd} ._'’-]{0,19}$")
+        && !u.matches('.*[\\x{FE00}-\\x{FE0F}\\x{E0100}-\\x{E01EF}].*')
+        && !u.matches('.* $')
+        && !u.matches('.*  .*');
+    }
+
+    // Update: the same keys plus the optional username (v0.14, SYNC-156; v0.16, SYNC-160). The username is tested only
+    // when the request sets a different one: an absent or unchanged name (e.g. one saved under v0.14 limits) never
+    // blocks another update of the account document, such as the per-build lastClientVersion (SYNC-112, SYNC-012).
+    function validAccountUpdate(d, before) {
       return exactKeys(d, ['schemaVersion', 'createdAt', 'updatedAt', 'syncedAt', 'lastClientVersion'], ['username'])
         && validMeta(d)
         && d.createdAt is timestamp
         && shortString(d.lastClientVersion, 40)
-        && (!('username' in d) || (d.username is string && d.username.size() >= 1 && d.username.size() <= 2000));
+        && (!('username' in d) || before.get('username', null) == d.username || validUsername(d.username));
     }
 
     // ---- state documents (SYNC-013, SYNC-015, SYNC-017; caps: design decision 7) ----
@@ -130,7 +148,7 @@ service cloud.firestore {
       allow get, delete: if isOwner(uid);
       allow create: if isOwner(uid) && validAccount(request.resource.data);
       // SYNC-012: updated, never replaced: createdAt keeps its first value.
-      allow update: if isOwner(uid) && validAccountUpdate(request.resource.data)
+      allow update: if isOwner(uid) && validAccountUpdate(request.resource.data, resource.data)
         && request.resource.data.createdAt == resource.data.createdAt;
 
       match /state/{name} {

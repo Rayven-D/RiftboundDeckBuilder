@@ -7,6 +7,8 @@
     "build": "node scripts/build.mjs prod",
     "build:preview": "node scripts/build.mjs preview",
     "deploy:preview": "node scripts/deploy-preview.mjs",
+    "check:changelog-release": "node scripts/check-changelog-release.mjs",
+    "check:privacy-release": "node scripts/check-privacy-release.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint",

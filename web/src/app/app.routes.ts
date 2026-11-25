@@ -30,6 +30,18 @@ export const routes: Routes = [
       import('./pages/tournaments/tournaments-page').then((m) => m.TournamentsPage),
   },
   {
+    // SPEC-012 LOG-001: public, never gated; loads no Firebase.
+    path: 'changelog',
+    title: "What's new · Rift Builder",
+    loadComponent: () => import('./pages/changelog/changelog-page').then((m) => m.ChangelogPage),
+  },
+  {
+    // SPEC-010 SYNC-104 (a): public, never gated (SYNC-009); static text, loads no Firebase.
+    path: 'privacy',
+    title: 'Privacy notice · Rift Builder',
+    loadComponent: () => import('./pages/privacy/privacy-page').then((m) => m.PrivacyPage),
+  },
+  {
     path: 'styleguide',
     title: 'Component preview · Rift Builder',
     loadComponent: () => import('./pages/styleguide/styleguide-page').then((m) => m.StyleguidePage),

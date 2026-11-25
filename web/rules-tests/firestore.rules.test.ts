@@ -1,5 +1,5 @@
 /**
- * SPEC-010 SYNC-110…114 security-rules tests against the Firestore emulator (AC 22, AC 28, AC 29).
+ * SPEC-010 SYNC-110…114 and SYNC-160 security-rules tests against the Firestore emulator (AC 22, AC 28, AC 29).
  * Run: `cd web; npm run test:rules` (needs firebase-tools and a Java runtime the emulator accepts).
  */
 import { readFileSync } from 'node:fs';
@@ -28,6 +28,8 @@ import {
   FieldPath,
 } from 'firebase/firestore';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ALLOWED_USERNAMES, BOLD_A, DENIED_USERNAMES } from '../src/app/shared/account/username-cases';
+import { checkUsername, normalizeUsername } from '../src/app/shared/account/username';
 
 const DECK = '0b7c0000-0000-4000-8000-000000000001';
 const ts = (iso: string) => Timestamp.fromDate(new Date(iso));
@@ -227,36 +229,102 @@ describe('SYNC-112 field validation', () => {
   });
 });
 
-describe('SYNC-112 / SYNC-156 account username (v0.14, H-176; AC 22, AC 74, AC 76)', () => {
+describe('SYNC-112 / SYNC-156 / SYNC-160 account username (v0.16, H-212 / H-213; AC 22, AC 74, AC 76)', () => {
   const upd = (f: Firestore, username: unknown) =>
     updateDoc(ref(f, 'users/uA'), { username, updatedAt: T, syncedAt: serverTimestamp() });
-  /** 👨🏽\u{200D}👩🏽\u{200D}👧🏽\u{200D}👦🏽: 11 code points, 19 UTF-16 units, 41 UTF-8 bytes; 24 of them is the worst name the client accepts. */
+  /** 👨🏽\u{200D}👩🏽\u{200D}👧🏽\u{200D}👦🏽: a v0.14 client accepted 24 of them (456 UTF-16 units). */
   const FAMILY = '\u{1F468}\u{1F3FD}\u{200D}\u{1F469}\u{1F3FD}\u{200D}\u{1F467}\u{1F3FD}\u{200D}\u{1F466}\u{1F3FD}';
+  /** Did the rules allow this update? (a fresh name each time: the unchanged-name shortcut never applies) */
+  const verdict = async (username: string): Promise<boolean> => {
+    await env.clearFirestore();
+    await seed();
+    try {
+      await assertSucceeds(upd(db('uA'), username));
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   it("AC 22 / SYNC-112 an update with username 'RJ Smith' (createdAt kept) is allowed", async () => {
     await assertSucceeds(upd(db('uA'), 'RJ Smith'));
   });
 
-  it('AC 22 / AC 74 / H-183 24 × the skin-tone family emoji (264 code points, 456 UTF-16 units, 984 UTF-8 bytes) is allowed', async () => {
-    const name = FAMILY.repeat(24);
-    expect([...name].length).toBe(264);
-    expect(name.length).toBe(456);
-    expect(new TextEncoder().encode(name).length).toBe(984);
-    await assertSucceeds(upd(db('uA'), name));
-  });
-
-  it('AC 22 / SYNC-156 a username on the create of users/uA is denied (never set at creation)', async () => {
+  it('AC 22 / SYNC-156 a username on the create of users/uA is denied, even a valid one (never set at creation)', async () => {
     await env.clearFirestore();
     await assertFails(setDoc(ref(db('uA'), 'users/uA'), { ...account(), username: 'RJ Smith' }));
     await assertSucceeds(setDoc(ref(db('uA'), 'users/uA'), account()));
   });
 
-  it('AC 22 / SYNC-112 a username of 2001 characters, an empty one or a numeric one is denied; 2000 is allowed', async () => {
+  it('AC 22 / SYNC-160 (b) an empty username or a numeric one is denied', async () => {
     const a = db('uA');
-    await assertFails(upd(a, 'x'.repeat(2001)));
     await assertFails(upd(a, ''));
     await assertFails(upd(a, 42));
-    await assertSucceeds(upd(a, 'x'.repeat(2000)));
+  });
+
+  for (const c of ALLOWED_USERNAMES) {
+    it(`AC 22 / SYNC-160 allowed: ${c.label}`, async () => {
+      await assertSucceeds(upd(db('uA'), c.value));
+    });
+  }
+
+  for (const c of DENIED_USERNAMES) {
+    it(`AC 22 / SYNC-160 denied: ${c.label}`, async () => {
+      await assertFails(upd(db('uA'), c.value));
+    });
+  }
+
+  describe('SYNC-160 (g) the four proofs (a failure stops the build, SYNC-160 (h); never loosened)', () => {
+    it('SYNC-160 (g) 20 × U+1D400 allowed and 21 × U+1D400 denied: \\p{L} outside the BMP, {0,19} counts code points', async () => {
+      const twenty = BOLD_A.repeat(20);
+      expect([...twenty].length).toBe(20);
+      expect(twenty.length).toBe(40);
+      expect(new TextEncoder().encode(twenty).length).toBe(80);
+      expect(await verdict(twenty)).toBe(true);
+      expect(await verdict(BOLD_A.repeat(21))).toBe(false);
+    });
+
+    it('SYNC-160 (g) नमस्ते allowed: \\p{Mn} and \\p{Mc}', async () => {
+      expect(await verdict('नमस्ते')).toBe(true);
+    });
+
+    it('SYNC-160 (g) O’Neil (U+2019) allowed: the non-ASCII apostrophe in the rules source', async () => {
+      expect(await verdict('O’Neil')).toBe(true);
+    });
+
+    it('SYNC-160 (g) a + U+FE0F denied: the variation-selector exclusion (the class alone admits it)', async () => {
+      expect(await verdict('a️')).toBe(false);
+      // control: the same name without the selector is allowed
+      expect(await verdict('a')).toBe(true);
+    });
+  });
+
+  it('SYNC-160 (f) the invariant: every AC 22 name the client normalization leaves unchanged gets the same verdict from username.ts and the rules', async () => {
+    const shared = [...ALLOWED_USERNAMES, ...DENIED_USERNAMES].filter((c) => normalizeUsername(c.value) === c.value);
+    // the filter keeps most of the list (only the trimmed, collapsed or NFD ones are rules-only)
+    expect(shared.length).toBeGreaterThanOrEqual(20);
+    const mismatches: string[] = [];
+    for (const c of shared) {
+      const client = checkUsername(c.value).ok;
+      const rules = await verdict(c.value);
+      if (client !== rules) mismatches.push(`${c.label}: client ${client}, rules ${rules}`);
+    }
+    expect(mismatches).toEqual([]);
+  });
+
+  it('AC 22 / SYNC-160 (a) an unchanged legacy username (24 × the skin-tone family emoji, saved under v0.14) does not block a lastClientVersion update; a new 😀 or 81 × a is denied; Zoé (NFC) is allowed', async () => {
+    const legacy = FAMILY.repeat(24);
+    expect(legacy.length).toBe(456);
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(ref(ctx.firestore() as unknown as Firestore, 'users/uA'), { username: legacy });
+    });
+    const a = db('uA');
+    await assertSucceeds(updateDoc(ref(a, 'users/uA'), { lastClientVersion: 'web-prod-abc1234', updatedAt: T, syncedAt: serverTimestamp() }));
+    // the same name written back unchanged is not re-checked either
+    await assertSucceeds(upd(a, legacy));
+    await assertFails(upd(a, '\u{1F600}'));
+    await assertFails(upd(a, 'a'.repeat(81)));
+    await assertSucceeds(upd(a, 'Zoé'));
   });
 
   it('AC 76 / SYNC-155 the username write is one update() of username, updatedAt and syncedAt; a client syncedAt is denied', async () => {
@@ -267,25 +335,27 @@ describe('SYNC-112 / SYNC-156 account username (v0.14, H-176; AC 22, AC 74, AC 7
     await assertFails(upd(db('uB'), 'Mallory'));
   });
 
-  it('H-183 which unit string.size() counts: probed with 😀 × 700 and × 1100 (code points 700 / 1100, UTF-16 1400 / 2200, UTF-8 2800 / 4400)', async () => {
-    const a = db('uA');
+  it('H-183 which unit string.size() counts: probed on lastClientVersion (≤ 40) with 😀 × 15 and × 25 (code points 15 / 25, UTF-16 30 / 50, UTF-8 60 / 100)', async () => {
+    // Since v0.16 no name the username pattern allows can exceed 80 in any unit, so the probe moved to the 40 cap.
     const probe = async (n: number) => {
       try {
-        await assertSucceeds(upd(a, '\u{1F600}'.repeat(n)));
+        await assertSucceeds(
+          updateDoc(ref(db('uA'), 'users/uA'), { lastClientVersion: '\u{1F600}'.repeat(n), updatedAt: T, syncedAt: serverTimestamp() }),
+        );
         return true;
       } catch {
         return false;
       }
     };
-    const r700 = await probe(700);
-    const r1100 = await probe(1100);
-    const unit = r1100 ? 'code points' : r700 ? 'UTF-16 units' : 'UTF-8 bytes';
-    console.log(`[H-183] Firestore rules string.size() counts ${unit} (700 emoji: ${r700}, 1100 emoji: ${r1100})`);
+    const r15 = await probe(15);
+    const r25 = await probe(25);
+    const unit = r25 ? 'code points' : r15 ? 'UTF-16 units' : 'UTF-8 bytes';
+    console.log(`[H-183] Firestore rules string.size() counts ${unit} (15 emoji: ${r15}, 25 emoji: ${r25})`);
     expect(unit).toBe(SIZE_UNIT);
   });
 });
 
-/** Recorded by the H-183 probe above against the Firestore emulator (H-176, 2026-11-25): UTF-16 units. Production is unverified. */
+/** Recorded by the H-183 probe above against the Firestore emulator (H-176, 2026-11-25; re-run on lastClientVersion in H-213): UTF-16 units. Production is unverified. */
 const SIZE_UNIT = 'UTF-16 units';
 
 describe('SYNC-113 creates need the account document', () => {

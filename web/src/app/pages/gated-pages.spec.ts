@@ -358,12 +358,15 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-009)', () => {
       const hrefs = (selector: string) =>
         Array.from(el.querySelectorAll(selector)).map((a) => a.getAttribute('href'));
       expect(hrefs('.site-nav a')).toEqual(['/decks', '/collection', '/tournaments']);
-      // The phone tab bar (H-085) has the same three tabs (SYNC-150: no Import tab).
+      // The phone tab bar (H-085) has the same three tabs (SYNC-150: no Import tab), then the account (SYNC-150 g).
       expect(hrefs('.tab-bar a')).toEqual(['/decks', '/collection', '/tournaments']);
       expect(el.querySelector('header .import-action')).toBeNull();
       await vi.waitFor(() => {
         fixture.detectChanges();
-        expect(buttons(el.querySelector('header')!)).toEqual(['Sign in']);
+        // v0.17.0: the theme toggle (icon only, named "Dark theme", SYNC-158), then Sign in
+        expect(buttons(el.querySelector('header')!)).toEqual(['', 'Sign in']);
+        expect(el.querySelector('header button')!.getAttribute('aria-label')).toBe('Dark theme');
+        expect(buttons(el.querySelector('.tab-bar')!)).toEqual(['Sign in']);
       });
     });
 
@@ -381,6 +384,60 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-009)', () => {
       // Nothing was written to a local store and no sync log was created.
       expect(Object.keys({ ...localStorage }).filter((k) => k.startsWith('rift.'))).toEqual([]);
       expect(adapterLoads).toBe(0);
+    });
+
+    it('SPEC-012 LOG-001 / LOG-003 / AC 1 signed out with empty storage, /changelog shows its page, no panel, no Firebase, no storage key', async () => {
+      setup();
+      const cookies = document.cookie;
+      const session = Object.keys({ ...sessionStorage });
+      const { el } = await open('/changelog');
+      expect(TestBed.inject(Router).url).toBe('/changelog');
+      expect(text(el.querySelector('h1'))).toBe("What's new");
+      expect(text(el)).toContain("What's changed in Rift Builder, newest first.");
+      expect(el.querySelector('app-sign-in-panel')).toBeNull();
+      expect(adapterLoads).toBe(0);
+      expect(Object.keys({ ...localStorage })).toEqual([]);
+      expect(Object.keys({ ...sessionStorage })).toEqual(session);
+      expect(document.cookie).toBe(cookies);
+    });
+
+    it('SYNC-104 (a, h) / AC 65 / AC 70 signed out with empty storage, /privacy shows the notice, no panel, no Firebase, no storage key, no cookie', async () => {
+      setup();
+      const cookies = document.cookie;
+      const session = Object.keys({ ...sessionStorage });
+      const { el } = await open('/privacy');
+      expect(TestBed.inject(Router).url).toBe('/privacy');
+      expect(text(el.querySelector('h1'))).toBe('Privacy notice');
+      expect(text(el)).toContain('Effective');
+      expect(el.querySelector('app-sign-in-panel')).toBeNull();
+      expect(adapterLoads).toBe(0);
+      expect(Object.keys({ ...localStorage })).toEqual([]);
+      expect(Object.keys({ ...sessionStorage })).toEqual(session);
+      expect(document.cookie).toBe(cookies);
+    });
+
+    it('SYNC-104 (a) / AC 65 signed in and synced, or offline, /privacy shows the same text', async () => {
+      setup(SYNCED);
+      const { el } = await open('/privacy');
+      const signedOut = text(el.querySelector('app-privacy-page'));
+      expect(text(el.querySelector('h1'))).toBe('Privacy notice');
+      expect(el.querySelector('app-sign-in-panel')).toBeNull();
+      const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      try {
+        window.dispatchEvent(new Event('offline'));
+        await open('/');
+        const { el: offline } = await open('/privacy');
+        expect(text(offline.querySelector('app-privacy-page'))).toBe(signedOut);
+      } finally {
+        onLine.mockRestore();
+      }
+    });
+
+    it('SPEC-012 LOG-001 / AC 1 signed in and synced, /changelog shows the same page', async () => {
+      setup(SYNCED);
+      const { el } = await open('/changelog');
+      expect(text(el.querySelector('h1'))).toBe("What's new");
+      expect(el.querySelector('app-sign-in-panel')).toBeNull();
     });
 
     it('AC 35 / SYNC-007 / SYNC-002 the app shell shows Sign in to a signed-out visitor and loads no Firebase', async () => {

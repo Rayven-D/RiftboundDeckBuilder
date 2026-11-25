@@ -379,3 +379,17 @@ All open choices answered; the brief is approved.
 4. **"Could fit in":** your unlocked decks that use the card, each with the "a of q available" chip.
 5. **Ban on the grid:** dialog only, plus the tile's accessible name; no grid icon.
 6. **Where an import lands:** Collection, with an Undo snack bar (H-087 specs the details).
+
+## Test data controls (SPEC-013, built H-205, **needs RJ review**)
+Built from [[Test Data]] alone (no ui-engineer brief; the spec fixes the copy and placement). Builder choices, open
+for RJ or a ui-engineer review:
+- **Empty state:** **Load test data** is a Material text button on its own line under "Add to your collection".
+- **Banner:** the existing `.banner--warning` style (amber edge, warning icon) above the notices and toolbar, `role="status"`,
+  not dismissible; **Change set** (flag on only) and **Remove test data** are text buttons after the sentence and wrap
+  under it on phones.
+- **Load dialog:** two native radio inputs (44 px rows, accent colour) in a fieldset with a visually hidden legend
+  "Test set"; Load is filled and `aria-disabled` until a set is chosen and while offline ("You're offline." in a
+  status region above the buttons); "Loading…" while writing; Escape waits while a write is under way.
+- **Confirmations:** one small dialog for Replace (TEST-022, no title, the question as its accessible name), Remove
+  (title "Remove test data?", Remove in the danger style) and the Add-while-test-data notice (TEST-032).
+- Focus: back to the opener, or `#main` when it is gone; after Remove, to **Load test data** in the empty state.

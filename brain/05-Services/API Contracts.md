@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.16
+version: 1.21
 ---
 # API Contracts
 
@@ -343,13 +343,36 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   creates) and `firestore.indexes.json` (every field but `syncedAt` exempt). Not deployed: deploy with
   `firebase deploy --only firestore` before sign-in ships (SYNC-117).
 
-- **Header account, username, theme, imports from their pages (SPEC-010 v0.14 SYNC-150…159, H-176):**
+- **Header account, username, theme, imports from their pages (SPEC-010 v0.14 SYNC-150…159, H-176; username limits v0.15, H-207; rules check v0.16, H-213):**
   - **Account document:** `AccountDoc.username?: string` (SYNC-156): absent until chosen, never written at creation.
     Rules (`firestore.rules`): `validAccount` (create) allows exactly the five keys, so a `username` on create is
-    denied; `validAccountUpdate` (update) allows `username` as a string with `size()` 1 to 2000 (SYNC-112, H-183).
-    **`string.size()` counts UTF-16 code units on the Firestore emulator** (verified 2026-11-25 by the H-183 probe in
-    `web/rules-tests/firestore.rules.test.ts`: 700 × U+1F600 = 1,400 units allowed, 1,100 × U+1F600 = 2,200 units
-    denied; production `unverified`). The client caps a name at 500 UTF-16 units, so the backstop never bites.
+    denied; `validAccountUpdate(d, resource.data)` (update) allows `username` when the request has no `username`
+    key, **or** it equals the stored one (unchanged, not re-checked), **or** `validUsername(d.username)` holds
+    (SPEC-010 v0.16 SYNC-160, SYNC-112; H-213). `validUsername(u)`, cheapest test first: `u is string`;
+    `u.size()` 1 to 80 (a bound that keeps long strings away from the pattern, not the user limit);
+    `u.matches("^[\\p{L}\\p{Nd}][\\p{L}\\p{Mn}\\p{Mc}\\p{Nd} ._'’-]{0,19}$")` (the SYNC-153 (4) allowed set and
+    **1 to 20 code points**: RE2 repetitions count code points); `!u.matches('.*[\\x{FE00}-\\x{FE0F}\\x{E0100}-\\x{E01EF}].*')`
+    (no variation selector; they are `Mn`, so the class admits them); `!u.matches('.* $')` (no trailing space);
+    `!u.matches('.*  .*')` (no two spaces in a row). The first pattern is a **double-quoted** rules string: the rules
+    compiler refuses `\'` inside a single-quoted one (`Unexpected ']'`, H-213; SYNC-160 (c) allows either). Only
+    U+0020 is a space for the rules (U+00A0 is denied); line terminators are refused by the first pattern. The rules
+    cannot check NFC: an NFD name (`Zoe` + U+0301) passes them; the client always sends NFC (SYNC-160 (f)). An update
+    that leaves the stored name as it is (or absent) passes without any username test, so a name saved under v0.14
+    (emoji, up to 456 UTF-16 units) never blocks the per-build `lastClientVersion` update; setting a *different*
+    name that breaks the rules (e.g. `😀`) is denied. **Verified on the Firestore emulator 2026-11-25 (H-213,
+    `web/rules-tests/firestore.rules.test.ts`): `\p{L}`, `\p{Nd}`, `\p{Mn}`, `\p{Mc}` and `\x{..}` (BMP and
+    supplementary) work, `{0,19}` counts code points (20 × U+1D400 allowed, 21 denied; 20 × `a` allowed, 21
+    denied), the literal `’` in the rules source works (`O’Neil` allowed), and `a` + U+FE0F is denied by the
+    variation-selector clause (with that clause removed it is allowed). Production: `unverified` until the SYNC-160
+    (g) production check after the deploy.** **`string.size()` counts UTF-16 code units on the Firestore emulator**
+    (verified 2026-11-25 by the H-183 probe; since H-213 the probe runs on `lastClientVersion` (≤ 40), because no name
+    the pattern allows can exceed 80 in any unit: 15 × U+1F600 = 30 units allowed, 25 × U+1F600 = 50 units denied;
+    production `unverified`).
+  - **Shared username test data** (`web/src/app/shared/account/username-cases.ts`, test-only, not imported by the
+    app): `ALLOWED_USERNAMES`, `DENIED_USERNAMES` (`{ label, value }[]`, the AC 22 lists plus `a` + U+E0100 and
+    `RJ` + line feed + `Smith`), `BOLD_A`. `username.spec.ts` runs them through `checkUsername`; the rules tests run
+    them through the rules, and assert the SYNC-160 (f) invariant: every name with `normalizeUsername(n) === n` gets
+    the same verdict from both.
   - **`RemoteStore.setUsername(uid, username): Promise<'ok' | RemoteErrorCode>`** (SYNC-155): one `updateDoc` of
     `users/{uid}` with `username`, `updatedAt` (client ms) and `syncedAt: serverTimestamp()`; never a `set()` (a missing
     account is `not-found`, not recreated); 20 s timeout as other writes (`'unconfirmed'`); never throws.
@@ -365,15 +388,37 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
     `saveUsername(value)` (notifies "Username saved." as `success`), `promptUsername()`; `signedIn` is also true while
     the log expects a session that is not lost (gate `open` / `first-sync` / `first-sync-failed`), so the header shows
     the account control at the first frame; `statusLine` reads "Syncing…" until the restore finishes.
-  - **Username rules (pure, `web/src/app/shared/account/username.ts`):** `normalizeUsername`, `checkUsername(raw)` →
-    `{ ok: true, value } | { ok: false, error: 'empty' | 'too-long' | 'not-allowed' }`, `usernameLength` (the `n / 24`
-    counter), `graphemes` (`Intl.Segmenter`, code points as the fallback), `usernameInitial`, `USERNAME_TEXT`.
-  - **Theme (SYNC-157, 158):** `THEME_KEY = 'device-theme'` (`web/src/app/shared/theme/theme.ts`), values `light` /
-    `dark`, absent = System; `parseTheme()`. `ThemeService` (`core/theme/theme.service.ts`): `choice` signal and `set()`;
-    writes `html[data-theme]` and both `theme-color` metas; follows the `storage` event. The inline script in
-    `web/src/index.html` sets `data-theme` before the first paint (a future CSP needs its hash). `styles.scss`: the light
+  - **Username rules (pure, `web/src/app/shared/account/username.ts`, SPEC-010 v0.15 SYNC-153):**
+    `normalizeUsername` (NFC, trim, collapse every `\p{Zs}` run to one space), `checkUsername(raw)` →
+    `{ ok: true, value } | { ok: false, error: 'empty' | 'too-long' | 'not-allowed' }` (order: empty, then over
+    `USERNAME_MAX` = 20 code points, then not matching `^[\p{L}\p{Nd}][\p{L}\p{Mn}\p{Mc}\p{Nd} ._'’-]*$` (`u`) or
+    holding a variation selector), `usernameLength` (the `n / 20` counter: code points of the normalized value),
+    `graphemes` (`Intl.Segmenter`, code points as the fallback; used only for `usernameInitial`, never for counting),
+    `usernameInitial`, `USERNAME_TEXT` (`tooLong` "Use 20 characters or fewer.", `notAllowed` "Use letters, numbers,
+    spaces and . _ - ' only. No emoji."). The dialog closes on a Save of the unchanged value before checking it, so a
+    stored v0.14 name that breaks the v0.15 rules is never rewritten unless the user changes it.
+  - **Theme (SYNC-157, 158; v0.17.0 light/dark toggle, H-246):** `THEME_KEY = 'device-theme'`
+    (`web/src/app/shared/theme/theme.ts`). `ThemeChoice = 'light' | 'dark'` (no System). Pure: `parseTheme(raw)` →
+    `ThemeChoice | null` (`null` = nothing stored, also for `system` or junk); `effectiveTheme(stored, osPrefersLight)`
+    (stored wins, else the OS); `toggledTheme(effective)` (the opposite). `ThemeService` (`core/theme/theme.service.ts`):
+    `effective` signal (stored value, else `matchMedia('(prefers-color-scheme: light)')`, followed live by a `change`
+    listener) and `toggle()` (stores and applies the opposite of `effective`); an unknown stored value is removed on
+    read; writes `html[data-theme]` (absent while nothing is stored) and both `theme-color` metas; follows the
+    `storage` event. The control is `ThemeToggle` (`app-theme-toggle`, `core/theme/theme-toggle.ts`): a native button
+    named "Dark theme" with `aria-pressed`, icon `dark_mode` / `light_mode` (`shared/icon.ts`), `matTooltip`, rendered
+    in the header's `.header-actions` before the deferred account menu (not deferred). Removed: `ThemeSwitch`
+    (`app-theme-switch`), `THEME_CHOICES`, `ThemeService.choice` / `set()`, the menu Theme group. The inline script in
+    `web/src/index.html` sets `data-theme` before the first paint, only for `light` / `dark`, and removes any other
+    value (a future CSP needs its hash). `styles.scss`: the light
     tokens are the `light-tokens` mixin, applied by `@media (prefers-color-scheme: light) :root:not([data-theme='dark'])`
     and by `:root[data-theme='light']`; an explicit choice sets `color-scheme`.
+  - **Phone account tab (SYNC-150 g, H-246):** `AccountTab` (`core/sync/account-tab.ts`, root service) holds
+    `template: signal<TemplateRef | null>`. `AccountMenu` (still one instance, deferred in the header, one
+    `SyncService.start()`) declares the tab button in `<ng-template #accountTab>` and hands it over after its first
+    render; the app shell renders it with `ngTemplateOutlet` in the tab bar's fourth `li.tab-account` (empty until
+    then). Both triggers (`.account-trigger` in the header, `.account-tab` in the bar) open the same `mat-menu`; it
+    opens `above` while `matchMedia('(max-width: 40rem)')` matches. Dialogs opened from the menu return focus to the
+    trigger that opened it. The username prompt returns focus to whichever of the two is displayed.
   - **Dialogs** (`core/sync/account-dialogs.ts`): `UsernameDialog` (data `{ mode: 'choose' | 'change' | 'add', current,
     online, ready, save }`, closes with the saved name or nothing; `disableClose`, Escape closes) and `AccountInfoDialog`
     (data `{ username, online, deletionError, editUsername(opener), deleteAccount(opener) }`). The SYNC-095 dialog now
@@ -415,6 +460,31 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
 - **Dev only:** `localStorage['rift.dev.sample'] = 'large'` makes `CardData` return a generated
   5,000-entry catalog (`sample-data.ts`), set by the `/styleguide` sample loader.
 
+## Test data on live (SPEC-013, H-205)
+Not an endpoint and no new Firestore field: test data is ordinary account data told apart by reserved values
+([[Test Data]] TEST-030). No `firestore.rules` change (rules test `web/rules-tests/test-data.test.ts`).
+- **Marker and ids** (`web/src/app/shared/collection/test-data.ts`, pure, no generator import): `TEST_SETS`
+  (`small` 150, `large` 5000 entries), `TEST_MARKER_PREFIX = 'test-data-'`, `testMarker(n)`, `testEntries(catalogVersion)`
+  (`n` or null), `isTestCollection(c)` (≥ 1 card **and** the prefix; an empty collection never is),
+  `TEST_DECK_IDS` (`00000000-0000-4000-8000-00000000000{1,2,3}`, same as `sampleDeckId(1…3)`), `isTestDeck(d)` (reserved
+  id **and** the prefix, so the dev tool's `catalogVersion: 'sample'` decks are not test decks), `canLoadTestData(c)`,
+  `planTestLoad(sample, n, locks, nowIso)`, `planTestRemove(collection, decks, locks, nowIso, { removeCollection? })`,
+  and the spec strings `TEST_TEXT`.
+- **Operations** (`web/src/app/core/test-data/test-data-ops.ts`, over the **tracked** stores `collection`, `decks`,
+  `locks` only): `loadTestData(stores, 'small'|'large', now) → 'ok' | 'real-cards'` (decks by id: `create` when
+  missing, then always `update`, so a Load inside a just-removed deck's Undo window is still stamped; then the
+  collection `save(…, { replace: true })`, one `set()`; then the locks with the two test locks added);
+  `removeTestData(stores, now)` (locks without the test ids, the test decks deleted (tombstones after the 10 s Undo
+  window), the collection saved with `cards: {}` and `catalogVersion: ""`: one `update()` with a tombstone per card);
+  `removeTestDecks(stores, now)`: the TEST-033 part for a Replace import (test decks and their locks only). **The
+  import commit is not built yet (imports can't save); when it is, a Replace must call `removeTestDecks` in the same
+  commit** (H-233).
+- **Catalog** (`CardData.loadCatalog()`): reads the stored collection (`stores.raw.collection`, read only); with the
+  marker it returns `generateLargeSample(n).catalog` (dynamic import, its own lazy chunk), with no `/api` call and no
+  dev key; the cached catalog follows the marker (a Remove goes back to `/api`). The dev key path is unchanged.
+- **Flag:** `environment.testDataEnabled` (true in `environment.ts` and `environment.development.ts`), injected as
+  `TEST_DATA_ENABLED` (`core/test-data/test-data-flag.ts`). False hides Load and Change set; the banner and Remove stay.
+
 ## Builds and deploys (SPEC-010 SYNC-007, SYNC-012, H-078)
 - **`appVersion` per build (SYNC-012).** `web/scripts/build.mjs` computes it and passes it to `ng build` as the
   define `APP_VERSION` (nothing is written into the source tree). Format `web-<prod|preview>-<id>`: `<id>` is
@@ -442,6 +512,59 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   `deploy:preview` started it (env `RIFT_PREVIEW_CHANNEL`), so `firebase deploy --config firebase.preview.json`
   cannot put a preview build on `live`. **Preview URLs are public to anyone who has the link:** share them
   privately and let them expire.
+
+## Release changelog, "What's new" (SPEC-012, H-202)
+- **Data:** `web/src/app/core/changelog/changelog.json`, a JSON array of `ChangelogEntry` (`version` `0.0.X`,
+  `date` `YYYY-MM-DD` or `null`, `title`, `bullets`), newest first. Imported at build time (no fetch); the page reads
+  it through the `CHANGELOG_DATA` token (`core/changelog/changelog-data.ts`) so tests can provide other data.
+- **Pure logic:** `web/src/app/shared/changelog/changelog.ts`: `entryErrors` (LOG-031 fields + LOG-022 limits and
+  the hash guard), `showableEntries` (LOG-024: the page shows only entries with no `entryErrors`, in file order),
+  `validateChangelog` (LOG-041 whole-file rules, used by the data unit test), `formatReleaseDate` (LOG-021).
+- **Page:** `/changelog` (`pages/changelog/changelog-page.ts`), public, injects nothing from sync (no Firebase, no
+  storage). Linked from the footer row and the account menu (after Privacy notice, before the last divider; no Theme group since H-246).
+- **Release check (LOG-053):** `npm --prefix web run check:changelog-release` (`web/scripts/check-changelog-release.mjs`,
+  pure logic in `web/scripts/changelog-release.mjs`) exits 1 with `Changelog has an undated entry: set its date before
+  releasing.` while any `date` is `null`, and on a file that is not a JSON array; 0 otherwise. Not part of test, lint
+  or either build. The GitHub Actions deploy of `main` runs it right after `npm ci`, before the deploy step.
+- **Release step (LOG-042), in the `dev` → `main` release PR:** add the new entry on top with version = previous + 1
+  (or, for `0.0.1`, set its `date`); fill every `null` date with the release day; read the bullets once for plain
+  words (title 1–60 characters, 1–5 bullets of 1–140); then run `npm --prefix web run check:changelog-release` and
+  `npm --prefix web test -- --watch=false` before merging. Preview deploys get no entry. The release version is never
+  injected into the build or `appVersion` (LOG-043).
+
+## Privacy notice (SPEC-010 SYNC-101, SYNC-103, SYNC-104, H-180)
+- **Notice text source (the one file the SYNC-101 checks scan):** `web/src/app/core/privacy/privacy-notice.md`, the
+  text of [[Privacy Notice Draft]] "Proposed page text" with the **Confirm** markers and the notes for RJ removed
+  (the built page shows none), `[set on release: date dev → main ships sign-in]` kept as written, and "the What's new
+  page" linked to `/changelog` (SYNC-103 item 3). A Markdown subset: `#` (the one `<h1>`), `##`, paragraphs, `- `
+  lists, `**strong**`, `*em*`, `` `code` ``, `[text](href)` (`/…` = in-app same-tab link, `mailto:` for the support
+  address). Bundled at build time (`import … with { loader: 'text' }`, typed by `web/src/markdown.d.ts`); nothing is
+  fetched. Exposed through the `PRIVACY_NOTICE_TEXT` token (`core/privacy/privacy-notice-text.ts`) so tests can
+  provide other text.
+- **Pure parser:** `web/src/app/shared/privacy/notice-markdown.ts` (`parseNoticeMarkdown`, `parseNoticeInline`):
+  blocks of text parts; the page binds text, never HTML. Other bracketed text stays text.
+- **Page:** `/privacy` (`pages/privacy/privacy-page.ts`), tab title `Privacy notice · Rift Builder`, public, injects
+  nothing from sync (no Firebase, no storage, no request). The paragraph under the `<h1>` is the date line.
+- **Links:** footer (`.footer-links`, first, before What's new; `routerLinkActive` + `aria-current="page"`); account
+  menu (`<a mat-menu-item routerLink="/privacy">` after Account Information (no Theme group since H-246), before What's new and the last divider;
+  enabled offline and during an unfinished deletion); sign-in dialog (`.fine-print` line under the form in every
+  state: `AGE_LINE` "For ages 16 and over." then `<a href="/privacy" target="_blank" rel="noopener">Privacy notice</a>`,
+  described by a visually hidden "Opens in a new tab.").
+- **Check 1 (every build and the unit tests):** `web/scripts/privacy-notice-checks.mjs` `findNoticeBlanks` returns the
+  case-sensitive substrings `[RJ` / `[builder` found in the notice file. `web/scripts/build.mjs` (so `npm run build`,
+  `build:preview` and both hosting predeploys) exits 1 with `Privacy notice has unfilled blanks: "[RJ" in
+  src/app/core/privacy/privacy-notice.md.` before `ng build`; `src/tooling/privacy-notice-checks.spec.ts` runs it on the
+  real file. Markdown links, template bindings and the release-day date never match.
+- **Check 2 (release step and production deploy only):** `npm --prefix web run check:privacy-release`
+  (`web/scripts/check-privacy-release.mjs`, pure `checkPrivacyRelease`) exits 1 with `Privacy notice still has "[set on
+  release": replace it with the release date (effective and last updated) before releasing.` while the marker remains;
+  0 otherwise. Run by: the GitHub Actions deploy of `main` (step after the changelog check, before the deploy) and the
+  first `firebase.json` hosting predeploy (so a local `firebase deploy --only hosting` is held too). Not run by
+  `npm run build`, test, lint or the preview deploy (`firebase.preview.json`).
+- **Release step (SYNC-101), in the `dev` → `main` release PR:** replace both `[set on release: …]` markers in
+  `privacy-notice.md` with the release day (`YYYY-MM-DD`), then run `npm --prefix web run check:privacy-release`. Only
+  after RJ has approved [[Privacy Notice Draft]]. Manual (AC 70): if DevTools shows any card image loaded from a host
+  other than Rift Builder's own hosting, the notice must already name it in "Who receives it" (SYNC-103 item 9).
 
 ## Changelog
 - v0: created
@@ -484,10 +607,29 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.21 (2026-11-25, H-246, SPEC-010 v0.17.0): no endpoint change. Theme: `ThemeChoice` is `light` | `dark`,
+  `parseTheme` returns `null` for anything else, new `effectiveTheme` / `toggledTheme`, `ThemeService.effective` and
+  `toggle()` replace `choice` / `set()`, unknown stored values are removed; `ThemeToggle` replaces `ThemeSwitch`. New
+  `AccountTab` (phone account tab template). The account menu has no Theme group.
+- v1.20 (2026-11-25, H-180, SPEC-010 v0.15.1): no endpoint change. New "Privacy notice" section: the notice text
+  file, `PRIVACY_NOTICE_TEXT`, the Markdown subset parser, `/privacy`, its three links, SYNC-101 check 1 (in
+  `build.mjs`) and check 2 (`check:privacy-release`, `main` workflow and `firebase.json` predeploy), the release step.
+- v1.19 (2026-11-25, H-213, SPEC-010 v0.16.0): no endpoint change. Firestore rules: `validUsername` (SYNC-160)
+  checks the allowed set and 1 to 20 code points with RE2 `matches()` when `username` changes (unchanged names
+  pass, create still denies it); replaces the v0.15 length-only check. Shared test data `username-cases.ts`; the
+  H-183 `size()` probe moved to `lastClientVersion`. Emulator-verified; production `unverified`.
+- v1.18 (2026-11-25, H-202, SPEC-012 0.1): no endpoint change. New "Release changelog" section: `ChangelogEntry`,
+  `CHANGELOG_DATA`, the pure changelog rules, the `/changelog` page, `check:changelog-release` and the release step.
+- v1.17 (2026-11-25, H-207, SPEC-010 v0.15.0): no endpoint change. Username: client 20 NFC code points and the
+  SYNC-153 (4) allowed set (no emoji), counter `n / 20`, `USERNAME_MAX` replaces `USERNAME_MAX_GRAPHEMES` /
+  `USERNAME_MAX_UNITS`; rules `size()` 1 to 80 (was 2000), checked only when `username` changes.
 - v1.16 (2026-11-25, H-176, SPEC-010 v0.14.1): no endpoint change. New "Header account, username, theme, imports
   from their pages" note: `AccountDoc.username?`, `StoredSyncLog.username?`, `RemoteStore.setUsername`,
   `EngineDeps.onAccountCreated`, the rules' create / update split for `username` (`string.size()` counts UTF-16 units
   on the emulator), `device-theme`, the `/import` route and page removed, one-shot `?add=1` / `?import=1`.
+- v1.19 (2026-11-25, H-205, SPEC-013 0.1.2): no endpoint change. New "Test data on live" note: the `test-data-<n>`
+  marker and reserved deck ids, the pure plans, `loadTestData` / `removeTestData` / `removeTestDecks` over the tracked
+  stores, `CardData` serving the generated catalog for a marked collection, `environment.testDataEnabled`.
 - v1.15 (2026-11-25, H-172, SPEC-010 v0.12 account-only): no endpoint change. Removed: the `signInEnabled`
   environment flag, `SIGN_IN_ENABLED`, `environment.preview.ts` (preview builds `environment.ts`),
   `SignInGate.offerDeleteLocalData`, `BrowserStores.clearCollectionData()`, `COLLECTION_DATA_KEYS`. Changed:

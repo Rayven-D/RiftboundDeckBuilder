@@ -1,5 +1,5 @@
 /**
- * SPEC-010 v0.14 SYNC-155 / SYNC-156 (H-176): `FirestoreRemoteStore.setUsername()` and the username in
+ * SPEC-010 v0.14 / v0.15 SYNC-155 / SYNC-156 (H-176, H-207): `FirestoreRemoteStore.setUsername()` and the username in
  * `getAccount()`, against the Firestore emulator with the real rules (`npm run test:rules`). AC 22, AC 74, AC 76.
  */
 import { readFileSync } from 'node:fs';
@@ -11,8 +11,8 @@ import { FirestoreRemoteStore } from '../src/app/core/sync/adapters/firebase-ada
 import { checkUsername } from '../src/app/shared/account/username';
 
 const T = Timestamp.fromDate(new Date('2026-11-23T12:00:00Z'));
-/** 👨🏽‍👩🏽‍👧🏽‍👦🏽 */
-const FAMILY = '\u{1F468}\u{1F3FD}\u{200D}\u{1F469}\u{1F3FD}\u{200D}\u{1F467}\u{1F3FD}\u{200D}\u{1F466}\u{1F3FD}';
+/** U+1D400 MATHEMATICAL BOLD CAPITAL A: 20 of them is the widest name the client accepts (40 UTF-16 units). */
+const BOLD_A = '\u{1D400}';
 
 let env: RulesTestEnvironment;
 const db = (uid: string): Firestore => env.authenticatedContext(uid).firestore() as unknown as Firestore;
@@ -58,8 +58,8 @@ describe('SYNC-155 / SYNC-156 FirestoreRemoteStore.setUsername against the emula
     expect((await remote.getAccount('uA'))?.username).toBe('RJ Smith');
   });
 
-  it('AC 22 / AC 74 the worst name the client accepts (24 × the skin-tone family emoji) is written', async () => {
-    const name = FAMILY.repeat(24);
+  it('AC 22 / AC 74 / AC 76 the widest name the client accepts (20 × U+1D400) is written: no permission-denied', async () => {
+    const name = BOLD_A.repeat(20);
     expect(checkUsername(name).ok).toBe(true);
     expect(await new FirestoreRemoteStore(db('uA')).setUsername('uA', name)).toBe('ok');
     expect((await stored())?.['username']).toBe(name);

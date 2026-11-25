@@ -2,6 +2,7 @@
   "hosting": {
     "public": "web/dist/web/browser",
     "predeploy": [
+      "npm --prefix web run check:privacy-release",
       "npm --prefix web run build"
     ],
     "ignore": [
