@@ -132,6 +132,33 @@
   text-align: center;
 }
 
+/* SYNC-158 / LOG-010: the theme switch and the footer links share one row, wrapping on narrow screens. */
+.footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2) var(--space-5);
+}
+
+.footer-links ul {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* LOG-071: each link at least 44px tall to tap. */
+.footer-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--font-size-sm);
+}
+
 /* Riot's required notice: wording kept as Riot gives it, set small so it takes one or two lines. */
 .legal {
   max-width: 100ch;

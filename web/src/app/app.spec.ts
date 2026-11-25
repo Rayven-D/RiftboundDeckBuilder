@@ -47,6 +47,30 @@ describe('App', () => {
     expect(footer.querySelector('.legal')).not.toBeNull();
   });
 
+  it("SPEC-012 LOG-010 / LOG-012 / AC 2 the footer has a real What's new link to /changelog in the theme switch's row, same tab", async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const footer = (fixture.nativeElement as HTMLElement).querySelector('footer')!;
+    const links = Array.from(footer.querySelectorAll<HTMLAnchorElement>('.footer-row a'));
+    const link = links.find((a) => a.textContent?.trim() === "What's new")!;
+    expect(link.getAttribute('href')).toBe('/changelog');
+    expect(link.getAttribute('target')).toBeNull();
+    expect(link.closest('.footer-row')?.querySelector('app-theme-switch')).not.toBeNull();
+    link.click();
+    await fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/changelog');
+  });
+
+  it("SPEC-012 LOG-012 What's new is not in the main tabs or the phone tab bar", async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+    for (const nav of ['.site-nav', 'nav.tab-bar']) {
+      expect(el.querySelector(nav)?.textContent).not.toContain("What's new");
+      expect(el.querySelector(`${nav} a[href="/changelog"]`)).toBeNull();
+    }
+  });
+
   it('should show the Legal Jibber Jabber notice in the footer', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
