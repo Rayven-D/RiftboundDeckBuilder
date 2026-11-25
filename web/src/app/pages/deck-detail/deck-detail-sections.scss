@@ -1,0 +1,300 @@
+// Deck detail, second stylesheet (kept apart for the per-file component style budget): the section bar, view toggle,
+// sections, the desktop panel and the loading skeleton. Tokens and shared helpers are in deck-detail.scss.
+// ---- section bar + view toggle (OWN-110, OWN-114), sticky under the site header
+.deck-bar {
+  position: sticky;
+  top: var(--header-height);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--deck-bar);
+  margin: 0 calc(-1 * var(--content-gutter)) var(--space-2);
+  padding: var(--space-1) var(--content-gutter);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+  backdrop-filter: blur(12px) saturate(1.2);
+}
+
+.section-nav {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  ul {
+    display: flex;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    flex: none;
+    scroll-snap-align: start;
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 var(--space-2);
+    border-bottom: 2px solid transparent;
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+    white-space: nowrap;
+
+    &:hover {
+      color: var(--color-accent-text);
+    }
+
+    &.empty {
+      color: var(--color-text-muted);
+    }
+
+    &[aria-current='location'] {
+      border-bottom-color: var(--color-accent-text);
+      color: var(--color-accent-text);
+      font-weight: 600;
+    }
+
+    @media (pointer: coarse), (max-width: 39.99rem) {
+      min-height: 44px;
+    }
+  }
+}
+
+.view-toggle {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 36px;
+    padding: 0 var(--space-3);
+    border: 0;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+
+    & + button {
+      border-inline-start: 1px solid var(--color-border-strong);
+    }
+
+    &:hover {
+      background: var(--color-surface-raised);
+    }
+
+    &[aria-pressed='true'] {
+      background: var(--color-accent);
+      color: var(--color-accent-contrast);
+      font-weight: 600;
+    }
+
+    &:focus-visible {
+      outline-offset: -2px;
+    }
+
+    app-icon {
+      font-size: 18px;
+    }
+
+    @media (pointer: coarse), (max-width: 39.99rem) {
+      min-width: 44px;
+      min-height: 44px;
+      justify-content: center;
+    }
+  }
+
+  // Phones: icon-only, the label stays the accessible name.
+  @media (max-width: 39.99rem) {
+    button {
+      padding: 0 var(--space-2);
+    }
+
+    .toggle-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+}
+
+// ---- sections and the desktop panel (OWN-110, OWN-111)
+.layout--panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--deck-aside);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.zone {
+  margin-top: var(--space-5);
+}
+
+.zone-title {
+  margin: 0 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-lg);
+  scroll-margin-top: calc(var(--header-height) + var(--deck-bar) + var(--space-3));
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-focus);
+  }
+
+  .muted {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.empty-zone {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.grid,
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--tile-min), 1fr));
+  gap: var(--space-4);
+
+  @media (max-width: 39.99rem) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+
+  @media (max-width: 18rem) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  > li {
+    min-width: 0;
+  }
+}
+
+.rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: var(--space-2);
+
+  @media (max-width: 39.99rem) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  > li {
+    min-width: 0;
+  }
+}
+
+.panel {
+  position: sticky;
+  top: calc(var(--header-height) + var(--deck-bar) + var(--space-4));
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100svh - var(--header-height) - var(--deck-bar) - 2 * var(--space-4));
+  margin-top: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.tabs {
+  display: flex;
+  flex: none;
+  border-bottom: 1px solid var(--color-border);
+
+  button {
+    flex: 1;
+    min-height: 44px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--color-text);
+    }
+
+    &[aria-selected='true'] {
+      border-bottom-color: var(--color-accent-text);
+      color: var(--color-accent-text);
+    }
+
+    &:focus-visible {
+      outline-offset: -2px;
+    }
+  }
+}
+
+.tabpanel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4);
+
+  &:focus-visible {
+    outline-offset: -2px;
+  }
+}
+
+// ---- loading (OWN-119 (a)): no shimmer
+.loading {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.skeleton-title {
+  width: min(24rem, 70%);
+  height: 2rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.skeleton-heading {
+  width: 12rem;
+  height: 1.5rem;
+  margin-top: var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.skeleton-tile {
+  aspect-ratio: var(--card-aspect-ratio);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}

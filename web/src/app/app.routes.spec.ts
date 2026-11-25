@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { By } from '@angular/platform-browser';
 import { routes } from './app.routes';
+import { DeckDetail } from './pages/deck-detail/deck-detail';
 import { provideOpenGate } from './core/sync/testing/open-gate';
 
 describe('routes', () => {
@@ -37,7 +39,8 @@ describe('routes', () => {
 
   it('passes the deck id route param into the deck detail page', async () => {
     const harness = await RouterTestingHarness.create('/decks/abc');
-    expect(harness.routeNativeElement?.textContent).toContain('Deck abc');
+    const detail = harness.routeDebugElement!.query(By.directive(DeckDetail));
+    expect(detail.componentInstance.deckId()).toBe('abc');
   });
 
   it('redirects unknown paths to the home page', async () => {

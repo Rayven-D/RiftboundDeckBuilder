@@ -58,6 +58,8 @@ import { OwnershipState } from './ownership';
       inset: 0;
       filter: grayscale(1) brightness(0.55);
       clip-path: inset(0 0 0 calc(var(--fill) * 100%));
+      /* OWN-035: a fill that changes while shown eases over --dur-fill (set by Deck detail, 180ms); 0 elsewhere. */
+      transition: clip-path var(--dur-fill, 0ms) var(--ease-out);
     }
     .art--full .dimmed {
       display: none;
@@ -74,6 +76,7 @@ import { OwnershipState } from './ownership';
       top: 0;
       bottom: 0;
       left: calc(var(--fill) * 100%);
+      transition: left var(--dur-fill, 0ms) var(--ease-out);
       width: 1px;
       background: rgb(255 255 255 / 85%);
     }

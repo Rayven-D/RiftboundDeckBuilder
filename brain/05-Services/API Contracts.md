@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.25
+version: 1.27
 ---
 # API Contracts
 
@@ -558,6 +558,39 @@ writes nothing (DECK-003).
 - **Not built:** legality in the review (DECK-050…056, no SPEC-002 engine or ban data in `web/`), fuzzy suggestions
   (DECK-043, IMP-026…030, H-272), the optional leading article (CARD-034), deck codes / TTS (DECK-012, DECK-039, H-047).
 
+## Deck detail (SPEC-005 OWN-010…119, SPEC-006 DECK-081…085, SPEC-008 SHARE-024/025; H-254)
+Not an endpoint. `/decks/:id` reads and writes through the **tracked** stores only; no new stored shape.
+- **Pure logic** (`web/src/app/shared/deck-detail/detail-view.ts`): `headerSummary(view)` → `{ copies, percent, cards }`
+  (`percent` is `view.summary.completionPercent` as it is, `null` → no percentage at all; locked decks read
+  "… copies locked in"); `sectionCounts`, `navLabel` (Legend and Champion show no count); `cardId(card)` =
+  `` `${zone}:${cardKey}` ``, `deckCards`, `firstCardId` (OWN-111 (b)), `findCard`, `neighbourId`; card text
+  `labelParts`, `banText`, `cardAccessibleName`, `allocationLine`, `breakdownLines`, `printingRowText/Label`,
+  `otherUseText`, `cardFacts`, `fullArtUrl`; missing list `missingGroups`, `missingCopies`, `mergedMissingText`
+  ("Copy as one list": one line per card, sections merged, Riot order); `exportDeckText(deck, catalog)` /
+  `exportFileName` (DECK-085); `duplicateDeck(deck, id, now)` (DECK-084: `<name> (copy)` within 80 characters,
+  the name is shortened to keep the suffix, `duplicatedFrom`, never locked); `applyRename(deck, form, sourceOf)` →
+  `{ status: 'ok', deck, changed: { name, other } } | { status: 'invalid', errors }` (OWN-118: name, description,
+  and for user decks source text and URL via `deckSource()`; tournament sources never change; lock untouched);
+  `isReadOnlyDeck`, `newerDeckRecord(raw, id)` (OWN-064: a record with a newer `schemaVersion` the store refuses
+  is shown read-only); `ruleCheckContent`; `DECK_VIEW_KEY = 'deck-view'` + `parseViewMode` (OWN-114, a device
+  setting outside `rift.*`, so not synced and not cleared on sign-out). Copy strings in `DETAIL_TEXT`,
+  `RENAME_TEXT`, `RULE_CHECK_TEXT`.
+- **Page** (`web/src/app/pages/deck-detail/deck-detail.ts`, `DeckDetail`): reads deck, all decks, locks
+  (unreadable → `locksIgnored`), collection + tags (unreadable → ownership unavailable, OWN-062), printing codes,
+  catalog (`CardData.loadCatalog`, error → banner + stored names, OWN-063) and bans (`CardData.loadBans`, null or
+  error → one page notice, OWN-015); `computeSharedPool` over every deck, then `computeDeckOwnership` and
+  `summarizeDeck`. Re-reads on `storage` events for `rift.*` keys (not view state), `DeckImport.saved`,
+  `CollectionImport.written`, and on focus/visibility when the date changed (OWN-119 (d)). Injection tokens
+  `RAW_DECK_RECORD: (id) => string | null` (raw read for the read-only path) and `DEVICE_STORAGE` (view mode),
+  replaceable in tests.
+- **Writes:** Rename → `stores.decks.update(deck, basedOnUpdatedAt)` (`'conflict'` → `DETAIL_TEXT.saveConflict`, the
+  dialog stays open); Duplicate → `stores.decks.create(copy)`, snack "Deck duplicated." / Open; Delete →
+  `stores.decks.delete(id)`, then the deck's lock is removed (`locks.save`), navigate to `/decks`, snack "Deck
+  deleted." / Undo for 10 s; Undo → `stores.decks.create(removed)` (unlocked, SHARE-024) then
+  `DeckImport.saved.next(removed)` so an open list re-reads. Read-only decks: Rename, Duplicate and Delete disabled.
+- **Not built here:** lock controls and badge (H-060; slots marked `TODO(H-060)` in `deck-detail.html`), legality
+  (no SPEC-002 engine in `web/`: always "Not fully checked"), real ban data (`loadBans()` is null).
+
 ## Test data on live (SPEC-013, H-205)
 Not an endpoint and no new Firestore field: test data is ordinary account data told apart by reserved values
 ([[Test Data]] TEST-030). No `firestore.rules` change (rules test `web/rules-tests/test-data.test.ts`).
@@ -705,6 +738,9 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.27 (2026-11-25, H-254, SPEC-005 0.10.2, SPEC-006 0.11.1): no endpoint change and no stored-shape change. New section
+  "Deck detail": the pure helpers in `shared/deck-detail/detail-view.ts`, the page's reads, reload triggers and writes
+  (rename, duplicate, delete + Undo), and the device setting `deck-view`. (v1.26 is H-060's.)
 - v1.25 (2026-11-25, H-311, SPEC-005 0.10.2): no endpoint change and no stored-shape change. `DeckOwnershipView.summary`
   gains `completionFill` and `completionPercent` (OWN-101); `DeckTileSummary` gains `legend`, `completionFill`,
   `completionPercent`, `bans` (`DeckTileBans`), `pilot` and `readOnly` (OWN-100…104); new pure `completionPercent(a, r)`.
