@@ -49,3 +49,16 @@ Still failing:
 Minor (non-blocking): B11 and the content section say "as of 2026-11-23" for the 14/7 totals, while fact 8 was observed 2026-11-24 (the Source column keeps 2026-11-24).
 
 Non-blocking researcher follow-ups unchanged (filed as H-192).
+
+## Attempt 3 (2026-11-25)
+
+Result: **PASS**.
+
+Checked with `git diff 8e425a4` (uncommitted): only Deck Legality (B11, "2v2 content", AC 22, Open question 9) and the Deck Legality changelog line changed. Nothing else.
+
+- AC 22 failure fixed: the pre-Radiance counts (1 legend, 6 cards, 5 battlefields) are now stated "as of 2026-11-22" only, with "counts for earlier dates are not checked (Open question 9, H-169)". The same wording is in B11, the content section and Open question 9. grep for "before 2026-11-23", "any date before", "prior to" and "until 2026-11-23" finds no dated count left in the spec. 6/5 as of 2026-11-22 follows from [[Ban List]] fact 8 (14-8 cards, 7-2 battlefields) with the wave effective 2026-11-23 (fact 5), so it is not an over-claim.
+- AC 22 query as of 2026-11-23 for 14 cards / 7 battlefields: consistent with the wave's effective date 2026-11-23 being inclusive (LEGAL-B02, B12), and with B09's Standard count as of the same date.
+- B11 and the content section now give the 14/7 totals "as of 2026-11-24 (observed; Radiance effective 2026-11-23)", matching fact 8's as_of. Minor from attempt 2 resolved.
+- V-009: the diff adds no new wikilinks; AC 22 keeps Given/When/Then.
+
+Non-blocking: the archived changelog line for 0.4 still describes the attempt-2 correction as "14 cards ... as of 2026-11-23; ... 6 cards, 5 battlefields before", which is history text and not the spec (it carries an attempt-3 parenthetical). Optional tidy by spec-writer.
