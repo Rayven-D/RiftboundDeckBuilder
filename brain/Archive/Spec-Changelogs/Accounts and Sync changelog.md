@@ -9,6 +9,12 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.11.1 (2026-11-25, merge of the nightly `/board` line into the v0.11 line): metadata only. Dependency pins
+  SPEC-003 0.10, SPEC-004 0.5, SPEC-005 0.5.1, SPEC-006 0.7, SPEC-007 0.10, SPEC-008 0.4.2 (SPEC-009 withdrawn).
+  Impacts: the v0.7 items H-071 applied are marked applied; the v0.8 per-mode wording, COLL-074 by mode and the
+  gate notes are left for H-160. The nightly line had numbered this pin update 0.6.1 (from 0.6); 0.6.1 never
+  existed on the v0.7…v0.11 line. No SYNC requirement changed.
+
 - 0.11 (2026-11-24, H-146, from [[Validation H-140 H-125 H-108]], [[Validation H-113 H-116 H-123 H-126]] and
   [[Validation H-145]]; documents the build, no behaviour change): **SYNC-006:** "disabled" for Send link, Send
   again and Use a different email means Material `disabledInteractive`: `aria-disabled="true"`, a press does

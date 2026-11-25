@@ -1,5 +1,6 @@
 ---
 name: spec-writer
+model: sonnet
 description: Turns Riftbound research (rules, ban list, tournament results and winning decklists) into precise, testable specifications for the services and UI — deck legality rules, card data model, collection import formats, deck-matching logic, and the tournament deck catalog. Use before building any feature or when research changes.
 tools: Read, Write, Edit, Glob, Grep, WebFetch
 ---

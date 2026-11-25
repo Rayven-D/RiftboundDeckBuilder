@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-006
-version: 0.6
+version: 0.7
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-003, SPEC-004, SPEC-008]
 consumers: [SPEC-005, SPEC-008]
@@ -30,12 +30,12 @@ as_of: 2026-11-23
 - DECK-050/051: SPEC-002 legality is shown and never blocks saving; ban status via `banStatus()`.
 - DECK-055: the verdict is not stored; it is computed as of today.
 - DECK-061/062/064: `TournamentDeckSource` defined here; default name `<Legend>: <pilot> (<placing>, <event>)` ≤ 80; "In your decks" / "Add another copy".
-- DECK-090/096: browser `DeckStore`; deck entries by `cardKey` only (no printing, ownership or tags).
+- DECK-090/096: browser `DeckStore` (synced when signed in, SPEC-010); deck entries by `cardKey` only (no printing, ownership or tags).
 - DECK-080/082/083/084 (v0.6): a **locked** deck (SPEC-008) can't change cards; Delete releases the lock;
   Undo and Duplicate give unlocked decks. Locks live in SPEC-008's `DeckLockStore`, not in `UserDeck`.
 
 **Shared types:** `UserDeck` · `DeckCard` (`cardKey`, name, qty) · `DeckSource` = `UserDeckSource | TournamentDeckSource` · `DeckZone` (= SPEC-002 `Zone`) · `DeckImportResult` · `ZoneQuestion` · `DeckStore`.
-**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3, [[Collection Import]] v0.8, [[Tournament Deck Catalog]] v0.5, [[Shared Cards and Lock-in]] v0.3 (lock rules for DECK-080/082…084). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
+**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3.1, [[Collection Import]] v0.10, [[Tournament Deck Catalog]] v0.5, [[Shared Cards and Lock-in]] v0.4.2 (lock rules for DECK-080/082…084). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
 **BLOCKED (needs research):**
 - Whether Piltover deck codes encode Legend, champion, runes and battlefields (DECK-039).
 - API type strings and champion/signature fields (via SPEC-001), so inference mostly asks zone questions.
@@ -175,7 +175,7 @@ information about a deck the user wants to build, so it never blocks (DECK-050).
 | DECK-071 | MUST | **Source** is optional, entered by the user: free text (≤ 200 chars) and/or a URL (≤ 2,048 chars, `http:` or `https:` only, otherwise warning `SOURCE_URL_INVALID` and stored as text). | board H-030 |
 | DECK-072 | MUST | **The app never fetches, previews, unfurls or loads anything from a source URL** (no request, no favicon, no iframe). It is shown as a plain link opened only by the user's click, with `rel="noopener noreferrer nofollow"`. | design rule; IMP-005; Out of scope |
 | DECK-073 | MUST | **Notes**: optional free text, ≤ 4,000 characters, shown as plain text (no HTML rendering). | design rule |
-| DECK-074 | MUST | `createdAt` is set on save; `updatedAt` on save and every later change (ISO 8601 UTC). | design rule |
+| DECK-074 | MUST | `createdAt` is set on save; `updatedAt` on save and every later change (ISO 8601 UTC, millisecond precision). `updatedAt` is **monotonic**: a save gets `updatedAt = max(now, previous updatedAt + 1 ms)`, where the previous version is the one this device last held (local or pulled), so an edit on a device whose clock is behind still beats the version it replaced. Example: previous `2026-11-24T10:00:00.500Z`, clock reads `…:00.200Z` → saved `2026-11-24T10:00:00.501Z`. DECK-094's conflict check is unchanged. | design rule; [[Accounts and Sync]] SYNC-031, SYNC-062 |
 | DECK-075 | MUST | `format` is `'standard'` for every deck in the MVP. | [[Deck Legality]] (MVP scope) |
 | DECK-076 | MUST | The deck records the `catalogVersion` (SPEC-001 CARD-068) it was resolved against and its `sourceFormat` (`riot-text`, `plain-text`, `piltover-code`, `tts`, `csv` (`.csv` or `.xlsx` upload, v0.4), `tournament`, `manual`). | [[Collection Import]] IMP-054 (same reason) |
 
@@ -205,7 +205,7 @@ information about a deck the user wants to build, so it never blocks (DECK-050).
 ### J. Storage
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| DECK-090 | MUST | Decks are stored **only in the user's browser**, with no account and no server copy, behind a `DeckStore` interface so another store can replace it later. The adapter choice (IndexedDB recommended for size; localStorage acceptable) is an implementation choice. | [[ADR-0005 MVP Product Defaults]] #1; [[ADR-0006 Two Imports - Collection and Decks]] consequences; [[ADR-0001 Tech Stack]] |
+| DECK-090 | MUST | Decks are stored **in the user's browser by default**, behind a `DeckStore` interface; when the user is signed in they are **also synced to their account** ([[Accounts and Sync]] SPEC-010, SYNC-018). Signed out there is no account and no server copy. The browser store stays the working copy. The adapter choice (IndexedDB recommended for size; localStorage acceptable) is an implementation choice. | [[ADR-0005 MVP Product Defaults]] #1; [[ADR-0006 Two Imports - Collection and Decks]] consequences; [[ADR-0001 Tech Stack]] |
 | DECK-091 | MUST | Each record has `schemaVersion: 1`. On load, older versions are migrated; a record with a **newer** version than the app knows is shown read-only and never overwritten. | design rule |
 | DECK-092 | MUST | Limits: at most **200 decks**; per deck at most **150 entries** (lines after merging) and **300 copies** in total. Over a limit → error `DECK_LIMIT` / `DECK_TOO_LARGE` at save, nothing written. (A legal deck with a full sideboard has 66 cards: 1 + 1 + 39 + 12 + 3 + 10, so the caps leave room for illegal work-in-progress decks.) | [[Deck Construction Rules]] summary; design rule |
 | DECK-093 | MUST | Writes are atomic per deck: a failed write (e.g. quota exceeded → `STORAGE_FULL`) leaves the previous record intact and tells the user. | design rule |
@@ -537,4 +537,4 @@ shown in the display format (`Nov 23, 2026`).
   and the label "Not fully checked".
 
 ## Changelog
-Current: 0.6 (2026-11-23, H-058; H-067 and H-050 dependency pins, no requirement change). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.
+Current: 0.7 (2026-11-24, H-071: DECK-074 monotonic `updatedAt`; DECK-090 browser by default, synced when signed in). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.

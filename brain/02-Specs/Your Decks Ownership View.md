@@ -1,12 +1,12 @@
 ---
 tags: [spec]
 id: SPEC-005
-version: 0.5
-status: draft
+version: 0.5.1
+status: review
 depends_on: [SPEC-001, SPEC-002, SPEC-004, SPEC-006, SPEC-007, SPEC-008]
 research: ["[[Ban List]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]", "[[Card Data & Images]]", "[[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]]", "[[2026-11 RC Europe - 5 - CTCG DZiden - Kai'Sa]]"]
 decisions: ["[[ADR-0003 Tournament Results Only]]", "[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
-board: H-007, H-097
+board: H-007, H-097, H-076
 as_of: 2026-11-24
 ---
 # SPEC-005: Your Decks Ownership View
@@ -39,7 +39,9 @@ as_of: 2026-11-24
   `DeckLockState` (SPEC-008). Defines `computeDeckOwnership()` →
   `DeckOwnershipView`, `OwnershipCard`, `DeckTileSummary`. Excluding tag names come from
   `DeckOwnershipInput.tags` (SPEC-007 `TagStore`).
-- **Depends on:** SPEC-001 v0.3, SPEC-002 v0.3, SPEC-004 v0.5, SPEC-006 v0.6, SPEC-007 v0.8, SPEC-008 v0.4.
+- **Ownership unavailable (v0.5.1, RJ to confirm, OWN-065):** locked decks keep their badge and lock filter, the
+  tile line reads "Ownership unavailable", and the deck is in its own filter group `unavailable`.
+- **Depends on:** SPEC-001 v0.3, SPEC-002 v0.3.1, SPEC-004 v0.5, SPEC-006 v0.7, SPEC-007 v0.10, SPEC-008 v0.4.2.
   Nothing is stored by this spec; everything is computed on display.
 - **Blocked / open:** foil as its own printing (SPEC-007 open question 1, H-020); card image aspect
   ratio and battlefield orientation in the API (OWN-081). Unknown card = 0 owned is a Claude default RJ
@@ -124,7 +126,7 @@ card fields are SPEC-001 ([[Card Data Model]]).
 | OWN-003 | MUST | Source line: for `source.kind === 'tournament'`: "`<placingLabel>`, `<eventName>` · `<eventStartDate>` – `<eventEndDate>`" (one date when equal; values verbatim, DECK-061), e.g. "1st, Regional Championship: Europe · Nov 6, 2026 – Nov 8, 2026". For `kind: 'user'`: the source text if any, else the URL as **plain text** (no fetch, no favicon, DECK-072), else "Imported". Wording stays neutral (no "top deck", "best", "meta"). | [[Deck Import]] DECK-061, DECK-071, DECK-072; [[Tournament Deck Catalog]] CAT-035, CAT-037 |
 | OWN-004 | MUST | Legality label from SPEC-002 evaluation of the deck (`toDeckInput`, `format`, region `global`, `asOf` = today), with **the same labels as SPEC-004 CAT-045 and SPEC-006 DECK-051**, rendered per SPEC-002 LEGAL-R08: `<format>` is the `FormatDef.name` of `deck.format` (**"Standard"** for `standard`; the id is never shown) and `<asOf>` uses the OWN-090 date format. Checked in this order: `illegal` → **"Not legal in `<format>` today"**; `incomplete` → **"Not fully checked"** (DECK-052; never shown as legal or with a legal colour/icon, LEGAL-R04); `legal` → **"Legal in `<format>` as of `<asOf>`"**, e.g. "Legal in Standard as of Nov 23, 2026". The CAT-045 historical label does not apply: a user deck is always checked as of today. If legality cannot be computed (catalog, ban or format data not loaded, so no `LegalityResult` or no `FormatDef`) the label is "Not fully checked". The verdict is computed on display, never stored (DECK-055). | [[Deck Legality]] LEGAL-R02, LEGAL-R04, LEGAL-R08, `FormatDef`; [[Tournament Deck Catalog]] CAT-045; [[Deck Import]] DECK-051, DECK-052, DECK-055; [[ADR-0006 Two Imports - Collection and Decks]] H-036 #7 |
 | OWN-005 | MUST | Default order: `updatedAt` descending (most recently changed first); ties by `createdAt` descending, then `id`. | design rule |
-| OWN-006 | SHOULD | Sort options: Last updated (default), Name A–Z (SPEC-007 COLL-034 name comparison), Date added (`createdAt`, newest first). Filters: text search on deck name (case- and accent-insensitive substring); legality (verdict `legal` / `illegal` / `incomplete`, options labelled with the OWN-004 labels without the date: "Legal in Standard", "Not legal in Standard today", "Not fully checked"); source (Imported / From Tournaments); ownership per SPEC-008 SHARE-051 (Ready to build / Partly available / None available, by the deck's `ownershipFilter` group; each deck is in exactly one group, and a locked deck that is not short is in none of the three options) and lock (Locked / Not locked). Sort and filters are reflected in the URL query (e.g. `?sort=name&legality=legal&own=ready`). | design rule; [[Shared Cards and Lock-in]] SHARE-051 |
+| OWN-006 | SHOULD | Sort options: Last updated (default), Name A–Z (SPEC-007 COLL-034 name comparison), Date added (`createdAt`, newest first). Filters: text search on deck name (case- and accent-insensitive substring); legality (verdict `legal` / `illegal` / `incomplete`, options labelled with the OWN-004 labels without the date: "Legal in Standard", "Not legal in Standard today", "Not fully checked"); source (Imported / From Tournaments); ownership per SPEC-008 SHARE-051 (Ready to build / Partly available / None available, by the deck's `ownershipFilter` group; each deck is in exactly one group, and a locked deck that is not short, or any deck while ownership is unavailable (OWN-065), is in none of the three options) and lock (Locked / Not locked). Sort and filters are reflected in the URL query (e.g. `?sort=name&legality=legal&own=ready`). | design rule; [[Shared Cards and Lock-in]] SHARE-051 |
 | OWN-007 | MUST NOT | The list offers no sort, filter, badge or label based on meta or community data: no play rate, win rate, popularity, tier, "trending", or comparison with other users' ownership. | [[ADR-0003 Tournament Results Only]] |
 | OWN-008 | MUST | Empty state (no decks): "No decks yet" with links to **Import → Deck Import** and **Tournaments**. A filter with no matches shows "No decks match these filters" and a "Clear filters" action. | design rule |
 
@@ -197,6 +199,7 @@ card fields are SPEC-001 ([[Card Data Model]]).
 | OWN-062 | MUST | If the collection cannot be read (SPEC-003 store unreadable or newer version, COLL-071), or the `StoredTags` from the `TagStore` cannot be read (so exclusions are unknown and a `DeckOwnershipInput` cannot be built), the deck view still shows every card with info and ban status, all tiles in full colour without count labels, and a banner "Ownership unavailable: your collection could not be read." No tile is darkened on missing data, and Lock in is disabled (SHARE-020). If only the **lock store** cannot be read, ownership is still shown with all locks ignored, per SPEC-008 SHARE-061. | design rule; [[Shared Cards and Lock-in]] SHARE-061 |
 | OWN-063 | MUST | If the catalog is not loaded, tiles show stored names only and the banner "Card data not loaded" is shown. `DeckOwnershipInput.catalog` (a `CollectionCatalogView`) is required by COLL-081, so ownership is not computed: tiles are shown as in OWN-062 (full colour, no count labels, nothing darkened). | [[My Collection]] COLL-081, `DeckOwnershipInput`; design rule |
 | OWN-064 | MUST | A deck record shown read-only by DECK-091 (newer schema) is still shown with ownership; edit actions are disabled. | [[Deck Import]] DECK-091 |
+| OWN-065 | MUST | **Locks and the deck tile when ownership is unavailable** (v0.5.1; RJ to confirm; applies in the OWN-062 and OWN-063 states). Locks come from the lock store, not from ownership: (a) `DeckOwnershipView.lock` is the SPEC-008 SHARE-053 state `{ locked: true, lockedAt, complete: false, short: false, cardsShort: [] }` for a deck with a stored lock, and `null` for a deck without one or when the lock store is unreadable (SHARE-061); it is **not** `null` just because ownership is unavailable. (b) The deck view and tile show the "Locked" badge (never "cards short") and the lock filter OWN-006 lists the deck under Locked. (c) The tile ownership line reads **"Ownership unavailable"** (OWN-002 replaces the "copies available" text; the tile has no count, and a locked deck does not read "locked in"). (d) `ownershipFilter` is **`unavailable`** for every deck (SHARE-051 rule 0): it matches none of Ready to build, Partly available, None available, so those three filters list no deck while ownership is unavailable; with no ownership filter chosen the deck is listed. (e) Lock in is disabled with `ownership-unavailable` and Unlock stays enabled (SHARE-020, SHARE-053). | RJ gate H-076; [[Shared Cards and Lock-in]] SHARE-020, SHARE-051, SHARE-053; OWN-062/063 |
 
 ### H. Recalculation
 | ID | Level | Requirement | Source |
@@ -225,13 +228,13 @@ card fields are SPEC-001 ([[Card Data Model]]).
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { UserDeck, DeckCard, DeckZone, DeckSource } from './deck-import';   // SPEC-006 v0.6
+import type { UserDeck, DeckCard, DeckZone, DeckSource } from './deck-import';   // SPEC-006 v0.7
 import type {
   DeckOwnership, DeckOwnershipInput, CollectionCatalogView, StoredTags, Tag, TagId,
-} from './my-collection';                                                       // SPEC-007 v0.8, COLL-081
-import type { SharedPool, CardUse, DeckLockState } from './shared-cards';     // SPEC-008 v0.4
+} from './my-collection';                                                       // SPEC-007 v0.10, COLL-081
+import type { SharedPool, CardUse, DeckLockState } from './shared-cards';     // SPEC-008 v0.4.2
 // v0.5: no isRuneEntry() (SPEC-009 withdrawn); rune entries are counted entries (OWN-028)
-import type { BanStatus, BanListFile, LegalityResult, FormatDef } from './deck-legality'; // SPEC-002 v0.3
+import type { BanStatus, BanListFile, LegalityResult, FormatDef } from './deck-legality'; // SPEC-002 v0.3.1
 import type { PlayableCard, Printing, CardCategory } from './card-data-model';   // SPEC-001 v0.3
 type CardKey = string;
 type IsoDate = string;                       // 'YYYY-MM-DD'
@@ -316,7 +319,8 @@ interface DeckOwnershipView {
   catalogVersion: string | null;
   ownershipAvailable: boolean;                // false → OWN-062 banner, no darkening
   locksIgnored: boolean;                      // SHARE-061 banner
-  lock: DeckLockState | null;                 // SPEC-008; null when ownership unavailable
+  lock: DeckLockState | null;                 // SPEC-008; null = no lock or lock store unreadable. With ownership
+                                              // unavailable a stored lock still gives the SHARE-053 state (OWN-065)
   sections: ZoneSection[];                    // ZONE_ORDER, all six (OWN-011)
   summary: {                                  // counted entries = every zone entry, Runes included (OWN-028)
     copiesRequired: number;                   // R
@@ -339,7 +343,8 @@ interface DeckTileSummary {
                                               // 'Not legal in Standard today', 'Not fully checked'
   ownershipLine: string;                      // '34 of 66 copies available' / '54 of 54 copies locked in' /
                                               // 'No cards to count' when R = 0 (SHARE-050, OWN-050)
-  ownershipFilter: 'ready' | 'partial' | 'none' | 'locked'; // exactly one per deck, first match (SHARE-051):
+  ownershipFilter: 'ready' | 'partial' | 'none' | 'locked' | 'unavailable'; // exactly one per deck, first match (SHARE-051):
+                                              // 'unavailable' = ownership unavailable (OWN-065; line 'Ownership unavailable');
                                               // 'locked' = locked, not short, R > 0; 'none' = R = 0;
                                               // 'ready' = unlocked and complete; 'none' = A = 0; else 'partial'
   lockBadge: string | null;                   // 'Locked' / 'Locked · 1 card short' (SHARE-050)
@@ -437,6 +442,10 @@ deck uses the cards and no deck is locked, so available = `ownedForDecks`.
     **Given** the collection store has a newer `schemaVersion` **When** a deck view opens **Then** all
     cards are shown in full colour with info and ban status, no count labels, and the banner "Ownership
     unavailable: your collection could not be read."
+    **Given** also a stored `DeckLock` for `Kennen Tempo` (readable lock store) and none for `Kennen Control`
+    **Then** (OWN-065; SPEC-008 AC 19) `Kennen Tempo` has `lock.locked = true`, badge "Locked", `ownershipLine`
+    "Ownership unavailable", `ownershipFilter: 'unavailable'` and is listed with `lock=locked`; `Kennen Control`
+    has `lock: null`, the same line and group; `own=ready|partial|none` list neither deck.
 14. **Reduced motion** (OWN-035)
     **Given** `prefers-reduced-motion: reduce` **When** an import raises Lightning Rush from 1 to 2 owned
     **Then** the fill changes from 1/3 to 2/3 with no animation.
@@ -510,4 +519,4 @@ deck uses the cards and no deck is locked, so available = `ownedForDecks`.
    fact 11). OWN-016's default-printing art for rune tiles depends on it; the ownership rules here don't.
 
 ## Changelog
-Current: 0.5 (2026-11-24, H-097: runes are cards). Full history: [[Your Decks Ownership View changelog]] (archived). New entries go in the archive note.
+Current: 0.5.1 (2026-11-24, H-076: OWN-065 ownership unavailable: lock state, tile line, filter group `unavailable`; status `review`, RJ to confirm, SPEC-008 open question 5). Previous: 0.5 (2026-11-24, H-097: runes are cards). Pin-only fix 2026-11-24 (H-071 attempt 2, no version bump): "Depends on" and import comments now pin SPEC-006 0.7, SPEC-007 0.9, SPEC-008 0.4.1. Full history: [[Your Decks Ownership View changelog]] (archived). New entries go in the archive note.

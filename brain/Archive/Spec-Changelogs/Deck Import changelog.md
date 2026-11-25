@@ -9,6 +9,9 @@ superseded_by: "[[Deck Import]]"
 
 Moved out of [[Deck Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.7 (2026-11-24, H-071, SPEC-010 Impacts): DECK-074 `updatedAt` becomes monotonic, `max(now, previous + 1 ms)`
+  (SYNC-031), with a worked example; DECK-090 reads "browser by default, synced to the account when signed in".
+  DECK-094 unchanged. `importRemovedLines` still has no cap (SYNC-112 relies on the 1 MiB limit); left as a MAY for later.
 - 0.6, metadata only (2026-11-23, H-050): the Summary "Depends on" line pins [[Tournament Deck Catalog]] v0.5 (was v0.4; SPEC-004 0.5 only versions the H-044 lower-case "your" strings). No requirement or AC changed, so no version bump.
 
 - 0.6, metadata only (2026-11-23, H-067): `depends_on` and the Summary "Depends on" line add SPEC-008 0.2 (DECK-080/082…084 cite SHARE requirements) and pin the other dependencies (SPEC-001 0.3, SPEC-002 0.3, SPEC-003 0.6, SPEC-004 0.4). No requirement or AC changed, so no version bump.

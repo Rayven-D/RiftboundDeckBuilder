@@ -28,8 +28,9 @@ Option 1 (RJ, 2026-11-23): stay on Firebase.
   `firebase.json` (`firestore` block), `firestore.rules`, `firestore.indexes.json`.
 - **Rules today:** deny all. Nothing reads or writes Firestore yet. Owner-only rules with field
   validation are written from the sync spec, not before.
-- **Planned layout (to be specced):** `users/{uid}/collection/...`, `users/{uid}/decks/...`,
-  `users/{uid}/tags/...`; each user can read and write only their own documents.
+- **Planned layout:** specified in [[Accounts and Sync]] (SPEC-010, SYNC-010…019) and sized in
+  [[Firestore Data Shape]]; see "Data shape" below. Each user can read and write only their own documents.
+  (The first sketch, `users/{uid}/collection/...`, `decks/...`, `tags/...`, is superseded.)
 - **Accounts stay optional:** browser storage remains the default; signing in syncs it to the
   account.
 

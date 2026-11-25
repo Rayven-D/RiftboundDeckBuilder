@@ -1,5 +1,6 @@
 ---
 name: validator
+model: sonnet
 description: Closes the dev loop for the Riftbound Deck Builder. Checks a finished board item against its acceptance check and runs the project's reality checks (real tournament decklists vs. legality engine, import round-trips, card images, spec-to-test traceability, research freshness). Turns every failure into a Handoff Board item for the owning agent. Use after any agent finishes a board item, and at the end of every loop round.
 tools: Read, Glob, Grep, Bash, Edit, Write
 ---

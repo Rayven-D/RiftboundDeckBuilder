@@ -1,5 +1,6 @@
 ---
 name: riftbound-researcher
+model: sonnet
 description: Researches everything Riftbound TCG — official rules, ban/restriction lists, organized-play formats, current meta, tournament decklists and placings worldwide, card database and official image sources. Use whenever a game fact is needed or may be stale. Writes sourced, dated notes into the Obsidian vault.
 tools: WebSearch, WebFetch, Read, Write, Edit, Glob, Grep
 ---

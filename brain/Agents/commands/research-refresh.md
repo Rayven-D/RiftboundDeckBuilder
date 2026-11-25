@@ -17,4 +17,4 @@ Follow the "Research refresh" section of `brain/07-Loop/Loop Protocol.md`:
    updated.
 5. Dispatch `validator` (documentation checks on research), commit, and merge into `dev` with `--no-ff`.
 6. Report: what changed and the board items created, or "no changes since <date>". If board items
-   were created and RJ is present, offer to run `/loop`.
+   were created and RJ is present, offer to run `/board`.

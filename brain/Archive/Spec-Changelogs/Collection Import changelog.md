@@ -9,6 +9,14 @@ superseded_by: "[[Collection Import]]"
 
 Moved out of [[Collection Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.10 (2026-11-24, H-087): new IMP-072 (a commit lands on `/collection`; a failed write stays in the
+  dialog), IMP-073 (snack bar strings: "Added <copies> of <cards>." / "Collection replaced: <cards>.",
+  singular `1 copy` / `1 card`, with Undo), IMP-074 (the notice is app-level, 10 s default, no other Undo
+  entry point), IMP-075 (Undo confirms only per COLL-058 / IMP-050a, "Import undone.", once, Cancel
+  re-shows the notice, "Nothing to undo."); IMP-052 points to them; ACs 43–45; open question on the
+  10 s window and a persistent Undo. Pins to this version bumped in SPEC-005, 006, 007, 008, 010.
+- 0.9.1 (2026-11-24, H-071): IMP-053 reads "browser by default, synced to the account when signed in"
+  (SPEC-010); no behavior change to import. Summary and "Resolved" lines match.
 - 0.9 (2026-11-24, H-097): **runes are imported like any card** (RJ, 2026-11-24: "Allow users to import
   runes as well and treat them like any other card."). New IMP-071 (no rune-specific skip, filter, warning
   or issue code in parse, resolve, merge, commit or export) and AC 42 (`Rune Pool:` / `Runes` sections,

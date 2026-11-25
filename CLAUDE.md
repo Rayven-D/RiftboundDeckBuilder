@@ -36,7 +36,7 @@ the Handoff Board. Any agent can post a request to the Handoff Board.
 
 ## The closed loop
 
-- `/loop [rounds]`: works the Handoff Board (pick → build → validate → merge into `dev`) until a gate. See `brain/07-Loop/Loop Protocol.md`.
+- `/board [rounds]`: works the Handoff Board (pick → build → validate → merge into `dev`); gates park the item and the run carries on. `/loop /board` reruns it on its own, and a nightly scheduled task runs `/board 5` at 02:05. See `brain/07-Loop/Loop Protocol.md`.
 - `/research-refresh [focus]`: checks for new bans, sets, events, and meta, and files board items for what changed. A weekly scheduled run is planned but **not set up yet**: RJ deleted the original task on 2026-11-23 and will recreate it inside the Claude project later (H-042).
 - `validator` agent: nothing is `done` until it passes. Failures become new board items.
 - Git: `loop/<ID>-<slug>` branches → `dev`. Only RJ merges `dev` → `main`. Never push.

@@ -1,12 +1,12 @@
 ---
 tags: [spec]
 id: SPEC-007
-version: 0.8
+version: 0.10
 status: draft
 depends_on: ["SPEC-001", "SPEC-002", "SPEC-003", "SPEC-008"]
 research: ["[[Sets]]", "[[Card Data & Images]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]", "[[Ban List]]", "[[Collection Import Formats]]"]
 decisions: ["[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
-board: H-034, H-097
+board: H-034, H-097, H-087
 as_of: 2026-11-24
 ---
 # SPEC-007: My Collection
@@ -25,13 +25,14 @@ as_of: 2026-11-24
 - COLL-031/033: default order `printingSortKey`; total, stable tie-breaker.
 - COLL-035/041: Unknown is its own filter/sort bucket and sorts last.
 - COLL-060/061: the query is remembered per browser and mirrored in the URL.
-- COLL-070: browser-only stores (`CollectionStore`, `TagStore`, `PrintingCodeStore`, view state).
+- COLL-070: browser stores by default (`CollectionStore`, `TagStore`, `PrintingCodeStore`, view state); quantities and tags sync when signed in (SPEC-010). COLL-071: `StoredTags` `schemaVersion` 3, `TagId` = `t_` + 6 base-62 characters, migrated on load. COLL-074 while signed in clears this device and signs out.
 - COLL-080/081: "exclude from decks" tag flag; `deckOwnership(input, cardKey)` → `owned`, `ownedForDecks`, `ownedExcluded`, per-entry breakdown.
 - COLL-086…088 (v0.4): one per-name pool for decks: `ownedForDecks` sums every printing of a name, and SPEC-008 subtracts locked decks from it (Collection itself is unchanged by locks); changes that make a locked deck short warn first, inside their confirmation (v0.5: also inside the SPEC-003 Replace confirmation; v0.7: also inside the Undo of an import, which asks for a confirmation only then unless COLL-058 already gives one, and is followed by a "… is now `<n>` cards short." notice once confirmed).
+- COLL-090/091 (v0.10, H-087): card data unavailable → banner "Card data couldn't load. …" with Try again, no list, nothing written (COLL-015 does not apply); arriving from an import commit needs nothing extra, the Undo notice is SPEC-003's (IMP-073…075).
 - COLL-089 (v0.8, RJ 2026-11-24): **runes are cards**: listed, tagged, edited, exported and counted toward decks like any card, with no rune-specific text or section (COLL-087 withdrawn; SPEC-009 withdrawn).
 
 **Shared types:** `DeckOwnership` / `DeckOwnershipInput` (read by SPEC-005, SPEC-008) · `CollectionCatalogView` (catalog view read by the pure functions) · `Tag`, `TagTarget`, `StoredTags` · `CollectionEntry`, `EntryBan` · `CollectionQuery`, `CollectionQueryInput`.
-**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3, [[Collection Import]] v0.9, [[Shared Cards and Lock-in]] v0.4 (`lockedShortfalls()`, SHARE-034). **Consumers:** [[Your Decks Ownership View]], [[Shared Cards and Lock-in]].
+**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3.1, [[Collection Import]] v0.10, [[Shared Cards and Lock-in]] v0.4.2 (`lockedShortfalls()`, SHARE-034). **Consumers:** [[Your Decks Ownership View]], [[Shared Cards and Lock-in]].
 **BLOCKED (needs research):**
 - Whether a foil is its own Riot API printing (COLL-011/016/020).
 - Rarity order (COLL-034); domain list (CARD-025); variant representation (CARD-040/041); API set order (CARD-071).
@@ -211,7 +212,7 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 | COLL-055 | SHOULD | **Add card** manually: search the catalog by name (COLL-040 matching against all catalog cards), pick a card and optionally a printing, choose a quantity; it is added as with an SPEC-003 Add import (unassigned if no printing chosen). | design rule |
 | COLL-056 | MUST | Manual edits are saved through the same `CollectionStore` as imports, update `updatedAt`, and keep `catalogVersion`. They do not create a SPEC-003 import record. | [[Collection Import]] IMP-053, IMP-054 |
 | COLL-057 | MUST | Interaction with SPEC-003 commits: **Add** increases `quantity` and per-printing counts as in IMP-049; **Replace** sets the collection to exactly the imported set. In both modes **tags are untouched**: they stay attached by `printingId` (and by `cardKey` for unassigned copies), so a printing present after the import keeps its tags, and printings no longer owned keep dormant tags (COLL-029). A Replace confirmation (IMP-050) also states "Tags are kept". | [[Collection Import]] IMP-049, IMP-050; design rule (decision 5) |
-| COLL-058 | MUST | Undoing the last import (IMP-052) restores quantities only. If manual edits were made after that import, the undo confirmation warns that those edits will be lost. Tags are not affected by undo. *(v0.7)* Where an undo also gets SPEC-008's locked-deck warning, that is COLL-088 (SHOULD): it goes inside this same confirmation. | [[Collection Import]] IMP-052, IMP-050a; design rule |
+| COLL-058 | MUST | Undoing the last import (IMP-052) restores quantities only. If manual edits were made after that import, the undo confirmation warns that those edits will be lost. Tags are not affected by undo. *(v0.10)* The undo is offered by the SPEC-003 IMP-073 snack bar (IMP-075 gives the full behaviour, including that quantities changed in another tab or device count as edits made after the import); this screen has no other undo entry point. *(v0.7)* Where an undo also gets SPEC-008's locked-deck warning, that is COLL-088 (SHOULD): it goes inside this same confirmation. | [[Collection Import]] IMP-052, IMP-050a; design rule |
 | COLL-059 | — | **Withdrawn in v0.6.** v0.5 added a `Tags` column to the collection CSV export (IMP-055). Under SPEC-003's positional row rule (IMP-040) every cell after the name is joined into the name, so that export did not round-trip. The export is now `Quantity,Card Name` only: **tags and "exclude from decks" flags are not in the CSV backup**; they are expected to survive through the planned sign-in sync ([[ADR-0007 Firebase Accounts and Firestore]]). Per-printing counts do round-trip (one row per printing with its code, one name-only row per card for unassigned, missing-printing and no-code copies, COLL-002, COLL-014): the format and the guarantee are SPEC-003 IMP-055 and its "Collection CSV export" rules; see AC 24. | RJ decision 2026-11-23 (H-045); [[Collection Import]] IMP-055 |
 
 ### G. View state and URL
@@ -234,11 +235,11 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 ### I. Storage
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| COLL-070 | MUST | All Collection data is stored **in the browser only**, no account, no server copy: quantities through SPEC-003's `CollectionStore`, tags through a `TagStore`, printing codes through a `PrintingCodeStore` (COLL-075), view state through a `CollectionViewStateStore`. Each is an interface with a browser adapter, so a server store can replace it later without changing behaviour. | [[ADR-0005 MVP Product Defaults]] decision 1; [[ADR-0006 Two Imports - Collection and Decks]] (tags in the browser); [[Collection Import]] IMP-053 |
-| COLL-071 | MUST | Every stored record has a `schemaVersion`: `StoredTags` is `2`, `StoredViewState` is `2`, `StoredPrintingCodes` is `1`. A loader that finds an older version migrates it: `StoredTags` 1 (0.1 draft, assignments by `cardKey`) → each card's tags are copied to every printing entry currently owned for that card and to its unassigned target, `excludeFromDecks` = false; `StoredViewState` 1 → `view: 'printings'` becomes `'entries'`. A newer or unreadable version is not overwritten and the user is told the data could not be read. | [[Collection Import]] IMP-054; design rule |
+| COLL-070 | MUST | All Collection data is stored **in the browser by default**: quantities through SPEC-003's `CollectionStore`, tags through a `TagStore`, printing codes through a `PrintingCodeStore` (COLL-075), view state through a `CollectionViewStateStore`. Each is an interface with a browser adapter. **When the user is signed in, quantities and tags (with their assignments) are also synced to the account** ([[Accounts and Sync]] SPEC-010, SYNC-013, SYNC-015); printing codes and view state are never synced (SYNC-019). Signed out there is no account and no server copy, and behaviour is identical. | [[ADR-0005 MVP Product Defaults]] decision 1; [[ADR-0006 Two Imports - Collection and Decks]] (tags in the browser); [[Collection Import]] IMP-053; [[Accounts and Sync]] |
+| COLL-071 | MUST | Every stored record has a `schemaVersion`: `StoredTags` is `3`, `StoredViewState` is `2`, `StoredPrintingCodes` is `1`. A loader that finds an older version migrates it: `StoredTags` 1 (0.1 draft, assignments by `cardKey`) → each card's tags are copied to every printing entry currently owned for that card and to its unassigned target, `excludeFromDecks` = false (then continues as 2); `StoredTags` 2 → 3 (short ids, [[Accounts and Sync]] SYNC-016): every tag whose id is not a valid short `TagId` (`t_` + 6 base-62 characters `[0-9A-Za-z]`, see the `TagId` type) is given a new one, once, on load, and every reference is rewritten in the same save: `assignments`, the view state's tag filter and saved views (COLL-060, COLL-064); the record shape is otherwise unchanged. Example: tag `t_01HZX8K2M4QW` becomes `t_k3F9aZ`, and `assignments['p:OGN-001-1'] = ['t_01HZX8K2M4QW']` becomes `['t_k3F9aZ']`. `StoredViewState` 1 → `view: 'printings'` becomes `'entries'`. A newer or unreadable version is not overwritten and the user is told the data could not be read. | [[Collection Import]] IMP-054; design rule |
 | COLL-072 | MUST | A failed save (e.g. browser storage full) shows an error, keeps the in-memory change visible as "not saved", and does not corrupt the previously stored record. | design rule |
 | COLL-073 | SHOULD | Changes made in another tab of the same browser are picked up (reload of stores on change) so two tabs do not overwrite each other silently. | design rule |
-| COLL-074 | MUST | The user can delete all local collection, tag, printing-code and view data from a settings action, after confirmation. | [[Card Data & Images]] #7 (data removal); design rule |
+| COLL-074 | MUST | The user can delete all local collection, tag, printing-code and view data from a settings action, after confirmation. **While signed in** this clears this device's copy and **signs out** ([[Accounts and Sync]] SYNC-052, SYNC-091 "Remove"); it never deletes cloud data, and its confirmation adds "Your account keeps its copy. To delete that too, use Delete account and data." | [[Card Data & Images]] #7 (data removal); design rule; [[Accounts and Sync]] SYNC-052 |
 | COLL-075 | MUST | **Printing-code memory:** whenever the collection is loaded or saved against a catalog, for every `byPrinting` `printingId` that resolves, Collection records `printingId → printingCode` (SPEC-001 `publicCode`, or `SET-collectorNumber` if `publicCode` is null) with the `cardKey` and the `catalogVersion` it was seen in. A code is kept while its `printingId` is in the collection or in a tag assignment. It is display data only and never used as a key. | [[Collection Import]] `StoredCollection` (keys by `printingId` only); [[Card Data Model]] `Printing.publicCode`, CARD-066; design rule (decision 6) |
 
 ### J. Exclude from decks and the Decks contract
@@ -253,16 +254,18 @@ and its query model, and the **deck-ownership contract** (section J) that [[Your
 | COLL-086 | MUST | **Per-printing Collection, per-name pool for decks.** Collection stays per printing (COLL-011) and tags stay on printings (COLL-020), but decks see one number per card name: `ownedForDecks(cardKey)` sums every non-excluded printing, unassigned and missing-printing entry of that `cardKey` (COLL-081). SPEC-008 builds its cross-deck pool on that number and subtracts copies held by locked decks; the exclude-from-decks tag applies first, so an excluded copy is never available to any deck, locked or not (SHARE-004). Locks never change quantities, entries or tags here. | [[Physical Copies Across Decks]] facts 2, 14; [[Shared Cards and Lock-in]] SHARE-002, SHARE-004; [[ADR-0006 Two Imports - Collection and Decks]] "Shared cards, lock in and runes" |
 | COLL-087 | — | **Withdrawn in v0.8 (2026-11-24).** "Runes are never needed": imported runes were listed but never affected Decks (SPEC-009 RUNE-008). Replaced by COLL-089. | RJ decision 2026-11-24 |
 | COLL-088 | SHOULD | When an edit would lower what a **locked deck** holds (− on an entry, a typed lower quantity (COLL-053), Remove card, turning on an exclude flag, assigning an excluded tag), SPEC-008's warning "'`<deck name>`' (locked) will be `<n>` cards short. It stays locked." is shown **before** the edit, inside its confirmation (COLL-084, COLL-054); an edit with no confirmation of its own (−, typed quantity, tag assignment, Remove card with Undo) asks for one only in that case, and Cancel leaves everything unchanged. A **Replace** Owned Cards Import shows the same warning inside its SPEC-003 IMP-050 confirmation, computed on the parsed import; an **Undo** of an import commit (IMP-052), computed on the snapshot it would restore, shows it inside the COLL-058 undo confirmation when manual edits followed the import, and otherwise asks for a confirmation only in that case, like the edits above (v0.7; SHARE-034, IMP-050a). After a confirmed Undo (only), the notice "'`<deck name>`' (locked) is now `<n>` cards short." follows; Cancel shows no notice. No change shows the warning only after it has run. | [[Shared Cards and Lock-in]] SHARE-033, SHARE-034; [[Collection Import]] IMP-050, IMP-050a, IMP-052; RJ decision 2026-11-23 (H-049 follow-up: Undo warns before and notifies after) |
+| COLL-090 | MUST | **Card data unavailable** (v0.10, H-087). When the stored collection is readable and has at least one card, but the card catalog (SPEC-001 snapshot) cannot be loaded (request fails, unusable response, unsupported schema): (a) Collection shows one `role="alert"` banner: "Card data couldn't load. Your cards are safe. Names and images will show once it loads." with a **Try again** button; (b) it shows **no tiles, no skeleton, no count line, no search or sort, no Export CSV, no "Unresolved cards" section**: COLL-015 does not apply, because without a catalog no card can be told apart from an unknown one; (c) it writes nothing: the collection, tags, locks and printing-code memory (COLL-075) are untouched, and no entry is dropped or re-resolved; (d) **Try again** reloads the catalog only, shows the page's loading state again (as on first load; its look and 200 ms delay are the [[Collection]] brief's S2, not a SPEC-007 requirement), then the list or the same banner again; (e) an empty collection shows its empty state (it needs no catalog); (f) a ban-list failure is independent (COLL-008). | design decision (brief rev 3 S10, as built in H-086); [[Card Data Model]] CARD-068 |
+| COLL-091 | MUST | **Arriving from an import** (v0.10, H-087). After an Owned Cards Import commit (SPEC-003 IMP-072) Collection opens like any visit: default query unless one was remembered (COLL-063), the committed record read from the store, no extra banner. The "Added …" / "Collection replaced: …" notice and its Undo are owned by SPEC-003 IMP-073…075, shown by the app (not by this screen), and survive leaving Collection. When Undo restores the previous collection while Collection is open, the list refreshes in place as for a change in another tab (COLL-073). | [[Collection Import]] IMP-072…075; design decision |
 | COLL-089 | MUST | **Runes are cards** (v0.8). A rune card (`category: 'rune'`) and its printings get entries, count badges, tags, "exclude from decks", sort, filter, search, edits and the CSV export (SPEC-003 IMP-055, IMP-071) exactly like any card. Its copies count toward decks through `deckOwnership()` (COLL-081) like any card, so SPEC-008 holds, locked-deck warnings (COLL-088) and the card's deck information (locked decks holding it, unlocked decks using it) cover runes too. Nothing in Collection says runes are assumed, untracked or not needed, and Collection never warns that runes are missing (it has no missing-card warnings for any card). | RJ decision 2026-11-24 ("Allow users to import runes as well and treat them like any other card."); [[Physical Copies Across Decks]] facts 10, 11, 14 |
 
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { CardKey, PrintingId, PrintingCode, StoredCollection, CollectionStore } from './collection-import'; // SPEC-003 v0.8
+import type { CardKey, PrintingId, PrintingCode, StoredCollection, CollectionStore } from './collection-import'; // SPEC-003 v0.10
 import type { CardCategory, VariantKind, CardSet, PlayableCard, Printing } from './card-data-model';  // SPEC-001
 import type { BanStatus, BanListFile } from './deck-legality';       // SPEC-002, LEGAL-B10
 type IsoDate = string;             // YYYY-MM-DD (display per COLL-017: 'Nov 23, 2026')
-type TagId = string;               // opaque, stable across rename (e.g. 't_01H…')
+type TagId = string;               // 't_' + 6 chars from [0-9A-Za-z] (8 chars, e.g. 't_k3F9aZ'); opaque, stable across rename; unique among the user's tags (a collision is drawn again); SPEC-010 SYNC-016
 
 // ---- Collection (stored by SPEC-003 CollectionStore; shape repeated for reference) ----
 // StoredCollection.cards: Record<CardKey, { quantity: number; byPrinting: Record<PrintingId, number> }>
@@ -284,7 +287,7 @@ type TagColour = 'grey' | 'red' | 'orange' | 'yellow' | 'green' | 'teal' | 'blue
 type TagTarget = `p:${PrintingId}` | `u:${CardKey}`;
 
 interface StoredTags {
-  schemaVersion: 2;                              // 1 = 0.1 draft (assignments by cardKey), migrated per COLL-071
+  schemaVersion: 3;                              // 1 = 0.1 draft (assignments by cardKey), 2 = long ids; both migrated per COLL-071
   updatedAt: string;
   tags: Tag[];                                   // max 200
   assignments: Record<TagTarget, TagId[]>;       // max 20 per target; may include dormant targets (COLL-029)
@@ -527,10 +530,10 @@ catalog printing (open question 1).
     the card's quantity is 2; the base entry still shows `×2`. **When** the user presses − twice more on
     the base entry **Then** the card leaves the collection, and its tags remain dormant.
 15. **URL round-trip** (COLL-060..063)
-    **Given** the user filters set `OGN,SFD`, tag `Kennen deck` (id `t_7`), sort cost descending
-    **Then** the URL is `…/collection?set=OGN,SFD&tag=t_7&sort=cost&dir=desc`. **When** that URL is
+    **Given** the user filters set `OGN,SFD`, tag `Kennen deck` (id `t_k3F9aZ`), sort cost descending
+    **Then** the URL is `…/collection?set=OGN,SFD&tag=t_k3F9aZ&sort=cost&dir=desc`. **When** that URL is
     opened in a new tab of the same browser **Then** the same rows show in the same order. **When**
-    the URL contains `tag=t_999` (unknown) **Then** that value is ignored with a notice and the rest
+    the URL contains `tag=t_zzzzzz` (unknown) **Then** that value is ignored with a notice and the rest
     applies. **When** the user clears all filters **Then** the URL is `…/collection`.
 16. **Remembered view** (COLL-060, COLL-063)
     **Given** the user left Collection in group-by-card view sorted by name **When** they return via
@@ -603,6 +606,12 @@ catalog printing (open question 1).
     stays locked." (COLL-088, SHOULD), and after confirming `ownedForDecks = 0`. **Given** a collection with
     no runes **When** Collection opens **Then** it shows no rune warning of any kind.
 
+**ACs 26–27 (v0.10, H-087)**
+
+26. **Card data didn't load** (COLL-090) **Given** a stored collection `lightning rush ×3`, `gust ×2` and a catalog request that fails **When** Collection opens **Then** a banner (`role="alert"`) reads "Card data couldn't load. Your cards are safe. Names and images will show once it loads." with a **Try again** button; no tiles, count line, search, sort, Export CSV or "Unresolved cards" section are shown; and the stored collection, tags and printing-code memory are byte-for-byte unchanged. **When** the user taps **Try again** and the catalog now loads **Then** the grid shows in default order with "5 copies of 2 cards". **When** it fails again **Then** the same banner returns. **Given** instead an empty collection and the same failure **Then** the empty state shows, not the banner.
+
+27. **Arriving from an import** (COLL-091, SPEC-003 IMP-072…075, AC 43) **Given** an Add commit of `3 Lightning Rush` / `2 Gust` **When** the app opens Collection **Then** the grid shows the committed cards in default order with "5 copies of 2 cards", the snack bar "Added 5 copies of 2 cards." with **Undo** is showing, and no other banner. **When** the user taps Undo (nothing changed since) **Then** Collection shows its empty state without a reload.
+
 ## Out of scope
 - Importing cards (SPEC-003) and decks (SPEC-006); deck ownership visuals (SPEC-005).
 - Prices, trade/wishlist features, condition, language; foil/finish tracking beyond what the catalog
@@ -642,4 +651,4 @@ catalog printing (open question 1).
    any other card."): COLL-087 withdrawn, COLL-089 added, SPEC-009 withdrawn.
 
 ## Changelog
-Current: 0.8 (2026-11-24, H-097: runes are cards). Full history: [[My Collection changelog]] (archived). New entries go in the archive note.
+Current: 0.10 (2026-11-24, H-087: COLL-090 card data unavailable, COLL-091 arriving from an import, COLL-058 names the Undo entry point; ACs 26–27; pins SPEC-003 0.10; attempt 2, H-159: COLL-090 (d) no longer cites COLL-066, the loading state is the brief's). Previous: 0.9 (2026-11-24, H-071: short `TagId`, `StoredTags` schemaVersion 3, COLL-070/074 with sync). Full history: [[My Collection changelog]] (archived). New entries go in the archive note.
