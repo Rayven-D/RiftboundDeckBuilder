@@ -1,12 +1,12 @@
 ---
 tags: [spec]
 id: SPEC-004
-version: 0.6
+version: 0.7
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-006]
 research: ["[[Tournament Results]]", "[[Ban List]]", "[[Formats]]", "[[Riot Developer Rules]]", "[[Collection Import Formats]]", "[[Deck Construction Rules]]"]
 decisions: ["[[ADR-0003 Tournament Results Only]]", "[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]", "[[ADR-0001 Tech Stack]]", "[[ADR-0004 Hosting (Deferred)]]"]
-as_of: 2026-11-23
+as_of: 2026-11-24
 ---
 # SPEC-004: Tournament Deck Catalog
 
@@ -17,6 +17,7 @@ as_of: 2026-11-23
 
 **Key requirements**
 - CAT-001/010: event and decklist models; placing label and pilot copied verbatim (CAT-011/012).
+- CAT-001 / CAT-002 / CAT-006 (v0.7, H-167, from [[Tournament Results]] facts 7 to 9, as of 2026-11-24; the note's status is `unverified`): the RC Europe event `name` is **"Riftbound Regional Championship: Europe"** (Riot's name); Riot published **no bracket or match results** for it (only the Top 8 order and the winner), so the catalog has **no bracket model** (CAT-006); Riot printed **no player total**, so `playerCount` is `null` and derived counts are not data (CAT-002).
 - CAT-013/014: card entries `{ cardKey, name, qty }`; main deck stored without the Chosen Champion.
 - CAT-016/017: legality is never stored as source data; computed with `asOf` = the check date.
 - CAT-020/021: one `data/events/<event-id>.json` per event; ids `<YYYY-MM>-<slug>` and `<event-id>-<rank>`.
@@ -33,7 +34,7 @@ as_of: 2026-11-23
 **Depends on:** [[Card Data Model]], [[Deck Legality]], [[Deck Import]]. **Consumers:** Tournaments screen; copies land in [[Your Decks Ownership View]].
 **BLOCKED:**
 - Needs research: verbatim Riot decklist text layout (CAT-026).
-- Needs research: printed RC Europe player total (CAT-002); official event name; whether a bracket was published (CAT-011).
+- Resolved in 0.7 (H-167, [[Tournament Results]] facts 7 to 9): the official event name, that no bracket was published, and that no player total was printed (see CAT-001, CAT-002, CAT-006, CAT-011).
 - Policy: whether copying decklists from Riot articles is allowed (H-011); CAT-025 stays manual.
 
 ## Purpose
@@ -77,17 +78,18 @@ stored or shown. Legality of each list is **computed** by [[Deck Legality]] (SPE
 ### Event model
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| CAT-001 | MUST | Each event record has: `id` (stable slug), `name` (as Riot names it), `type` (Riot's tier name), `startDate` and `endDate` (ISO dates; equal for one-day events), `region`, `location` (venue and/or city as published, nullable), `format`, `sourceUrls` (at least one, the article the lists were copied from), `capturedAsOf` (date the data was copied). | [[Tournament Results]] |
-| CAT-002 | MUST | `playerCount` is stored **only when Riot (or the organizer) prints a total**. A count we derive ourselves (for example by summing a Legend table) MUST NOT be stored; the field is `null`. For RC Europe the 307 / 96 figures are derived from Riot's Legend table, so `playerCount` is `null` until a printed total is found (BLOCKED: needs research). | [[Tournament Results]] (conflicts: "derived" counts); [[ADR-0003 Tournament Results Only]] |
+| CAT-001 | MUST | Each event record has: `id` (stable slug), `name` (as Riot names it), `type` (Riot's tier name), `startDate` and `endDate` (ISO dates; equal for one-day events), `region`, `location` (venue and/or city as published, nullable), `format`, `sourceUrls` (at least one, the article the lists were copied from), `capturedAsOf` (date the data was copied). **Event name (v0.7):** `name` is Riot's official event name; for RC Europe it is exactly `Riftbound Regional Championship: Europe`. The short form `RC Europe` and the info page's wording `European Regional Championship` are not the stored name. | [[Tournament Results]] facts 7 (status `unverified`, as of 2026-11-24) |
+| CAT-002 | MUST | `playerCount` is stored **only when Riot (or the organizer) prints a total**. A count we derive ourselves (for example by summing a Legend table) MUST NOT be stored; the field is `null`. **RC Europe (v0.7):** Riot's article gives no player count (as of 2026-11-24), so `playerCount` is `null` and the event header shows no player count. The figures worked out from Riot's Legend share table (about 308 on Day 1, 307 when the table is summed, about 96 on Day 2, each plus or minus 1) are derived, not data: they MUST NOT be stored, shown or used to fill `playerCount`. The prize table running to 64th place is not a field size either. If Riot later prints a total, it is added as data with its source. | [[Tournament Results]] fact 8 (status `unverified`, as of 2026-11-24) and conflicts ("derived" counts); [[ADR-0003 Tournament Results Only]] |
 | CAT-003 | MUST | `format` is one of the format IDs defined by SPEC-002 (MVP: `standard` only). Events in other formats (Limited, 2v2, the World Showcase 3-deck format) MUST NOT be imported in MVP. | [[Formats]] |
 | CAT-004 | MUST | `type` uses Riot's own tier wording. It is a label only and MUST NOT be used as a weight, score or sort key (event order is by date only, CAT-030). | [[ADR-0003 Tournament Results Only]] |
 | CAT-005 | SHOULD | `region` uses the region names Riot uses in its articles (`Europe`, `North America`, `APAC`, ...). | [[Tournament Results]] |
+| CAT-006 | MUST NOT | **No bracket, no match results (v0.7).** Event and decklist records, the API read model and the UI MUST NOT carry or show a bracket, round, match, seed, opponent or "who beat whom" data, and the Tournaments screen shows no bracket diagram. For RC Europe Riot publishes no bracket or match results, only the Top 8 order ("Overall Ranking", #1 to #8) and the winner (ASC Evansrhim, Kennen); the ranks are shown as an ordered list of placings (CAT-011, CAT-031) and never as a bracket. That the stage after the Top 8 is single elimination is Riot's official format, but the catalog does not store or display it: it is not a published result. | [[Tournament Results]] fact 9 (status `unverified`, as of 2026-11-24); [[ADR-0003 Tournament Results Only]] |
 
 ### Decklist model
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | CAT-010 | MUST | Each decklist belongs to exactly one event (`eventId`) and has: `id`, `publishedRank` (integer, as published), `placingLabel` (string, as published), `pilot` (as published), `legend`, `champion`, `mainDeck`, `runes`, `battlefields`, `sideboard`, `format` (same as the event's), `sourceUrl`, `capturedAsOf`. | [[Tournament Results]]; [[Collection Import Formats]] |
-| CAT-011 | MUST | `placingLabel` is copied exactly as published. For RC Europe it is the ordinal of Riot's Overall Ranking (`1st` … `8th`). The app MUST NOT re-bucket a rank into a bracket Riot did not publish (e.g. MUST NOT show `Top 4` for #3 when the article states no bracket). | [[Tournament Results]] (conflicts: no bracket stated); [[ADR-0003 Tournament Results Only]] |
+| CAT-011 | MUST | `placingLabel` is copied exactly as published. For RC Europe it is the ordinal of Riot's Overall Ranking (`1st` … `8th`). The app MUST NOT re-bucket a rank into a bracket Riot did not publish (e.g. MUST NOT show `Top 4` for #3: Riot publishes no bracket for RC Europe, CAT-006). | [[Tournament Results]] fact 9 and conflicts (no bracket stated); [[ADR-0003 Tournament Results Only]] |
 | CAT-012 | MUST | `pilot` is copied exactly as published, including team tags and casing (e.g. `ASC Evansrhim`, `lets see lol`). It MUST NOT be "corrected", translated or abbreviated. | [[Riot Developer Rules]] rule 8 |
 | CAT-013 | MUST | Card entries are `{ cardKey, name, qty }` where `name` is the name exactly as published and `cardKey` is the playable-card key from [[Card Data Model]] (SPEC-001 CARD-012: the `nameKey` of the canonical name). There is no separate playable-card id. Printings are collapsed to the playable card (copy limits are per name). | [[Deck Construction Rules]] fact 5; [[Collection Import Formats]]; [[Card Data Model]] |
 | CAT-014 | MUST | `mainDeck` holds the Main Deck section **as published (without the Chosen Champion)**; `champion` is a single card entry with `qty: 1`. Consumers that need the 40-card main deck MUST add the champion. | Decklist notes ("39 non-champion cards as published"); [[Deck Construction Rules]] fact 3–4 |
@@ -120,7 +122,7 @@ stored or shown. Legality of each list is **computed** by [[Deck Legality]] (SPE
 |---|---|---|---|
 | CAT-030 | MUST | The Tournaments screen lists events **newest first** by `endDate` descending, then `startDate` descending, then `name` ascending. | [[ADR-0003 Tournament Results Only]] (recency); [[ADR-0006 Two Imports - Collection and Decks]] (Tournaments) |
 | CAT-031 | MUST | Within an event, decklists are ordered by `publishedRank` ascending, then by order of appearance in the source. | [[ADR-0003 Tournament Results Only]] |
-| CAT-032 | MUST | Each decklist row shows: placing label with event name (e.g. `1st, Regional Championship: Europe`), pilot, Legend, Champion, the event's dates and region, the legality label per CAT-045, and the "Add to your decks" action (CAT-070). The event header shows name, type, dates, region, location, player count (only if stored), format and a link to the source article. | [[ADR-0003 Tournament Results Only]] |
+| CAT-032 | MUST | Each decklist row shows: placing label with event name (e.g. `1st, Riftbound Regional Championship: Europe`), pilot, Legend, Champion, the event's dates and region, the legality label per CAT-045, and the "Add to your decks" action (CAT-070). The event header shows name, type, dates, region, location, player count (only if stored), format and a link to the source article. | [[ADR-0003 Tournament Results Only]] |
 | CAT-033 | MUST | All published decklists for the event are shown (the full Top 8 or whatever cut Riot published), not only the winner. | [[ADR-0003 Tournament Results Only]] |
 | CAT-034 | MUST | The deck detail view shows Legend, Champion, Main Deck, Rune Pool, Battlefields and Sideboard as separate sections with quantities, using card names and images from SPEC-001. | [[Deck Construction Rules]] |
 | CAT-035 | MUST | Wording honours players: neutral or celebratory labels only. No negative framing of any placing or pilot (e.g. never "only 8th", "lost", "worst"). | [[Riot Developer Rules]] rule 8 |
@@ -155,7 +157,7 @@ The IDs are retired and not reused.
 | CAT-070 | MUST | Every catalog decklist (Tournaments row and deck detail), including historical and `incomplete` ones, has a one-click **"Add to your decks"** action. One click adds the deck; there is no confirmation dialog and no editing step. | [[ADR-0006 Two Imports - Collection and Decks]] (follow-up decisions) |
 | CAT-071 | MUST | The action creates a **new user deck** in Decks exactly as if the same list had been imported via [[Deck Import]] (SPEC-006): same zones (Legend, Chosen Champion, main without the champion, runes, battlefields, sideboard), same quantities, each card keyed by `cardKey` with its canonical SPEC-001 name. Because every card already has a `cardKey`, SPEC-006's parsing and fuzzy-suggestion steps are skipped and the import cannot fail on names (SPEC-006 DECK-065). Format is the decklist's `format` (`standard`). | [[ADR-0006 Two Imports - Collection and Decks]]; [[Deck Import]] DECK-060, DECK-065 |
 | CAT-072 | MUST | The user deck records its origin as a `TournamentDeckSource` (Data contract): `kind: "tournament"`, `eventId`, `eventName`, `eventStartDate`, `eventEndDate`, `region`, `decklistId`, `publishedRank`, `placingLabel`, `pilot`, `sourceUrl` (the Riot article) and `addedAt`. `TournamentDeckSource` is the **tournament variant of SPEC-006's `DeckSource`**: SPEC-006 owns the single definition, and the two MUST be identical field for field (no second, diverging shape). | [[ADR-0006 Two Imports - Collection and Decks]] ("event and placing recorded as its source") |
-| CAT-073 | MUST | The default deck name is `<Legend>: <pilot> (<placingLabel>, <event name>)`, e.g. `Kennen: ASC Evansrhim (1st, Regional Championship: Europe)`. `<Legend>` is the Legend's canonical name up to the first comma (`Kennen, Heart of the Tempest` → `Kennen`; the whole name if it has no comma), as in RJ's example. Pilot and placing are copied verbatim (CAT-011, CAT-012). The result is trimmed to 80 characters (the deck name limit, SPEC-006 DECK-070), the same rule as DECK-062. The user MAY rename it later (SPEC-006). | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 1; [[Riot Developer Rules]] rule 8; [[Deck Import]] DECK-062, DECK-070 |
+| CAT-073 | MUST | The default deck name is `<Legend>: <pilot> (<placingLabel>, <event name>)`, e.g. `Kennen: ASC Evansrhim (1st, Riftbound Regional Championship: Europe)` (68 characters). `<Legend>` is the Legend's canonical name up to the first comma (`Kennen, Heart of the Tempest` → `Kennen`; the whole name if it has no comma), as in RJ's example. Pilot and placing are copied verbatim (CAT-011, CAT-012). The result is trimmed to 80 characters (the deck name limit, SPEC-006 DECK-070), the same rule as DECK-062. The user MAY rename it later (SPEC-006). | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 1; [[Riot Developer Rules]] rule 8; [[Deck Import]] DECK-062, DECK-070 |
 | CAT-074 | MUST | **Duplicates.** A decklist is "already added" when Decks holds a deck whose `source.decklistId` equals its `id`. Then the button reads `In your decks` and opens that deck, and a separate `Add another copy` link creates a further copy named with a ` (2)`, ` (3)`… suffix. One click on the primary action never creates a second copy. Editing a copy does not change this; deleting every copy makes "Add to your decks" available again. Identical lists from different pilots (CAT-050) have different ids, so each can be added once on its own. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 decision 2 |
 | CAT-075 | MUST | The copy is independent: later edits to the user deck never change the catalog, and later catalog corrections never change existing copies. No legality is copied; Decks computes legality and ban status itself via SPEC-002 (SPEC-005). | [[Deck Legality]]; [[ADR-0006 Two Imports - Collection and Decks]] |
 | CAT-076 | MUST | After adding, the user sees a neutral confirmation `Added to your decks` with a link to open the deck. For a historical list the confirmation also shows the CAT-041 label. | [[ADR-0005 MVP Product Defaults]] decision 3 |
@@ -189,13 +191,14 @@ interface CardEntry {
 
 interface TournamentEvent {
   id: string;                       // '2026-11-rc-europe' (CAT-021)
-  name: string;                     // as Riot names it
+  name: string;                     // as Riot names it: 'Riftbound Regional Championship: Europe' (CAT-001)
   type: 'Regional Qualifier' | 'Regional Championship' | 'World Showcase' | string;
   startDate: ISODate;
   endDate: ISODate;
   region: string;                   // 'Europe'
   location: string | null;          // 'Messe Stuttgart, Stuttgart'
-  playerCount: number | null;       // printed totals only (CAT-002)
+  playerCount: number | null;       // printed totals only (CAT-002); null for RC Europe
+  // no bracket, round, match or result fields exist (CAT-006)
   format: FormatId;
   sourceUrls: string[];             // >= 1
   capturedAsOf: ISODate;
@@ -265,7 +268,7 @@ interface CatalogEventView {
 interface TournamentDeckSource {
   kind: 'tournament';
   eventId: string;                  // '2026-11-rc-europe'
-  eventName: string;                // 'Regional Championship: Europe'
+  eventName: string;                // 'Riftbound Regional Championship: Europe'
   eventStartDate: ISODate;
   eventEndDate: ISODate;
   region: string;
@@ -297,7 +300,7 @@ interface TournamentDeckSource {
   "schemaVersion": 1,
   "event": {
     "id": "2026-11-rc-europe",
-    "name": "Regional Championship: Europe",
+    "name": "Riftbound Regional Championship: Europe",
     "type": "Regional Championship",
     "startDate": "2026-11-06",
     "endDate": "2026-11-08",
@@ -337,11 +340,12 @@ interface TournamentDeckSource {
 Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in `01-Research/Decklists/`.
 
 1. **Event fields.** **Given** the RC Europe source article and metadata, **When** the maintainer imports it,
-   **Then** `data/events/2026-11-rc-europe.json` has `type: "Regional Championship"`, `startDate: "2026-11-06"`,
+   **Then** `data/events/2026-11-rc-europe.json` has `name: "Riftbound Regional Championship: Europe"`,
+   `type: "Regional Championship"`, `startDate: "2026-11-06"`,
    `endDate: "2026-11-08"`, `region: "Europe"`, `format: "standard"`, `playerCount: null`
-   (307 is derived, CAT-002), and 8 decklists.
+   (307 and 308 are derived, CAT-002), and 8 decklists (CAT-001).
 2. **Rank and label as published.** **Given** DiamondHat is #3 in Riot's Overall Ranking, **When** the catalog
-   renders, **Then** the row reads `3rd, Regional Championship: Europe`, never `Top 4` (CAT-011).
+   renders, **Then** the row reads `3rd, Riftbound Regional Championship: Europe`, never `Top 4` (CAT-011, CAT-006).
 3. **Pilot names verbatim.** **Given** the #6 pilot is published as `lets see lol`, **When** stored and shown,
    **Then** the name is exactly `lets see lol` (lower case, no edits) (CAT-012).
 4. **Order within event.** **Given** the 8 RC Europe lists, **When** the event is shown, **Then** the order is
@@ -393,7 +397,7 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
     `historical` is false (CAT-045).
 16. **Add to your decks.** **Given** ASC Evansrhim's list (`2026-11-rc-europe-1`) and an empty Decks screen, **When** the
     user clicks "Add to your decks" once, **Then** Decks holds one new deck named
-    `Kennen: ASC Evansrhim (1st, Regional Championship: Europe)` with Legend, Champion, 39 main,
+    `Kennen: ASC Evansrhim (1st, Riftbound Regional Championship: Europe)` with Legend, Champion, 39 main,
     9 Chaos Rune + 3 Order Rune, Minefield, Veiled Temple, Zaun Warrens and 10 sideboard cards identical to the catalog
     list, format `standard`, and `source` = `{ kind: "tournament", eventId: "2026-11-rc-europe", decklistId:
     "2026-11-rc-europe-1", publishedRank: 1, placingLabel: "1st", pilot: "ASC Evansrhim", sourceUrl: <Riot article>, … }`;
@@ -401,7 +405,7 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
 17. **Duplicate add.** **Given** `2026-11-rc-europe-1` was already added, **When** the user views it on Tournaments,
     **Then** the button reads `In your decks` and clicking it opens the existing deck without creating another;
     **When** they click the `Add another copy` link, **Then** a second deck named
-    `Kennen: ASC Evansrhim (1st, Regional Championship: Europe) (2)` is
+    `Kennen: ASC Evansrhim (1st, Riftbound Regional Championship: Europe) (2)` is
     created with the same `source.decklistId`; **When** they delete both copies, **Then** "Add to your decks" returns (CAT-074).
 18. **Identical lists add separately.** **Given** BQO Caravaggio (#4) is already in Decks, **When** the user views
     lets see lol (#6, identical list), **Then** #6 still shows "Add to your decks", and adding it creates a deck whose
@@ -425,6 +429,15 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
     bottom **Then** the older events appear continuously, in order, with no jump of the content already visible.
 24. **Gate always on** (CAT-078) **Given** a signed-out visitor, with no flag or build setting available to change it **When** they open
     Tournaments **Then** every event and Top 8 shows and none of "Add to your decks", "In your decks", "Add another copy" does.
+25. **No bracket for RC Europe** (CAT-006, CAT-011; v0.7) **Given** the RC Europe file with its 8 decklists
+    (Riot published only the Top 8 order and the winner) **When** the event expands on Tournaments **Then** the 8 lists
+    show as one list ordered `1st` to `8th`, with no bracket diagram, no round or match labels, no "Top 4" or
+    "Quarterfinal" wording, and no opponent or "beat" text; **When** V-010 / a schema check reads `data/events/2026-11-rc-europe.json`
+    and the `CatalogEventView` contract **Then** neither has a bracket, round, match, seed or result field.
+26. **No official player total for RC Europe** (CAT-002; v0.7) **Given** the RC Europe event **When** its header shows
+    **Then** no player count appears (`playerCount` is `null`) and the numbers 307, 308 and 96 appear nowhere in the
+    event file, the API output or the UI; **Given** a test fixture event whose source prints a total (for example
+    invented `playerCount: 500`, not real data) **When** its header shows **Then** that printed total is shown.
 
 ## Out of scope
 - The Decks screen, ownership display and ban status per card (SPEC-005, [[Your Decks Ownership View]]).
@@ -433,16 +446,20 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
 - Card identity, names, images (SPEC-001, [[Card Data Model]]).
 - Limited, 2v2 and World Showcase multi-deck events (later; CAT-003).
 - Automated ingestion or scraping of Riot articles (CAT-025).
-- Swiss records, match results, brackets beyond the published placing.
+- Swiss records, match results, brackets or any bracket model (CAT-006), beyond the published placing.
 
 ## Open questions / BLOCKED
 - **BLOCKED: needs research:** a verbatim copy of Riot's decklist text (exact label lines, spacing, any `x`
   quantity suffix) to finalise CAT-026 parser rules.
-- **BLOCKED: needs research:** a printed RC Europe player total (CAT-002). Until then `playerCount: null`.
-- **BLOCKED: needs research:** Riot's exact event name. Research uses "Regional Championship: Europe" (notes) and
-  Riot's article title says "European Championship". The example uses the former; confirm the official name.
-- **BLOCKED: needs research:** whether Riot published a bracket (Top 4 / Top 8 split) for RC Europe. If it did,
-  `placingLabel` may need to follow Riot's own label instead of the ordinal (CAT-011).
+- **Resolved in 0.7 (H-167):** official name, no bracket and no printed player total for RC Europe, from
+  [[Tournament Results]] facts 7 to 9 (note status `unverified`, as of 2026-11-24). If a later Riot article prints a
+  player total or publishes a bracket for RC Europe, the spec changes then (research first); until then `playerCount: null` and CAT-006 hold.
+- Question for RJ (v0.7): the official name is long (39 characters), so rows read `1st, Riftbound Regional Championship: Europe` and
+  default deck names use it (CAT-032, CAT-073). Options: (a) the official name everywhere (the 0.7 default); (b) the official name in the
+  event header and source line, the short `RC Europe` in rows and deck names. The research gives the short name `RC Europe` only as Riot's
+  short form, so (b) would be a display choice for RJ, not a published fact.
+- Question for RJ (v0.7): whether to say anything about how RC Europe was played (Swiss days, then single elimination from the Top 8,
+  [[Tournament Results]] fact 7) on the event header. 0.7 default: no, because it is not a published result (CAT-006).
 - **BLOCKED (policy):** whether copying decklists from Riot's articles is allowed (Riot Developer Rules rule 7,
   gray area; App Note via H-011). CAT-025 keeps import manual until answered.
 - **Depends on SPEC-002:** ban-list versioning, `bannedSince` dates, `legalAtEvent`, regional ban lists. Regional
@@ -457,4 +474,4 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
   Confirm, or use the full Legend name.
 
 ## Changelog
-Current: 0.6 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: CAT-077 and CAT-078 without modes; new CAT-079 smooth scrolling, no pagination; ACs 23, 24). Previous: 0.5.1 (2026-11-25, H-160). Earlier: 0.5 (2026-11-23). Full history: [[Tournament Deck Catalog changelog]] (archived). New entries go in the archive note.
+Current: 0.7 (2026-11-25, H-167, from [[Tournament Results]] facts 7 to 9: RC Europe `name` is `Riftbound Regional Championship: Europe` (CAT-001, examples, ACs 1, 2, 16, 17, `TournamentDeckSource.eventName`); new CAT-006 no bracket or match model; CAT-002 no official player total and derived counts are not data; CAT-011 source note; ACs 25, 26; three BLOCKED items resolved; pins SPEC-006 examples only). Previous: 0.6 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: CAT-077 and CAT-078 without modes; new CAT-079 smooth scrolling, no pagination; ACs 23, 24). Earlier: 0.5.1 (2026-11-25, H-160). Earlier: 0.5 (2026-11-23). Full history: [[Tournament Deck Catalog changelog]] (archived). New entries go in the archive note.
