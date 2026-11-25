@@ -58,7 +58,7 @@ actionable, so it waits too. The loop never treats a parked item as approved. (C
 Gate 5 is a **hard stop**: the run ends at once.
 
 5. Anything destructive or irreversible, or anything that would touch outside services or accounts
-   (push, deploy, Firebase, Riot API keys, paid services)
+   (deploy, Firebase, Riot API keys, paid services, any push other than the release PR below)
 
 ## Git policy
 - `main`: only RJ merges into it, from `dev`.
@@ -66,7 +66,12 @@ Gate 5 is a **hard stop**: the run ends at once.
 - `loop/<ID>-<slug>`: one branch per board item, created from `dev` and merged back with
   `--no-ff` after the validator passes.
 - `research/refresh-<date>`: one branch per research refresh, merged into `dev` the same way.
-- Commit messages start with the item ID. Never push, force, or rebase `dev`/`main`.
+- Commit messages start with the item ID. Never force or rebase `dev`/`main`.
+- **Release PR (RJ 2026-11-24):** after an item passes validation and is merged into `dev`, the loop
+  pushes `dev` (plain push) and opens a `dev` → `main` PR, or adds the item to the one already open.
+  One open release PR at a time collects every item since the last release. The loop never merges
+  it, never enables auto-merge and never pushes `main`; RJ merges. A failed push or `gh` call parks a
+  `needs-RJ` item instead of forcing. This is the only push the loop makes.
 
 ## Round cap
 Default 5 rounds per `/board` run (`/board 10` for more). Research refreshes are a single round.
@@ -75,7 +80,7 @@ Default 5 rounds per `/board` run (`/board 10` for more). Research refreshes are
 A nightly scheduled task (`rift-builder-nightly-board`, Claude desktop app, 02:05 local) runs
 `/board 5` in this project. It runs only while the app is open (a missed run starts on the next
 launch). Preflight skips the run if tracked files have uncommitted changes, so it never mixes with
-work in progress. It never pushes; RJ reviews `dev` and the parked gates in the morning.
+work in progress. It pushes only `dev` for the release PR; RJ reviews the PR and the parked gates in the morning.
 
 ## Research refresh
 On demand with `/research-refresh [focus]`. The weekly scheduled run is **not set up yet**: RJ deleted the original task on 2026-11-23 and will recreate it inside the Claude project later (H-042). Until then, run it manually.
