@@ -93,7 +93,8 @@ describe('SYNC-007 build and hosting configuration', () => {
   const ngBuild = angularJson.projects.web.architect.build;
 
   it('SYNC-007 (4) AC 35: firebase deploy --only hosting and the main workflow still build production', () => {
-    expect(prodHosting.predeploy).toEqual(['npm --prefix web run build']);
+    // SYNC-101 check 2 (H-180) runs first, so a production deploy stops while the notice date is unfilled.
+    expect(prodHosting.predeploy).toEqual(['npm --prefix web run check:privacy-release', 'npm --prefix web run build']);
     expect(packageJson.scripts.build).toBe('node scripts/build.mjs prod');
     expect(prodHosting.public).toBe('web/dist/web/browser'); // the default outputPath dist/<project>
     expect('outputPath' in ngBuild.options).toBe(false);

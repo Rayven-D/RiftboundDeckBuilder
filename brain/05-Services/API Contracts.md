@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.19
+version: 1.20
 ---
 # API Contracts
 
@@ -516,6 +516,40 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   `npm --prefix web test -- --watch=false` before merging. Preview deploys get no entry. The release version is never
   injected into the build or `appVersion` (LOG-043).
 
+## Privacy notice (SPEC-010 SYNC-101, SYNC-103, SYNC-104, H-180)
+- **Notice text source (the one file the SYNC-101 checks scan):** `web/src/app/core/privacy/privacy-notice.md`, the
+  text of [[Privacy Notice Draft]] "Proposed page text" with the **Confirm** markers and the notes for RJ removed
+  (the built page shows none), `[set on release: date dev → main ships sign-in]` kept as written, and "the What's new
+  page" linked to `/changelog` (SYNC-103 item 3). A Markdown subset: `#` (the one `<h1>`), `##`, paragraphs, `- `
+  lists, `**strong**`, `*em*`, `` `code` ``, `[text](href)` (`/…` = in-app same-tab link, `mailto:` for the support
+  address). Bundled at build time (`import … with { loader: 'text' }`, typed by `web/src/markdown.d.ts`); nothing is
+  fetched. Exposed through the `PRIVACY_NOTICE_TEXT` token (`core/privacy/privacy-notice-text.ts`) so tests can
+  provide other text.
+- **Pure parser:** `web/src/app/shared/privacy/notice-markdown.ts` (`parseNoticeMarkdown`, `parseNoticeInline`):
+  blocks of text parts; the page binds text, never HTML. Other bracketed text stays text.
+- **Page:** `/privacy` (`pages/privacy/privacy-page.ts`), tab title `Privacy notice · Rift Builder`, public, injects
+  nothing from sync (no Firebase, no storage, no request). The paragraph under the `<h1>` is the date line.
+- **Links:** footer (`.footer-links`, first, before What's new; `routerLinkActive` + `aria-current="page"`); account
+  menu (`<a mat-menu-item routerLink="/privacy">` after the Theme group, before What's new and the last divider;
+  enabled offline and during an unfinished deletion); sign-in dialog (`.fine-print` line under the form in every
+  state: `AGE_LINE` "For ages 16 and over." then `<a href="/privacy" target="_blank" rel="noopener">Privacy notice</a>`,
+  described by a visually hidden "Opens in a new tab.").
+- **Check 1 (every build and the unit tests):** `web/scripts/privacy-notice-checks.mjs` `findNoticeBlanks` returns the
+  case-sensitive substrings `[RJ` / `[builder` found in the notice file. `web/scripts/build.mjs` (so `npm run build`,
+  `build:preview` and both hosting predeploys) exits 1 with `Privacy notice has unfilled blanks: "[RJ" in
+  src/app/core/privacy/privacy-notice.md.` before `ng build`; `src/tooling/privacy-notice-checks.spec.ts` runs it on the
+  real file. Markdown links, template bindings and the release-day date never match.
+- **Check 2 (release step and production deploy only):** `npm --prefix web run check:privacy-release`
+  (`web/scripts/check-privacy-release.mjs`, pure `checkPrivacyRelease`) exits 1 with `Privacy notice still has "[set on
+  release": replace it with the release date (effective and last updated) before releasing.` while the marker remains;
+  0 otherwise. Run by: the GitHub Actions deploy of `main` (step after the changelog check, before the deploy) and the
+  first `firebase.json` hosting predeploy (so a local `firebase deploy --only hosting` is held too). Not run by
+  `npm run build`, test, lint or the preview deploy (`firebase.preview.json`).
+- **Release step (SYNC-101), in the `dev` → `main` release PR:** replace both `[set on release: …]` markers in
+  `privacy-notice.md` with the release day (`YYYY-MM-DD`), then run `npm --prefix web run check:privacy-release`. Only
+  after RJ has approved [[Privacy Notice Draft]]. Manual (AC 70): if DevTools shows any card image loaded from a host
+  other than Rift Builder's own hosting, the notice must already name it in "Who receives it" (SYNC-103 item 9).
+
 ## Changelog
 - v0: created
 - v1 (2026-11-23, H-008): first endpoints: `GET /api/health`, `GET /api/sets`, `GET /api/cards`
@@ -557,6 +591,9 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.20 (2026-11-25, H-180, SPEC-010 v0.15.1): no endpoint change. New "Privacy notice" section: the notice text
+  file, `PRIVACY_NOTICE_TEXT`, the Markdown subset parser, `/privacy`, its three links, SYNC-101 check 1 (in
+  `build.mjs`) and check 2 (`check:privacy-release`, `main` workflow and `firebase.json` predeploy), the release step.
 - v1.19 (2026-11-25, H-213, SPEC-010 v0.16.0): no endpoint change. Firestore rules: `validUsername` (SYNC-160)
   checks the allowed set and 1 to 20 code points with RE2 `matches()` when `username` changes (unchanged names
   pass, create still denies it); replaces the v0.15 length-only check. Shared test data `username-cases.ts`; the

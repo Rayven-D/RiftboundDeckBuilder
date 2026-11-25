@@ -61,6 +61,27 @@ describe('App', () => {
     expect(TestBed.inject(Router).url).toBe('/changelog');
   });
 
+  it('SYNC-104 (e, g) / AC 69 the footer has a real Privacy notice link to /privacy, first in the links row, above the unchanged Riot legal line, same tab', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const footer = (fixture.nativeElement as HTMLElement).querySelector('footer')!;
+    const links = Array.from(footer.querySelectorAll<HTMLAnchorElement>('.footer-links a'));
+    expect(links.map((a) => a.textContent?.trim())).toEqual(['Privacy notice', "What's new"]);
+    const link = links[0];
+    expect(link.getAttribute('href')).toBe('/privacy');
+    expect(link.getAttribute('target')).toBeNull();
+    expect(link.tabIndex).toBe(0);
+    expect(link.closest('.footer-row')?.nextElementSibling?.classList.contains('legal')).toBe(true);
+    expect(footer.querySelector('.legal')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      `Rift Builder was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project.`,
+    );
+    expect(link.getAttribute('aria-current')).toBeNull();
+    link.click();
+    await fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/privacy');
+    expect(link.getAttribute('aria-current')).toBe('page');
+  });
+
   it("SPEC-012 LOG-070 / H-222 the footer What's new link has aria-current=\"page\" on /changelog only", async () => {
     const fixture = TestBed.createComponent(App);
     const router = TestBed.inject(Router);

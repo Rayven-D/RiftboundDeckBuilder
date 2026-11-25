@@ -45,7 +45,7 @@ let accountMenuSeq = 0;
  * username (or "Account" with a person icon) and a chevron, named "Account: {username}". The menu, top to bottom:
  * the username, "Signed in as {email}" (H-141), the status (SYNC-084) / divider / Sync now, or during an unfinished
  * deletion Try deleting again and Cancel deletion (SYNC-096) / divider / Account Information, the Theme radio group
- * (and Privacy notice there, SYNC-104 d, built by H-180), What's new (SPEC-012 LOG-011) / divider / Sign out.
+ * Privacy notice (SYNC-104 d, H-180), What's new (SPEC-012 LOG-011) / divider / Sign out.
  * Exactly 3 dividers (H-110). Delete account and data lives in the Account Information dialog (SYNC-152); there is no Settings item or `/account` link.
  */
 @Component({
@@ -77,7 +77,7 @@ let accountMenuSeq = 0;
         <app-icon class="chevron" name="expand_more" />
       </button>
       <!-- H-110 groups: [username, identity, status, offline] / [Sync now] or [deletion actions] /
-           [Account Information, Theme, (Privacy notice, H-180), What's new] / [Sign out]. Always 3 dividers, never first or last. -->
+           [Account Information, Theme, Privacy notice, What's new] / [Sign out]. Always 3 dividers, never first or last. -->
       <mat-menu #menu="matMenu" xPosition="before" class="account-menu-panel" [aria-describedby]="describedBy()">
         @if (sync.username(); as name) {
           <p class="menu-text username" [id]="usernameId">{{ name }}</p>
@@ -131,7 +131,9 @@ let accountMenuSeq = 0;
             </button>
           }
         </div>
-        <!-- LOG-011: a same-tab link, enabled offline and during an unfinished deletion (it needs no network). -->
+        <!-- SYNC-151 (7) / SYNC-104 (d), then LOG-011: same-tab links, enabled offline and during an unfinished
+             deletion (they need no network). -->
+        <a mat-menu-item routerLink="/privacy">Privacy notice</a>
         <a mat-menu-item routerLink="/changelog">What's new</a>
         <mat-divider />
         <button mat-menu-item type="button" [disabled]="!sync.online()" (click)="openSignOut()">Sign out</button>

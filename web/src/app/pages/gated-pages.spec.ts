@@ -398,6 +398,38 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-009)', () => {
       expect(document.cookie).toBe(cookies);
     });
 
+    it('SYNC-104 (a, h) / AC 65 / AC 70 signed out with empty storage, /privacy shows the notice, no panel, no Firebase, no storage key, no cookie', async () => {
+      setup();
+      const cookies = document.cookie;
+      const session = Object.keys({ ...sessionStorage });
+      const { el } = await open('/privacy');
+      expect(TestBed.inject(Router).url).toBe('/privacy');
+      expect(text(el.querySelector('h1'))).toBe('Privacy notice');
+      expect(text(el)).toContain('Effective');
+      expect(el.querySelector('app-sign-in-panel')).toBeNull();
+      expect(adapterLoads).toBe(0);
+      expect(Object.keys({ ...localStorage })).toEqual([]);
+      expect(Object.keys({ ...sessionStorage })).toEqual(session);
+      expect(document.cookie).toBe(cookies);
+    });
+
+    it('SYNC-104 (a) / AC 65 signed in and synced, or offline, /privacy shows the same text', async () => {
+      setup(SYNCED);
+      const { el } = await open('/privacy');
+      const signedOut = text(el.querySelector('app-privacy-page'));
+      expect(text(el.querySelector('h1'))).toBe('Privacy notice');
+      expect(el.querySelector('app-sign-in-panel')).toBeNull();
+      const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      try {
+        window.dispatchEvent(new Event('offline'));
+        await open('/');
+        const { el: offline } = await open('/privacy');
+        expect(text(offline.querySelector('app-privacy-page'))).toBe(signedOut);
+      } finally {
+        onLine.mockRestore();
+      }
+    });
+
     it('SPEC-012 LOG-001 / AC 1 signed in and synced, /changelog shows the same page', async () => {
       setup(SYNCED);
       const { el } = await open('/changelog');

@@ -69,6 +69,20 @@ describe('routes', () => {
     expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain('Own what you need.');
   });
 
+  it('SYNC-104 (a, b) / AC 65 /privacy shows the Privacy notice with the tab title Privacy notice · Rift Builder', async () => {
+    const harness = await RouterTestingHarness.create('/privacy');
+    expect(TestBed.inject(Router).url).toBe('/privacy');
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent?.trim()).toBe('Privacy notice');
+    expect(harness.routeNativeElement?.textContent).toContain('Effective');
+    expect(document.title).toBe('Privacy notice · Rift Builder');
+  });
+
+  it('SYNC-104 (a) / AC 65 /privacies goes to Home like any unknown path', async () => {
+    const harness = await RouterTestingHarness.create('/privacies');
+    expect(TestBed.inject(Router).url).toBe('/');
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toContain('Own what you need.');
+  });
+
   it('SYNC-159 (a) there is no import route', () => {
     expect(routes.some((r) => r.path === 'import')).toBe(false);
   });

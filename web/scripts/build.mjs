@@ -4,12 +4,16 @@
 //   node scripts/build.mjs preview                  -> npm run build:preview (local preview build)
 //   node scripts/build.mjs preview --channel-deploy -> the firebase.preview.json predeploy only
 // The value reaches `ng build` as a `define` (APP_VERSION), so nothing is written into the source tree.
+// SPEC-010 SYNC-101 check 1 (H-180): every build first fails if the privacy notice text holds an unfilled blank
+// ("[RJ" or "[builder"); the release-day date marker passes here (check 2 is the release step's, not the build's).
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { appVersion, ngBuildArgs, resolveCommitId } from './app-version.mjs';
 import { previewDeployChannelFromEnv } from './preview-channel.mjs';
+import { NOTICE_PATH, blanksMessage, findNoticeBlanks } from './privacy-notice-checks.mjs';
 
 const webDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -31,6 +35,9 @@ if (channelDeploy) {
     fail(e.message);
   }
 }
+
+const blanks = findNoticeBlanks(readFileSync(resolve(webDir, NOTICE_PATH), 'utf8'));
+if (blanks.length > 0) fail(blanksMessage(blanks));
 
 const git = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: webDir, encoding: 'utf8' });
 const commitId = resolveCommitId({
