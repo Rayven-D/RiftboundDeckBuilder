@@ -11,6 +11,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { provideRouter } from '@angular/router';
 import { AccountMenu } from './account-menu';
 import { DeleteAccountDialog, SIGN_OUT_TEXT, SignOutDialog } from './sync-dialogs';
 import { SYNC_ADAPTERS, SyncService } from './sync.service';
@@ -301,6 +302,7 @@ describe('H-143 / H-176 Account Information: delete dialog state at open and the
     TestBed.configureTestingModule({
       imports: [AccountMenu],
       providers: [
+        provideRouter([]),
         { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote: new FakeRemote(db) }) },
         { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
         { provide: InteractivityChecker, useClass: VisibleInteractivityChecker },
