@@ -7,6 +7,11 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-25: H-207 username 20 characters, no emoji (builder)
+- Built SPEC-010 v0.15.0 SYNC-153/156/112: the client normalizes (NFC, trim, collapse `\p{Zs}`), counts code points (at most 20, marks count, no `Intl.Segmenter` for counting), accepts only the SYNC-153 (4) set with no variation selector; length error before the character error; counter `n / 20` turns to the error colour with an icon above 20. `firestore.rules`: username `size()` 1–80, checked only when the request changes it (create still denied). [[API Contracts]] v1.17.
+- Chosen behaviour (for spec): a Save of the unchanged value closes before the check runs, so a v0.14 name that breaks the new rules is not re-checked until changed. AC 74's "`Zoë` typed as `e` + U+0301" names the wrong mark (U+0301 gives `é`; `ë` is U+0308); tests cover both.
+- Checks: web lint clean, build OK, 807 unit tests, rules 50/50 (JDK 21). Not committed or deployed (orchestrator).
+
 ## 2026-11-25: `/board 5` (orchestrator; RJ asked for H-176 first)
 - Round 1: **H-176** (builder): built the header account control, account menu and Account Information dialog, username (client 24 graphemes / 500 UTF-16 units; rules `size()` 1–2000; the emulator counts **UTF-16 units**), theme per device `device-theme` (inline script before first paint, footer and menu), Collection / Decks import FABs, and removed `/import`. Validator **PASS** ([[Validation H-176]]): lint, build, 777 unit tests; rules 40/40 on a partial run because the builder's leftover emulators held the ports. **PR #35 open for RJ**, gate **H-189**, follow-ups H-190, H-191. RJ asked for H-189 to run in its own session (worktree on the PR branch), which reviews, fixes and re-validates.
 - Rounds 2–4: **H-164** (spec-writer), SPEC-002 0.4 `review` from H-022 research. **FAIL** on attempt 1 (inferred 2v2 split, stale pins) and attempt 2 (dated AC 22 count), **PASS** on attempt 3 ([[Validation H-164]]). **PR #36 merged by the loop.** Filed gate **H-193** (SPEC-002 review: promos by name, SAMPLE, 2v2 as data), build H-194, research tidy-ups H-192.
