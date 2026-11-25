@@ -50,7 +50,7 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 
 ## Waiting on RJ
 - **Merge PR #35 (H-176, code):** review gate H-189 passed (3 fix rounds, rules 48/48, 797 unit tests, mergeable). Keep holding `dev` → `main` (H-179).
-- **H-182:** approve [[Privacy Notice Draft]] 0.2 and fill the `[RJ: …]` blanks (name, contact email, dates, age 13/16, change notice). Production waits on it.
+- **H-182:** answered 2026-11-25 (Rift Builder + `riftbuilder.support@gmail.com`, age 16, changes in a public changelog H-201, Confirm wordings kept, effective date set on release). Spec-writer H-200 fills the draft; then your final approval before `dev` → `main`.
 - **H-185:** SPEC-010 Open question 13 (username in account doc vs Auth `displayName`, extra username rules, Save during first sync, menu grouping, new strings, `device-theme`). Defaults are specced.
 - **H-187:** SPEC-007 Open questions 11–15 (defer group-by-card, tag / exclude UI, filters and edits; sorts and count line; dialog details line).
 - **Hold `main` (RJ 2026-11-24, H-179):** don't merge `dev` → `main` until sign-in is ready in production (H-063 Auth providers, H-152 privacy notice, Firestore rules deployed): once H-172 lands, `dev` is account-only and a merge would ship it. Test on preview channels meanwhile.
