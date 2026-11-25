@@ -18,6 +18,12 @@ export const environment = {
    * enabled in Firebase Auth (RJ, 2026-11-23); add 'google' here once it is enabled in the console.
    */
   authProviders: ['email-link'] as ('email-link' | 'google')[],
+  /**
+   * SPEC-013 TEST-001 / TEST-042: offer "Load test data" on Collection. Public config, not a secret. True in
+   * production and preview until real imports can save; the build item that turns real imports on (after H-020)
+   * sets it to false (the Remove banner stays for anyone who still has test data, TEST-041).
+   */
+  testDataEnabled: true,
   firebase: {
     // H-063: RJ fills in the web app config from the Firebase console (Project settings → Your apps).
     apiKey: 'AIzaSyDR1geWEP0jhSLW4pmbBcWDQsLjj-Vtnw8',
