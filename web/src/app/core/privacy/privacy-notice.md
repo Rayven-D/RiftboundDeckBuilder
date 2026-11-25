@@ -10,7 +10,7 @@ Rift Builder, an independent fan project, is responsible for your data. It is fr
 
 You can use Home and Tournaments without an account; Rift Builder stores nothing in the cloud for that. To import cards or decks you create an account with your email address. We store:
 
-- your email address and a Firebase user ID (in Firebase Authentication);
+- your email address and a user ID;
 - your username, the display name you choose (it is shown only to you, at the top of the page; you can leave it out);
 - your collection: card identifiers, counts and printing identifiers;
 - your tags: labels, colours and settings;
@@ -21,14 +21,14 @@ Your username, tag labels, deck names and notes are free text that you control. 
 
 ## What Google collects for us
 
-Our account and database service is Google Firebase. When you sign in, Firebase Authentication also keeps the IP address and user agent of the sign-in requests, to keep accounts secure and stop abuse. These IP logs are kept for a few weeks. Sign-in emails are sent from noreply@riftbound-deckbuilder.firebaseapp.com; if you reply to one, the reply goes to riftbuilder.support@gmail.com.
+Our hosting and database provider is Google (Firebase). When you sign in, Google also keeps the IP address and user agent of the sign-in requests, for a few weeks, to keep accounts secure and stop abuse. Sign-in emails are sent from noreply@riftbound-deckbuilder.firebaseapp.com; if you reply to one, the reply goes to riftbuilder.support@gmail.com.
 
 ## What we do not collect
 
 - No analytics, advertising or tracking tools.
 - No Riot account, Riot login or Riot account data. Rift Builder does not use Riot Sign On.
 - No payment information.
-- No account data about you when you only visit Home or Tournaments. Firebase Hosting (Google), which delivers the site's pages, may keep standard web server request logs, which can include your IP address, for any visit, as any web host does.
+- No account data about you when you only visit Home or Tournaments. Google, which hosts our pages, may keep standard request logs, which can include your IP address, for any visit, as any web host does.
 
 ## Why we use it
 
@@ -40,11 +40,11 @@ We use your data to give you the service you ask for, and, for security logs, be
 
 ## Who receives it
 
-Google (Firebase Authentication, Cloud Firestore and Firebase Hosting, including the Hosting request logs above) handles the data for us as our service provider. No one else receives it.
+Google (Firebase), our hosting and database provider, handles the data for us, including the request logs above. No one else receives it, and no one buys it.
 
 ## Where it is stored
 
-Your collection, tags, decks and locks are stored in Google Cloud Firestore in Dallas, Texas, USA. Firebase Authentication runs from data centers in the United States. If you are outside the US, your data is transferred to the US; Google protects such transfers with the mechanisms it offers (the EU-US Data Privacy Framework or standard contractual clauses).
+Your data is stored by Google Firebase in the United States. If you are outside the US, your data is transferred to the US; Google protects such transfers with the mechanisms it offers (the EU-US Data Privacy Framework or standard contractual clauses).
 
 ## Who can read it
 
@@ -52,7 +52,7 @@ Only you, signed in, can read your data through the app, and we do not look at a
 
 ## What your browser keeps
 
-While you are signed in, your browser keeps a copy of your account's data (so pages load quickly and work offline), your view settings, the email address you typed while signing in by email link (removed when sign-in finishes), and your Firebase sign-in session, all in the browser's own storage on your device. Your browser also remembers your theme choice (light, dark or system) on that device; it is not part of your account, so signing out or deleting your account does not clear it. Rift Builder sets no cookies. We keep only what the features you asked for need, so there is no cookie banner. Signing out or deleting your account clears the copy of your account's data from the device.
+While you are signed in, your browser keeps a copy of your account's data (so pages load quickly and work offline), your view settings, the email address you typed while signing in by email link (removed when sign-in finishes), and your sign-in session, all in the browser's own storage on your device. Your browser also remembers your light or dark theme on that device; it is not part of your account, so signing out or deleting your account does not clear it. Rift Builder sets no cookies. We keep only what the features you asked for need, so there is no cookie banner. Signing out or deleting your account clears the copy of your account's data from the device.
 
 ## Do Not Track and Global Privacy Control
 
@@ -60,7 +60,7 @@ We do not track you across websites or over time, and we do not sell or share yo
 
 ## How long we keep it
 
-Until you delete your account. When you sign out, the copy on your device is cleared. After you delete your account, Google removes the data from its live and backup systems within about 180 days. Authentication IP logs are kept for a few weeks.
+Until you delete your account. When you sign out, the copy on your device is cleared. After you delete your account, Google removes the data from its systems within about 180 days. Sign-in IP logs are kept for a few weeks.
 
 ## Your choices
 

@@ -6,6 +6,8 @@ import { PrivacyPage } from './privacy-page';
 
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 const DATE_MARKER = '[set on release: date dev → main ships sign-in]';
+/** AC 66 (v0.17.2, H-249): case-sensitive strings the notice text must not contain. */
+const ABSENT = ['Dallas', 'Texas', 'us-south1', 'Firestore', 'Firebase Authentication', 'Firebase Hosting', 'or system'];
 
 async function render(notice?: string): Promise<HTMLElement> {
   TestBed.configureTestingModule({
@@ -49,18 +51,27 @@ describe('SPEC-010 PrivacyPage (SYNC-104)', () => {
       'Rift Builder, an independent fan project',
       'riftbuilder.support@gmail.com',
       'IP address and user agent',
-      'Dallas',
+      'United States',
       '180 days',
       'Do Not Track',
       'Global Privacy Control',
       'no cookies',
       'Riot Games does not endorse or sponsor this project.',
       'under 16',
-      'Firebase Hosting',
+      'request logs',
+      'Google (Firebase)',
+      'light or dark',
       'public changelog',
       'No Riot account, Riot login or Riot account data.',
     ]) {
       expect(all, s).toContain(s);
+    }
+  });
+
+  it('SYNC-103 items 5, 6, 9, 10, 12 / AC 66 (v0.17.2) the page names no city, region or Firebase product and no "system" theme', async () => {
+    const all = text(await render());
+    for (const s of ABSENT) {
+      expect(all, s).not.toContain(s);
     }
   });
 

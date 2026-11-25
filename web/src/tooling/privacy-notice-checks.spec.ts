@@ -30,6 +30,15 @@ describe('SPEC-010 SYNC-101 check 1: no RJ or builder blank in the notice text (
     expect(findNoticeBlanks(notice())).toEqual([]);
   });
 
+  it('SYNC-103 / AC 66 (v0.17.2) the notice text holds none of the removed location and product strings (case-sensitive)', () => {
+    const text = notice();
+    for (const s of ['Dallas', 'Texas', 'us-south1', 'Firestore', 'Firebase Authentication', 'Firebase Hosting', 'or system']) {
+      expect(text, s).not.toContain(s);
+    }
+    expect(text).toContain('Your data is stored by Google Firebase in the United States.');
+    expect(text).toContain('remembers your light or dark theme on that device');
+  });
+
   it('SYNC-101 / AC 66 a blank such as "[RJ/builder: image host name]", "[RJ: name]" or "[builder: x]" fails it', () => {
     expect(findNoticeBlanks('Who receives it [RJ/builder: image host name].')).toEqual(['[RJ']);
     expect(findNoticeBlanks('Contact: [RJ: email]')).toEqual(['[RJ']);
