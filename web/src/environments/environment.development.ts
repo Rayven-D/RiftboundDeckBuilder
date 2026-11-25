@@ -6,6 +6,8 @@ export const environment = {
   appVersion: 'web-dev',
   /** SYNC-006: as environment.ts (email link only until Google is enabled in the console). */
   authProviders: ['email-link'] as ('email-link' | 'google')[],
+  /** SPEC-013 TEST-001: as environment.ts. */
+  testDataEnabled: true,
   firebase: {
     apiKey: 'demo-api-key', // the Auth emulator accepts any key
     authDomain: 'localhost',

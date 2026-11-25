@@ -78,9 +78,11 @@ describe('HomePage', () => {
   });
 
   it('SPEC-010 AC 35 / AC 63: no environment has a sign-in flag; production and development differ only in build settings', () => {
-    const keys = ['apiBaseUrl', 'appVersion', 'authProviders', 'firebase', 'production'];
+    // SPEC-013 TEST-001 (H-205): `testDataEnabled` is a feature flag for the test-data tool, not a sign-in flag.
+    const keys = ['apiBaseUrl', 'appVersion', 'authProviders', 'firebase', 'production', 'testDataEnabled'];
     expect(Object.keys(environment).sort()).toEqual(keys);
     expect(Object.keys(devEnvironment).sort()).toEqual(keys);
     expect(devEnvironment.authProviders).toEqual(environment.authProviders);
+    expect(devEnvironment.testDataEnabled).toBe(environment.testDataEnabled);
   });
 });

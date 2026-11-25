@@ -70,11 +70,38 @@
     <button #emptyAdd type="button" class="button" aria-haspopup="dialog" (click)="openImport()">
       Add to your collection
     </button>
+    @if (testDataEnabled) {
+      <!-- SPEC-013 TEST-002: under the Add button, only on an empty collection and only while the flag is on. -->
+      <div class="test-load">
+        <button #emptyLoad matButton type="button" aria-haspopup="dialog" (click)="openTestLoad()">
+          {{ testText.loadButton }}
+        </button>
+      </div>
+    }
   </app-empty-state>
 }
 
 @if (pending(); as p) {
   <app-import-pending kind="collection" [result]="p" (again)="openImport()" (cleared)="pending.set(null)" />
+}
+
+@if (testData() && phase() === 'ready') {
+  <!-- SPEC-013 TEST-010: always visible while test data is present (not dismissible), also with no search results,
+       and with the flag off (TEST-041; Change set only while the flag is on). -->
+  <div class="banner banner--warning banner--test" role="status">
+    <app-icon name="warning" />
+    <p>{{ testText.banner }}</p>
+    <div class="banner-actions">
+      @if (testDataEnabled) {
+        <button matButton type="button" aria-haspopup="dialog" (click)="openTestLoad()">
+          {{ testText.changeSet }}
+        </button>
+      }
+      <button matButton type="button" aria-haspopup="dialog" (click)="confirmRemoveTest()">
+        {{ testText.removeButton }}
+      </button>
+    </div>
+  </div>
 }
 
 @if (phase() === 'ready' || phase() === 'loading') {
