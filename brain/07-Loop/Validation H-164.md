@@ -31,3 +31,21 @@ Checks run: `git diff` of Deck Legality, Spec Index, Your Decks Ownership View, 
 ## Non-blocking
 - [[Ban List]] fact 5 still says "see the conflict below" although fact 8 resolves it (researcher, minor).
 - [[Formats]] #8 says Standard "holds Origins plus the next two years" right after "removes Sets 1-5: Origins plus ..." (reads as contradictory; researcher to reword).
+
+## Attempt 2 (2026-11-25)
+
+Result: **FAIL** (one narrow defect left; everything else fixed).
+
+Checked with `git diff ae6bb89` (uncommitted): changes are limited to Deck Legality (B11, 2v2 content, AC 22, Open q 9), the two pins, and one changelog line. Nothing else changed.
+
+Fixed:
+- Failure 1 mostly fixed: July 24 / Sept 18 split removed; LEGAL-B11 `unverified`; 2v2 content shows only totals; split sent to Open q 9 / H-169. Totals match [[Ban List]]: 1 Legend (Master Yi, Wuju Bladesman, fact 3), 14 cards and 7 battlefields now (fact 8, Radiance effective 2026-11-23, fact 5), 6 cards and 5 battlefields before (fact 1).
+- Failure 2 fixed: Deck Import and My Collection now pin [[Deck Legality]] v0.4. Remaining `0.3.1` in `02-Specs` are history text only (B02 note, AC 21, changelog line, Spec Index "0.3.1:" history).
+- V-009: changed lines add no new wikilinks beyond existing ones; AC 22 still has Given/When/Then.
+
+Still failing:
+1. **AC 22 over-claims a dated count.** Input: 2v2 banned set as of "any date before 2026-11-23". Expected: only what [[Ban List]] sources (6 cards, 5 battlefields as of the hub read just before the Radiance wave, fact 1). Actual: AC says every earlier date has 1 legend, 6 cards, 5 battlefields. That contradicts facts 3-4 (the list was created 2026-07-24 and gained cards on 2026-09-18, so earlier dates had fewer) and the spec's own "split not sourced" text. Fix: reword to "as of 2026-11-22" (or drop the pre-Radiance clause); same loosening in the B11 "before 2026-11-23" wording is acceptable once AC 22 is fixed. Owner spec-writer, P1.
+
+Minor (non-blocking): B11 and the content section say "as of 2026-11-23" for the 14/7 totals, while fact 8 was observed 2026-11-24 (the Source column keeps 2026-11-24).
+
+Non-blocking researcher follow-ups unchanged (filed as H-192).
