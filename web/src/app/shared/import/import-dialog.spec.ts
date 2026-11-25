@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { makeCatalog } from '../../core/decks/engine-fixtures';
+import { ImportCommitter, resolveCollectionImport } from './collection-commit';
 import { ImportDialog } from './import-dialog';
 
 type Fixture = ComponentFixture<ImportDialog>;
@@ -162,5 +164,79 @@ describe('ImportDialog upload state', () => {
     await settle(f);
     expect(textarea(f).value).toBe('2 Fast Card');
     expect(hint(f)).toBe('Loaded fast.csv');
+  });
+});
+
+describe('ImportDialog review step (Owned Cards Import commit, H-158)', () => {
+  const catalog = makeCatalog(['Lightning Rush', 'Gust']);
+  function withCommitter(commit: ImportCommitter['commit']) {
+    const close = vi.fn();
+    const committer: ImportCommitter = {
+      prepare: async (r) => ({ status: 'ok', resolved: resolveCollectionImport(r, catalog), catalog }),
+      commit,
+    };
+    TestBed.configureTestingModule({
+      imports: [ImportDialog],
+      providers: [
+        { provide: MAT_DIALOG_DATA, useValue: { kind: 'collection', committer } },
+        { provide: MatDialogRef, useValue: { close } },
+      ],
+    });
+    const f = TestBed.createComponent(ImportDialog);
+    f.detectChanges();
+    return { f, close };
+  }
+  const click = (f: Fixture, label: string) =>
+    Array.from(el(f).querySelectorAll<HTMLButtonElement>('button'))
+      .find((b) => b.textContent?.trim() === label)!
+      .click();
+
+  it('IMP-049 / IMP-027: Continue shows what matched, the lines left out, and Add as the default; Back keeps the text', async () => {
+    const commit = vi.fn();
+    const { f } = withCommitter(commit);
+    type(f, '3 Lightning Rush\n2 Gust\n1 Gost');
+    click(f, 'Continue');
+    await settle(f);
+    expect(el(f).querySelector('.totals')!.textContent!.trim()).toBe('Ready: 5 copies of 2 cards.');
+    expect(el(f).querySelector('.left-out')!.textContent).toContain('Line 3: No card named "Gost" in the card data.');
+    const radios = el(f).querySelectorAll<HTMLInputElement>('input[type="radio"]');
+    expect(radios[0].checked).toBe(true);
+    expect(el(f).textContent).toContain('Add cards');
+    click(f, 'Back');
+    await settle(f);
+    expect(textarea(f).value).toBe('3 Lightning Rush\n2 Gust\n1 Gost');
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it('IMP-072: closes with "committed" only after a written commit; an error stays in the dialog', async () => {
+    const commit = vi
+      .fn<ImportCommitter['commit']>()
+      .mockResolvedValueOnce({ status: 'error', message: 'Disk full.' })
+      .mockResolvedValueOnce({ status: 'cancelled' })
+      .mockResolvedValueOnce({ status: 'written' });
+    const { f, close } = withCommitter(commit);
+    type(f, '1 Gust');
+    click(f, 'Continue');
+    await settle(f);
+    click(f, 'Add cards');
+    await settle(f);
+    expect(el(f).querySelector('.commit-error')!.textContent).toContain('Disk full.');
+    expect(close).not.toHaveBeenCalled();
+    click(f, 'Add cards');
+    await settle(f);
+    expect(close).not.toHaveBeenCalled();
+    click(f, 'Add cards');
+    await settle(f);
+    expect(close).toHaveBeenCalledWith('committed');
+    expect(commit).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ok' }), 'add');
+  });
+
+  it('IMP-027: a list where nothing matches offers no commit', async () => {
+    const { f } = withCommitter(vi.fn());
+    type(f, '2 Nothing Like It');
+    click(f, 'Continue');
+    await settle(f);
+    expect(alert(f)).toContain('None of these lines match a card.');
+    expect(el(f).textContent).not.toContain('Add cards');
   });
 });

@@ -54,7 +54,8 @@
 }
 
 @if (phase() === 'catalog-error') {
-  <!-- S10: wording pending H-087 (missing catalog). -->
+  <!-- COLL-090 (a): card data unavailable. (b) nothing else of the list shows; (e) an empty collection shows the
+       empty state instead (load() checks the collection before the catalog). -->
   <div class="banner banner--warning" role="alert">
     <app-icon name="warning" />
     <p>Card data couldn't load. Your cards are safe. Names and images will show once it loads.</p>
@@ -79,10 +80,6 @@
       </div>
     }
   </app-empty-state>
-}
-
-@if (pending(); as p) {
-  <app-import-pending kind="collection" [result]="p" (again)="openImport()" (cleared)="pending.set(null)" />
 }
 
 @if (testData() && phase() === 'ready') {

@@ -218,7 +218,7 @@ background.
 | Loading (> 200ms) | count line placeholder (1em tall, 10rem wide, `--color-surface-raised`, `--radius-sm`), toolbar disabled, **12 skeleton tiles**: 63:88 boxes in `--color-surface-raised`, `--radius-md`, no shimmer | the grid gets `aria-busy="true"`, plus a visually hidden `Loading your collection…` | — | — |
 | Search finds nothing | `app-empty-state` in place of the grid | region | heading `No cards match “zhonya”.` (curly quotes, the user's text) · no message | `.button` `Clear search` (focus goes to the search field) |
 | Unreadable collection | banner, `--color-danger` | `role="alert"` | `Your collection couldn't be read. It may have been saved by a newer version of Rift Builder. Nothing was changed or deleted.` | `Reload` |
-| Card data didn't load (wording pending H-087) | banner, `--color-warning`, no grid | `role="alert"` | `Card data couldn't load. Your cards are safe. Names and images will show once it loads.` | `Try again` |
+| Card data didn't load (COLL-090, as built; H-158) | banner, `--color-warning`, no grid | `role="alert"` | `Card data couldn't load. Your cards are safe. Names and images will show once it loads.` | `Try again` |
 | Ban list didn't load | notice line under the count line, muted with the `help` icon | `role="status"` | `The ban list couldn't load, so ban status is unknown.` | dismiss ✕ `aria-label="Dismiss"` |
 | Locks unreadable | notice line | `role="status"` | `Locked decks couldn't be read, so locked copies aren't shown.` | dismiss |
 | Unknown URL value | notice line | `role="status"` | `1 filter value not found and was ignored` (verbatim, COLL-062) | dismiss |

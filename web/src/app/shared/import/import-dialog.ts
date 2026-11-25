@@ -10,7 +10,10 @@ import {
 } from '@angular/material/dialog';
 import { MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { MatRadioButton, MatRadioGroup } from '@angular/material/radio';
+import { countLine } from '../collection/collection-view';
 import { Icon } from '../icon';
+import { CommitMode, ImportCommitter, PreparedOk } from './collection-commit';
 import {
   ParseResult,
   SECTION_LABELS,
@@ -25,7 +28,33 @@ export interface ImportDialogData {
   readonly kind: ImportKind;
   /** A file dropped on the Collection or Decks page (COLL-094 i, OWN-094): loaded through the same upload path. */
   readonly file?: File;
+  /**
+   * Owned Cards Import (H-158): with a committer, Continue goes to the review step (resolved cards, lines left out,
+   * Add / Replace) and the dialog closes with `'committed'` only after a written commit (IMP-072). Without one it
+   * closes with the ParseResult (Deck Import until H-253).
+   */
+  readonly committer?: ImportCommitter;
 }
+
+/** What the dialog closes with: the parsed list (no committer), `'committed'`, or nothing (Cancel, Escape). */
+export type ImportDialogResult = ParseResult | 'committed';
+
+/** Review-step strings (H-158; SPEC-003 doesn't word this step, see the H-158 session note). */
+export const REVIEW_TEXT = {
+  ready: (copies: number, cards: number) => `Ready: ${countLine(copies, cards)}.`,
+  noneMatched: 'None of these lines match a card. Go back and fix them.',
+  leftOut: 'Not matched, left out of the import:',
+  notes: 'Check these:',
+  modeLabel: 'How to add them',
+  add: 'Add to your collection',
+  addHint: 'Adds these copies to the cards you already have.',
+  replace: 'Replace your collection',
+  replaceHint: 'Your collection becomes exactly this list.',
+  addAction: 'Add cards',
+  replaceAction: 'Replace collection',
+  saving: 'Saving…',
+  back: 'Back',
+} as const;
 
 const COPY: Readonly<Record<ImportKind, { title: string; lede: string; action: string }>> = {
   collection: {
@@ -65,10 +94,81 @@ export function hasFiles(event: DragEvent): boolean {
     MatLabel,
     MatHint,
     MatInput,
+    MatRadioGroup,
+    MatRadioButton,
     Icon,
   ],
   template: `
     <h2 mat-dialog-title>{{ copy.title }}</h2>
+    @if (review(); as r) {
+      <mat-dialog-content>
+        @if (r.resolved.cardCount) {
+          <p class="totals" role="status">
+            <strong>{{ readyText(r) }}</strong>
+          </p>
+        } @else {
+          <p class="error" role="alert"><app-icon name="error" />{{ words.noneMatched }}</p>
+        }
+        @if (r.resolved.leftOut.length) {
+          <p class="note">{{ words.leftOut }}</p>
+          <ul class="issues left-out">
+            @for (l of r.resolved.leftOut.slice(0, maxIssues); track $index) {
+              <li>
+                <app-icon name="error" /><span><strong>Line {{ l.line }}:</strong> {{ l.message }}</span>
+              </li>
+            }
+            @if (r.resolved.leftOut.length > maxIssues) {
+              <li class="more">+{{ r.resolved.leftOut.length - maxIssues }} more</li>
+            }
+          </ul>
+        }
+        @if (r.resolved.notes.length) {
+          <p class="note">{{ words.notes }}</p>
+          <ul class="issues">
+            @for (l of r.resolved.notes.slice(0, maxIssues); track $index) {
+              <li class="warn">
+                <app-icon name="warning" /><span><strong>Line {{ l.line }}:</strong> {{ l.message }}</span>
+              </li>
+            }
+          </ul>
+        }
+        @if (r.resolved.cardCount) {
+          <mat-radio-group
+            class="modes"
+            [attr.aria-label]="words.modeLabel"
+            [value]="mode()"
+            (change)="mode.set($event.value)"
+          >
+            <mat-radio-button value="add">
+              <span class="mode-label">{{ words.add }}</span>
+              <span class="mode-hint">{{ words.addHint }}</span>
+            </mat-radio-button>
+            <mat-radio-button value="replace">
+              <span class="mode-label">{{ words.replace }}</span>
+              <span class="mode-hint">{{ words.replaceHint }}</span>
+            </mat-radio-button>
+          </mat-radio-group>
+        }
+        @if (submitError(); as err) {
+          <p class="error commit-error" role="alert"><app-icon name="error" />{{ err }}</p>
+        }
+      </mat-dialog-content>
+      <mat-dialog-actions align="end">
+        <button matButton type="button" class="back" (click)="back()">{{ words.back }}</button>
+        <button matButton type="button" mat-dialog-close>Cancel</button>
+        @if (r.resolved.cardCount) {
+          <button
+            matButton="filled"
+            type="button"
+            class="commit"
+            [attr.aria-disabled]="busy() || null"
+            (click)="commit(r)"
+          >
+            {{ busy() ? words.saving : mode() === 'add' ? words.addAction : words.replaceAction }}
+          </button>
+        }
+      </mat-dialog-actions>
+    } @else {
     <mat-dialog-content>
       <p class="lede">{{ copy.lede }}</p>
 
@@ -167,14 +267,24 @@ export function hasFiles(event: DragEvent): boolean {
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button matButton type="button" mat-dialog-close>Cancel</button>
-      <button matButton="filled" type="button" (click)="submit()">{{ copy.action }}</button>
+      <button matButton="filled" type="button" [attr.aria-disabled]="busy() || null" (click)="submit()">
+        {{ copy.action }}
+      </button>
     </mat-dialog-actions>
+    }
   `,
   styleUrl: './import-dialog.scss',
 })
 export class ImportDialog {
   protected readonly data = inject<ImportDialogData>(MAT_DIALOG_DATA);
-  private readonly dialogRef = inject<MatDialogRef<ImportDialog, ParseResult>>(MatDialogRef);
+  private readonly dialogRef = inject<MatDialogRef<ImportDialog, ImportDialogResult>>(MatDialogRef);
+  protected readonly words = REVIEW_TEXT;
+  protected readonly maxIssues = MAX_ISSUES_SHOWN;
+  /** The review step (Owned Cards Import): set by Continue once the list is resolved. */
+  protected readonly review = signal<PreparedOk | null>(null);
+  /** IMP-049: Add is the default. */
+  protected readonly mode = signal<CommitMode>('add');
+  protected readonly busy = signal(false);
 
   protected readonly copy = COPY[this.data.kind];
   protected readonly placeholder =
@@ -268,11 +378,56 @@ export class ImportDialog {
     }
   }
 
-  protected submit(): void {
+  protected async submit(): Promise<void> {
+    if (this.busy()) return;
     if (this.result().entries.length === 0) {
       this.submitError.set('Add at least one line with a number and a card name first.');
       return;
     }
-    this.dialogRef.close(this.result());
+    const committer = this.data.committer;
+    if (!committer) {
+      this.dialogRef.close(this.result());
+      return;
+    }
+    this.busy.set(true);
+    try {
+      const prepared = await committer.prepare(this.result());
+      if (prepared.status === 'error') this.submitError.set(prepared.message);
+      else {
+        this.submitError.set(null);
+        this.review.set(prepared);
+      }
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected readyText(r: PreparedOk): string {
+    return REVIEW_TEXT.ready(r.resolved.copies, r.resolved.cardCount);
+  }
+
+  /** Back to the list (the text and the upload are kept). */
+  protected back(): void {
+    if (this.busy()) return;
+    this.review.set(null);
+    this.submitError.set(null);
+  }
+
+  /**
+   * IMP-072: the dialog closes only after a written commit; a failed write keeps it open with the error and no
+   * notice; a cancelled Replace confirmation keeps it open and writes nothing.
+   */
+  protected async commit(r: PreparedOk): Promise<void> {
+    const committer = this.data.committer;
+    if (!committer || this.busy()) return;
+    this.busy.set(true);
+    this.submitError.set(null);
+    try {
+      const out = await committer.commit(r, this.mode());
+      if (out.status === 'written') this.dialogRef.close('committed');
+      else if (out.status === 'error') this.submitError.set(out.message);
+    } finally {
+      this.busy.set(false);
+    }
   }
 }

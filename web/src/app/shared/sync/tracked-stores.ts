@@ -40,6 +40,7 @@ export interface RawCollectionStore {
   load(): Promise<StoredCollection | null>;
   save(c: StoredCollection, opts?: { snapshotPrevious?: boolean }): Promise<void>;
   loadPrevious(): Promise<StoredCollection | null>;
+  clearPrevious(): Promise<void>;
 }
 export interface RawDeckStore extends DeckStore {
   put(deck: UserDeck): Promise<void>;
@@ -94,6 +95,11 @@ export class TrackedCollectionStore implements CollectionStore {
 
   loadPrevious(): Promise<StoredCollection | null> {
     return this.inner.loadPrevious();
+  }
+
+  /** IMP-075 (b): spends the Undo snapshot. The snapshot is a local cache record, not a synced item, so nothing is stamped. */
+  clearPrevious(): Promise<void> {
+    return this.ctx.queue.run(() => this.inner.clearPrevious());
   }
 
   /** `replace` marks an Owned Cards Import in Replace mode: one `set()` of the whole document (SYNC-014). */
