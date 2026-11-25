@@ -2,7 +2,7 @@
 tags: [spec, privacy, draft, review]
 id: SPEC-010-NOTICE
 version: 0.4
-status: review   # ready for RJ's final read (H-182, now of 0.4); becomes `approved` only when RJ writes the date in "Approval gate" below
+status: approved   # RJ approved 0.4 on 2026-11-25 (H-182, in chat: "yes, mark the privacy notice approved")
 spec: "[[Accounts and Sync]] SYNC-101, SYNC-103, SYNC-104 (v0.17.2)"
 research: ["[[Privacy Notice Requirements]]", "[[Card Data & Images]]"]
 board: H-152, H-181, H-182, H-200, H-208, H-249
@@ -47,11 +47,11 @@ as_of: 2026-11-25
 ## Approval gate (SYNC-007 condition 2)
 | Item | State |
 |---|---|
-| Text approved by RJ | **not yet; his final read (H-182) now covers 0.4** (RJ: write "approved YYYY-MM-DD" here and set `status: approved`) |
+| Text approved by RJ | **approved 2026-11-25** (version 0.4; RJ in chat: "yes, mark the privacy notice approved"; recorded by the orchestrator at his request, H-182) |
 | RJ-supplied blanks | **none left** (H-182 answers applied, 0.3); the page text has no image-host blank either (H-208): that line is added only if a build loads card images from a third-party host (SYNC-103 item 9, release condition below) |
 | Card-image host line | **not in the text; a manual release step, no automated check** (AC 70, SYNC-103 item 9). If any card image is loaded from a host other than Rift Builder's own hosting, the notice must name that host (see "Not in this text on purpose") and RJ re-approves before that build ships; the source is undecided until H-020 |
 | Release-day date | `[set on release: date dev → main ships sign-in]` stays until the release step replaces it with the real date (effective and last-updated) |
-| Built page matches this text | not yet (builder item H-180, see [[Accounts and Sync]] ACs 65-70) |
+| Built page matches this text | yes: `/privacy` built in H-180, text updated to 0.4 in H-250 (AC 66 checks pass) |
 
 Production does not get the account-only build until this is approved, the release-day date is filled (a check
 fails the production deploy while `[set on release` remains, SYNC-101), H-063 (Auth providers, reply-to) and the
