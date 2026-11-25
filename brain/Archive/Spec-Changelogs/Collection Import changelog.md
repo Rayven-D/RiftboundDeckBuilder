@@ -9,6 +9,8 @@ superseded_by: "[[Collection Import]]"
 
 Moved out of [[Collection Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.9.1 (2026-11-24, H-071): IMP-053 reads "browser by default, synced to the account when signed in"
+  (SPEC-010); no behavior change to import. Summary and "Resolved" lines match.
 - 0.9 (2026-11-24, H-097): **runes are imported like any card** (RJ, 2026-11-24: "Allow users to import
   runes as well and treat them like any other card."). New IMP-071 (no rune-specific skip, filter, warning
   or issue code in parse, resolve, merge, commit or export) and AC 42 (`Rune Pool:` / `Runes` sections,

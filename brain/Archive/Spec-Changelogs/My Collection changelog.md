@@ -9,6 +9,11 @@ superseded_by: "[[My Collection]]"
 
 Moved out of [[My Collection]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.9 (2026-11-24, H-071, SPEC-010 Impacts): `TagId` becomes `t_` + 6 base-62 characters (8 chars, SYNC-016);
+  `StoredTags` `schemaVersion` 3 with a 2 → 3 migration in COLL-071 (rewrites ids, assignments and the view
+  state's tag filter and saved views; worked example added); COLL-070 reads "browser by default, quantities and
+  tags synced when signed in"; COLL-074 while signed in clears this device and signs out, never deletes cloud
+  data (SYNC-052). Example tag ids in the URL acceptance criterion updated to the short form.
 - 0.8 (2026-11-24, H-097): **runes are cards** (RJ, 2026-11-24: "Allow users to import runes as well and
   treat them like any other card."). COLL-087 ("Runes are never needed") withdrawn; new COLL-089 (runes are
   listed, tagged, edited, exported and counted toward decks like any card; no rune-specific text such as

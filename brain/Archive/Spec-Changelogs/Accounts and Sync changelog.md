@@ -9,6 +9,10 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.6.1 (2026-11-24, H-071): metadata only. Dependency pins updated to SPEC-003 0.9.1, SPEC-005 0.5, SPEC-006 0.7,
+  SPEC-007 0.9, SPEC-008 0.4.1 (SPEC-009 withdrawn). The Impacts section is marked applied (IMP-053, COLL-070,
+  DECK-090, SHARE-060 wording; DECK-074 monotonic `updatedAt`; `TagId` / `StoredTags` 3 / COLL-074; ADR-0007
+  pointer). No SYNC requirement changed.
 - 0.6 (2026-11-23, RJ: "i did email. update the specs to work in google later but stick with email for now"):
   SYNC-006 and RJ decision 1: email link is the only launch provider; Google stays specified but off; enabled
   providers come from build config `authProviders` (default `['email-link']`), so adding `'google'` needs only
