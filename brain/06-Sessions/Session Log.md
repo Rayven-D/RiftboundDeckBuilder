@@ -119,3 +119,10 @@ Older entries: [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[
 - Process: sub-sessions still edited Current State / Session Log despite the brief (H-167), and the board merged with conflicts twice; resolved on the bookkeeping branch. RJ answered the same gate in two sessions with different answers; asked RJ which wins.
 - Next: H-252 (Decks spec pass), H-256, H-253 (save imported decks), H-155, then H-060 / H-254; H-291, H-271, H-257, H-270.
 
+## 2026-11-25: orchestrator: Decks built to Collection's level (one sub-session per item, paired PRs)
+- After the `/board` run: H-252 Decks spec pass (#66; RJ's answers on its nine questions → H-320, #67/#69), H-256 + H-330 (lock answers and RJ's three SPEC-005 confirmations, #70/#71). SPEC-005 0.10.2, SPEC-006 0.11, SPEC-008 0.4.6 are drafts with nothing waiting on RJ.
+- Builds in parallel worktree sessions, each validated on its own, then merged by the orchestrator onto one branch with a combined lint / build / test run and one PR for RJ: **#72** H-155 (lock engine) + H-253 (Import deck saves; Champion fix after RJ's answers: unpicked `Champion:` cards go to Main Deck, "Leave empty" kept), 1100 tests; **#73** H-311 (completion % and tile fields) + H-310 (full-shape test decks), 1136 tests; **#74** H-060 (Decks list, shared lock pieces; RJ's H-382 answers: one-row toolbar, separate lock badge, raised style budget) + H-254 (Deck detail; attempt 1 failed on the jump links, H-390, fixed), 1280 tests, no build warnings. All merged by RJ.
+- H-254 merged H-060's branch mid-build to reuse the lock components (slot left with `TODO(H-060)`); worked cleanly. Conflicts each time were only the board rows and API Contracts versions (now v1.28; `next_id` 400).
+- RJ deferred the Deck detail screen review: H-392's six questions are under Waiting on RJ in [[Current State]]. Push notifications to RJ's phone now work (`agentPushNotifEnabled`, `inputNeededNotifEnabled`).
+- Next: RJ asked to pack the project for another computer (`/move-computer`, own detached session). Then the follow-ups in Current State, H-255 review, Tournaments.
+
