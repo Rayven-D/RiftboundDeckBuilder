@@ -1,7 +1,7 @@
 ---
 tags: [spec, accounts, sync, firestore]
 id: SPEC-010
-version: 0.11.1
+version: 0.11.2
 status: draft
 depends_on: [SPEC-003, SPEC-004, SPEC-005, SPEC-006, SPEC-007, SPEC-008, SPEC-009]
 research: ["[[Firestore Data Shape]]", "[[Card Data & Images]]"]
@@ -99,8 +99,8 @@ questions 1–9 and the title "Finish signing in" ("all those look good to me", 
 `StoredSyncLog`, `SyncStatus`, Firestore document shapes `AccountDoc`, `CollectionDoc`, `TagsDoc`, `LocksDoc`,
 `DeckDoc`. Source of truth in code: `web/src/app/shared/sync/sync-types.ts` (v0.11 matches it; the v0.10
 additions were built in H-141, H-143 and H-145).
-**Depends on:** [[Collection Import]] v0.10, [[Tournament Deck Catalog]] v0.5, [[Your Decks Ownership View]]
-v0.5.1, [[Deck Import]] v0.7, [[My Collection]] v0.10, [[Shared Cards and Lock-in]] v0.4.2 (SPEC-009 [[Runes Assumed Owned]]
+**Depends on:** [[Collection Import]] v0.10.1, [[Tournament Deck Catalog]] v0.5.1, [[Your Decks Ownership View]]
+v0.5.2, [[Deck Import]] v0.7.1, [[My Collection]] v0.10.1, [[Shared Cards and Lock-in]] v0.4.3 (SPEC-009 [[Runes Assumed Owned]]
 is withdrawn since 2026-11-24: runes are cards, so nothing here treats them differently). **Consumers:** H-062 (built v0.7), H-081 (account-required mode), H-127 (Cancel deletion), H-077
 (first-sign-in writes), H-078 (build id and preview deploy), v0.10 UI items H-104, H-106, H-110, H-115, H-122 and
 H-140…H-145, [[ADR-0007 Firebase Accounts and Firestore]].
@@ -357,10 +357,10 @@ listener (over 30 minutes) re-reads every matching document; rule lookups are bi
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { CardKey, PrintingId, StoredCollection } from './collection-import';   // SPEC-003 v0.10
-import type { TagId, TagTarget, TagColour, StoredTags } from './my-collection';     // SPEC-007 v0.10 (TagId per SYNC-016)
-import type { UserDeck } from './deck-import';                                       // SPEC-006 v0.7
-import type { StoredDeckLocks } from './shared-cards';                              // SPEC-008 v0.4.2
+import type { CardKey, PrintingId, StoredCollection } from './collection-import';   // SPEC-003 v0.10.1
+import type { TagId, TagTarget, TagColour, StoredTags } from './my-collection';     // SPEC-007 v0.10.1 (TagId per SYNC-016)
+import type { UserDeck } from './deck-import';                                       // SPEC-006 v0.7.1
+import type { StoredDeckLocks } from './shared-cards';                              // SPEC-008 v0.4.3
 type Ms = number;                 // ms since Unix epoch, client clock
 type Timestamp = unknown;         // Firestore timestamp (adapter type)
 
@@ -996,7 +996,14 @@ are pending that item.
 - The 8-bucket collection split (future `schemaVersion: 2`, SYNC-123).
 
 ## Impacts on other specs and checks (for the orchestrator to file)
-**v0.8 (account required to import, RJ decision 13).** List only; those specs are not edited here.
+**Applied 2026-11-25 (H-160, v0.11.2):** the v0.8 Impacts for SPEC-003 0.10.1 (IMP-053, new IMP-076), SPEC-004 0.5.1
+(CAT-077, new CAT-078), SPEC-005 0.5.2 (new OWN-066), SPEC-006 0.7.1 (DECK-090, new DECK-097), SPEC-007 0.10.1 (COLL-070,
+COLL-074, new COLL-092) and SPEC-008 0.4.3 (SHARE-060) are written into those specs; the bullets below record what
+was asked. Wording used everywhere: "local-only mode: browser only; account-required mode: a browser cache of the
+signed-in account, cleared on sign-out". The one build consequence is H-154 (COLL-074 not offered in
+account-required mode; its Request is updated).
+
+**v0.8 (account required to import, RJ decision 13).** List only; those specs are not edited here (now applied, see above).
 - [[Collection Import]] (SPEC-003): the Import page and the Owned Cards Import are gated in account-required mode
   (SYNC-009). IMP-053 should read by mode: "local-only mode: browser only (as today); account-required mode: a
   browser cache of the signed-in account, cleared on sign-out (SPEC-010)". It cites
@@ -1044,6 +1051,7 @@ done); [[My Collection]] 0.9 `TagId` `t_` + 6 base-62 and `StoredTags` `schemaVe
 "while signed in clears this device and signs out"; ADR-0007 "Planned layout" pointer. **Still to apply (H-160):**
 the v0.8 per-mode wording in place of "browser by default" for IMP-053, COLL-070, DECK-090, SHARE-060 (and
 CAT-077), COLL-074 "not offered in account-required mode", and the gate notes in SPEC-003…SPEC-007 listed above.
+**Done in H-160 (2026-11-25).**
 - [[Firestore Data Shape]] read estimates are now low: a reopen is 3 reads (account check + 2 queries, SYNC-040),
   not 2; a first sign-in adds up to 3 + N rule-lookup reads and each new deck up to 1 (SYNC-113, SYNC-120). The
   per-day table (typical ≈ 15 reads) and the DAU figures should be recomputed; the effect is small (≈ +3 reads
@@ -1194,4 +1202,4 @@ notice kinds (H-116). Nothing from v0.10 or v0.11 is left to build. Open for RJ,
 (the Import dialog covers "You're signed in." on `/import?type=deck`; built default: accept).
 
 ## Changelog
-Current: 0.11.1 (2026-11-25, dev-line merge: dependency pins from the nightly run (SPEC-003 0.10, SPEC-004 0.5, SPEC-005 0.5.1, SPEC-006 0.7, SPEC-007 0.10, SPEC-008 0.4.2); Impacts record what H-071 applied and what is left (H-160); no requirement changed). Previous: 0.11 (2026-11-24, H-146, documents the build; RJ 2026-11-24 "all those look good to me": Open questions 1–9 and the confirm title "Finish signing in" confirmed, decision 16; SYNC-006 "disabled" = `aria-disabled="true"` with focus kept for Send link / Send again / Use a different email, and the other-device confirm dialog strings; new SYNC-087 notice kinds (success 6 s polite, info and error stay until OK, only error assertive, missing kind = info, COLL-054 Undo outside it; sync status messages are status text, not notices); SYNC-063 clock warning is an `info` notice, as built; ACs 39, 50, 51, 52 reworded, AC 58 new; Impacts home-copy bullet per H-126; "pending build" markers now "built"; no builder item). Previous: 0.10 (2026-11-24, [[UI Review 2026-11-24]] rows H-103, H-105, H-107, H-109, H-111, H-112, H-117, H-118, H-119, H-121; RJ decision 15: signed-out panel text "Sign in or create an account to start keeping track of your collections and decks", no panel heading; single-provider sign-in form, send-failure string, sent state, return to the start page and "You're signed in." once, "Signed in as {email}", no Sync now during an unfinished deletion, delete dialog sign-in-first state, sign-out dialog "Syncing…" and explanation line; SYNC-003, 005, 006, 009, 084, 086, 090, 095, 096, 100; ACs 1, 26, 27, 38, 43, 46, 47 changed, ACs 49–57 new; build H-104, H-106, H-110, H-115, H-122, H-140…H-145). Earlier: 0.9 (2026-11-24, H-134, RJ decision 14: gated pages keep their page header above the sign-in panel; signed-out panel text "You need a free account to import cards or decks."; SYNC-009, AC 46; build H-135). Full history: [[Accounts and Sync changelog]] (archived). New entries go in the archive note.
+Current: 0.11.2 (2026-11-25, H-160: Impacts for SPEC-003…SPEC-008 marked applied (per-mode storage wording, COLL-074 not offered in account-required mode, SYNC-009 gate notes); dependency pins now SPEC-003 0.10.1, SPEC-004 0.5.1, SPEC-005 0.5.2, SPEC-006 0.7.1, SPEC-007 0.10.1, SPEC-008 0.4.3; no requirement changed). Previous: 0.11.1 (2026-11-25, dev-line merge: dependency pins from the nightly run (SPEC-003 0.10, SPEC-004 0.5, SPEC-005 0.5.1, SPEC-006 0.7, SPEC-007 0.10, SPEC-008 0.4.2); Impacts record what H-071 applied and what is left (H-160); no requirement changed). Previous: 0.11 (2026-11-24, H-146, documents the build; RJ 2026-11-24 "all those look good to me": Open questions 1–9 and the confirm title "Finish signing in" confirmed, decision 16; SYNC-006 "disabled" = `aria-disabled="true"` with focus kept for Send link / Send again / Use a different email, and the other-device confirm dialog strings; new SYNC-087 notice kinds (success 6 s polite, info and error stay until OK, only error assertive, missing kind = info, COLL-054 Undo outside it; sync status messages are status text, not notices); SYNC-063 clock warning is an `info` notice, as built; ACs 39, 50, 51, 52 reworded, AC 58 new; Impacts home-copy bullet per H-126; "pending build" markers now "built"; no builder item). Previous: 0.10 (2026-11-24, [[UI Review 2026-11-24]] rows H-103, H-105, H-107, H-109, H-111, H-112, H-117, H-118, H-119, H-121; RJ decision 15: signed-out panel text "Sign in or create an account to start keeping track of your collections and decks", no panel heading; single-provider sign-in form, send-failure string, sent state, return to the start page and "You're signed in." once, "Signed in as {email}", no Sync now during an unfinished deletion, delete dialog sign-in-first state, sign-out dialog "Syncing…" and explanation line; SYNC-003, 005, 006, 009, 084, 086, 090, 095, 096, 100; ACs 1, 26, 27, 38, 43, 46, 47 changed, ACs 49–57 new; build H-104, H-106, H-110, H-115, H-122, H-140…H-145). Earlier: 0.9 (2026-11-24, H-134, RJ decision 14: gated pages keep their page header above the sign-in panel; signed-out panel text "You need a free account to import cards or decks."; SYNC-009, AC 46; build H-135). Full history: [[Accounts and Sync changelog]] (archived). New entries go in the archive note.

@@ -9,6 +9,10 @@ superseded_by: "[[Deck Import]]"
 
 Moved out of [[Deck Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.7.1 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11 "Impacts"): DECK-090 reads by mode
+  (local-only mode: browser only; account-required mode: a browser cache of the signed-in account, cleared on
+  sign-out), replacing "browser by default, synced when signed in"; new DECK-097 (SYNC-009 gate note: Deck Import
+  and the Tournaments "Add to your decks" path are not offered while the gate is not open). DECK-074 unchanged.
 - 0.7 (2026-11-24, H-071, SPEC-010 Impacts): DECK-074 `updatedAt` becomes monotonic, `max(now, previous + 1 ms)`
   (SYNC-031), with a worked example; DECK-090 reads "browser by default, synced to the account when signed in".
   DECK-094 unchanged. `importRemovedLines` still has no cap (SYNC-112 relies on the 1 MiB limit); left as a MAY for later.

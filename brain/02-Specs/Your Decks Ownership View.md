@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-005
-version: 0.5.1
+version: 0.5.2
 status: review
 depends_on: [SPEC-001, SPEC-002, SPEC-004, SPEC-006, SPEC-007, SPEC-008]
 research: ["[[Ban List]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]", "[[Card Data & Images]]", "[[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]]", "[[2026-11 RC Europe - 5 - CTCG DZiden - Kai'Sa]]"]
@@ -41,7 +41,8 @@ as_of: 2026-11-24
   `DeckOwnershipInput.tags` (SPEC-007 `TagStore`).
 - **Ownership unavailable (v0.5.1, RJ to confirm, OWN-065):** locked decks keep their badge and lock filter, the
   tile line reads "Ownership unavailable", and the deck is in its own filter group `unavailable`.
-- **Depends on:** SPEC-001 v0.3, SPEC-002 v0.3.1, SPEC-004 v0.5, SPEC-006 v0.7, SPEC-007 v0.10, SPEC-008 v0.4.2.
+- **Sign-in gate (v0.5.2, OWN-066):** in account-required mode the Decks page and deck detail sit behind the SPEC-010 SYNC-009 gate (sign-in panel under the page header while it is not open); ownership rules unchanged.
+- **Depends on:** SPEC-001 v0.3, SPEC-002 v0.3.1, SPEC-004 v0.5.1, SPEC-006 v0.7.1, SPEC-007 v0.10.1, SPEC-008 v0.4.3.
   Nothing is stored by this spec; everything is computed on display.
 - **Blocked / open:** foil as its own printing (SPEC-007 open question 1, H-020); card image aspect
   ratio and battlefield orientation in the API (OWN-081). Unknown card = 0 owned is a Claude default RJ
@@ -200,6 +201,7 @@ card fields are SPEC-001 ([[Card Data Model]]).
 | OWN-063 | MUST | If the catalog is not loaded, tiles show stored names only and the banner "Card data not loaded" is shown. `DeckOwnershipInput.catalog` (a `CollectionCatalogView`) is required by COLL-081, so ownership is not computed: tiles are shown as in OWN-062 (full colour, no count labels, nothing darkened). | [[My Collection]] COLL-081, `DeckOwnershipInput`; design rule |
 | OWN-064 | MUST | A deck record shown read-only by DECK-091 (newer schema) is still shown with ownership; edit actions are disabled. | [[Deck Import]] DECK-091 |
 | OWN-065 | MUST | **Locks and the deck tile when ownership is unavailable** (v0.5.1; RJ to confirm; applies in the OWN-062 and OWN-063 states). Locks come from the lock store, not from ownership: (a) `DeckOwnershipView.lock` is the SPEC-008 SHARE-053 state `{ locked: true, lockedAt, complete: false, short: false, cardsShort: [] }` for a deck with a stored lock, and `null` for a deck without one or when the lock store is unreadable (SHARE-061); it is **not** `null` just because ownership is unavailable. (b) The deck view and tile show the "Locked" badge (never "cards short") and the lock filter OWN-006 lists the deck under Locked. (c) The tile ownership line reads **"Ownership unavailable"** (OWN-002 replaces the "copies available" text; the tile has no count, and a locked deck does not read "locked in"). (d) `ownershipFilter` is **`unavailable`** for every deck (SHARE-051 rule 0): it matches none of Ready to build, Partly available, None available, so those three filters list no deck while ownership is unavailable; with no ownership filter chosen the deck is listed. (e) Lock in is disabled with `ownership-unavailable` and Unlock stays enabled (SHARE-020, SHARE-053). | RJ gate H-076; [[Shared Cards and Lock-in]] SHARE-020, SHARE-051, SHARE-053; OWN-062/063 |
+| OWN-066 | MUST | **Sign-in gate (SYNC-009, account-required mode only).** While the gate is not open (signed out, session lost, or first sync running), the Decks page `/decks` and the deck detail `/decks/:id` keep their page header and show the SPEC-010 sign-in panel below it instead of the deck list or deck view, and read nothing from the local stores (so no deck, tile or ownership is computed or shown). This is a gate, not the OWN-062 / OWN-063 "ownership unavailable" states: it hides the whole page, those keep it. Once the gate opens the page shows its content without a reload. In local-only mode there is no gate. The ownership rules in this spec are unchanged; panel text and gate rules are SPEC-010's. | [[Accounts and Sync]] SYNC-009 |
 
 ### H. Recalculation
 | ID | Level | Requirement | Source |
@@ -228,11 +230,11 @@ card fields are SPEC-001 ([[Card Data Model]]).
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { UserDeck, DeckCard, DeckZone, DeckSource } from './deck-import';   // SPEC-006 v0.7
+import type { UserDeck, DeckCard, DeckZone, DeckSource } from './deck-import';   // SPEC-006 v0.7.1
 import type {
   DeckOwnership, DeckOwnershipInput, CollectionCatalogView, StoredTags, Tag, TagId,
-} from './my-collection';                                                       // SPEC-007 v0.10, COLL-081
-import type { SharedPool, CardUse, DeckLockState } from './shared-cards';     // SPEC-008 v0.4.2
+} from './my-collection';                                                       // SPEC-007 v0.10.1, COLL-081
+import type { SharedPool, CardUse, DeckLockState } from './shared-cards';     // SPEC-008 v0.4.3
 // v0.5: no isRuneEntry() (SPEC-009 withdrawn); rune entries are counted entries (OWN-028)
 import type { BanStatus, BanListFile, LegalityResult, FormatDef } from './deck-legality'; // SPEC-002 v0.3.1
 import type { PlayableCard, Printing, CardCategory } from './card-data-model';   // SPEC-001 v0.3
@@ -519,4 +521,4 @@ deck uses the cards and no deck is locked, so available = `ownedForDecks`.
    fact 11). OWN-016's default-printing art for rune tiles depends on it; the ownership rules here don't.
 
 ## Changelog
-Current: 0.5.1 (2026-11-24, H-076: OWN-065 ownership unavailable: lock state, tile line, filter group `unavailable`; status `review`, RJ to confirm, SPEC-008 open question 5). Previous: 0.5 (2026-11-24, H-097: runes are cards). Pin-only fix 2026-11-24 (H-071 attempt 2, no version bump): "Depends on" and import comments now pin SPEC-006 0.7, SPEC-007 0.9, SPEC-008 0.4.1. Full history: [[Your Decks Ownership View changelog]] (archived). New entries go in the archive note.
+Current: 0.5.2 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11: new OWN-066 SYNC-009 gate note; pins SPEC-004 0.5.1, SPEC-006 0.7.1, SPEC-007 0.10.1, SPEC-008 0.4.3; no ownership rule changed; status stays `review`). Previous: 0.5.1 (2026-11-24, H-076: OWN-065 ownership unavailable: lock state, tile line, filter group `unavailable`; status `review`, RJ to confirm, SPEC-008 open question 5). Earlier: 0.5 (2026-11-24, H-097: runes are cards). Pin-only fix 2026-11-24 (H-071 attempt 2, no version bump): "Depends on" and import comments now pin SPEC-006 0.7, SPEC-007 0.9, SPEC-008 0.4.1. Full history: [[Your Decks Ownership View changelog]] (archived). New entries go in the archive note.

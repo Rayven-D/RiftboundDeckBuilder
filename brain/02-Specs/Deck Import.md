@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-006
-version: 0.7
+version: 0.7.1
 status: draft
 depends_on: [SPEC-001, SPEC-002, SPEC-003, SPEC-004, SPEC-008]
 consumers: [SPEC-005, SPEC-008]
@@ -30,12 +30,13 @@ as_of: 2026-11-23
 - DECK-050/051: SPEC-002 legality is shown and never blocks saving; ban status via `banStatus()`.
 - DECK-055: the verdict is not stored; it is computed as of today.
 - DECK-061/062/064: `TournamentDeckSource` defined here; default name `<Legend>: <pilot> (<placing>, <event>)` ≤ 80; "In your decks" / "Add another copy".
-- DECK-090/096: browser `DeckStore` (synced when signed in, SPEC-010); deck entries by `cardKey` only (no printing, ownership or tags).
+- DECK-090/096: `DeckStore` by mode (SPEC-010: local-only mode browser only; account-required mode a browser cache of the signed-in account, cleared on sign-out); deck entries by `cardKey` only (no printing, ownership or tags).
+- DECK-097 (v0.7.1): deck import and the Tournaments "Add to your decks" path are behind the SYNC-009 sign-in gate in account-required mode.
 - DECK-080/082/083/084 (v0.6): a **locked** deck (SPEC-008) can't change cards; Delete releases the lock;
   Undo and Duplicate give unlocked decks. Locks live in SPEC-008's `DeckLockStore`, not in `UserDeck`.
 
 **Shared types:** `UserDeck` · `DeckCard` (`cardKey`, name, qty) · `DeckSource` = `UserDeckSource | TournamentDeckSource` · `DeckZone` (= SPEC-002 `Zone`) · `DeckImportResult` · `ZoneQuestion` · `DeckStore`.
-**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3.1, [[Collection Import]] v0.10, [[Tournament Deck Catalog]] v0.5, [[Shared Cards and Lock-in]] v0.4.2 (lock rules for DECK-080/082…084). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
+**Depends on:** [[Card Data Model]] v0.3, [[Deck Legality]] v0.3.1, [[Collection Import]] v0.10.1, [[Tournament Deck Catalog]] v0.5.1, [[Shared Cards and Lock-in]] v0.4.3 (lock rules for DECK-080/082…084). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
 **BLOCKED (needs research):**
 - Whether Piltover deck codes encode Legend, champion, runes and battlefields (DECK-039).
 - API type strings and champion/signature fields (via SPEC-001), so inference mostly asks zone questions.
@@ -205,13 +206,14 @@ information about a deck the user wants to build, so it never blocks (DECK-050).
 ### J. Storage
 | ID | Level | Requirement | Source |
 |---|---|---|---|
-| DECK-090 | MUST | Decks are stored **in the user's browser by default**, behind a `DeckStore` interface; when the user is signed in they are **also synced to their account** ([[Accounts and Sync]] SPEC-010, SYNC-018). Signed out there is no account and no server copy. The browser store stays the working copy. The adapter choice (IndexedDB recommended for size; localStorage acceptable) is an implementation choice. | [[ADR-0005 MVP Product Defaults]] #1; [[ADR-0006 Two Imports - Collection and Decks]] consequences; [[ADR-0001 Tech Stack]] |
+| DECK-090 | MUST | Decks are stored behind a `DeckStore` interface, by mode ([[Accounts and Sync]] SPEC-010, `signInEnabled`): **local-only mode: browser only**, no account and no server copy; **account-required mode: a browser cache of the signed-in account** (synced to it, SYNC-018), **cleared on sign-out**. In both modes the browser store is the working copy. The adapter choice (IndexedDB recommended for size; localStorage acceptable) is an implementation choice. | [[ADR-0005 MVP Product Defaults]] #1; [[ADR-0006 Two Imports - Collection and Decks]] consequences; [[ADR-0001 Tech Stack]] |
 | DECK-091 | MUST | Each record has `schemaVersion: 1`. On load, older versions are migrated; a record with a **newer** version than the app knows is shown read-only and never overwritten. | design rule |
 | DECK-092 | MUST | Limits: at most **200 decks**; per deck at most **150 entries** (lines after merging) and **300 copies** in total. Over a limit → error `DECK_LIMIT` / `DECK_TOO_LARGE` at save, nothing written. (A legal deck with a full sideboard has 66 cards: 1 + 1 + 39 + 12 + 3 + 10, so the caps leave room for illegal work-in-progress decks.) | [[Deck Construction Rules]] summary; design rule |
 | DECK-093 | MUST | Writes are atomic per deck: a failed write (e.g. quota exceeded → `STORAGE_FULL`) leaves the previous record intact and tells the user. | design rule |
 | DECK-094 | SHOULD | A save carries the `updatedAt` it was based on; if the stored record has a newer `updatedAt` (another tab), ask "This deck changed in another tab. Overwrite or reload?" | design rule |
 | DECK-095 | MUST | Stored decks contain card **keys, names and quantities only**: no card text, images or other Riot content copies (those come from the catalog at display time). | [[Card Data Model]] CARD-007 |
 | DECK-096 | MUST | **Deck entries are by `cardKey`, never by printing.** A `DeckCard` stores no printing, variant, set, ownership, owned count or tag. A printing named by the source (deck code, TTS, or a printing code on a text line, DECK-015) is used only to resolve the `cardKey` and is then dropped; entries of one name in one zone merge (DECK-021). Ownership is computed by the consumer, [[Your Decks Ownership View]] (SPEC-005): it groups each deck card by card name, can expand it to the exact owned printings, and does not count printings carrying a tag marked "exclude from decks". Nothing in this spec changes when collection, printings or tags change. | [[ADR-0006 Two Imports - Collection and Decks]] Gate H-036 #5, #6; [[Card Data Model]] CARD-012, CARD-013 |
+| DECK-097 | MUST | **Sign-in gate (SYNC-009, account-required mode only).** While the gate is not open (signed out, session lost, or first sync running), Deck Import (the Import page) is replaced below its page header by the SPEC-010 sign-in panel and nothing can be saved, and the Tournaments "Add to your decks" path (DECK-005, DECK-060…065; SPEC-004 CAT-070) is **not offered**: no Add, "In your decks" or "Add another copy" control, and the SPEC-004 CAT-074 "already added" check reads nothing from the local stores. When the gate opens the controls appear without a reload. In local-only mode there is no gate. Panel text and gate rules are SPEC-010's. | [[Accounts and Sync]] SYNC-009 (decision 13 h) |
 
 ## Data contract
 ```ts
@@ -537,4 +539,4 @@ shown in the display format (`Nov 23, 2026`).
   and the label "Not fully checked".
 
 ## Changelog
-Current: 0.7 (2026-11-24, H-071: DECK-074 monotonic `updatedAt`; DECK-090 browser by default, synced when signed in). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.
+Current: 0.7.1 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11: DECK-090 per-mode storage wording; new DECK-097 SYNC-009 gate note). Previous: 0.7 (2026-11-24, H-071: DECK-074 monotonic `updatedAt`; DECK-090 browser by default, synced when signed in). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.

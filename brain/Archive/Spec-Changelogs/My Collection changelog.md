@@ -9,6 +9,14 @@ superseded_by: "[[My Collection]]"
 
 Moved out of [[My Collection]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.10.1 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11 "Impacts"): COLL-070 reads by mode
+  (local-only mode: browser only; account-required mode: a browser cache of the signed-in account, cleared on
+  sign-out; quantities and tags synced in account-required mode, printing codes and view state never). COLL-074
+  split by mode: local-only mode as before (confirmation has no SPEC-010 text, nothing sent); account-required mode
+  not offered, because Sign out clears this device (SYNC-052, SYNC-091); the v0.9 "while signed in clears this
+  device and signs out" and its confirmation line "Your account keeps its copy…" are withdrawn (build H-154 follows).
+  New COLL-092 (SYNC-009 gate note: the Collection page shows the sign-in panel while the gate is not open). Pins:
+  SPEC-003 0.10.1, SPEC-008 0.4.3.
 - 0.10 (2026-11-24, H-087): new COLL-090 (card data missing: banner "Card data couldn't load. Your cards
   are safe. Names and images will show once it loads." with Try again, no list, count line, search, sort,
   export or Unresolved section, nothing written, COLL-015 does not apply) and COLL-091 (arriving from an

@@ -9,6 +9,9 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.11.2 (2026-11-25, H-160): metadata and Impacts only, no requirement changed. The v0.8 Impacts for SPEC-003
+  (0.10.1), SPEC-004 (0.5.1), SPEC-005 (0.5.2), SPEC-006 (0.7.1), SPEC-007 (0.10.1) and SPEC-008 (0.4.3) are marked
+  applied. Dependency pins updated to those versions.
 - 0.11.1 (2026-11-25, merge of the nightly `/board` line into the v0.11 line): metadata only. Dependency pins
   SPEC-003 0.10, SPEC-004 0.5, SPEC-005 0.5.1, SPEC-006 0.7, SPEC-007 0.10, SPEC-008 0.4.2 (SPEC-009 withdrawn).
   Impacts: the v0.7 items H-071 applied are marked applied; the v0.8 per-mode wording, COLL-074 by mode and the

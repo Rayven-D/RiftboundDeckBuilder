@@ -9,6 +9,11 @@ superseded_by: "[[Your Decks Ownership View]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.5.2 (2026-11-25, H-160, finishing H-071 against SPEC-010 v0.11 "Impacts", status stays `review`): new OWN-066
+  (SYNC-009 gate note: in account-required mode the Decks page and deck detail show the SPEC-010 sign-in panel under
+  their page header while the gate is not open, reading nothing from the local stores; distinct from the OWN-062 /
+  OWN-063 "ownership unavailable" states; no gate in local-only mode). Ownership rules unchanged. Pins: SPEC-004
+  0.5.1, SPEC-006 0.7.1, SPEC-007 0.10.1, SPEC-008 0.4.3.
 - 0.5.1 (2026-11-24, H-076, status `review`): new OWN-065 (ownership unavailable: lock state kept from the lock store, tile line "Ownership unavailable", `ownershipFilter` gains `unavailable`, `lock` is null only without a stored lock); OWN-006 filter text and the `DeckOwnershipView.lock` / `DeckTileSummary` contract comments updated; AC added. Pins: SPEC-002 0.3.1, SPEC-008 0.4.2. RJ to confirm the wording and the filter group (SPEC-008 open question 5).
 - 0.5, note (2026-11-24, H-097): open question 7 resolved by RJ ("No notice"). OWN-029's Source now cites
   RJ's decision instead of a Claude default; the proposed notice wording is marked not used. No requirement
