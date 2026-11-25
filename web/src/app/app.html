@@ -14,10 +14,10 @@
         }
       </ul>
     </nav>
-    <!-- SPEC-010 SYNC-158 / SYNC-150 (v0.17.0): the theme toggle, then (40rem and wider) the one account control,
+    <!-- SPEC-010 SYNC-158 / SYNC-150 (v0.17.0): the theme toggle, then (above 40rem) the one account control,
          8px apart. The toggle renders at once (no Firebase, no request). The account control is deferred, so the
          sync code stays out of the initial bundle; it loads no Firebase until a SYNC-002 trigger, and nothing renders
-         for it until it has loaded (SYNC-150 e). Below 40rem the account control is the tab bar's 4th tab instead
+         for it until it has loaded (SYNC-150 e). At 40rem and below the account control is the tab bar's 4th tab instead
          (SYNC-150 g) and the toggle sits alone in the top-right corner. No Import button (SYNC-159). -->
     <div class="header-actions">
       <app-theme-toggle />
@@ -33,9 +33,15 @@
 </main>
 
 <footer class="site-footer">
-  <!-- The footer links in this order: Privacy notice (SYNC-104 e, H-180), What's new (SPEC-012 LOG-010). No theme
-       control here (v0.17.0: it is the header toggle, SYNC-158). -->
+  <!-- SYNC-104 (e) / LOG-010 (Brief H-247 F1): one row on the header's content edges. Above 40rem the Riot legal
+       notice sits on the left and the links on the right (Privacy notice, then What's new; RJ 2026-11-25). At 40rem
+       and below the links show above the notice, centred (CSS order only: the DOM and reading order stay legal, then
+       links). No theme control here (v0.17.0: it is the header toggle, SYNC-158). -->
   <div class="footer-row">
+    <p class="legal">
+      Rift Builder was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by
+      Riot Games. Riot Games does not endorse or sponsor this project.
+    </p>
     <nav class="footer-links" aria-label="Footer">
       <ul>
         <li>
@@ -47,13 +53,9 @@
       </ul>
     </nav>
   </div>
-  <p class="legal">
-    Rift Builder was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by
-    Riot Games. Riot Games does not endorse or sponsor this project.
-  </p>
 </footer>
 
-<!-- Phones only (below 40rem): the three tabs and the account as a fixed bottom bar (SYNC-150 g: no Import tab).
+<!-- Phones only (40rem and below): the three tabs and the account as a fixed bottom bar (SYNC-150 g: no Import tab).
      Hidden (display: none) on wider screens, so only one "Main" navigation and one account trigger are exposed. -->
 <nav class="tab-bar" aria-label="Main">
   <ul>

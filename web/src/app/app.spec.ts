@@ -75,7 +75,7 @@ describe('App', () => {
     expect(TestBed.inject(Router).url).toBe('/changelog');
   });
 
-  it('SYNC-104 (e, g) / AC 69 the footer has a real Privacy notice link to /privacy, first in the links row, above the unchanged Riot legal line, same tab', async () => {
+  it("SYNC-104 (e, g) / AC 69 the footer has a real Privacy notice link to /privacy, first in the links row, on the unchanged Riot legal line's row, same tab", async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const footer = (fixture.nativeElement as HTMLElement).querySelector('footer')!;
@@ -85,7 +85,9 @@ describe('App', () => {
     expect(link.getAttribute('href')).toBe('/privacy');
     expect(link.getAttribute('target')).toBeNull();
     expect(link.tabIndex).toBe(0);
-    expect(link.closest('.footer-row')?.nextElementSibling?.classList.contains('legal')).toBe(true);
+    // v0.17.0 / Brief H-247 F1: the links share the legal line's row, after it in the DOM (reading order legal → links)
+    const row = link.closest('.footer-row')!;
+    expect(row.querySelector(':scope > .legal + nav.footer-links')).not.toBeNull();
     expect(footer.querySelector('.legal')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
       `Rift Builder was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project.`,
     );
@@ -122,6 +124,23 @@ describe('App', () => {
       expect(el.querySelector(nav)?.textContent).not.toContain("What's new");
       expect(el.querySelector(`${nav} a[href="/changelog"]`)).toBeNull();
     }
+  });
+
+  it('SYNC-104 (e) / LOG-010 / Brief H-247 F1 the footer is one row: legal notice, then the links nav, nothing else', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const footer = (fixture.nativeElement as HTMLElement).querySelector('footer.site-footer')!;
+    expect(Array.from(footer.children).map((c) => c.className)).toEqual(['footer-row']);
+    const row = footer.querySelector('.footer-row')!;
+    expect(Array.from(row.children).map((c) => c.tagName.toLowerCase() + '.' + c.className)).toEqual([
+      'p.legal',
+      'nav.footer-links',
+    ]);
+    // the rendered legal wording is byte-identical to before H-247 (Riot's required notice; Angular collapses the
+    // template's line break and indent to one space, so the surrounding spaces are part of the rendered text)
+    expect(row.querySelector('.legal')!.textContent).toBe(
+      ` Rift Builder was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project. `,
+    );
   });
 
   it('should show the Legal Jibber Jabber notice in the footer', async () => {
