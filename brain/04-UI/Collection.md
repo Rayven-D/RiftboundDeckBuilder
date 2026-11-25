@@ -230,9 +230,9 @@ The dialog is **read only**. No steppers, tags or Remove (see §9).
 | S7 | **Locks unreadable** (SHARE-061) | No lock bands. Notice line: "Locked decks couldn't be read, so locked copies aren't shown." Counts still show | SHARE-061 |
 | S8 | **Unreadable collection** | `role="alert"` banner: "Your collection couldn't be read. It may have been saved by a newer version of Rift Builder. Nothing was changed or deleted." with "Reload" | COLL-071, SYNC-033 |
 | S9 | **Ban data didn't load** | Tiles unchanged. In the dialog: "Ban status unknown". Notice line: "The ban list couldn't load, so ban status is unknown." | COLL-008 |
-| S10 | **Card data didn't load** (GAP, H-087) | Banner: "Card data couldn't load. Your cards are safe. Names and images will show once it loads." with "Try again" | — |
+| S10 | **Card data didn't load** (built, SPEC-007 COLL-090; H-158) | Banner: "Card data couldn't load. Your cards are safe. Names and images will show once it loads." with "Try again" | — |
 | S11 | **Unresolved cards** | After the grid: H2 "Unresolved cards" (verbatim) and "These cards aren't in the current card data. Import them again to match them.", as plain text rows (card key, ×N) | COLL-015 |
-| S12 | **Import just happened** (GAP, H-087) | Proposed: land here with a snack bar "Added 42 copies of 30 cards." / "Collection replaced: 412 cards." and Undo | IMP-049…052 |
+| S12 | **Import just happened** (built H-158, SPEC-003 IMP-072…075) | Stays here (the dialog opens on Collection) with a snack bar "Added 42 copies of 30 cards." / "Collection replaced: 412 cards." and Undo | IMP-049…052 |
 | S13 | **Another tab changed data** | Refresh in place, keep the scroll position, and keep an open dialog in sync (it closes with "This card is no longer in your collection." if the card is gone) | COLL-073 |
 | S14 | **Very large collection** | Virtual scroll (§8) | COLL-065…067 |
 | S15 | **URL notice** | "1 filter value not found and was ignored" (verbatim) if the URL has an unknown sort value | COLL-062 |

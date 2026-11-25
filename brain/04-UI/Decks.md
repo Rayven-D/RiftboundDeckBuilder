@@ -1,6 +1,6 @@
 ---
 tags: [ui, brief, decks]
-status: proposed
+status: accepted
 date: 2026-11-25
 owner: ui-engineer
 for: H-251
@@ -9,7 +9,7 @@ specs: ["[[Your Decks Ownership View]]", "[[Shared Cards and Lock-in]]", "[[Deck
 ---
 # Decks and Deck detail: design brief
 
-> **Status: proposed, waiting on RJ** (H-251). The answers to §13 "Open choices for RJ" go to
+> **Status: RJ answered on 2026-11-25 (H-260): all defaults, plus the additions in §13a.** The answers go to
 > `spec-writer` in **H-252**, which writes them into SPEC-005 / SPEC-006 / SPEC-008 before
 > `builder` starts H-060 and H-254. Until RJ answers, every recommended default below is the
 > working assumption. Nothing here changes an ownership rule: the engine
@@ -570,6 +570,37 @@ recommendations".
 28. **Fill animation on change** (OWN-035 MAY animate ≤ 200ms). (a) animate the clip at 180ms when a
     fill changes while the view is open; (b) always instant. **Recommended: (a).** It's the product's
     signature moment, and it's rare and short.
+
+## 13a. RJ's answers (2026-11-25, H-260)
+RJ: **"do default for all"**, so choices 1–28 take the recommended default. RJ added these, which
+win over §3–§9 where they differ (RJ's words in quotes):
+
+1. **Deck tile content.** The tile shows the Legend. A deck **from a tournament** also shows the
+   player and tournament info ("the deck grid will show the legend and some player/tournament
+   info if coming from tournaments"). An **imported** deck's name **defaults to the Legend's name**
+   ("If imported just the Legend name by default").
+2. **Renaming.** "All deck names can be changed by the user at any time": Rename works on every
+   deck, tournament decks included, and **also while the deck is locked** (a lock freezes cards,
+   not the name). Fits choice 14 (b), Rename only in H-254.
+3. **Opening a deck.** Clicking the deck tile (the Legend image) opens Deck detail (`/decks/:id`),
+   the full deck list with the filled-in cards.
+4. **Deck detail scrolls like Collection.** "Layout similar to collections when you just scroll."
+   *Reading:* one scrolling page of cards, as on Collection; the defaults for choices 12 (sticky
+   summary aside on desktop) and 13 (section jump bar) still stand, since RJ said "default for
+   all". H-252 should confirm with RJ only if the aside makes the page feel unlike Collection.
+5. **Two views: Card view and List view** (new; not in §7). List view is "just a 'compact' view",
+   the same cards in the same sections.
+   - **Card view:** the card images in a grid (§7 as briefed).
+   - **List view:** each card is a short rectangle: `<thumbnail image> 2× <Card Name>`.
+     - The thumbnail uses the same **fill as you go** treatment (full / darkened / left-to-right
+       partial, OWN-030…036), so you still see how many cards are left.
+     - The rectangle still shows the **"2 of 3 …" availability text** (OWN-033 wording) somewhere in it.
+     - Desktop: several rectangles per row (a multi-column grid of rows); phone: one column.
+   - Both views use the same engine data (`OwnershipCard`), the same click target (the card dialog,
+     choice 8) and the same ban labels.
+   - *Not answered, defaults for H-252:* Card view is the default view; the choice is a two-button
+     toggle in the detail toolbar and is remembered on this device (like Collection's view
+     settings); the phone list row is at least 44px tall.
 
 ## 14. Spec gaps and contradictions (candidates for H-252)
 1. **OWN-082 vs the H-251 request:** "no card images" on the list vs "Legend art" (choice 1).

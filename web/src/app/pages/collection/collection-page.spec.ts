@@ -15,6 +15,9 @@ import { BreakpointObserver } from '@angular/cdk/layout';
 import { of } from 'rxjs';
 import { generateLargeSample, sampleDeck } from '../../shared/collection/sample-data';
 import type { SampleData } from '../../shared/collection/sample-data';
+import { makeCatalog } from '../../core/decks/engine-fixtures';
+import { StorageFullError } from '../../core/storage/kv-backend';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 interface Setup {
   sample?: Partial<SampleData> | null;
@@ -124,12 +127,103 @@ describe('CollectionPage (H-086)', () => {
     expect(backend.get(STORAGE_KEYS.collection)).toBe('{not json'); // never overwritten
   });
 
-  it('S10 (pending H-087): card data that fails to load shows the banner with Try again, no grid', async () => {
-    const h = await setup('/collection', { catalogError: true });
-    expect(el(h).querySelector('[role="alert"]')?.textContent).toContain(
-      "Card data couldn't load.",
+  it('SPEC-007 AC 26 / COLL-090 (a) (b) (c): card data that fails to load shows only the banner; nothing else of the list, nothing written', async () => {
+    const sample = generateLargeSample(30);
+    sample.collection.cards['not in the catalog'] = { quantity: 1, byPrinting: {} }; // would be "Unresolved cards"
+    const h = await setup('/collection', { catalogError: true, sample });
+    const before = new Map(backend.keys().map((k) => [k, backend.get(k)]));
+    const alert = el(h).querySelector('[role="alert"]')!;
+    expect(alert.querySelector('p')?.textContent?.trim()).toBe(
+      "Card data couldn't load. Your cards are safe. Names and images will show once it loads.",
     );
+    expect(alert.querySelector('button')?.textContent?.trim()).toBe('Try again');
+    // (b) no tiles, skeleton, count line, search, sort, Export CSV or Unresolved cards section
     expect(el(h).querySelector('app-collection-tile')).toBeNull();
+    expect(el(h).querySelector('.count-line')).toBeNull();
+    expect(el(h).querySelector('.count-placeholder')).toBeNull();
+    expect(el(h).querySelector('input[type="search"], .toolbar')).toBeNull();
+    expect(el(h).querySelector('mat-select')).toBeNull();
+    expect(el(h).textContent).not.toContain('Export CSV');
+    expect(el(h).querySelector('[aria-label="Export CSV"]')).toBeNull();
+    expect(el(h).textContent).not.toContain('Unresolved');
+    // (c) byte-for-byte unchanged
+    await settle(h, 20);
+    expect(new Map(backend.keys().map((k) => [k, backend.get(k)]))).toEqual(before);
+  });
+
+  describe('SPEC-007 AC 26 / COLL-090 (d)', () => {
+    /** Lightning Rush at OGN 001, Gust at OGN 002, so the default order (set, collector number) is Lightning Rush first. */
+    function ac26Sample(): Partial<SampleData> {
+      const catalog = makeCatalog(['Lightning Rush', 'Gust']);
+      catalog.sets = [{ code: 'OGN', name: 'Origins', setOrder: 0, releaseStatus: null, printingCount: 2 }];
+      catalog.printings['p-gust'].collectorNumber = '002';
+      return {
+        catalog,
+        collection: {
+          schemaVersion: 1,
+          updatedAt: '2026-11-24T00:00:00.000Z',
+          catalogVersion: '0.3+test',
+          cards: {
+            'lightning rush': { quantity: 3, byPrinting: { 'p-lightning-rush': 3 } },
+            gust: { quantity: 2, byPrinting: { 'p-gust': 2 } },
+          },
+        },
+      };
+    }
+    const banner = (h: RouterTestingHarness) =>
+      Array.from(el(h).querySelectorAll('[role="alert"]')).find((a) =>
+        a.textContent?.includes("Card data couldn't load."),
+      );
+    const tryAgain = (h: RouterTestingHarness) => banner(h)!.querySelector<HTMLButtonElement>('button')!;
+    const tileNames = (h: RouterTestingHarness) =>
+      Array.from(el(h).querySelectorAll('[data-entry]')).map((t) => t.getAttribute('aria-label')!.split(', ')[0]);
+
+    it('Try again with the catalog now loading shows the loading state, then the grid in default order with "5 copies of 2 cards"', async () => {
+      const sample = ac26Sample();
+      const h = await setup('/collection', { catalogError: true, sample });
+      expect(banner(h)).toBeDefined();
+      const cardData = TestBed.inject(CardData);
+      let release!: (r: CatalogResult) => void;
+      const pending = new Promise<CatalogResult>((r) => (release = r));
+      vi.spyOn(cardData, 'reload').mockReturnValue(pending);
+      vi.spyOn(cardData, 'loadCatalog').mockReturnValue(pending);
+      tryAgain(h).click();
+      await settle(h);
+      // (d) the page's loading state again: no banner, no grid, the count line slot
+      expect(banner(h)).toBeUndefined();
+      expect(el(h).querySelector('[data-entry]')).toBeNull();
+      expect(el(h).querySelector('.count-line')).not.toBeNull();
+      expect(text(h, '.count-line')).toBe('');
+      release({ status: 'ok', catalog: sample.catalog! });
+      await vi.waitFor(async () => {
+        await settle(h);
+        expect(text(h, '#count-line')).toBe('5 copies of 2 cards');
+      });
+      expect(banner(h)).toBeUndefined();
+      expect(tileNames(h)).toEqual(['Lightning Rush', 'Gust']);
+      vi.restoreAllMocks();
+    });
+
+    it('Try again with the catalog still failing brings the same banner back', async () => {
+      const h = await setup('/collection', { catalogError: true, sample: ac26Sample() });
+      const cardData = TestBed.inject(CardData);
+      const reload = vi.spyOn(cardData, 'reload').mockResolvedValue({ status: 'error' });
+      const before = banner(h)!.querySelector('p')!.textContent!.trim();
+      tryAgain(h).click();
+      await settle(h, 20);
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(banner(h)!.querySelector('p')!.textContent!.trim()).toBe(before);
+      expect(banner(h)!.querySelector('button')!.textContent!.trim()).toBe('Try again');
+      expect(el(h).querySelector('[data-entry]')).toBeNull();
+      expect(el(h).querySelector('.count-line')).toBeNull();
+      vi.restoreAllMocks();
+    });
+  });
+
+  it('SPEC-007 AC 26 / COLL-090 (e): an empty collection with the same failure shows the empty state, not the banner', async () => {
+    const h = await setup('/collection', { catalogError: true, sample: null });
+    expect(text(h, 'app-empty-state h2')).toBe('Your collection is empty');
+    expect(el(h).textContent).not.toContain("Card data couldn't load.");
   });
 
   it('COLL-001 COLL-010 COLL-016 S3 (A1, A2): tiles render image-only with ×N badges from 2 copies and the count line', async () => {
@@ -534,5 +628,135 @@ describe('CollectionPage "Add to your collection" (SPEC-007 COLL-094, SPEC-003 I
     await settle(h, 20);
     expect(document.querySelector('mat-dialog-container')).toBeNull();
     expect(TestBed.inject(Location).path()).not.toContain('add=');
+  });
+});
+
+describe('Add to your collection: commit landing and Undo (SPEC-003 IMP-072…075, SPEC-007 COLL-091; H-158)', () => {
+  const catalog = makeCatalog(['Lightning Rush', 'Gust', 'Kennen, Heart of the Tempest']);
+
+  afterEach(() => {
+    TestBed.inject(MatSnackBar).dismiss();
+    document.querySelectorAll('.cdk-overlay-container').forEach((n) => (n.innerHTML = ''));
+  });
+
+  const dlg = () => document.querySelector('mat-dialog-container');
+  const snackText = () =>
+    document
+      .querySelector('mat-snack-bar-container [matsnackbarlabel], mat-snack-bar-container .mat-mdc-simple-snack-bar > :first-child')
+      ?.textContent?.trim() ?? null;
+  const snackAction = () => document.querySelector<HTMLButtonElement>('mat-snack-bar-container button');
+  function button(root: Element | null, label: string): HTMLButtonElement {
+    const b = Array.from(root?.querySelectorAll<HTMLButtonElement>('button') ?? []).find(
+      (x) => x.textContent?.trim() === label,
+    );
+    if (!b) throw new Error(`no "${label}" button`);
+    return b;
+  }
+
+  /** Opens the dialog with `opener`, types the list, Continue, then the commit button. */
+  async function importList(h: RouterTestingHarness, opener: HTMLElement, list: string, replace = false) {
+    opener.click();
+    await settle(h);
+    const box = dlg()!.querySelector('textarea')!;
+    box.value = list;
+    box.dispatchEvent(new InputEvent('input'));
+    await settle(h);
+    button(dlg(), 'Continue').click();
+    await settle(h);
+    if (replace) {
+      dlg()!.querySelectorAll<HTMLInputElement>('input[type="radio"]')[1].click();
+      await settle(h);
+    }
+    button(dlg(), replace ? 'Replace collection' : 'Add cards').click();
+    await settle(h);
+  }
+
+  const navigations = () => {
+    const starts: string[] = [];
+    TestBed.inject(Router).events.subscribe((e) => e instanceof NavigationStart && starts.push(e.url));
+    return starts;
+  };
+
+  it('AC 43 / SPEC-007 AC 27 / IMP-072 / COLL-091: Add over an empty collection stays on /collection, the grid shows the cards, the notice reads "Added 5 copies of 2 cards." with Undo; Undo brings the empty state back', async () => {
+    const h = await setup('/collection', { sample: { catalog } });
+    const starts = navigations();
+    await importList(h, el(h).querySelector<HTMLElement>('app-empty-state button')!, '3 Lightning Rush\n2 Gust');
+    await vi.waitFor(async () => {
+      await settle(h);
+      expect(dlg()).toBeNull();
+      expect(text(h, '#count-line')).toBe('5 copies of 2 cards');
+    });
+    expect(TestBed.inject(Location).path()).toBe('/collection');
+    expect(starts).toEqual([]);
+    expect(snackText()).toBe('Added 5 copies of 2 cards.');
+    expect(snackAction()?.textContent?.trim()).toBe('Undo');
+    expect(el(h).querySelector('.banner')).toBeNull(); // no other banner
+    expect(el(h).querySelectorAll('app-collection-tile').length).toBe(2);
+    // IMP-072: focus goes to the floating button (the empty state's button was replaced by the grid)
+    await vi.waitFor(() => expect(document.activeElement?.closest('app-page-fab')).not.toBeNull());
+
+    snackAction()!.click();
+    await vi.waitFor(async () => {
+      await settle(h);
+      expect(text(h, 'app-empty-state h2')).toBe('Your collection is empty');
+    });
+    expect(snackText()).toBe('Import undone.');
+  });
+
+  it('AC 43 / IMP-072: a failed write keeps the dialog open with the error, no notice, the address unchanged', async () => {
+    const h = await setup('/collection', { sample: { catalog } });
+    const set = backend.set.bind(backend);
+    vi.spyOn(backend, 'set').mockImplementation((k, v) => {
+      if (k === STORAGE_KEYS.collection) throw new StorageFullError();
+      set(k, v);
+    });
+    await importList(h, el(h).querySelector<HTMLElement>('app-empty-state button')!, '1 Gust');
+    await settle(h);
+    expect(dlg()).not.toBeNull();
+    expect(dlg()!.querySelector('.commit-error')?.textContent).toContain("this device's storage is full");
+    expect(document.querySelector('mat-snack-bar-container')).toBeNull();
+    expect(TestBed.inject(Location).path()).toBe('/collection');
+    vi.restoreAllMocks();
+  });
+
+  it('AC 44 / IMP-050: Replace cancelled at its confirmation stays in the dialog, writes nothing, no notice', async () => {
+    const h = await setup('/collection', { sample: { catalog } });
+    await importList(h, el(h).querySelector<HTMLElement>('app-empty-state button')!, '3 Lightning Rush\n2 Gust');
+    await vi.waitFor(async () => {
+      await settle(h);
+      expect(el(h).querySelector('app-page-fab')).not.toBeNull();
+    });
+    TestBed.inject(MatSnackBar).dismiss();
+    await settle(h);
+    const before = backend.get(STORAGE_KEYS.collection);
+    await importList(h, el(h).querySelector<HTMLElement>('app-page-fab button')!, '1 Kennen, Heart of the Tempest', true);
+    const confirm = document.querySelectorAll('mat-dialog-container')[1];
+    expect(confirm?.textContent).toContain('2 names removed (Gust, Lightning Rush).');
+    button(confirm, 'Cancel').click();
+    await settle(h);
+    expect(document.querySelectorAll('mat-dialog-container')).toHaveLength(1);
+    expect(backend.get(STORAGE_KEYS.collection)).toBe(before);
+    await settle(h, 20);
+    expect(document.querySelector('mat-snack-bar-container')).toBeNull();
+  });
+
+  it('AC 45 / IMP-074: the notice survives opening Decks, and Undo works from there', async () => {
+    const h = await setup('/collection', { sample: { catalog } });
+    await importList(h, el(h).querySelector<HTMLElement>('app-empty-state button')!, '1 Gust');
+    await vi.waitFor(async () => {
+      await settle(h);
+      expect(snackText()).toBe('Added 1 copy of 1 card.');
+    });
+    await h.navigateByUrl('/decks');
+    await settle(h);
+    expect(TestBed.inject(Location).path()).toBe('/decks');
+    expect(snackText()).toBe('Added 1 copy of 1 card.');
+    snackAction()!.click();
+    await vi.waitFor(async () => {
+      await settle(h);
+      expect(snackText()).toBe('Import undone.');
+    });
+    expect(Object.keys((await stores.collection.load())!.cards)).toEqual([]);
+    expect(TestBed.inject(Location).path()).toBe('/decks');
   });
 });

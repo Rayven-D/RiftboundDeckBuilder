@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.21
+version: 1.22
 ---
 # API Contracts
 
@@ -214,6 +214,10 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   `DeckStore.create(record)` of a deck deleted less than 10 s ago is the Undo and cancels the pending
   tombstone (SYNC-035). `CollectionStore.save(c, { replace: true, snapshotPrevious: true })` marks an
   Owned Cards Import in Replace mode (one `set()`, SYNC-014) and keeps the Undo snapshot (IMP-052).
+  With no record yet, `snapshotPrevious` keeps an **empty** snapshot stamped `EMPTY_SNAPSHOT_AT`
+  (`1970-01-01T00:00:00.000Z`, `shared/storage/records.ts`), so the first import can be undone (v1.22).
+  `TrackedCollectionStore.clearPrevious()` / `RawCollectionStore.clearPrevious()` remove the snapshot (an Undo
+  spends it, IMP-075 b); not stamped, the snapshot is a cache record only.
   Saves to an area whose cloud document is newer throw `ReadOnlyAreaError` (SYNC-046 message).
   `TagStore.load()` migrates long tag ids to `t_` + 6 base-62 (`schemaVersion: 3`, SYNC-016).
 - **Browser cache (SPEC-010 SYNC-140…146, H-172):** the stores are the signed-in account's cache. There is no
@@ -460,6 +464,29 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
 - **Dev only:** `localStorage['rift.dev.sample'] = 'large'` makes `CardData` return a generated
   5,000-entry catalog (`sample-data.ts`), set by the `/styleguide` sample loader.
 
+## Owned Cards Import commit and Undo (SPEC-003 IMP-049…052, IMP-072…075; H-158)
+Not an endpoint. Writes go through the **tracked** `stores.collection` only.
+- **Pure logic** (`web/src/app/shared/import/collection-commit.ts`): `resolveCollectionImport(parse, catalog)` →
+  `ResolvedCollectionImport { cards, copies, cardCount, leftOut, notes, catalogVersion }`: exact `nameKey` names
+  (IMP-025) and printing codes through `printingLookup(catalog)(setCode, collectorNumber)` (CARD-036 over the browser
+  catalog: `found` with the first printing / `not-found` / `ambiguous`; IMP-067 exact-name guard, IMP-068 a/c,
+  IMP-069). Names that would need the fuzzy review (IMP-026…030), IMP-068 (b) and ambiguous codes are **left out**
+  with a line message. `addToCollection(before, imp, at)`, `replaceCollection(imp, at)`, `replaceChanges` +
+  `replaceConfirmText` (IMP-050, AC 19 form), `commitNotice(mode, imp, written)` (IMP-073), `changedSinceCommit`,
+  `snapshotIsOurs`, `nextUpdatedAt(now, previous)` (monotonic), `UNDO_TEXT`.
+- **Dialog seam** (`ImportCommitter { prepare(parse), commit(prepared, mode) }`, passed as
+  `ImportDialogData.committer`): with it, Continue shows the review step and the dialog closes with `'committed'`
+  only after `{ status: 'written' }`; `{ status: 'error', message }` stays in the dialog; `'cancelled'` (Replace
+  confirmation cancelled) stays too. Without it the dialog closes with the `ParseResult` (Deck Import until H-253,
+  which can implement the same interface).
+- **Service** (`web/src/app/core/import/collection-import.ts`, `CollectionImport`, root): implements
+  `ImportCommitter`; `undo()`; `written: Subject<void>` (fires after a commit or Undo this tab wrote; Collection
+  reloads in place, COLL-091). Notice: `MatSnackBar` `(message, 'Undo', { duration: COMMIT_NOTICE_MS = 10_000,
+  politeness: 'polite' })`. Undo: Nothing to undo unless the stored snapshot's `updatedAt` equals the one this commit
+  kept; COLL-058 confirmation when the stored record's `updatedAt` differs from the commit's; IMP-050a warnings from
+  `lockedShortfalls` over `computeSharedPool`; restore = `save({ ...snapshot, updatedAt: next }, { replace: true })`
+  then `clearPrevious()`. Error strings: `COMMIT_TEXT`.
+
 ## Test data on live (SPEC-013, H-205)
 Not an endpoint and no new Firestore field: test data is ordinary account data told apart by reserved values
 ([[Test Data]] TEST-030). No `firestore.rules` change (rules test `web/rules-tests/test-data.test.ts`).
@@ -476,9 +503,9 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   collection `save(…, { replace: true })`, one `set()`; then the locks with the two test locks added);
   `removeTestData(stores, now)` (locks without the test ids, the test decks deleted (tombstones after the 10 s Undo
   window), the collection saved with `cards: {}` and `catalogVersion: ""`: one `update()` with a tombstone per card);
-  `removeTestDecks(stores, now)`: the TEST-033 part for a Replace import (test decks and their locks only). **The
-  import commit is not built yet (imports can't save); when it is, a Replace must call `removeTestDecks` in the same
-  commit** (H-233).
+  `removeTestDecks(stores, now)`: the TEST-033 part for a Replace import (test decks and their locks only). The
+  import commit exists since H-158 (`CollectionImport.commit`, see "Owned Cards Import commit"); **a Replace must
+  call `removeTestDecks` in the same commit** (H-233, marked in the code next to the save).
 - **Catalog** (`CardData.loadCatalog()`): reads the stored collection (`stores.raw.collection`, read only); with the
   marker it returns `generateLargeSample(n).catalog` (dynamic import, its own lazy chunk), with no `/api` call and no
   dev key; the cached catalog follows the marker (a Remove goes back to `/api`). The dev key path is unchanged.
@@ -607,6 +634,9 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.22 (2026-11-25, H-158, SPEC-003 0.12): no endpoint change. New "Owned Cards Import commit and Undo" section
+  (`collection-commit.ts`, `ImportCommitter`, `CollectionImport`); `snapshotPrevious` keeps an empty snapshot when
+  nothing was stored (`EMPTY_SNAPSHOT_AT`); new `clearPrevious()` on the raw and tracked collection stores.
 - v1.21 (2026-11-25, H-246, SPEC-010 v0.17.0): no endpoint change. Theme: `ThemeChoice` is `light` | `dark`,
   `parseTheme` returns `null` for anything else, new `effectiveTheme` / `toggledTheme`, `ThemeService.effective` and
   `toggle()` replace `choice` / `set()`, unknown stored values are removed; `ThemeToggle` replaces `ThemeSwitch`. New

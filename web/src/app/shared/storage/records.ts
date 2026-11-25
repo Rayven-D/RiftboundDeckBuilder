@@ -28,6 +28,9 @@ export interface StoredCollection {
   cards: Record<CardKey, CollectionCard>;
 }
 
+/** `updatedAt` of the empty Undo snapshot kept when an import commit had no collection before it (IMP-052). */
+export const EMPTY_SNAPSHOT_AT = '1970-01-01T00:00:00.000Z';
+
 export interface CollectionStore {
   load(): Promise<StoredCollection | null>;
   save(c: StoredCollection): Promise<void>;
