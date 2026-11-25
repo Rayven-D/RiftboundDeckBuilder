@@ -37,8 +37,8 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 ## Specs ([[Spec Index]])
 | Spec | Ver | Notes |
 |---|---|---|
-| SPEC-001 [[Card Data Model]] | 0.3 on `dev` (0.4 `review` draft failed validation in H-165 attempt 1: alias fallback CARD-034, ARC, promo codes, SAMPLE marker; retry next run) | nullable attrs, `cardKey`, `printingSortKey`, `catalogVersion`, `defaultPrintingId` |
-| SPEC-002 [[Deck Legality]] | **0.4 `review`** (H-164: 2v2 totals as `unverified` data, zone-less ban dates, rotation 2028 `partial`, promos legal by name, SAMPLE not legal; gate H-193, build H-194) | 4 ban waves as data (remove before add inside a wave, LEGAL-B02), `banStatus()`, display rules LEGAL-R08 |
+| SPEC-001 [[Card Data Model]] | 0.3 on `dev` (0.4 `review` draft failed validation in H-165 attempt 1; RJ decided 2026-11-25: a leading "a"/"the" is optional in search and matching, and both forms match; retry next run) | nullable attrs, `cardKey`, `printingSortKey`, `catalogVersion`, `defaultPrintingId` |
+| SPEC-002 [[Deck Legality]] | **0.4 `review`** (H-164; RJ answered H-193 on 2026-11-25: promos legal by name, SAMPLE not legal and left out entirely, 2v2 data only; spec-writer H-197 applies them, build H-194) | 4 ban waves as data (remove before add inside a wave, LEGAL-B02), `banStatus()`, display rules LEGAL-R08 |
 | SPEC-003 [[Collection Import]] | 0.12 (H-174: "Add to your collection" FAB on Collection, `/import` removed) | owned cards; Part A = shared parsers; quantity required (any side), printing codes, .xlsx; upload rejections and `;`/tab delimiter as built; Replace and Undo confirmations warn about locked decks; CSV export `Quantity,Card Name` round-trips per printing (H-045); runes imported and exported like any card (IMP-071, H-097) |
 | SPEC-004 [[Tournament Deck Catalog]] | 0.5.1 (H-160: CAT-078 gate) | Top 8, Add to your decks |
 | SPEC-005 [[Your Decks Ownership View]] | 0.7 `review` (H-157; H-174 Import deck FAB) | OWN-065 ownership unavailable; full / darkened / partial fill of **available** copies, Riot section order, ban labels; runes counted like any card, no migration (OWN-028/029) |
@@ -50,7 +50,6 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 
 ## Waiting on RJ
 - **PR #35 (H-176, code):** header account, username, theme, import FABs. Review gate **H-189** is running in its own session (UI review, full rules suite, fixes pushed to the PR). It will ask you about the Decks placeholder wording. Merge after it reports. Keep holding `dev` → `main` (H-179).
-- **H-193:** SPEC-002 0.4 review: promos legal by name (community source), SAMPLE printings not legal (does an owned SAMPLE count as owned?), 2v2 as data only.
 - **H-182:** approve [[Privacy Notice Draft]] 0.2 and fill the `[RJ: …]` blanks (name, contact email, dates, age 13/16, change notice). Production waits on it.
 - **H-185:** SPEC-010 Open question 13 (username in account doc vs Auth `displayName`, extra username rules, Save during first sync, menu grouping, new strings, `device-theme`). Defaults are specced.
 - **H-187:** SPEC-007 Open questions 11–15 (defer group-by-card, tag / exclude UI, filters and edits; sorts and count line; dialog details line).
