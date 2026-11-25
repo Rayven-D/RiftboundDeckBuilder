@@ -651,4 +651,4 @@ catalog printing (open question 1).
    any other card."): COLL-087 withdrawn, COLL-089 added, SPEC-009 withdrawn.
 
 ## Changelog
-Current: 0.10 (2026-11-24, H-087: COLL-090 card data unavailable, COLL-091 arriving from an import, COLL-058 names the Undo entry point; ACs 26–27; pins SPEC-003 0.10; attempt 2, H-107: COLL-090 (d) no longer cites COLL-066, the loading state is the brief's). Previous: 0.9 (2026-11-24, H-071: short `TagId`, `StoredTags` schemaVersion 3, COLL-070/074 with sync). Full history: [[My Collection changelog]] (archived). New entries go in the archive note.
+Current: 0.10 (2026-11-24, H-087: COLL-090 card data unavailable, COLL-091 arriving from an import, COLL-058 names the Undo entry point; ACs 26–27; pins SPEC-003 0.10; attempt 2, H-159: COLL-090 (d) no longer cites COLL-066, the loading state is the brief's). Previous: 0.9 (2026-11-24, H-071: short `TagId`, `StoredTags` schemaVersion 3, COLL-070/074 with sync). Full history: [[My Collection changelog]] (archived). New entries go in the archive note.
