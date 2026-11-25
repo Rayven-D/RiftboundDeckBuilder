@@ -47,6 +47,7 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 | SPEC-010 [[Accounts and Sync]] | 0.6 | optional sign-in (email link now, Google later via `authProviders`) + Firestore sync, LWW per card / tag target / lock / deck, same deck status on every device, owner-only rules (H-061 PASS; RJ's 11 decisions applied, H-073 PASS 2026-11-23; H-062 built and PASS, sign-in off in production; pins of SPEC-003/007/008 are stale until H-074) |
 
 ## Waiting on RJ
+- **H-105 (parked by the nightly run, 2026-11-24):** two lock choices from H-076, defaults already in SPEC-008 0.4.2 / SPEC-005 0.5.1 (both `review`): (1) locked decks while ownership is unavailable still show the lock, tile line "Ownership unavailable", own `unavailable` filter group; (2) the shortfall warning compares per card, not the total. Build H-103 waits on it.
 - **H-097 (runes are cards):** RJ answered "No notice" (2026-11-24). Build is H-098; it touches the uncommitted H-086 Collection files.
 - **H-085 review:** the fluid pass is live; RJ to try it on a phone and pick teal or green (`/styleguide` Accent switch). New strings to confirm: "How it works", "Drop to import". No validator run yet.
 - **H-058 family:** merged into `dev` and `main` (2026-11-24). H-074 (SPEC-010 follow-ups) is still running in its own session.
