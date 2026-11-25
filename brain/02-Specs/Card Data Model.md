@@ -1,12 +1,12 @@
 ---
 tags: [spec]
 id: SPEC-001
-version: 0.3
-status: draft
+version: 0.4
+status: review
 depends_on: []
 research: ["[[Card Data & Images]]", "[[Sets]]", "[[Deck Construction Rules]]", "[[Collection Import Formats]]", "[[Riot Developer Rules]]", "[[Riot App Application]]", "[[Ban List]]"]
 decisions: ["[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
-as_of: 2026-11-23
+as_of: 2026-11-24
 ---
 # SPEC-001: Card Data Model
 
@@ -25,6 +25,7 @@ as_of: 2026-11-23
 - CARD-030: `nameKey()` normalization; CARD-036/037: set + collector-number lookup and `collectorKey()`.
 - CARD-068: `catalogVersion` = `schemaVersion+lastUpdated`, echoed by other specs' results.
 - CARD-070/071: `printingSortKey` default order (API set order, overnumbered after the regular range).
+- **0.4 (H-165, `review`):** CARD-034 (MUST, `partial`) a name lookup that finds no exact `nameKey` also tries the name without a leading "The", so "Dreaming Tree" finds "The Dreaming Tree" ([[Ban List]] #10); CARD-023a the `ARC` set code (Arcane Box Set, not a Standard set; [[Sets]] #6, `unverified`); CARD-023 promo codes OPP, JDG, PR, legal by name via SPEC-002 LEGAL-C07 ([[Deck Construction Rules]] #17); CARD-044 SAMPLE marker reserved, field name and source BLOCKED (H-020). Name check against the Riot payload still pending H-020.
 
 **Shared types:** `CardSnapshot` (the file) · `CardSet` (code, `setOrder`, `releaseStatus`) · `PlayableCard` (one card name, gameplay fields) · `Printing` (one physical version) · `CardCategory`, `VariantKind` (enums) · `CardLookup` (lookup result) · `cardKey` / `catalogVersion` (card key, snapshot id).
 **Consumers:** [[Deck Legality]], [[Collection Import]], [[Tournament Deck Catalog]], [[Your Decks Ownership View]], [[Deck Import]], [[My Collection]].
@@ -32,7 +33,7 @@ as_of: 2026-11-23
 - API schema unverified (field names, `id` format, `faction`).
 - Variant representation: CARD-036 suffix mapping, CARD-040/041 rules.
 - Champion/Signature/champion-tag fields (CARD-026/027); full type and domain lists (CARD-024/025).
-- Preview flags for cards and sets (CARD-006/008); promo sets (CARD-023); set order (CARD-071).
+- Preview flags for cards and sets (CARD-006/008); whether the API returns promo sets and `ARC` (CARD-023, CARD-023a); the exact API name of "The Dreaming Tree" (CARD-034); how the API marks SAMPLE printings (CARD-044); set order (CARD-071).
 - External IDs (CARD-050, MAY): needs Riot's answer via H-011.
 
 ## Purpose
@@ -109,7 +110,8 @@ alias, release-date or external-ID tables.
 |---|---|---|---|
 | CARD-020 | MUST | Each API set becomes a `CardSet` with `code` (API `id`, normalized to upper case, e.g. `Ven` → `VEN`) and `name`. | [[Sets]] (Conflicts) |
 | CARD-021 | MUST | Set codes are not a fixed enum. A set code not seen before (e.g. `LGC`, `PG2`, `REC`) is added from the API without code changes and listed in the ingestion report as `new-set`. | [[Sets]] |
-| CARD-023 | SHOULD | Promo groupings (OPP, JDG, PR seen in community data) are kept as ordinary sets if the Riot API returns them. BLOCKED: needs research (whether the Riot API returns promo sets and with which codes). | [[Card Data & Images]] #13; [[Sets]] |
+| CARD-023 | SHOULD | Promo groupings are kept as ordinary sets if the Riot API returns them. The codes seen in community data (Riftcodex, [[Sets]] note under its table) are `OPP` (Organized Play promos, 133 cards), `JDG` (Judge promos, 3) and `PR` (promos, 13), counts as of the Sets note, 2026-11-24. A promo printing is a normal `Printing`: it shares the `cardKey` of the same-named card (CARD-012, CARD-013), so a promo copy counts as a copy of that card. Whether a promo printing is **legal** is SPEC-002's decision, not this model's (CARD-017): per SPEC-002 LEGAL-C07 the promo printings are legal **by name** when the name has a printing in a legal set (research `partial`: the by-name wording is a community transcription of TR 601.2, [[Deck Construction Rules]] #17). BLOCKED: needs research (whether the Riot API returns promo sets and with which codes, H-020). | [[Card Data & Images]] #13; [[Sets]] (promo line under the table); [[Deck Construction Rules]] #17 (as of 2026-11-24) |
+| CARD-023a | MUST | `ARC` is a valid set code and is **not** a Standard set. [[Sets]] #6 (Piltover Archive deck-code set IDs, community-db, as of 2026-11-24; the Sets note's status is `unverified`) lists ARC as "Arcane Box Set" (deck-code index 2), a code absent from the Standard list (TR 601.3.c: OGS, OGN, SFD, UNL, VEN, RAD) and from Riftcodex's `/sets`. Like any other code it is added from the Riot API if the API returns it (CARD-021) and gets no special handling here: this spec does not decide the legality of ARC printings (SPEC-002) and does not state that the API returns ARC. BLOCKED: needs research (whether the API returns `ARC`, with which name, H-020). | [[Sets]] #1, #6 |
 
 ### Types, domains and deck-building attributes
 | ID | Level | Requirement | Source |
@@ -127,18 +129,20 @@ alias, release-date or external-ID tables.
 | CARD-030 | MUST | `nameKey(s)` is computed in this order: (1) Unicode NFKC; (2) map typographic apostrophes and quotes (`’ ‘ ʼ ´ \``) to `'` and `“ ”` to `"`; (3) map dashes (`‐ ‑ – —`) to `-`; (4) decompose (NFD) and remove combining accent marks; (5) lower-case (Unicode case fold); (6) remove every character that is not a letter, digit or space (this drops `' , - . : ! ? "` etc.); (7) collapse runs of whitespace to one space and trim. | [[Collection Import Formats]] (name matching); decklist notes |
 | CARD-031 | MUST | `nameKey` is used for **lookups only**. Displays and exports always use the canonical name. | [[Card Data & Images]] #3 |
 | CARD-032 | MUST | Ingestion fails if two different canonical names produce the same `nameKey` (collision), naming both cards. No silent merge. | design safeguard for CARD-013 |
-| CARD-033 | MUST | Lookups that find no exact `nameKey` return "not found"; fuzzy matching (typos, partial names) is SPEC-003's job, not this model's. | [[Collection Import Formats]] |
+| CARD-033 | MUST | Lookups that find no exact `nameKey` and no match under CARD-034 return "not found"; fuzzy matching (typos, partial names) is SPEC-003's job, not this model's. | [[Collection Import Formats]] |
+| CARD-034 | MUST | **Leading-article alias** (v0.4; replaces the curated alias table removed in 0.2, so there is still **no alias table**). A name lookup that finds no exact `nameKey` (CARD-033) tries once more with `looseKey(s)` = `nameKey(s)` with one leading `the ` removed, compared with the same function applied to every card's `cardKey`. Exactly one card matches → `found` for that card; more than one → `ambiguous` (with their `cardKey`s); none → `not-found`. An exact `nameKey` match always wins and the fallback never runs. The result is the card's own `cardKey` and canonical name: the alias never creates or changes a `cardKey`, and display and export keep the canonical name (CARD-031). Motivating case: **"The Dreaming Tree"** is the canonical name (the first-ban announcement and Riftcodex spell it so) and the Rules Hub prints **"Dreaming Tree"**, so a lookup for `Dreaming Tree` MUST find `The Dreaming Tree`. The fallback applies to lookups by name only; it is not used by the ingestion collision check (CARD-032) or by SPEC-002's ban-list name check (LEGAL-B05), which stay exact. **Status: `partial`.** Research backs only this one name ([[Ban List]] #10, note status `verified`, but the fact itself says the name is "Not yet checked against the official card gallery (no API) or the Riot payload (H-020)"); applying the rule to every leading "The" is this spec's mechanism, not a research finding (open question 15). | [[Ban List]] #10 (as of 2026-11-24; Riftcodex is community-db, the announcement is official); [[ADR-0005 MVP Product Defaults]] #4 (no curated alias table) |
 | CARD-035 | MUST | Every card name in our decklist notes resolves to exactly one `PlayableCard` (validation check V-003). | [[Collection Import Formats]]; V-003 |
 | CARD-036 | MUST | `lookupPrinting(setCode, collectorNumber)` resolves **without a variant** to the playable card: set code compared upper-case (CARD-020), collector number compared by collector key (CARD-037). Result: `found` with the `cardKey` and the matching printings (base / no-suffix printing first, then `printingSortKey`); `not-found`; or `ambiguous` if matching printings have different `cardKey`s (also an ingestion warning `collector-collision`). A variant suffix in the input narrows the printings but never changes the `cardKey`; if no printing has that suffix, the lookup still returns `found` with all printings of that number plus a `variant-not-found` note. Inputs accepted: `SET` + number as separate fields, public code `SET-NUMBER[suffix]` (e.g. `OGN-007a`, `RAD-SP1/005`), TTS token `SET-NUMBER-COPY` (copy index dropped). Exact suffix → `variant.kind` mapping stays BLOCKED by CARD-040. | [[Collection Import Formats]] (formats table); [[Card Data & Images]] #10 |
 | CARD-037 | MUST | `collectorKey(raw)` normalizes a collector number in this order: (1) Unicode NFKC, trim, remove a leading `#`; (2) upper-case; (3) parse one of: **(a)** block form `^([A-Z]+[0-9]*)/([0-9]+)([A-Z*]*)$` (e.g. `SP1/005`) → `block = SP1`, `number = 5`; **(b)** fraction form `^([0-9]+)([A-Z*]*)/([0-9]+)$` (e.g. `005/298`, `300/250`) → `number` = the part before `/`, the total after `/` is ignored; **(c)** plain `^([0-9]+)([A-Z*]*)$` (e.g. `007a`, `7`) → `number`; **(d)** anything else → `code` = the whole upper-cased string, `number = null`; (4) numbers are compared as integers, so leading zeros don't matter (`001` = `01` = `1`); (5) the trailing letters/`*` are the `suffix` (variant hint, upper-cased). The key is `block + '/' + number` for (a), `number` for (b)/(c), `'#' + code` for (d); the suffix is kept separately. `Printing.collectorNumber` stays verbatim; the key, suffix and parsed parts are stored beside it in `Printing.collector`. Examples: `" 007a"` → key `7`, suffix `A`; `"sp1/005"` → key `SP1/5`; `"300/250"` → key `300`. | [[Collection Import Formats]] (`OGN-007a`, TTS `OGN-265-1`); [[Card Data & Images]] #10 (`RAD-SP1/005`); [[Deck Construction Rules]] #13 (300/250) |
 
-### Variants (unverified API representation)
+### Variants (unverified API representation; CARD-044 SAMPLE marker reserved)
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | CARD-040 | MUST | Each printing has `variant: { kind, label, evidence }`. `kind` is one of `base`, `showcase`, `alt-art`, `overnumbered`, `signature`, `promo`, `unknown`. Until the live payload is inspected, every printing gets `kind: "unknown"` unless a mapping rule (CARD-041) matches. | [[Card Data & Images]] #9, #10, #12, Conflicts |
 | CARD-041 | MUST | Variant detection is a **versioned, data-driven rule list** (`data/variant-rules.json`), each rule matching on API fields (e.g. `rarity == "Showcase"`, collector-number pattern `SP\d+/`, suffix letter) and naming the `kind` it sets and the research note that backs it. Changing rules re-derives variants from the stored raw payload without a new API call. | [[Card Data & Images]] #10 (`RAD-SP1/005`, rarity "Showcase"); [[Collection Import Formats]] (suffixes a/s/b) |
 | CARD-042 | MUST | The ingestion job keeps the unmodified API response for the snapshot (`data/raw/riot-contents-<lastUpdated>.json`) so CARD-041 and new-property handling can be reapplied. It holds no API key. | [[Card Data & Images]] #4, #7 |
 | CARD-043 | MUST | `variant.kind` never affects `cardKey`, copy limits or matching (CARD-013). It affects display, printing-level lookups, `printingSortKey`, and SPEC-002 LEGAL-018, which reads `variant.kind === 'overnumbered'` (and treats `unknown` as not evaluated). There is no separate `overnumbered` field. | [[Deck Construction Rules]] #5, #13; [[ADR-0005 MVP Product Defaults]] #2 |
+| CARD-044 | MAY | **Reserved: SAMPLE marker.** SPEC-002 LEGAL-C10 says SAMPLE-stamped printings are not legal for organized play (Riot's Organized Play article, [[Deck Construction Rules]] #17, as of 2026-11-24) and needs a per-printing marker to act on it. This spec defines **no field yet**: its name, type and API source are undecided and the API representation is unknown (**BLOCKED: needs research**, H-020). When it is added it follows CARD-029: `null` = unknown, never guessed from set code or collector number, and it does not affect `cardKey` (CARD-013). Until then no printing is treated as SAMPLE. | [[Deck Construction Rules]] #17; [[Deck Legality]] LEGAL-C10 |
 
 ### Ordering (default printing order)
 | ID | Level | Requirement | Source |
@@ -236,6 +240,7 @@ export interface Printing {
   rarity: string | null;      // verbatim, e.g. 'Showcase'
   variant: { kind: VariantKind; label: string | null; evidence: string | null }; // evidence = rule id
   // overnumbered is variant.kind === 'overnumbered'; there is no separate field
+  // planned, not defined: SAMPLE marker (CARD-044, BLOCKED); no field name decided
   art: { thumbnailUrl: string | null; fullUrl: string | null; artist: string | null };
   extra: Record<string, unknown>; // unmapped API fields (CARD-063)
 }
@@ -315,10 +320,16 @@ real cards from research notes.
    differ only by removed punctuation, e.g. hypothetical `Zhonya's Hourglass` and `Zhonyas Hourglass`
    (both → `zhonyas hourglass`) **When** ingestion runs **Then** it fails, names both cards, and the
    previous `cards.json` is unchanged.
-6. **No curated aliases** (ADR-0005; CARD-033)
+6. **Leading-article alias, no alias table** (CARD-033, CARD-034; ADR-0005)
    **Given** the API's canonical name is `The Dreaming Tree` and there is no alias file **When** the
-   model is asked for `Dreaming Tree` **Then** it returns `not-found`; offering `The Dreaming Tree` as
-   a suggestion is SPEC-003's fuzzy matching, not this model.
+   model is asked for `Dreaming Tree`, `dreaming tree` or `The Dreaming Tree` **Then** each returns
+   `found` with `cardKey: "the dreaming tree"` (the first two through CARD-034), and the card is shown
+   as `The Dreaming Tree` (CARD-031). **Given** no card has the name `The Dreaming Tree` or `Dreaming
+   Tree` **When** asked for `Dreaming Tree` **Then** `not-found`. **Given** (hypothetical names) two cards `The Mirror` and
+   `Mirror` **When** asked for `Mirror` **Then** `found` for `Mirror` (the exact match wins; no
+   fallback). **Given** hypothetical cards `The Echo` and `Echo, Twice` only **When** asked for `Echo`
+   **Then** `not-found` (a partial name is not an article alias). **Given** the live payload returns
+   `Dreaming Tree` (no article) **When** asked for `The Dreaming Tree` **Then** `found` for it.
 7. **Decklists resolve** (CARD-035, V-003)
    **Given** the decklist [[2026-11 RC Europe - 2 - Sonecon - Riven]] (e.g. `Riven, The Exile`,
    `Calm Rune`, `Emperor's Dais`, `Vex, Apathetic`) **When** V-003 runs against the snapshot
@@ -379,6 +390,24 @@ real cards from research notes.
     `printingSortKey` **Then** the order is OGN `001`, `002`, `002a`, `250`, `300`, `SP1/005`, then
     SFD `001`.
 
+21. **Alias ambiguity** (CARD-034)
+    **Given** (hypothetical names) two cards `The Pit` and `Pit, Twice` **When** asked for `Pit` **Then**
+    `found` for `The Pit` only (`Pit, Twice` is a different name, CARD-014). **Given** (hypothetical,
+    test data) two cards whose `looseKey` both equal the input's and neither matches the input exactly
+    **When** asked **Then** the result is `ambiguous` listing both `cardKey`s.
+22. **ARC and promo codes are ordinary sets** (CARD-021, CARD-023, CARD-023a; hypothetical payload)
+    **Given** the previous snapshot has no `ARC` or `OPP` and the API now returns a set `Arc` named
+    `Arcane Box Set` and a set `Opp` **When** ingestion runs **Then** `CardSet.code` values are `ARC`
+    and `OPP` with the API names, the report lists `newSets` for both, and nothing in the snapshot marks
+    them legal or illegal. **Given** an `OPP` printing and an `OGN` printing with the same name **Then**
+    there is one `PlayableCard` listing both `printingIds`, and 1 owned `OPP` copy + 2 owned `OGN`
+    copies count as 3 copies of the card (CARD-013). **Given** the API returns no `ARC` set **Then** no
+    `ARC` set is invented.
+23. **SAMPLE marker not guessed** (CARD-044, CARD-029)
+    **Given** no verified API source for the SAMPLE stamp **When** ingestion runs **Then** no printing is
+    marked SAMPLE from its set code or collector number, and SPEC-002 AC 24 still sees "no way to mark
+    SAMPLE".
+
 ## Out of scope
 - Deck legality, ban list, format/set legality and out-of-range reprints (SPEC-002).
 - Parsing import formats, fuzzy matching, deck codes (SPEC-003).
@@ -394,7 +423,7 @@ real cards from research notes.
 3. **Champion / Signature / champion tag** source fields (CARD-026, CARD-027). → researcher.
 4. **Full card type list and domain list** and their API strings (CARD-024 mapping table, CARD-025). → researcher.
 5. **Previewed cards and sets** flag in the API (CARD-006, CARD-008). Needed by SPEC-002 set legality. → researcher.
-6. **Promo sets** (OPP, JDG, PR) in the Riot API? (CARD-023). → researcher.
+6. **Promo sets** (OPP, JDG, PR) and **`ARC`** in the Riot API? With which codes and names? (CARD-023, CARD-023a). → researcher (H-020).
 7. **Token cards** ("Created" tokens from Legacy on, [[Sets]] #3): does the API return them, with which
    `type`? (category `token`). Excluded from deck-building lookups? → researcher.
 8. **TCGplayer IDs** (CARD-050, MAY + BLOCKED): is there a Riot-permitted source? Ask Riot in the App Note (H-011 (d)).
@@ -402,12 +431,23 @@ real cards from research notes.
 10. ~~Set release dates table~~: resolved by ADR-0005 (no curated dates; CARD-022 removed). Set legality dates live in SPEC-002 from Riot-published sources only.
 11. **Gameplay field conflicts across printings** (errata, Legacy templating): CARD-015 picks the latest
     set's printing. Confirm with RJ / researcher that this matches how errata are published.
-12. **Canonical spelling of "The Dreaming Tree"** in the API. No alias table (ADR-0005); SPEC-002 LEGAL-B05
-    uses whatever the API returns. → researcher (live payload).
+12. **Canonical spelling of "The Dreaming Tree"** in the API. Research says "The Dreaming Tree" is canonical
+    (first-ban announcement, Riftcodex) and the Rules Hub prints "Dreaming Tree" ([[Ban List]] #10, as of
+    2026-11-24); not yet checked against the Riot payload (H-020). CARD-034 accepts both spellings either
+    way; SPEC-002 LEGAL-B05 stays exact and uses whatever the API returns. → researcher (live payload).
 13. **Set order** (CARD-071): does the API return `sets[]` in release order? If not, RJ decides how to order
     sets without a curated table (e.g. Riot-published dates where cited in research, API order otherwise).
 14. **Collector-number forms** (CARD-037): confirm against the live payload that no other forms exist
     (e.g. promo codes); form (d) catches them meanwhile.
+15. **Scope of the leading-article alias** (CARD-034, for RJ): research backs only "Dreaming Tree" for
+    "The Dreaming Tree". CARD-034 applies a generic "optional leading The" fallback instead of a
+    one-name alias list, because ADR-0005 forbids curated alias tables and a list would need one.
+    Default: the generic rule. Alternative: a single sourced entry, which needs an ADR-0005 exception.
+16. **SAMPLE marker** (CARD-044): field name, type and API source for SPEC-002 LEGAL-C10. → researcher
+    (H-020), then spec-writer.
+17. **Legality of `ARC` printings** (CARD-023a): [[Sets]] #6 only says ARC is not on the Standard list.
+    Whether ARC cards are legal by name like promos is not researched; SPEC-002's decision once
+    researched.
 
 ## Changelog
-Current: 0.3 (2026-11-23). Full history: [[Card Data Model changelog]] (archived). New entries go in the archive note.
+Current: 0.4 (2026-11-25, H-165: CARD-034 leading-article alias, CARD-023 / CARD-023a promo codes and ARC, CARD-044 SAMPLE marker reserved; `review`). Before: 0.3 (2026-11-23). Full history: [[Card Data Model changelog]] (archived). New entries go in the archive note.

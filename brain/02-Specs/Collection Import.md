@@ -38,7 +38,7 @@ as_of: 2026-11-24
 - Part A preamble: not applicable to decks: IMP-009 and IMP-015 only (= DECK-013). Since v0.4 CSV/Excel is shared with decks.
 
 **Shared types:** `CardKey`, `PrintingId`, `PrintingCode` (keys) · `ImportResult` / `ParsedLine` / `PrintingHint` / `ImportIssue` / `UploadInfo` (parser output, reused by SPEC-006) · `SourceFormat` · `StoredCollection` (`cardKey` → quantity + `byPrinting`) · `CollectionStore`.
-**Depends on:** [[Card Data Model]] v0.3; [[Shared Cards and Lock-in]] v0.4.4 (IMP-050a locked-deck warning only). **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
+**Depends on:** [[Card Data Model]] v0.4; [[Shared Cards and Lock-in]] v0.4.4 (IMP-050a locked-deck warning only). **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
 **BLOCKED (needs research):**
 - Piltover deck-code set indexes beyond SFD and what `ARC` is (IMP-032); variant letters a/s/b (IMP-033).
 - Real deck codes with known contents for fixtures (AC 16).
