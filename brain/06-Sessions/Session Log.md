@@ -7,6 +7,10 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-24: Self-starting loop (orchestrator)
+- Did: renamed the project command `/loop` → `/board` so it stops hiding Claude Code's built-in `/loop` (`/loop /board` now reruns the board on its own). Gates 1–4 now **park** the item as `needs-RJ` and the run carries on; only gate 5 (destructive / outside services) stops it. Preflight allows untracked files. Nightly scheduled task `rift-builder-nightly-board` (desktop app, 02:05 local, Auto mode) runs `/board 5`, never pushes.
+- Notes: [[Loop Protocol]], [[board]], CLAUDE.md, ADR-0002 driver line. H-042 (weekly research refresh) is still open.
+
 ## 2026-11-24: Runes are cards, H-098 (builder)
 - Did: removed every rune exception from the deck engine (`runes.ts` deleted; `COUNTED_ZONES` = `ZONE_ORDER`; `canLock` `no-cards` only for an empty deck, "Lock in needs at least one card"; runes allocated, summed, missing and copied under `Rune Pool:`; `OwnershipCard.isRune` gone) and from Collection (`CardSummary.isRune`, the dialog's rune line, styleguide rune sample, sample decks). Parser and CSV exporter unchanged (they never skipped runes).
 - Tests: `runes-are-cards.spec.ts` replaces `runes.spec.ts` (SPEC-005 ACs 7, 8, 17–19; SPEC-008 ACs 12, 17, 18; SPEC-007 AC 25); AC 12/15 in `shared-pool.spec.ts`, OWN-028 in `deck-ownership-view.spec.ts`, A6 + COLL-089 in `collection-view.spec.ts`, SPEC-003 AC 42 in the parser and export specs. Lint clean, build OK, 425 web tests green. The Accept search in `web/src` finds nothing.

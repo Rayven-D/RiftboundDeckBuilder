@@ -5,7 +5,7 @@ updated: 2026-11-24
 # Current State
 
 > **Read this first.** One screen: what exists, what's decided, what's next. Open other notes
-> only when your task needs them. Skip `Archive/` (history only). The `/loop` run updates this note.
+> only when your task needs them. Skip `Archive/` (history only). The `/board` run updates this note.
 
 ## Product (ADR-0006)
 Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Decks"). Tabs: **Decks**, **Collection**, **Tournaments**, plus an **Import** button and a home page at `/`.

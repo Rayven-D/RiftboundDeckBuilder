@@ -12,7 +12,7 @@ change often.
 
 ## Decision (agreed with RJ, 2026-11-23)
 - **State:** the [[Handoff Board]], with fixed columns, is the loop's single source of truth.
-- **Driver:** the `/loop [rounds]` command runs the [[Loop Protocol]].
+- **Driver:** the `/board [rounds]` command (called `/loop` until 2026-11-24) runs the [[Loop Protocol]].
 - **Feedback:** a new `validator` agent verifies every item against its Accept check and the
   [[Validation Checks]], and files a board item for every failure.
 - **Autonomy:** the loop stops only at gates (ADRs, UI reviews, behavior-changing spec reviews,

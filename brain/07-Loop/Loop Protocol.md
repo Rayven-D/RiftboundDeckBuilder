@@ -5,8 +5,10 @@ adr: "[[ADR-0002 Closed-Loop Development]]"
 ---
 # Loop Protocol
 
-The loop's state is the [[Handoff Board]]. The `/loop` command runs this protocol, and
+The loop's state is the [[Handoff Board]]. The `/board` command runs this protocol, and
 `/research-refresh` (manually or on the weekly schedule) feeds new information into it.
+`/board` was called `/loop` until 2026-11-24; it was renamed so it stops hiding Claude Code's
+built-in `/loop`, which reruns a command on its own (`/loop /board`).
 
 ```mermaid
 flowchart LR
@@ -27,7 +29,7 @@ flowchart LR
 `todo` → `doing` → `verify` → `done`
 - On a validation failure the item returns to `todo` (attempts +1). After 3 attempts it becomes `needs-RJ`.
 - `blocked`: waiting on another item or outside information (use the `depends` column).
-- `needs-RJ`: a gate. The loop stops here.
+- `needs-RJ`: a gate. The item is parked until RJ answers; the loop carries on with other items.
 
 ## Picking the next item
 Status `todo`, every `depends` item `done`, an agent owner (not RJ), highest priority first
@@ -43,12 +45,20 @@ Status `todo`, every `depends` item `done`, an agent owner (not RJ), highest pri
 | validator | `validator` | re-runs checks, regression sweeps |
 | RJ | you | gates: ADRs, UI reviews, spec approvals, merging `dev` → `main` |
 
-## Gates (the loop always stops for these)
+## Gates
+Gates 1–4 **park** the item: it becomes `needs-RJ`, goes under "Waiting on RJ" in [[Current State]],
+and the loop carries on with the next actionable item. Anything that depends on a parked item is not
+actionable, so it waits too. The loop never treats a parked item as approved. (Changed 2026-11-24 from
+"the loop always stops", so an unattended run keeps working while RJ is away.)
 1. Any ADR with status `proposed`
 2. A UI screen ready for review
 3. A spec newly marked `review` that changes legality or matching behavior
 4. An item that failed validation 3 times
+
+Gate 5 is a **hard stop**: the run ends at once.
+
 5. Anything destructive or irreversible, or anything that would touch outside services or accounts
+   (push, deploy, Firebase, Riot API keys, paid services)
 
 ## Git policy
 - `main`: only RJ merges into it, from `dev`.
@@ -59,7 +69,13 @@ Status `todo`, every `depends` item `done`, an agent owner (not RJ), highest pri
 - Commit messages start with the item ID. Never push, force, or rebase `dev`/`main`.
 
 ## Round cap
-Default 5 rounds per `/loop` run (`/loop 10` for more). Research refreshes are a single round.
+Default 5 rounds per `/board` run (`/board 10` for more). Research refreshes are a single round.
+
+## Scheduled runs
+A nightly scheduled task (`rift-builder-nightly-board`, Claude desktop app, 02:05 local) runs
+`/board 5` in this project. It runs only while the app is open (a missed run starts on the next
+launch). Preflight skips the run if tracked files have uncommitted changes, so it never mixes with
+work in progress. It never pushes; RJ reviews `dev` and the parked gates in the morning.
 
 ## Research refresh
 On demand with `/research-refresh [focus]`. The weekly scheduled run is **not set up yet**: RJ deleted the original task on 2026-11-23 and will recreate it inside the Claude project later (H-042). Until then, run it manually.
@@ -71,7 +87,7 @@ On demand with `/research-refresh [focus]`. The weekly scheduled run is **not se
 5. If nothing changed: a single line in the Change Feed and no board items.
 
 ## Keeping the brain light
-At the end of every `/loop` run, the orchestrator:
+At the end of every `/board` run, the orchestrator:
 - updates [[Current State]] (one screen; rewrite it, don't append)
 - keeps only the latest 2 Session Log entries and moves older ones to `Archive/Sessions/`
 - keeps the latest ~10 Done rows on the board and moves older ones to `Archive/Board/`

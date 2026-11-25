@@ -21,4 +21,4 @@ Edit the copies here, then re-run the copy.
 | UI/UX engineer (design advisor, no code) | [[ui-engineer]] |
 | Validator | [[validator]] |
 
-Commands: [[loop]] (`/loop`), [[research-refresh]] (`/research-refresh`)
+Commands: [[board]] (`/board`, was `/loop`), [[research-refresh]] (`/research-refresh`)
