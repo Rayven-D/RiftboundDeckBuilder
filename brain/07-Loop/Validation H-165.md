@@ -36,3 +36,23 @@ item: H-165
 - **V-009.** All new wikilinks resolve (the only grep misses are pre-existing links broken across lines); new requirements numbered, new ACs are Given/When/Then.
 
 Follow-ups (non-blocking, no new row): inline `import type` comments in Accounts and Sync (`SPEC-003 v0.11`, `SPEC-006 v0.8`), Shared Cards (`SPEC-006 v0.8`, `SPEC-007 v0.11`) and My Collection (`SPEC-003 v0.11`) were already stale before H-165 and are only code-sample comments. `brain/05-Services/API Contracts.md` still pins SPEC-001 v0.2 (lines 10, 131, 403): already board row H-195 (depends on H-165, now unblocked).
+
+## Attempt 2 re-check after merge onto dev (2026-11-25)
+
+2026-11-25 · H-165 re-check (merge f0a6813 onto dev: SPEC-001 0.4, SPEC-003 0.13, SPEC-006 0.9.1, SPEC-007 0.14.1) · **FAIL** (one stale pin) · checks: `git diff dev -- brain/` (12 files), live pin grep across `brain/` (excl. Archive, 06-Sessions, 07-Loop, Spec-Changelogs), H-244 / H-249 content retention, attempt-1 findings, RJ decision fidelity, research status / as_of, V-009.
+
+- **Failure 1 (pin, minor).** `brain/02-Specs/Test Data.md` line 38 (SPEC-013 Depends on): expected `[[My Collection]] 0.14.1`, `[[Collection Import]] 0.13` (the Spec Index SPEC-013 row, edited in this merge, already says SPEC-007 0.14.1 and SPEC-003 0.13); actual `[[My Collection]] 0.14`, `[[Collection Import]] 0.12`. The file is not in the 12-file diff. Owner `spec-writer` (pin-only, no SPEC-013 version bump, as the index row says). Within H-165 scope, so no board row filed.
+- **Merge resolution OK.** Spec Index, Accounts and Sync, Shared Cards, Your Decks, My Collection, Deck Import, Collection Import: all depends lines and index rows pin SPEC-001 0.4, SPEC-003 0.13, SPEC-006 0.9.1, SPEC-007 0.14.1 (SPEC-005 stays 0.8, SPEC-010 0.17.2, SPEC-013 0.1.3). My Collection: `version: 0.14.1`, `status: review`, changelog "Current: 0.14.1 ... Previous: 0.14 (H-244 ...)" intact, COLL-094 (d) and AC 31 (H-244) kept. Accounts and Sync keeps 0.17.2 (H-249) changelog and the 0.17.0 impact note. Remaining older versions are changelog history, "Impacts" notes, or old inline `import type` comments (already stale before H-165).
+- **Attempt-1 findings still fixed.** AC 6 (`Echo, Twice` + `The Echo` asked `Echo` is `found` for `The Echo`; alone, `not-found`), AC 21 reachable `ambiguous` (`A Pit` / `The Pit` asked `Pit`; `A Pit` / `Pit` asked `The Pit`), IMP-025 / IMP-059 / AC 24 use CARD-034 (`method: "article"`), `ImportResult` union updated.
+- **RJ decision applied.** CARD-034 (lookup, exact first), CARD-038 (search; `the` and `dreaming` both find The Dreaming Tree, AC 24), IMP-025/059, DECK-040, COLL-040 (+ AC 10). No alias table; Open question 15 closed and marked as RJ's product choice.
+- **No research over-claim.** Dreaming Tree name still "not checked against the Riot payload (H-020)", ARC `unverified` (CARD-023a, Open question 17), OPP/JDG/PR counts "as of 2026-11-24", CARD-044 SAMPLE reserved with no field, RJ H-193 noted. `as_of` 2026-11-24, status `review`.
+- **V-009.** New requirements numbered, new ACs Given/When/Then, new wikilinks resolve.
+- Follow-up (existing row H-195): `brain/05-Services/API Contracts.md` lines 10, 131, 573 still pin SPEC-001 v0.2. Not a failure here.
+
+## Attempt 3 (2026-11-25)
+
+2026-11-25 · H-165 attempt 3 · **FAIL** (one stale index pin) · checks: Test Data fix, full live pin grep across `brain/` (excl. Archive, 06-Sessions, 07-Loop, Spec-Changelogs, board rows).
+
+- **Fixed:** `Test Data.md` line 38 now pins My Collection 0.14.1 / Collection Import 0.13; Spec Index SPEC-013 row lists H-165 in its pin-only note.
+- **Failure 1:** `brain/02-Specs/Spec Index.md` line 21 (SPEC-010 Accounts and Sync row, dependency list): expected `SPEC-003 0.13, SPEC-006 0.9.1, SPEC-007 0.14.1` (Accounts and Sync's own Depends on line says Collection Import v0.13, Deck Import v0.9.1, My Collection v0.14.1; the SPEC-005/008/011/013 rows already match); actual `SPEC-003 0.12, SPEC-006 0.9, SPEC-007 0.14`. Owner spec-writer, pin-only, in H-165 scope, no board row.
+- All other remaining older numbers are changelog history, "Impacts" notes, or old inline `import type` comments (pre-existing). API Contracts SPEC-001 v0.2 is H-195.
