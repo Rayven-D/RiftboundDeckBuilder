@@ -73,9 +73,14 @@ import { formatReleaseDate, showableEntries } from '../../shared/changelog/chang
       font-size: var(--font-size-sm);
       color: var(--color-text-muted);
     }
+    /* H-222: the nested list would get the second-level hollow circle; use a filled, muted dot. */
     .bullets {
       margin: 0;
       padding-left: 1.25rem;
+      list-style-type: disc;
+    }
+    .bullets li::marker {
+      color: var(--color-text-muted);
     }
     .bullets li {
       overflow-wrap: anywhere;
