@@ -205,55 +205,92 @@ Decks
   ignored"** (COLL-062 wording; the spec is silent for Decks, §14).
 
 ## 6. Deck detail: layout (OWN-010, OWN-011)
+> Sketches updated 2026-11-26 (H-477) to match the build: header actions top-right from 40rem (H-475), the
+> summary lines in the header (OWN-010 (f)), the desktop panel with Card / Missing tabs (H-260), the view toggle
+> in the section bar (§13a (5)), and the reason-line alignment decided below (built in H-520).
+> [[Decks Components]] §5 has the sizes.
 ```
-Desktop 1440 (content 1152px): main column + sticky aside 20rem
+Desktop 1440 (content 1152px), unlocked deck, 3 cards short
 ← Decks
-Kennen Tempo                                                          (H1, Archivo xl)
-1st, Regional Championship: Europe · Nov 6, 2026 – Nov 8, 2026 · ASC Evansrhim · Source ↗
-[🔒 Locked · Locked in on Nov 23, 2026]   ⛔ Not legal in Standard today  [Rule check]
-[ 🔒 Lock in ]  [⧉ Copy missing list ▾]  [⋯]            (actions; ⋯ = Export, Duplicate, Rename, Delete)
-Lock in needs every card available: 3 cards short       (reason line, only while disabled)
-┌ sticky section bar ───────────────────────────────────┐
-│ Legend · Champion · Main 39 · Battlefields 3 · Runes 12 · Sideboard 10 │
-└───────────────────────────────────────────────────────┘
-Legend · 1 card · 1 available                          ┌ aside (sticky) ──────────────┐
-┌─────┐                                                │ Summary                      │
-│ art │                                                │ 34 of 66 copies available    │
-└─────┘                                                │ 18 of 32 cards fully available│
-Chosen Champion · 1 card · 0 available                 │ 1 copy excluded from decks   │
-…                                                      │ ──────────────────────────── │
-Main Deck · 39 cards · 12 available                    │ Missing (32 copies)          │
-┌────┐┌────┐┌────┐┌────┐┌────┐   5 columns             │ Main Deck                    │
-│ ×3 ││    ││ ×2 ││    ││ ×3 │                          │ 2 Lightning Rush             │
-│art ││art ││art ││art ││art │                          │ 3 Hextech Ray                │
-└────┘└────┘└────┘└────┘└────┘                          │ … Show all 14 lines          │
-Lightning…  Hextech…                                   │ [⧉ Copy missing list]        │
-Spell       Spell                                      └──────────────────────────────┘
+┌ .header-main (flex 1 1 20rem) ────────────────┐      ┌ .actions (content width, top = name top) ─────────┐
+│ Kennen Tempo                   (H1, Archivo xl)│      │ [🔒 Lock in] [⧉ Copy missing list|▾] [⋮]          │
+│ 1st, Regional Championship: Europe · Nov 6 –   │      │ ⓘ Lock in needs every card available: 3 cards short│
+│ Nov 8, 2026 · ASC Evansrhim · Source ↗         │      └ reason starts under Lock in, wraps in the row ────┘
+│ ⛔ Not legal in Standard today   Rule check     │        ⋮ = Copy deck list, Download .txt, Duplicate,
+│ 34 of 66 copies available · 52%                │            Rename, divider, Delete
+│ 18 of 32 cards fully available                 │
+└────────────────────────────────────────────────┘
+┌ sticky section bar ──────────────────────────────────────────────────────────────────────────────────┐
+│ Legend · Champion · Main 39 · Battlefields 3 · Runes 12 · Sideboard 10        [▦ Card view|☰ List view]│
+└──────────────────────────────────────────────────────────────────────────────────────────────────────┘
+Legend · 1 card · 1 available                          ┌ panel (sticky) ───────────────┐
+┌─────┐                                                │ [ Card ][ Missing ]   (tabs)  │
+│ art │                                                │ Card: the selected card's     │
+└─────┘                                                │ info, SHARE-043 breakdown,    │
+Chosen Champion · 1 card · 0 available                 │ printings, other decks        │
+…                                                      │ Missing: lines per section,   │
+Main Deck · 39 cards · 12 available                    │ [⧉ Copy missing list]         │
+┌────┐┌────┐┌────┐┌────┐┌────┐   5 columns             └───────────────────────────────┘
+│ ×3 ││    ││ ×2 ││    ││ ×3 │
+│art ││art ││art ││art ││art │
+└────┘└────┘└────┘└────┘└────┘
+Lightning…  Hextech…
 [◐ 1 of 3 available]
 ⧉ Also in 2 other decks · 1 locked
 ⛔ Banned since Nov 23, 2026
+
+Locked deck: the badge joins the meta row; Unlock replaces Lock in; no reason line
+│ [🔒 Locked · Locked in on Nov 23, 2026]  ⛔ Not legal …  Rule check │      [🔓 Unlock] [⋮]
 ```
+- **Header from 40rem (H-475, RJ 2026-11-25):** a wrapping flex row (`.header-top`). Left, `.header-main`: name,
+  description (if any), source line, meta row, summary lines. Right, `.actions`: Lock in / Unlock · Copy missing
+  list + chevron · More, top-aligned with the name and flush with the content's end edge. The **lock badge sits in
+  the meta row** with the legality label and Rule check, never with the actions. When both sides can't fit (a
+  long name or a narrow tablet, about 768 and below) the actions **wrap under the summary lines**, starting at the
+  page gutter, never overlapping. The actions follow the summary in the DOM, so focus goes Rule check → Lock in →
+  Copy missing list → More copy options → More actions.
+- **Reason line (decision, H-477, 2026-11-26): start-aligned under Lock in, at every width from 40rem.** Its box
+  spans exactly the actions row (left edge = Lock in's left edge, right edge = More's right edge); the text starts
+  at the left and wraps inside the row; it adds no width to the row. Reasoning:
+  1. **Proximity to its owner.** The line says why *Lock in* is disabled (`aria-describedby` ties it to that
+     button). Start-aligned, its `help` icon sits straight under Lock in's `lock` icon. End-aligned, a short
+     reason hangs under Copy missing list and More and reads as if it were about them; at 768 (actions wrapped to
+     the left) it also floats mid-page, away from everything it belongs to.
+  2. **One rule, no wrap detection.** Whether the actions sit top-right or wrap under depends on the name length
+     and which buttons show, so no media query can tell the two cases apart. Start alignment is right in both and
+     matches the phone layout (reason under the full-width Lock in).
+  3. **Clean edges.** The actions block has a hard left edge (Lock in) and a hard right edge (More, flush with
+     the content edge at 1440 / 1024). A start-aligned line in a row-wide box shares the left edge and never
+     passes the right one. The built box started 8px left of the row (and of the page gutter when wrapped,
+     `x = 8` at 768) because of the `-space-2` start margin, so a longer reason ("Locked decks could not be read"
+     beside a lone Lock in, two lines) could show outside the gutter.
+  4. **Reading.** Muted help text that wraps reads best ragged-right; end-aligned wrapped lines are harder to scan.
+
+  Built end-aligned in H-475; H-520 changes it.
 - **Desktop ≥ 64rem** (choice 12): two columns, `minmax(0,1fr) 20rem`, gap `--space-6`. The aside is
   sticky at `top: header + section bar + --space-4`, with `max-height` set to the rest of the
   viewport and its own scroll.
-- **Tablet 40–64rem:** one column. Summary and missing list go in one panel under the header,
-  with the missing list collapsed when it has more than 10 lines (OWN-051).
+- **Tablet 40–64rem:** one column. The summary lines stay in the header; the missing list is its own panel under
+  the header and notices, collapsed when it has more than 10 lines (OWN-051). Copy missing list stays in the
+  header actions (the panel's own copy button is phones only).
 - **Phone < 40rem:**
 ```
 ← Decks
 Kennen Tempo
 1st, Regional Championship: Europe · Nov 6 – 8, 2026 (wraps)
-[🔒 Locked · Nov 23, 2026]
+[🔒 Locked · Locked in on Nov 23, 2026]   (locked deck only)
 ⛔ Not legal in Standard today · Rule check
-[        🔒 Lock in        ] [⋯]          full-width primary + More
-┌ Summary ─────────────────────────┐
-│ 34 of 66 copies available        │
-│ 18 of 32 cards fully available   │
-│ ▸ Missing: 14 lines, 32 copies   │   details, collapsed > 10 lines
-│ [⧉ Copy missing list]            │
+34 of 66 copies available · 52%
+18 of 32 cards fully available
+[        🔒 Lock in        ] [⋮]          full-width primary 44px + More 44×44
+ⓘ Lock in needs every card available: 3 cards short   (only while disabled)
+(notices)
+┌ Missing cards ───────────────────┐
+│ ▸ Missing: 14 lines, 32 copies   │   collapsed > 10 lines
+│ [⧉ Copy missing list|▾]          │   44px halves (H-461)
 └──────────────────────────────────┘
 ┌ sticky, scrolls sideways ────────┐
-│ Legend · Champion · Main 39 · Ba…│
+│ Legend · Champion · Main 39 · Ba…│ [▦|☰]
 └──────────────────────────────────┘
 Main Deck · 39 cards · 12 available
 ┌──────┐ ┌──────┐   2 columns
