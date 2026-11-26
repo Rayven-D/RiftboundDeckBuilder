@@ -7,6 +7,7 @@ import { BrowserStores, createBrowserStores } from '../../../core/storage/browse
 import type { DeckCard, StoredCollection, StoredTags, UserDeck } from '../../storage/records';
 import { emptySyncLog } from '../sync-log';
 import { SyncEngine } from '../sync-engine';
+import type { EngineDeps } from '../sync-engine';
 import type { NoticeKind } from '../notice';
 import type { StoredSyncLog, SyncStatus } from '../sync-types';
 import { FakeAuth, FakeFirestore, FakeRemote } from './fakes';
@@ -47,7 +48,7 @@ export class Device {
 
   constructor(
     readonly db: FakeFirestore,
-    opts: { now?: number; appVersion?: string } = {},
+    opts: { now?: number; appVersion?: string; shortfalls?: EngineDeps['shortfalls'] } = {},
   ) {
     this.now = opts.now ?? T0;
     this.remote = new FakeRemote(db);
@@ -75,6 +76,7 @@ export class Device {
       },
       onStatus: (s) => (this.status = s),
       onAccountCreated: () => this.accountCreated++,
+      shortfalls: opts.shortfalls,
       leaveSignInLink: () => {
         this.linkLeaves.push({ reads: this.db.reads, notices: this.notices.length });
         return this.onLeaveLink();
