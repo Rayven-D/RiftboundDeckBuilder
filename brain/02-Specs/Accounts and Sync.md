@@ -221,7 +221,7 @@ questions 1–9 and the title "Finish signing in" ("all those look good to me", 
 `DeckDoc`. Source of truth in code: `web/src/app/shared/sync/sync-types.ts` (v0.11 matches it; the v0.10
 additions were built in H-141, H-143 and H-145).
 **Depends on:** [[Collection Import]] v0.14, [[Tournament Deck Catalog]] v0.7, [[Your Decks Ownership View]]
-v0.10.2, [[Deck Import]] v0.13 (pin-only, H-479; v0.12 pin: H-342), [[My Collection]] v0.14.1 (pin-only), [[Shared Cards and Lock-in]] v0.4.6 (pins pin-only, H-252; SPEC-005 v0.10 and SPEC-006 v0.11.1 pins pin-only, H-320; SPEC-005 v0.10.1 and SPEC-008 v0.4.6 pins pin-only, H-256; SPEC-005 v0.10.2 pin-only, H-330) (SPEC-009 [[Runes Assumed Owned]]
+v0.10.2, [[Deck Import]] v0.14 (pin-only, H-454; v0.13 pin: H-479; v0.12 pin: H-342), [[My Collection]] v0.14.1 (pin-only), [[Shared Cards and Lock-in]] v0.4.6 (pins pin-only, H-252; SPEC-005 v0.10 and SPEC-006 v0.11.1 pins pin-only, H-320; SPEC-005 v0.10.1 and SPEC-008 v0.4.6 pins pin-only, H-256; SPEC-005 v0.10.2 pin-only, H-330) (SPEC-009 [[Runes Assumed Owned]]
 is withdrawn since 2026-11-24: runes are cards, so nothing here treats them differently). **Consumers:** H-062 (built v0.7), H-081 (sign-in gate, built as "account-required mode"), H-127 (Cancel deletion), H-077
 (first-sign-in writes), H-078 (build id and preview deploy), v0.10 UI items H-104, H-106, H-110, H-115, H-122 and
 H-140…H-145, H-172 (builds v0.12: removes local-only mode, adds the browser cache rules), H-173 (scrolling brief), H-176 (builds v0.14: header, username, theme, FABs, no `/import`), [[ADR-0007 Firebase Accounts and Firestore]].
@@ -535,7 +535,7 @@ spec-writer text in the brief's style, listed for RJ in Open question 13.
 // shapes only; no implementation
 import type { CardKey, PrintingId, StoredCollection } from './collection-import';   // SPEC-003 v0.11
 import type { TagId, TagTarget, TagColour, StoredTags } from './my-collection';     // SPEC-007 v0.11 (TagId per SYNC-016)
-import type { UserDeck } from './deck-import';                                       // SPEC-006 v0.13
+import type { UserDeck } from './deck-import';                                       // SPEC-006 v0.14
 import type { StoredDeckLocks } from './shared-cards';                              // SPEC-008 v0.4.6
 type Ms = number;                 // ms since Unix epoch, client clock
 type Timestamp = unknown;         // Firestore timestamp (adapter type)
