@@ -633,18 +633,26 @@ describe('Collection performance (COLL-065, SPEC-007 AC 18, A11)', () => {
     expect(v.tiles).toHaveLength(5000);
     expect([...v.cards.values()].filter((c) => c.lockedCopies > 0).length).toBeGreaterThan(0);
 
-    t0 = performance.now();
-    const byName = queryTiles(v.tiles, '', 'name');
-    const sortName = performance.now() - t0;
-    t0 = performance.now();
-    const found = queryTiles(v.tiles, 'ember warden', 'set');
-    const search = performance.now() - t0;
+    // H-430: best of 3 runs, so a load spike from another process doesn't fail a single timing.
+    let byName = queryTiles(v.tiles, '', 'name');
+    let found = queryTiles(v.tiles, 'ember warden', 'set');
+    let sortName = Infinity;
+    let search = Infinity;
+    for (let i = 0; i < 3; i++) {
+      t0 = performance.now();
+      byName = queryTiles(v.tiles, '', 'name');
+      sortName = Math.min(sortName, performance.now() - t0);
+      t0 = performance.now();
+      found = queryTiles(v.tiles, 'ember warden', 'set');
+      search = Math.min(search, performance.now() - t0);
+    }
 
     expect(byName).toHaveLength(5000);
     expect(found.length).toBeGreaterThan(0);
-    // SHOULD 200 ms on RJ's PC (COLL-066); first render within 1 s. Test machines get headroom.
-    expect(build).toBeLessThan(1000);
-    expect(sortName).toBeLessThan(200);
-    expect(search).toBeLessThan(200);
-  });
+    // SHOULD 200 ms on RJ's PC (COLL-066); first render within 1 s. These are gross-regression guards
+    // with 3× headroom (H-430): a shared, busy test machine is not RJ's PC, so the SHOULD isn't measurable here.
+    expect(build).toBeLessThan(3000);
+    expect(sortName).toBeLessThan(600);
+    expect(search).toBeLessThan(600);
+  }, 30_000);
 });

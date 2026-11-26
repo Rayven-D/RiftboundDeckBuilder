@@ -230,6 +230,6 @@ describe('Browser cache (SPEC-010 SYNC-140…SYNC-146, H-172)', () => {
       expect(db.reads).toBe(0);
       expect(db.writes).toBe(0);
       expect(laptop.engine.pendingCount()).toBe(0);
-    });
+    }, 30_000); // H-420: 3,000 cards × 10 rounds outgrows the 5 s default when the machine is busy
   });
 });

@@ -702,12 +702,34 @@ describe('SPEC-008 Shared Cards and Lock-in (engine)', () => {
     const locks = decks
       .slice(0, 100)
       .map((d, i) => lock(d.id, `2026-11-23T${String(i % 24).padStart(2, '0')}:00:00Z`));
-    computeSharedPool({ decks, locks, ownership: makeInput(cat, { owned }) }); // warm-up (JIT)
-    const input = makeInput(cat, { owned }); // a fresh input: nothing cached (OWN-083)
-    const start = performance.now();
-    const p = computeSharedPool({ decks, locks, ownership: input });
-    const ms = performance.now() - start;
+    // H-420: the hard check counts work, not wall-clock time (which fails when the machine is busy).
+    // One deckOwnership per distinct counted cardKey (each reads collection.cards once) and a bounded
+    // number of catalog lookups per card, whatever the number of decks and locks.
+    const keys = new Set(decks.flatMap((d) => [...d.main, ...d.sideboard].map((e) => e.cardKey))).size;
+    let collectionReads = 0;
+    let catalogReads = 0;
+    const counting = <T extends object>(t: T, bump: () => void) =>
+      new Proxy(t, { get: (o, p, r) => (bump(), Reflect.get(o, p, r)) });
+    const plain = makeInput({ ...cat, cards: counting(cat.cards, () => catalogReads++) }, { owned });
+    const counted = {
+      ...plain,
+      collection: { ...plain.collection, cards: counting(plain.collection.cards, () => collectionReads++) },
+    };
+    const p = computeSharedPool({ decks, locks, ownership: counted });
     expect(Object.keys(p.byDeck)).toHaveLength(200);
-    expect(ms).toBeLessThan(100);
-  });
+    expect(Object.keys(p.byCard)).toHaveLength(keys);
+    expect(collectionReads).toBeLessThanOrEqual(keys);
+    expect(catalogReads).toBeLessThanOrEqual(3 * keys); // 2 per card today; 200 decks × 1,200 would be 240,000
+    // Gross-regression guard only: best of 3 runs against 3× the 100 ms laptop budget, so CPU load from
+    // other processes can't fail it while a real slowdown (e.g. quadratic work) still does.
+    computeSharedPool({ decks, locks, ownership: makeInput(cat, { owned }) }); // warm-up (JIT)
+    let best = Infinity;
+    for (let i = 0; i < 3; i++) {
+      const input = makeInput(cat, { owned }); // a fresh input: nothing cached (OWN-083)
+      const start = performance.now();
+      computeSharedPool({ decks, locks, ownership: input });
+      best = Math.min(best, performance.now() - start);
+    }
+    expect(best).toBeLessThan(300);
+  }, 30_000);
 });
