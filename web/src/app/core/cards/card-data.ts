@@ -1,6 +1,7 @@
 import { Injectable, inject, isDevMode } from '@angular/core';
 import { API_BASE_URL } from '../api-base-url';
 import type { BanListFile, CardSet, CollectionCatalogView, PlayableCard, Printing } from '../decks';
+import type { FormatsFile, LegalityData } from '../legality/types';
 import { AppStores } from '../storage/app-stores';
 import { isTestCollection, testEntries } from '../../shared/collection/test-data';
 
@@ -30,15 +31,15 @@ export const DEV_SAMPLE_DECKS_KEY = 'rift.dev.sampleDecks';
  * The card catalog (SPEC-001 snapshot) as the Collection page reads it, from `GET /api/sets` and
  * the paged `GET /api/cards`. Loaded once per app session; `reload()` retries after an error.
  *
- * Ban data has no source in `web/` yet: SPEC-002's `data/banlist.json` is neither built nor
- * served (hosting is ADR-0004). `loadBans()` is the seam and resolves to null, which the page
- * shows as "Ban status unknown" (COLL-008).
+ * Ban and format data (SPEC-002 `data/banlist.json`, `data/formats.json`) are bundled with the build (H-194/H-344),
+ * not fetched from `/api`: `loadBans()` / `loadLegalityData()` read them; null only if the chunk fails to load.
  */
 @Injectable({ providedIn: 'root' })
 export class CardData {
   private readonly base = inject(API_BASE_URL);
   private readonly app = inject(AppStores);
   private catalog: Promise<CatalogResult> | null = null;
+  private legality: Promise<LegalityData | null> | null = null;
   /** Which catalog `catalog` holds: 'api' or the test set's entry count (SPEC-013 TEST-024). */
   private source: 'api' | number | null = null;
 
@@ -77,8 +78,23 @@ export class CardData {
     return { status: 'ok', catalog: generateLargeSample(entries).catalog };
   }
 
+  /** SPEC-002 ban list (`data/banlist.json`); null when it could not load (shown as "Ban status unknown", COLL-008). */
   async loadBans(): Promise<BanListFile | null> {
-    return null;
+    return (await this.loadLegalityData())?.bans ?? null;
+  }
+
+  /**
+   * SPEC-002 data files `data/banlist.json` and `data/formats.json` (H-194, H-344), bundled with the build as one
+   * lazy chunk (outside the main bundle) and loaded once per session; a failed load is retried on the next call.
+   */
+  loadLegalityData(): Promise<LegalityData | null> {
+    this.legality ??= Promise.all([import('../../../../../data/banlist.json'), import('../../../../../data/formats.json')])
+      .then(([bans, formats]): LegalityData => ({ bans: bans.default as BanListFile, formats: formats.default as FormatsFile }))
+      .catch(() => {
+        this.legality = null;
+        return null;
+      });
+    return this.legality;
   }
 
   private async fetchCatalog(): Promise<CatalogResult> {

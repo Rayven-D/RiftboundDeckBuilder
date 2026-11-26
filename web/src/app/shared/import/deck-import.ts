@@ -12,9 +12,15 @@
  * not built yet; such a line "needs attention" and blocks Save until the user removes it or goes back and fixes the
  * text (DECK-041).
  *
- * Legality (DECK-050…056) is not shown: there is no SPEC-002 engine or ban data in `web/` yet (H-194).
+ * Legality (DECK-050…056, H-344): the SPEC-002 engine (`core/legality`, H-194) runs on the draft as of today and the
+ * review shows its verdict, failed rules, what was not checked and the banned cards; it never blocks Save.
  */
 import { type NameLookupResult, nameKey, nameLookup } from '../../core/cards/name-key';
+import { banStatus } from '../../core/decks/ban-status';
+import { verdictLabel } from '../../core/decks/deck-ownership-view';
+import { evaluateLegality, legalityCatalog, toDeckInput } from '../../core/legality/evaluate';
+import type { LegalityData, LegalityResult } from '../../core/legality/types';
+import { BAN_LINE_TEXT, RULE_CHECK_TEXT, ZONE_LABEL } from '../deck-detail/detail-view';
 import type { CardCategory, CollectionCatalogView, PlayableCard } from '../../core/decks/types';
 import { LIMITS, type CardKey, type DeckCard, type DeckSourceFormat, type UserDeck } from '../storage/records';
 import { type ImportCommitter, printingLookup } from './collection-commit';
@@ -90,6 +96,8 @@ export interface PreparedDeck {
   /** Catalog search for PICK_CHAMPION (DECK-034): every Champion Unit, by name. */
   readonly champions: readonly PlayableCard[];
   readonly catalog: CollectionCatalogView;
+  /** SPEC-002 ban and format data for the review's legality (DECK-050); null when it could not load. */
+  readonly legalityData: LegalityData | null;
 }
 
 /** What the review's Save passes to the committer: the record as the review built it (`DeckReview.draft`). */
@@ -225,6 +233,25 @@ export interface DeckReview {
   readonly canSave: boolean;
   /** The record Save writes, without `id`, `createdAt` and `updatedAt` (SPEC-006 `DeckImportResult.draft`). */
   readonly draft: Omit<UserDeck, 'id' | 'createdAt' | 'updatedAt'>;
+  /** DECK-050…056: SPEC-002 on the draft as of today; null while nothing is resolved yet. Never saved (DECK-055). */
+  readonly legality: ReviewLegality | null;
+}
+
+/** DECK-051 / DECK-052 / DECK-053 / DECK-056: what the review shows of the SPEC-002 result. */
+export interface ReviewLegality {
+  readonly verdict: 'legal' | 'illegal' | 'incomplete';
+  /** CAT-045 label: "Legal in Standard as of Nov 23, 2026" / "Not legal in Standard today" / "Not fully checked". */
+  readonly label: string;
+  /** LEGAL-R07 messages of every failed rule, in rule order. */
+  readonly failed: readonly string[];
+  /** DECK-052: the `notEvaluatedReason`s (and why the check could not run at all). */
+  readonly notChecked: readonly string[];
+  /** DECK-051 / DECK-053: banned and upcoming-banned cards, zone order, with zone and wave name. */
+  readonly banned: readonly { readonly text: string; readonly zone: string; readonly waveName: string; readonly upcoming: boolean }[];
+  /** DECK-056: "N unresolved cards not checked", or null. */
+  readonly unresolved: string | null;
+  /** The full SPEC-002 result; null when the ban or format data did not load. */
+  readonly result: LegalityResult | null;
 }
 
 export const DECK_REVIEW_TEXT = {
@@ -256,6 +283,8 @@ export const DECK_REVIEW_TEXT = {
   needAttention: (n: number) => `${n} ${n === 1 ? 'card needs' : 'cards need'} attention`,
   /** AC 3: "1 question to answer". */
   questions: (n: number) => `${n} ${n === 1 ? 'question' : 'questions'} to answer`,
+  /** DECK-056: the lines that still need attention are left out of the legality check. */
+  unresolvedNotChecked: (n: number) => `${n} unresolved ${n === 1 ? 'card' : 'cards'} not checked`,
   /** DECK-070 fallback. */
   fallbackName: (date: string) => `Imported deck ${date}`,
 } as const;
@@ -294,6 +323,7 @@ export function prepareDeckImport(
   parse: ParseResult,
   sourceLines: readonly string[],
   catalog: CollectionCatalogView,
+  legalityData: LegalityData | null = null,
 ): PreparedDeck {
   const lookup = printingLookup(catalog);
   const findName = nameLookup(Object.keys(catalog.cards));
@@ -324,6 +354,7 @@ export function prepareDeckImport(
     legends: cards.filter((c) => c.category === 'legend').sort(byName),
     champions: cards.filter(isChampionUnit).sort(byName),
     catalog,
+    legalityData,
   };
 }
 
@@ -767,7 +798,52 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
     blockers,
     canSave: blockers.unresolvedLines === 0 && openQuestions === 0 && !nameError && !source.error,
     draft,
+    legality: reviewLegality(p.legalityData, p.catalog, draft, attention.length, today),
   };
+}
+
+/** The user's local calendar date as `YYYY-MM-DD` (LEGAL-R02 "today"; a date only, LEGAL-B12). */
+export function localIsoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * DECK-050…056: SPEC-002 on the draft (`standard`, `global`, as of `today`), shown and never blocking Save. Only
+ * resolved cards are in the draft, so unresolved lines are never sent as raw names (DECK-056); they are counted
+ * instead. Pure and cheap, so the review re-runs it on every change (DECK-054). Nothing here is stored (DECK-055).
+ */
+export function reviewLegality(
+  data: LegalityData | null,
+  catalog: CollectionCatalogView,
+  draft: Pick<UserDeck, 'legend' | 'champion' | 'main' | 'sideboard' | 'runes' | 'battlefields'>,
+  unresolvedLines: number,
+  today: Date,
+): ReviewLegality | null {
+  const cards: { zone: DeckZone; card: DeckCard }[] = [];
+  if (draft.legend) cards.push({ zone: 'legend', card: draft.legend });
+  if (draft.champion) cards.push({ zone: 'champion', card: draft.champion });
+  for (const zone of ['main', 'battlefields', 'runes', 'sideboard'] as const) for (const card of draft[zone]) cards.push({ zone, card });
+  if (cards.length === 0) return null;
+  const unresolved = unresolvedLines ? DECK_REVIEW_TEXT.unresolvedNotChecked(unresolvedLines) : null;
+  if (!data) {
+    return { verdict: 'incomplete', label: verdictLabel(null, ''), failed: [], notChecked: [RULE_CHECK_TEXT.noBans], banned: [], unresolved, result: null };
+  }
+  const asOf = localIsoDate(today);
+  const format = data.formats.formats.find((f) => f.id === 'standard');
+  const result = evaluateLegality({ deck: toDeckInput(draft), format: 'standard', region: 'global', asOf }, legalityCatalog(catalog), data.bans, data.formats);
+  const failed = result.rules.flatMap((r) => r.violations.filter((v) => v.severity === 'error').map((v) => v.message));
+  const notChecked = [...new Set(result.rules.flatMap((r) => (r.status === 'not_evaluated' && r.notEvaluatedReason ? [r.notEvaluatedReason] : [])))];
+  const banned: ReviewLegality['banned'][number][] = [];
+  const seen = new Set<string>();
+  for (const { zone, card } of cards) {
+    const key = `${zone}|${card.cardKey}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const b = banStatus(data.bans, card.cardKey, 'standard', 'global', asOf);
+    if (b.status === 'banned') banned.push({ text: BAN_LINE_TEXT.banned(card.name, b.bannedSince), zone: ZONE_LABEL[zone], waveName: b.waveName, upcoming: false });
+    if (b.status === 'upcoming') banned.push({ text: BAN_LINE_TEXT.upcoming(card.name, b.effective), zone: ZONE_LABEL[zone], waveName: b.waveName, upcoming: true });
+  }
+  return { verdict: result.verdict, label: verdictLabel(result, format?.name ?? 'Standard'), failed, notChecked, banned, unresolved, result };
 }
 
 /**

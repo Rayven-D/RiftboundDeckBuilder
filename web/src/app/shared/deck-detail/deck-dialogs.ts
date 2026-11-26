@@ -15,7 +15,7 @@ import { sourceLine } from '../../core/decks';
 import { deckSource } from '../import/deck-import';
 import { LIMITS } from '../storage/records';
 import { Icon } from '../icon';
-import { RenameForm, RenameResult, RuleCheckContent, applyRename } from './detail-view';
+import { RULE_CHECK_WORDS, RenameForm, RenameResult, RuleCheckContent, applyRename } from './detail-view';
 
 // ---------------------------------------------------------------- Rename (OWN-118, DECK-081)
 
@@ -257,13 +257,13 @@ export async function confirmDelete(dialog: MatDialog, data: DeleteDialogData): 
   selector: 'app-rule-check-dialog',
   imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, Icon],
   template: `
-    <h2 mat-dialog-title>Rule check</h2>
+    <h2 mat-dialog-title>{{ words.title }}</h2>
     <mat-dialog-content>
       <p class="verdict">
         <app-icon [name]="data.verdict === 'legal' ? 'check_circle' : data.verdict === 'illegal' ? 'block' : 'help'" />{{ data.label }}
       </p>
       @if (data.failed.length) {
-        <h3>Rules not met</h3>
+        <h3>{{ words.failed }}</h3>
         <ul>
           @for (f of data.failed; track $index) {
             <li>{{ f }}</li>
@@ -271,7 +271,7 @@ export async function confirmDelete(dialog: MatDialog, data: DeleteDialogData): 
         </ul>
       }
       @if (data.notChecked.length) {
-        <h3>Not checked</h3>
+        <h3>{{ words.notChecked }}</h3>
         <ul>
           @for (n of data.notChecked; track $index) {
             <li>{{ n }}</li>
@@ -279,7 +279,7 @@ export async function confirmDelete(dialog: MatDialog, data: DeleteDialogData): 
         </ul>
       }
       @if (data.banned.length) {
-        <h3>Banned cards</h3>
+        <h3>{{ words.banned }}</h3>
         <ul>
           @for (b of data.banned; track $index) {
             <li>{{ b.text }} <span class="muted">· {{ b.zone }}</span></li>
@@ -317,6 +317,7 @@ export async function confirmDelete(dialog: MatDialog, data: DeleteDialogData): 
 })
 export class RuleCheckDialog {
   protected readonly data = inject<RuleCheckContent>(MAT_DIALOG_DATA);
+  protected readonly words = RULE_CHECK_WORDS;
 }
 
 export function openRuleCheck(dialog: MatDialog, data: RuleCheckContent): MatDialogRef<RuleCheckDialog> {

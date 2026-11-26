@@ -498,6 +498,20 @@ export const RULE_CHECK_TEXT = {
   noCatalog: "Card data didn't load, so the cards can't be checked.",
 } as const;
 
+/** OWN-117 Rule check headings, also used by the Deck Import review's legality block (DECK-051, H-344). */
+export const RULE_CHECK_WORDS = {
+  title: 'Rule check',
+  failed: 'Rules not met',
+  notChecked: 'Not checked',
+  banned: 'Banned cards',
+} as const;
+
+/** DECK-051 / DECK-053 ban lines, e.g. "Nocturne, Horrifying, banned since Nov 23, 2026". */
+export const BAN_LINE_TEXT = {
+  banned: (name: string, isoDate: string) => `${name}, banned since ${formatIsoDate(isoDate)}`,
+  upcoming: (name: string, isoDate: string) => `${name}, will be banned from ${formatIsoDate(isoDate)}`,
+} as const;
+
 export function ruleCheckContent(view: DeckOwnershipView, legalityLabel: string, verdict: RuleCheckContent['verdict']): RuleCheckContent {
   const notChecked: string[] = [];
   if (verdict === 'incomplete') notChecked.push(RULE_CHECK_TEXT.noEngine);
@@ -507,8 +521,8 @@ export function ruleCheckContent(view: DeckOwnershipView, legalityLabel: string,
   const banned: RuleCheckContent['banned'] = [];
   for (const c of cards) {
     const b = c.banStatus;
-    if (b.status === 'banned') banned.push({ text: `${c.name}, banned since ${formatIsoDate(b.bannedSince)}`, zone: ZONE_LABEL[c.zone], upcoming: false });
-    if (b.status === 'upcoming') banned.push({ text: `${c.name}, will be banned from ${formatIsoDate(b.effective)}`, zone: ZONE_LABEL[c.zone], upcoming: true });
+    if (b.status === 'banned') banned.push({ text: BAN_LINE_TEXT.banned(c.name, b.bannedSince), zone: ZONE_LABEL[c.zone], upcoming: false });
+    if (b.status === 'upcoming') banned.push({ text: BAN_LINE_TEXT.upcoming(c.name, b.effective), zone: ZONE_LABEL[c.zone], upcoming: true });
   }
   return { label: legalityLabel, verdict, failed: [], notChecked, banned };
 }

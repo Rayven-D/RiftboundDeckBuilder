@@ -35,6 +35,7 @@ import {
   reviewDeck,
 } from './deck-import';
 import { SECTION_LABELS } from './parse-card-list';
+import { RULE_CHECK_WORDS } from '../deck-detail/detail-view';
 
 /** H-451: the review's one status region; the dialog's Save button is described by it. */
 export const DECK_REVIEW_STATUS_ID = 'deck-review-status';
@@ -343,6 +344,43 @@ export const DECK_REVIEW_WORDS = {
       <p class="note removed-note">{{ removedText() }}</p>
     }
 
+    <!-- DECK-050…056 (H-344): SPEC-002 legality as of today, shown with the OWN-117 Rule check words; never blocks Save. -->
+    @if (v.legality; as lg) {
+      <section class="legality-check" [attr.aria-labelledby]="legalityId">
+        <h3 class="step-heading" [id]="legalityId">{{ ruleWords.title }}</h3>
+        <p class="verdict" [class]="'verdict legality--' + lg.verdict">
+          <app-icon [name]="lg.verdict === 'legal' ? 'check_circle' : lg.verdict === 'illegal' ? 'block' : 'help'" />{{ lg.label }}
+        </p>
+        @if (lg.unresolved; as u) {
+          <p class="note unresolved-note">{{ u }}</p>
+        }
+        @if (lg.failed.length) {
+          <h4 class="legality-sub">{{ ruleWords.failed }}</h4>
+          <ul class="legality-list failed">
+            @for (f of lg.failed; track $index) {
+              <li>{{ f }}</li>
+            }
+          </ul>
+        }
+        @if (lg.notChecked.length) {
+          <h4 class="legality-sub">{{ ruleWords.notChecked }}</h4>
+          <ul class="legality-list not-checked">
+            @for (n of lg.notChecked; track $index) {
+              <li>{{ n }}</li>
+            }
+          </ul>
+        }
+        @if (lg.banned.length) {
+          <h4 class="legality-sub">{{ ruleWords.banned }}</h4>
+          <ul class="legality-list banned">
+            @for (b of lg.banned; track $index) {
+              <li [class.upcoming]="b.upcoming">{{ b.text }} <span class="muted">· {{ b.zone }} · {{ b.waveName }}</span></li>
+            }
+          </ul>
+        }
+      </section>
+    }
+
     @if (inferred().length) {
       <h3 class="step-heading">{{ words.inferred }}</h3>
       <p class="note">{{ words.inferredNote }}</p>
@@ -422,6 +460,8 @@ export class DeckReview {
   private readonly injector = inject(Injector);
 
   protected readonly words = DECK_REVIEW_WORDS;
+  protected readonly ruleWords = RULE_CHECK_WORDS;
+  protected readonly legalityId = 'deck-review-legality';
   protected readonly text = DECK_REVIEW_TEXT;
   protected readonly zones = DECK_ZONE_ORDER;
   protected readonly maxText = MAX_SOURCE_TEXT;

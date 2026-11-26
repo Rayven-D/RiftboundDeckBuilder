@@ -30,4 +30,5 @@ export {
   formatIsoDate,
   sourceLine,
   summarizeDeck,
+  verdictLabel,
 } from './deck-ownership-view';
