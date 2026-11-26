@@ -101,7 +101,7 @@ On demand with `/research-refresh [focus]`. The weekly scheduled run is **not se
 At the end of every `/board` run, the orchestrator:
 - updates [[Current State]] (one screen; rewrite it, don't append)
 - keeps only the latest 2 Session Log entries and moves older ones to `Archive/Sessions/`
-- keeps the latest ~10 Done rows on the board and moves older ones to `Archive/Board/`
+- moves every `done` row (Open table and Done section) to [[Completed Items Handoff Board]] in `Archive/Board/`, appended under the date; the live board holds open items only (RJ 2026-11-26: trim whenever possible)
 - keeps the latest round in [[Validation Runs]] and moves older lines to `Archive/Validation/`
 - moves a superseded note to `Archive/` with `archived: true`, `archived_on`, `reason`, `superseded_by`, and fixes live links
 
