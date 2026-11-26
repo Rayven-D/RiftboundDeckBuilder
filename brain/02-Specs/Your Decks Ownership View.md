@@ -46,7 +46,7 @@ as_of: 2026-11-25
 - **Smooth scrolling (v0.6, OWN-084):** the deck list scrolls continuously: no page numbers, no Previous / Next, load as you scroll (rule: SPEC-007 COLL-093).
 - **Import deck entry (v0.7, OWN-008, OWN-094, H-174):** a floating **Import deck** button at the bottom right of Decks (like Collection's, SPEC-007 COLL-094), hidden on the empty state, which has its own **Import deck** button (and a Tournaments link); a saved deck stays on Decks; no `/import` page. **v0.8 (H-244, RJ 2026-11-25 "the FAB should never overlap the footer"):** the button docks 16 px above the footer and the page reserves its room above the footer, not below it (OWN-094, COLL-094 (d)).
 - **Decks and Deck detail design (v0.9, H-252, RJ 2026-11-25, [[Decks]] brief + H-260 answers):** new section K (list, OWN-100…105) and L (detail, OWN-110…119). The tile shows the **Legend** with its art **filled left to right by the deck's own copies** (A of R) and a **completion %** next to it (OWN-100, OWN-101; OWN-054 changes for the user's own completion only, "no meta comparison" stays, ADR-0003). Deck detail: header with name, description and "X of Y copies available" **followed by the same completion % (v0.10, RJ 2026-11-25, H-320: "34 of 66 copies available · 51%"; OWN-010 (f), OWN-101 (d); not on the Missing tab)** (OWN-010); on desktop a **persistent right panel** with two tabs, **Card** (the selected card, first card selected on load) and **Missing** (summary + missing list); on phones a dialog (OWN-111…113). **Card view / List view** (OWN-114). Cards open in the panel or dialog, not an inline expand (OWN-038, 041…045 reworded). Rename works on every deck, locked ones too (OWN-118, SPEC-008 SHARE-025). The card editor is deferred (RJ #14). OWN-082 is rewritten, OWN-013 and OWN-039 are deferred, OWN-045 is withdrawn. **v0.10 (H-320, RJ 2026-11-25): Open questions 10–15 are answered (resolved at the end).** Q10 is the one change: the % is also in the Deck detail header, next to "X of Y copies available" (OWN-010 (f), OWN-101 (d), AC 33); the other five keep the written defaults (rounding and copy weighting, 64rem panel threshold, Card view first and remembered per device, player name alone, older messages unchanged).
-- **Depends on:** SPEC-001 v0.4.1, SPEC-002 v0.4, SPEC-004 v0.7, SPEC-006 v0.11.1, SPEC-007 v0.14.1, SPEC-008 v0.4.7.
+- **Depends on:** SPEC-001 v0.4.1, SPEC-002 v0.4, SPEC-004 v0.7, SPEC-006 v0.12 (pin-only, H-342), SPEC-007 v0.14.1, SPEC-008 v0.4.7.
   Nothing is stored by this spec; everything is computed on display.
 - **Blocked / open:** foil as its own printing (SPEC-007 open question 1, H-020); card image aspect
   ratio and battlefield orientation in the API (OWN-081). Unknown card = 0 owned is a Claude default RJ
@@ -278,7 +278,7 @@ Same source key as section K.
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { UserDeck, DeckCard, DeckZone, DeckSource } from './deck-import';   // SPEC-006 v0.11.1
+import type { UserDeck, DeckCard, DeckZone, DeckSource } from './deck-import';   // SPEC-006 v0.12
 import type {
   DeckOwnership, DeckOwnershipInput, CollectionCatalogView, StoredTags, Tag, TagId,
 } from './my-collection';                                                       // SPEC-007 v0.11, COLL-081
