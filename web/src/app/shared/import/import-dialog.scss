@@ -155,6 +155,25 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-danger);
+
+  /* H-451: "Ready to save." is a plain status, not an error. */
+  &.ready {
+    font-weight: 400;
+    color: var(--color-text-muted);
+  }
+}
+
+/* H-451: the Link warning sits under its field (SOURCE_URL_INVALID). */
+.field-warn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-sm);
+
+  > app-icon {
+    color: var(--color-warning);
+  }
 }
 
 .step-heading {
@@ -188,6 +207,20 @@
 
   &.open {
     border-color: var(--color-warning);
+  }
+
+  /* H-451 (WCAG 1.4.1): the open state in text. --color-warning on the dialog surface is text-safe in both themes
+     (#ef9f27 on #2d343c dark 5.79:1, #854f0b on white light 6.73:1). */
+  .needs-answer {
+    display: inline-block;
+    margin-bottom: var(--space-2);
+    padding: 0 var(--space-2);
+    border: 1px solid currentColor;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    line-height: 1.6;
+    color: var(--color-warning);
   }
 
   p {
@@ -244,4 +277,9 @@
   display: grid;
   gap: var(--space-3);
   margin-top: var(--space-4);
+}
+
+/* H-451: the Link field shares a wrapper with its warning line. */
+.link-field {
+  width: 100%;
 }

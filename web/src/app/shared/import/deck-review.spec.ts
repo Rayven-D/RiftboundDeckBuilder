@@ -195,3 +195,128 @@ describe('DeckReview focus moves (H-450, critique H-341 finding 2, WCAG 2.4.3)',
     expect(active()?.textContent?.trim()).toBe('Check the deck');
   });
 });
+
+describe('DeckReview status and screen-reader structure (H-451, critique H-341 findings 6, 11, 12, 17)', () => {
+  const status = (f: Fixture) => el(f).querySelector<HTMLElement>('[role="status"]#deck-review-status');
+  const CLEAN = 'Legend:\n1 Varrow, Ember Warden\nChampion:\n1 Varrow, Ashen Blade\nMain Deck:\n3 Gust';
+
+  it('H-451 / DECK-038 / DECK-041: one status region is always present: blockers while blocked, "Ready to save." when not', async () => {
+    const f = await setup();
+    expect(el(f).querySelectorAll('[role="status"]')).toHaveLength(1);
+    expect(status(f)!.textContent).toContain('2 cards need attention');
+    expect(status(f)!.textContent).toContain('questions to answer');
+  });
+
+  it('H-451 / DECK-038: with nothing blocking, the status reads "Ready to save."', async () => {
+    const clean = await setup(CLEAN);
+    expect(status(clean)!.textContent!.trim()).toBe('Ready to save.');
+    expect(status(clean)!.classList).toContain('ready');
+  });
+
+  it('H-451 / DECK-070: an empty name is in the status, the field is required and aria-invalid="true"', async () => {
+    const f = await setup(CLEAN);
+    const name = el(f).querySelector<HTMLInputElement>('input.deck-name')!;
+    expect(name.required).toBe(true);
+    name.value = '';
+    name.dispatchEvent(new Event('input'));
+    await settle(f);
+    expect(status(f)!.textContent!.trim()).toBe('Give the deck a name.');
+    expect(name.getAttribute('aria-invalid')).toBe('true');
+    expect(el(f).querySelector('mat-form-field.name-field')!.classList).toContain('mat-form-field-invalid');
+    name.value = 'Mine';
+    name.dispatchEvent(new Event('input'));
+    await settle(f);
+    expect(name.getAttribute('aria-invalid')).toBe('false');
+    expect(status(f)!.textContent!.trim()).toBe('Ready to save.');
+  });
+
+  it('H-451 / DECK-035: each zone question is a group named by its prompt; selects name their card and line', async () => {
+    const f = await setup();
+    const zones = Array.from(el(f).querySelectorAll<HTMLElement>('mat-select.pick-zone'));
+    expect(zones.map((z) => z.getAttribute('aria-label'))).toEqual([
+      'Section for Varrow, Ashen Blade (line 3)',
+      'Section for Ember Volley (line 4)',
+      'Section for Flashfire (line 5)',
+    ]);
+    for (const q of Array.from(el(f).querySelectorAll<HTMLElement>('.question'))) {
+      expect(q.getAttribute('role')).toBe('group');
+      const prompt = document.getElementById(q.getAttribute('aria-labelledby')!);
+      expect(prompt?.tagName).toBe('P');
+      expect(q.contains(prompt)).toBe(true);
+      expect(q.querySelector('mat-select')!.getAttribute('aria-describedby')).toContain(prompt!.id);
+    }
+  });
+
+  it('H-451 / DECK-033: open questions show "Needs an answer" in text; answered ones do not', async () => {
+    const f = await setup();
+    const tagged = () =>
+      Array.from(el(f).querySelectorAll<HTMLElement>('.question')).map((q) => q.querySelector('.needs-answer')?.textContent?.trim() ?? null);
+    expect(tagged().every((t) => t === 'Needs an answer')).toBe(true);
+    const legend = f.debugElement.query(By.css('mat-select.pick-legend')).injector.get(MatSelect);
+    legend.open();
+    await settle(f);
+    Array.from(document.querySelectorAll<HTMLElement>('mat-option'))
+      .find((o) => o.textContent?.trim() === 'Varrow, Ember Warden')!
+      .click();
+    await settle(f);
+    const legendQ = el(f).querySelector('mat-select.pick-legend')!.closest('.question')!;
+    expect(legendQ.querySelector('.needs-answer')).toBeNull();
+  });
+
+  it('H-451: h3 "Check the deck" opens the review and h3 "Check these" heads the warnings list', async () => {
+    const f = await setup();
+    const headings = Array.from(el(f).querySelectorAll('h3')).map((h) => h.textContent!.trim());
+    expect(headings[0]).toBe('Check the deck');
+    expect(headings).toContain('Check these');
+    const checks = el(f).querySelector('h3.checks-heading')!;
+    expect(checks.nextElementSibling?.matches('ul.checks')).toBe(true);
+  });
+
+  it('H-451 / DECK-071: the Link warning shows under the field only after blur, and is its description', async () => {
+    const f = await setup(CLEAN);
+    const link = el(f).querySelector<HTMLInputElement>('input.source-url')!;
+    link.value = 'h';
+    link.dispatchEvent(new Event('input'));
+    await settle(f);
+    expect(el(f).querySelector('.field-warn')).toBeNull();
+    expect(el(f).textContent).not.toContain("This link isn't an http or https address");
+    link.dispatchEvent(new Event('blur'));
+    await settle(f);
+    const warn = el(f).querySelector<HTMLElement>('.field-warn')!;
+    expect(warn.textContent).toContain("This link isn't an http or https address, so it is kept as text.");
+    expect(link.getAttribute('aria-describedby')).toContain(warn.id);
+    // Not repeated in the warnings list above.
+    expect(el(f).querySelector('ul.checks')).toBeNull();
+    link.value = 'https://example.com/deck';
+    link.dispatchEvent(new Event('input'));
+    link.dispatchEvent(new Event('blur'));
+    await settle(f);
+    expect(el(f).querySelector('.field-warn')).toBeNull();
+  });
+
+  it('H-451: focusFirstOpen goes to the first line to fix first', async () => {
+    const f = await setup();
+    f.componentInstance.focusFirstOpen();
+    await settle(f);
+    expect(active()?.closest('ul.attention')).not.toBeNull();
+  });
+
+  it('H-451: with no line to fix, focusFirstOpen goes to the first open question', async () => {
+    const q = await setup('3 Flashfire\nMain Deck:\n3 Gust');
+    q.componentInstance.focusFirstOpen();
+    await settle(q);
+    expect(active()?.closest('.question.open')).not.toBeNull();
+  });
+
+  it('H-451: with only an empty name, focusFirstOpen goes to the name field', async () => {
+    const n = await setup(CLEAN);
+    const name = el(n).querySelector<HTMLInputElement>('input.deck-name')!;
+    name.value = '';
+    name.dispatchEvent(new Event('input'));
+    await settle(n);
+    (document.activeElement as HTMLElement | null)?.blur();
+    n.componentInstance.focusFirstOpen();
+    await settle(n);
+    expect(active()).toBe(name);
+  });
+});

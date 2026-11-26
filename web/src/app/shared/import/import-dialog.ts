@@ -24,7 +24,7 @@ import { countLine } from '../collection/collection-view';
 import { Icon } from '../icon';
 import { CommitMode, ImportCommitter, PreparedOk } from './collection-commit';
 import type { DeckImportCommitter, PreparedDeck } from './deck-import';
-import { DeckReview } from './deck-review';
+import { DECK_REVIEW_STATUS_ID, DeckReview } from './deck-review';
 import {
   ParseResult,
   SECTION_LABELS,
@@ -130,11 +130,14 @@ export function hasFiles(event: DragEvent): boolean {
       <mat-dialog-actions align="end">
         <button matButton type="button" class="back" (click)="back()">{{ words.back }}</button>
         <button matButton type="button" mat-dialog-close>Cancel</button>
+        <!-- H-451: styled disabled but focusable (disabledInteractive) and described by the review's status line. -->
         <button
           matButton="filled"
           type="button"
           class="commit save-deck"
-          [aria-disabled]="busy() || !canSaveDeck()"
+          [disabled]="busy() || !canSaveDeck()"
+          disabledInteractive
+          [attr.aria-describedby]="deckStatusId"
           (click)="saveDeck(d)"
         >
           {{ busy() ? words.saving : words.saveDeck }}
@@ -329,6 +332,8 @@ export class ImportDialog {
   private readonly listBox = viewChild<ElementRef<HTMLTextAreaElement>>('listBox');
   private readonly injector = inject(Injector);
   protected readonly canSaveDeck = computed(() => this.deckReviewStep()?.view().canSave ?? false);
+  /** H-451: the review's status region (`DeckReview.statusId`), which describes Save. */
+  protected readonly deckStatusId = DECK_REVIEW_STATUS_ID;
   /** IMP-049: Add is the default. */
   protected readonly mode = signal<CommitMode>('add');
   protected readonly busy = signal(false);
@@ -478,8 +483,11 @@ export class ImportDialog {
    */
   protected async saveDeck(prepared: PreparedDeck): Promise<void> {
     const committer = this.data.deckCommitter;
-    const view = this.deckReviewStep()?.view();
-    if (!committer || !view || !view.canSave || this.busy()) return;
+    const step = this.deckReviewStep();
+    const view = step?.view();
+    if (!committer || !view || this.busy()) return;
+    // H-451: disabledInteractive still sends the press; while blocked, take the user to what needs doing.
+    if (!view.canSave) return step?.focusFirstOpen();
     this.busy.set(true);
     this.submitError.set(null);
     try {

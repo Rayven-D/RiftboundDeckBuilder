@@ -158,8 +158,9 @@ describe('DecksPage Import deck save (H-253)', () => {
     expect(remove.getAttribute('aria-label')).toBe('Remove line 8');
     remove.click();
     await settle(harness);
-    expect(dialog()!.querySelector('.blockers')).toBeNull();
-    expect(button('Save deck').getAttribute('aria-disabled')).toBe('false');
+    // H-451: the status region stays and reads "Ready to save.".
+    expect(text(dialog()!.querySelector('.blockers'))).toBe('Ready to save.');
+    expect(button('Save deck').getAttribute('aria-disabled')).not.toBe('true');
     button('Save deck').click();
     await vi.waitFor(async () => {
       await settle(harness);

@@ -279,3 +279,62 @@ describe('ImportDialog Deck Import focus (H-450, critique H-341 finding 2)', () 
     expect(textarea(f).value).toBe('Main Deck:\n3 Gust');
   });
 });
+
+describe('ImportDialog Deck Import Save state (H-451, critique H-341 finding 3)', () => {
+  const catalog = makeCatalog([
+    { name: 'Gust', category: 'spell' },
+    { name: 'Varrow, Ember Warden', category: 'legend' },
+    { name: 'Varrow, Ashen Blade', category: 'champion' },
+  ]);
+  function deckDialog() {
+    const commit = vi.fn<DeckImportCommitter['commit']>().mockResolvedValue({ status: 'written' });
+    const deckCommitter: DeckImportCommitter = {
+      prepare: async (r, text) => prepareDeckImport(r, sourceLines(text), catalog),
+      commit,
+    };
+    TestBed.configureTestingModule({
+      imports: [ImportDialog],
+      providers: [
+        { provide: MAT_DIALOG_DATA, useValue: { kind: 'deck', deckCommitter } },
+        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+      ],
+    });
+    const f = TestBed.createComponent(ImportDialog);
+    f.detectChanges();
+    return { f, commit };
+  }
+  const button = (f: Fixture, label: string) =>
+    Array.from(el(f).querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent?.trim() === label)!;
+
+  it('H-451 / DECK-038 / DECK-041: blocked Save looks disabled, stays focusable, is described by the status; a press focuses the first open item', async () => {
+    const { f, commit } = deckDialog();
+    type(f, 'Legend:\n1 Varrow, Ember Warden\nChampion:\n1 Varrow, Ashen Blade\nMain Deck:\n3 Gust\n2 Not A Card');
+    button(f, 'Continue').click();
+    await settle(f);
+    const save = button(f, 'Save deck');
+    expect(save.disabled).toBe(false); // focusable (disabledInteractive)
+    expect(save.getAttribute('aria-disabled')).toBe('true');
+    expect(save.classList).toContain('mat-mdc-button-disabled');
+    expect(save.getAttribute('aria-describedby')).toBe('deck-review-status');
+    expect(document.getElementById('deck-review-status')!.textContent).toContain('1 card needs attention');
+
+    save.focus();
+    save.click();
+    await settle(f);
+    expect(commit).not.toHaveBeenCalled();
+    expect(document.activeElement?.closest('ul.attention')).not.toBeNull();
+  });
+
+  it('H-451 / DECK-098: once nothing blocks, Save is enabled and saves', async () => {
+    const { f, commit } = deckDialog();
+    type(f, 'Legend:\n1 Varrow, Ember Warden\nChampion:\n1 Varrow, Ashen Blade\nMain Deck:\n3 Gust');
+    button(f, 'Continue').click();
+    await settle(f);
+    const save = button(f, 'Save deck');
+    expect(save.getAttribute('aria-disabled')).not.toBe('true');
+    expect(document.getElementById('deck-review-status')!.textContent!.trim()).toBe('Ready to save.');
+    save.click();
+    await settle(f);
+    expect(commit).toHaveBeenCalledTimes(1);
+  });
+});
