@@ -126,7 +126,7 @@ usernames are display names, not unique; editable in settings; theme is per devi
 - **"Import deck" is a floating button on Decks**, behaving exactly like "Add to your collection" on Collection.
 - Both buttons collapse to an icon on phones while scrolling down and are hidden on empty pages (which have their own
   button).
-- Username: 1–24 characters, any script, not unique, the prompt after the first sign-in can be skipped.
+- ~~Username: 1–24 characters, any script~~, not unique, the prompt after the first sign-in can be skipped. Amended 2026-11-26 (RJ, H-620, wording only, matches RJ's H-206 / H-212 decisions in [[Accounts and Sync]] 0.15–0.16): **1–20 characters (code points); letters and numbers of any script, the combining marks they need, spaces, `.` `_` `-` `'` `’`; first character a letter or digit; no emoji** (SPEC-010 decision 21, SYNC-153 / SYNC-160).
 - ~~Theme can also be changed signed out, from a footer switch; it stays per device.~~ Superseded 2026-11-25: a header toggle, see below.
 - `/import` (like any unknown path) goes to Home; there is no not-found page.
 
