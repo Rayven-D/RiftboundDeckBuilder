@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.34
+version: 1.35
 ---
 # API Contracts
 
@@ -238,6 +238,46 @@ Notes for the UI:
   `{ 0, 0, null }`, which shows nothing either way); `pilot: string | null` (`source.pilot` for a tournament deck,
   OWN-104); `readOnly: boolean` (`schemaVersion` above 1, DECK-091). `UserDeck`, Firestore rules and every
   `schemaVersion` are unchanged; the description is the deck's existing `notes`.
+
+## Deck legality engine (SPEC-002 0.5, H-194)
+**Not an endpoint.** Browser only, pure (LEGAL-R01): `web/src/app/core/legality/` (barrel `index.ts`, shapes in
+`types.ts` = the SPEC-002 data contract; `LegalityFormatId` is `'standard'`). There is no API copy yet (LEGAL-R06 wants
+the same evaluator in the API; `services/` has no legality endpoint and is not hosted, ADR-0004).
+
+Data files (versioned JSON in `data/`, LEGAL-B01, LEGAL-C01), bundled into one lazy chunk by
+`CardData.loadLegalityData(): Promise<LegalityData | null>` (`{ bans: BanListFile; formats: FormatsFile }`, once per
+session, a failed load retries next call); `loadBans()` reads the same promise.
+- `data/banlist.json` (`schemaVersion: 1`, `dataVersion: "2026-11-24.1"`): `standard`/`global` `verified`, the four
+  SPEC-002 waves (B09: 15 cards + 7 battlefields as of 2026-11-23); `2v2`/`global` `status: 'unverified'` (LEGAL-B11,
+  data only, never offered or evaluated): one snapshot wave `2v2-before-2026-11-23` (Master Yi + 6 cards + 5
+  battlefields, not a Riot wave, see its `notes`) and the Radiance wave `2v2-2026-11-23`.
+- `data/formats.json` (`schemaVersion: 2`, `dataVersion: "2026-11-24.1"`): `standard` only, deck rules 40 exact / 3 / 3
+  / 12 / 3 / 10, the nine SPEC-002 set rows, `excludedSets: ['OPP','JDG','PR']`, `notes` (why). No `2v2` `FormatDef`
+  (no 2v2 deck rules are specified).
+
+```ts
+evaluateLegality(req: LegalityRequest, catalog: LegalityCatalog, bans: BanListFile, formats: FormatsFile): LegalityResult
+  // every section A rule (LEGAL-001…019 incl. 006a) in ID order; throws for a format without a supported FormatDef (LEGAL-R05)
+legalityCatalog(view: CollectionCatalogView): LegalityCatalog   // cached per view object; isSample = NO_SAMPLE_MARKER
+toDeckInput(deck: Pick<UserDeck, zones>): DeckInput             // SPEC-006 mapping, canonical names
+verdictOf(rules): 'legal' | 'illegal' | 'incomplete'            // LEGAL-R04
+supportedFormat(formats, id): FormatDef | null
+setStatus(def, region, catalogSets, code, asOf): SetStatus       // LEGAL-C02: legal | excluded | not-yet | preview | rotated | unknown
+bannedSet(bans, format: string, region, asOf): Map<cardKey, { entry, wave }>   // LEGAL-B02 (also used by banStatus)
+checkFormats(file, catalog?, today?): DataIssue[]                // C06, C08 (official Riot host for any date), C09 warnings
+checkBanList(file, catalog?): DataIssue[]                        // dates, B06 sources, B05 names resolve with matching kind
+```
+- `LegalityCatalog { catalogVersion, cards: Record<cardKey, LegalityCardView>, sets: LegalitySetView[], isSample? }`.
+  **LEGAL-C10 is stubbed:** `isSample(card, printing)` decides SAMPLE; SPEC-001 CARD-044 has no marker yet (H-020), so
+  the browser catalog uses `NO_SAMPLE_MARKER` (always false) and nothing guesses from set code or number. When the
+  marker exists, set `isSample` in `legalityCatalog`.
+- Names resolve through the CARD-033/034 `nameLookup` (exactly one `cardKey`, else LEGAL-019; no aliases). Unknown
+  names are skipped by the other rules, which report them as `not_evaluated` ("Unknown cards not checked: …"); count
+  rules (003, 008, 010, 013) still count their quantities.
+- Dates are calendar dates compared as `YYYY-MM-DD` strings (LEGAL-B12); messages use `formatIsoDate` (LEGAL-R08).
+- `upcomingBans` lists only the deck's cards (ban: not banned now; unban: banned now) from waves with
+  `announced <= asOf < effective`.
+- `notEvaluatedReason` texts: `NOT_EVALUATED_TEXT` in `rules.ts` (not worded by the spec).
 
 ## Browser stores and sync (SPEC-010, H-062)
 Not an HTTP API: the browser talks to Firestore directly ([[ADR-0007 Firebase Accounts and Firestore]]).
@@ -488,8 +528,9 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   `CollectionCatalogView` (`printings` keyed by `printingId`; the `CardWithPrintings.printings`
   array is split off). Once per session; `reload()` retries. Any failure → `{ status: 'error' }`
   (page state S10). In production this fails until ADR-0004 hosts the API or a static snapshot.
-- **Ban data:** `CardData.loadBans()` resolves `null` (no `banlist.json` is built or served yet), so
-  every card's `EntryBan` is `unknown` ("Ban status unknown", COLL-008). Swap the body when a source exists.
+- **Ban data:** `CardData.loadBans()` returns `data/banlist.json` (bundled, H-194/H-344, see "Deck legality
+  engine"); only a failed chunk load gives `null`, and then every card's `EntryBan` is `unknown` ("Ban status
+  unknown", COLL-008).
 - **Printing order:** `printing-sort.ts` ports CARD-037 `collectorKey` and the CARD-070 comparator
   from `services/src/domain/` (keep them in step); it reads `collectorNumber`, not the API's `collector`.
 - **View model** (`collection-view.ts`): `buildCollectionView({ ownership: DeckOwnershipInput, decks,
@@ -602,7 +643,15 @@ writes nothing (DECK-003).
   (`crypto.randomUUID()`), replaceable in tests.
 - **Decks page:** passes `deckCommitter: inject(DeckImport)`; `DeckImport.saved` re-reads the count in place (the
   list itself is H-060). `ImportPending` is removed (no import closes with a bare `ParseResult` any more).
-- **Not built:** legality in the review (DECK-050…056, no SPEC-002 engine or ban data in `web/`), fuzzy suggestions
+- **Legality in the review (DECK-050…056, H-344):** `DeckImport.prepare` also loads `CardData.loadLegalityData()`
+  (null on failure) into `PreparedDeck.legalityData`; `reviewDeck` sets `DeckReview.legality: ReviewLegality | null`
+  from `reviewLegality(data, catalog, draft, unresolvedLines, today)` = SPEC-002 on `toDeckInput(draft)`
+  (`standard`, `global`, `asOf = localIsoDate(today)`), re-run on every review change. `ReviewLegality { verdict,
+  label, failed: string[], notChecked: string[], banned: { text, zone, waveName, upcoming }[], unresolved: string |
+  null, result: LegalityResult | null }`; `null` while the draft has no card. Never in the draft (DECK-055). No data →
+  `incomplete`, "Not fully checked", `notChecked = [RULE_CHECK_TEXT.noBans]`. The review shows it as a "Rule check"
+  block (OWN-117 words, `RULE_CHECK_WORDS`).
+- **Not built:** fuzzy suggestions
   (DECK-043, IMP-026…030, H-272), the optional leading article (CARD-034), deck codes / TTS (DECK-012, DECK-039, H-047).
 
 ## Decks list and shared lock pieces (SPEC-005 OWN-002…008, OWN-084, OWN-100…105; SPEC-008 SHARE-020…029, SHARE-050…063; H-060)
@@ -645,8 +694,9 @@ Deck detail header (H-254) uses the same ones. Writes: only `stores.locks` (thro
   `--deck-tile-min: 22rem`, `--dur-fill: 180ms`.
 - `ImportConfirmData.shortfalls: readonly LockedShortfall[]` replaces `warnings: string[]` (the dialog renders
   `app-shortfall-warning`).
-- **Not built:** legality verdicts (no SPEC-002 engine in `web/`: every deck reads "Not fully checked" and the
-  Legality filter only matches that); the format name in filter labels is the constant "Standard".
+- **Not built:** legality verdicts (the SPEC-002 engine exists since H-194, but the list does not pass `legality`
+  yet: every deck reads "Not fully checked" and the Legality filter only matches that); the format name in filter
+  labels is the constant "Standard".
 
 ## Deck detail (SPEC-005 OWN-010…119, SPEC-006 DECK-081…085, SPEC-008 SHARE-024/025; H-254)
 Not an endpoint. `/decks/:id` reads and writes through the **tracked** stores only; no new stored shape.
@@ -686,8 +736,8 @@ Not an endpoint. `/decks/:id` reads and writes through the **tracked** stores on
   deck's lock through `DeckLocks.unlock` (only when one is stored; an unreadable lock store is never overwritten).
   No `app-shortfall-warning` on this page: SHARE-034 warnings live in Collection's confirmations ([[Decks]] §9);
   a short locked deck shows the warning badge "Locked · n cards short" (SHARE-033, D8).
-- **Not built here:** legality (no SPEC-002 engine in `web/`: always "Not fully checked"), real ban data
-  (`loadBans()` is null).
+- **Not built here:** the legality verdict (the SPEC-002 engine exists since H-194 but this page does not run it yet:
+  always "Not fully checked"). Ban data is real since H-344 (`loadBans()` returns `data/banlist.json`).
 
 ## Test data on live (SPEC-013, H-205)
 Not an endpoint and no new Firestore field: test data is ordinary account data told apart by reserved values
@@ -836,6 +886,14 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.35 (2026-11-26, H-194, H-344, SPEC-002 0.5, SPEC-006 0.16 DECK-050…056): no endpoint change and no stored-shape
+  change. New section "Deck legality engine": `data/banlist.json` (Standard + `2v2` `unverified` list) and
+  `data/formats.json`, `web/src/app/core/legality/` (`evaluateLegality`, rules, data check), `CardData.loadLegalityData()`
+  (bundled lazy chunk; `loadBans()` now returns the real list instead of `null`). Shape changes: `BanList.format` is
+  `FormatId | string`, `BanList.status` adds `'unverified'`, `FormatDef.notes?`; `ban-status.ts` exports `banListFor`,
+  `orderedWaves`, `bannedSet`; `verdictLabel()` in `core/decks`; `PreparedDeck.legalityData`, `DeckReview.legality`
+  (`ReviewLegality`), `prepareDeckImport(…, legalityData = null)`, `reviewLegality()`, `localIsoDate()`;
+  `RULE_CHECK_WORDS` / `BAN_LINE_TEXT` in `shared/deck-detail/detail-view.ts`.
 - v1.34 (2026-11-26, H-195, SPEC-001 0.4.1): no endpoint change and no shape change. Doc pins move from SPEC-001
   v0.2 to 0.4.1 (header, Shared types, browser-side "Read from other specs"); the `0.2+` prefix of `catalogVersion`
   is explained as the snapshot `schemaVersion`. Card types checked against the spec and `services/src/domain/types.ts`:
