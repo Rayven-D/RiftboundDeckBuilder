@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.28
+version: 1.29
 ---
 # API Contracts
 
@@ -498,13 +498,22 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
 ## Owned Cards Import commit and Undo (SPEC-003 IMP-049…052, IMP-072…075; H-158)
 Not an endpoint. Writes go through the **tracked** `stores.collection` only.
 - **Pure logic** (`web/src/app/shared/import/collection-commit.ts`): `resolveCollectionImport(parse, catalog)` →
-  `ResolvedCollectionImport { cards, copies, cardCount, leftOut, notes, catalogVersion }`: exact `nameKey` names
-  (IMP-025) and printing codes through `printingLookup(catalog)(setCode, collectorNumber)` (CARD-036 over the browser
+  `ResolvedCollectionImport { cards, copies, cardCount, leftOut, notes, catalogVersion }`: names through the shared
+  name lookup (IMP-025, see "Name lookup" below: exact `nameKey`, then the optional leading "a" / "the") and printing
+  codes through `printingLookup(catalog)(setCode, collectorNumber)` (CARD-036 over the browser
   catalog: `found` with the first printing / `not-found` / `ambiguous`; IMP-067 exact-name guard, IMP-068 a/c,
-  IMP-069). Names that would need the fuzzy review (IMP-026…030), IMP-068 (b) and ambiguous codes are **left out**
-  with a line message. `addToCollection(before, imp, at)`, `replaceCollection(imp, at)`, `replaceChanges` +
-  `replaceConfirmText` (IMP-050, AC 19 form), `commitNotice(mode, imp, written)` (IMP-073), `changedSinceCommit`,
-  `snapshotIsOurs`, `nextUpdatedAt(now, previous)` (monotonic), `UNDO_TEXT`.
+  IMP-069, the guard and IMP-068 compare names exactly). Names that would need the fuzzy review (IMP-026…030), a name
+  several cards share under CARD-034 (`"<name>" matches more than one card: <names>.`, no pick in this dialog yet),
+  IMP-068 (b) and ambiguous codes are **left out** with a line message. `addToCollection(before, imp, at)`,
+  `replaceCollection(imp, at)`, `replaceChanges` + `replaceConfirmText` (IMP-050, AC 19 form),
+  `commitNotice(mode, imp, written)` (IMP-073), `changedSinceCommit`, `snapshotIsOurs`, `nextUpdatedAt(now, previous)`
+  (monotonic), `UNDO_TEXT`.
+- **Name lookup** (`web/src/app/core/cards/name-key.ts`, v1.29, H-343): `looseKey(name)` (CARD-034: `nameKey` with
+  one leading `a ` / `the ` token removed; a bare article stays) and `nameLookup(cardKeys)` → `(name) =>
+  NameLookupResult`: `{ status: 'found', cardKey, method: 'exact' | 'article' }` (an exact `nameKey` match always
+  wins), `{ status: 'ambiguous', cardKeys }` (sorted) or `{ status: 'not-found' }`. Built once per catalog; the one
+  lookup both imports use (IMP-025, DECK-040). Not used by catalog search (CARD-038) or the exact checks (CARD-032,
+  LEGAL-B05).
 - **Dialog seam** (`ImportCommitter<P = PreparedOk, C = CommitMode> { prepare(parse, text), commit(prepared, choice) }`,
   passed as `ImportDialogData.committer`): with it, Continue shows the review step and the dialog closes with `'committed'`
   only after `{ status: 'written' }`; `{ status: 'error', message }` stays in the dialog; `'cancelled'` (Replace
@@ -526,9 +535,11 @@ is an `ImportCommitter<PreparedDeck, DeckSaveRequest>`. Writes go through the **
 writes nothing (DECK-003).
 - **Pure logic** (`web/src/app/shared/import/deck-import.ts`): `prepareDeckImport(parse, sourceLines(text), catalog)` →
   `PreparedDeck { lines: DeckImportLine[], sourceFormat, catalogVersion, sections, legends, champions, catalog }`
-  (exact `nameKey` names and printing codes through `printingLookup`, as the collection commit; a line that can't
-  resolve carries `attention: { code: 'UNKNOWN_CARD' | 'UNKNOWN_PRINTING' | 'PRINTING_NAME_MISMATCH' |
-  'AMBIGUOUS_PRINTING', message }` and, for a code/name mismatch, two `choices`).
+  (names through the shared name lookup, exact then leading "a" / "the" (DECK-040, CARD-034), and printing codes
+  through `printingLookup`, as the collection commit; a line that can't resolve carries `attention: { code:
+  'UNKNOWN_CARD' | 'AMBIGUOUS_NAME' | 'UNKNOWN_PRINTING' | 'PRINTING_NAME_MISMATCH' | 'AMBIGUOUS_PRINTING', message }`
+  and, for a code/name mismatch, two `choices`; for `AMBIGUOUS_NAME` (several cards share the loose key, message
+  `"<name>" matches more than one card. Pick one.`) the cards it matches as `choices`, by `cardKey`, none picked).
   `reviewDeck(prepared, state: DeckReviewState, today)` → `DeckReview { attention, lines: ReviewLine[], slots,
   questions: ZoneQuestion[], issues, notes, byZone, defaultName, name, nameError, sourceError, blockers, canSave, draft }`.
   `DeckReviewState` = the user's choices: `removed`, `picks`, `zones` (PICK_ZONE answers, "Move to", changed inferred
@@ -792,6 +803,11 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.29 (2026-11-25, H-343, SPEC-001 CARD-034, SPEC-006 DECK-040): no endpoint change and no stored-shape change.
+  New `looseKey` and `nameLookup` in `core/cards/name-key.ts`, used by `resolveCollectionImport` and
+  `prepareDeckImport`: a name with no exact match retries without a leading "a" / "the" (both ways); a name several
+  cards share that way is left out of the collection import and is the new `AMBIGUOUS_NAME` attention code (with the
+  cards as `choices`) in Deck Import.
 - v1.28 (2026-11-25, H-060 follow-up, RJ H-382): no endpoint change and no stored-shape change. `app-lock-badge`:
   `lock` is optional (default `null`), the badge renders from `label` alone, and two size custom properties; existing
   bindings (`[lock]`, `[label]`, `[showDate]`) work unchanged. `app-deck-tile` shows the lock as `app-lock-badge` (no

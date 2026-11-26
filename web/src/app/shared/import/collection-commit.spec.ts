@@ -82,6 +82,51 @@ describe('Owned Cards Import commit logic (SPEC-003, H-158)', () => {
     expect(r.leftOut[0].message).toBe("RAD 998 isn't in the card data. Add the card name or fix the code.");
   });
 
+  describe('optional leading article (IMP-025, CARD-034, H-343)', () => {
+    /** Hypothetical names from SPEC-001 AC 6 and AC 21, next to the real-name case The Dreaming Tree. */
+    const articles = () => makeCatalog(['The Dreaming Tree', 'A Pit', 'The Pit', 'The Echo', 'Echo', 'Gust']);
+
+    it('CARD-034 / IMP-025: Dreaming Tree counts as The Dreaming Tree with no note and nothing left out', () => {
+      const r = resolve('2 Dreaming Tree\n1 the dreaming tree', articles());
+      expect(r.cards).toEqual({ 'the dreaming tree': { quantity: 3, byPrinting: {} } });
+      expect(r.leftOut).toEqual([]);
+      expect(r.notes).toEqual([]);
+    });
+
+    it('CARD-034: The Dreaming Tree finds a card named Dreaming Tree', () => {
+      const r = resolve('1 The Dreaming Tree', makeCatalog(['Dreaming Tree']));
+      expect(r.cards).toEqual({ 'dreaming tree': { quantity: 1, byPrinting: {} } });
+      expect(r.leftOut).toEqual([]);
+    });
+
+    it('CARD-034 / IMP-025: Pit with A Pit and The Pit in the catalog is ambiguous and not counted', () => {
+      const r = resolve('2 Pit\n1 The Pit', articles());
+      expect(r.cards).toEqual({ 'the pit': { quantity: 1, byPrinting: {} } });
+      expect(r.leftOut).toEqual([{ line: 1, message: '"Pit" matches more than one card: A Pit, The Pit.' }]);
+    });
+
+    it('CARD-034: an exact name wins over the article rule (Echo with The Echo and Echo)', () => {
+      const r = resolve('1 Echo\n2 The Echo', articles());
+      expect(r.cards).toEqual({
+        echo: { quantity: 1, byPrinting: {} },
+        'the echo': { quantity: 2, byPrinting: {} },
+      });
+    });
+
+    it('CARD-034: a bare "The" is not a card name', () => {
+      const r = resolve('1 The', articles());
+      expect(r.cardCount).toBe(0);
+      expect(r.leftOut).toEqual([{ line: 1, message: 'No card named "The" in the card data.' }]);
+    });
+
+    it('CARD-034 / IMP-069 (a): an unknown code falls back to the name through the article rule', () => {
+      const r = resolve('1 Dreaming Tree RAD 999\n1 Pit RAD 998', articles());
+      expect(r.cards).toEqual({ 'the dreaming tree': { quantity: 1, byPrinting: {} } });
+      expect(r.notes).toEqual([{ line: 1, message: "RAD 999 isn't in the card data, so the card name was used." }]);
+      expect(r.leftOut).toEqual([{ line: 2, message: '"Pit" matches more than one card: A Pit, The Pit.' }]);
+    });
+  });
+
   it('AC 19 / IMP-049: Add is owned += imported; Replace makes the collection exactly the import', () => {
     const catalog = codedCatalog();
     const before = makeCollection({ owned: { Gust: 2, Abandon: 1 } });

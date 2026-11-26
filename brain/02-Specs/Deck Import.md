@@ -1,13 +1,13 @@
 ---
 tags: [spec]
 id: SPEC-006
-version: 0.11.1
+version: 0.12
 status: review
 depends_on: [SPEC-001, SPEC-002, SPEC-003, SPEC-004, SPEC-008]
 consumers: [SPEC-005, SPEC-008]
-research: ["[[Collection Import Formats]]", "[[Deck Construction Rules]]", "[[Ban List]]", "[[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]]", "[[2026-11 RC Europe - 2 - Sonecon - Riven]]"]
+research: ["[[Collection Import Formats]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]", "[[Ban List]]", "[[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]]", "[[2026-11 RC Europe - 2 - Sonecon - Riven]]"]
 decisions: ["[[ADR-0005 MVP Product Defaults]]", "[[ADR-0006 Two Imports - Collection and Decks]]"]
-board: H-030, H-252, H-320
+board: H-030, H-252, H-320, H-342
 as_of: 2026-11-25
 ---
 # SPEC-006: Deck Import
@@ -36,6 +36,7 @@ as_of: 2026-11-25
 - DECK-080/082/083/084 (v0.6): a **locked** deck (SPEC-008) can't change cards; Delete releases the lock;
   Undo and Duplicate give unlocked decks. Locks live in SPEC-008's `DeckLockStore`, not in `UserDeck`.
 - **v0.11 (H-252, RJ 2026-11-25, [[Decks]] brief + H-260):** DECK-070 an imported deck is **named after its Legend** (the full canonical name; follows the Legend until the user types a name; fallback `Imported deck <date>`; names need not be unique, no suffix on import). DECK-073 the deck **description** is the existing `notes` field (no new field, `schemaVersion` stays 1). DECK-081 **Rename works at any time on every deck**, tournament and **locked** decks too (a lock freezes cards, not the name; SPEC-008 SHARE-025); tournament `source` stays read-only. DECK-080 the **card editor is deferred** (RJ #14: Rename only for now). DECK-082 the Delete confirmation no longer says "This can't be undone." (Undo exists). DECK-084 feedback "Deck duplicated." DECK-098 new: after Save, "Deck saved." with "View deck". ACs 26…29. Status `review`. **v0.11.1 (H-320, RJ 2026-11-25): Open questions (a)…(c) are answered with the written defaults: (a) the description reuses `notes`; (b) same-Legend imports get the same name with no suffix, tournament decks keep the DECK-062 name; (c) a rename updates `updatedAt` and moves the deck to the top of the list. No requirement changed; attribution and AC 28 only.**
+- **v0.12 (H-342, RJ 2026-11-25 in chat, H-253 row; [[Deck Construction Rules]] facts 1, 4, 15, `verified`, as of 2026-11-24):** DECK-033 2+ Legends (in `Legend:` or unsectioned) → the user **picks one, the others leave the deck** (their text goes to `importRemovedLines`); DECK-034 2+ cards under `Champion:` → the user picks one, **the others and extra copies of the pick go to `main`** (as built); "Leave empty" stays for both (DECK-036, DECK-050); **new DECK-027:** the `champion` slot holds **one copy**, so `Champion: 2 <champion>` (one line, quantity above 1) puts 1 in `champion` and the extra copy in `main` (Core 103.3.a; **the build still keeps 2 in `champion`: builder item H-410**); new DECK-099 adopts the builder's review and save strings (RJ approved 2026-11-25), except the two champion reason lines, which wait for H-341; ACs 7 and 23 fixed so Save really is enabled (DECK-034, DECK-038); new ACs 30…33.
 
 **Shared types:** `UserDeck` · `DeckCard` (`cardKey`, name, qty) · `DeckSource` = `UserDeckSource | TournamentDeckSource` · `DeckZone` (= SPEC-002 `Zone`) · `DeckImportResult` · `ZoneQuestion` · `DeckStore`.
 **Depends on:** [[Card Data Model]] v0.4.1, [[Deck Legality]] v0.4, [[Collection Import]] v0.14, [[Tournament Deck Catalog]] v0.7, [[Shared Cards and Lock-in]] v0.4.6 (lock rules for DECK-080/082…084; pin-only, H-256). **Consumers:** [[Your Decks Ownership View]]; [[Shared Cards and Lock-in]]; [[Tournament Deck Catalog]] (Add path).
@@ -124,8 +125,9 @@ without parsing.
 | DECK-022 | MUST | A section label is the user's (or author's) statement and **wins over card data**. If an entry's known card data disagrees with its section, the entry stays in the labelled zone and gets warning `ZONE_CATEGORY_MISMATCH` naming the expected zone from the DECK-032 table. Disagreement means: a `legend`, `rune` or `battlefield` outside its own zone (e.g. `Zaun Warrens`, a battlefield, under `Main Deck`); a known non-`legend` under `Legend`; a known non-Champion Unit under `Champion`; a `unit`, `spell`, `gear` or `champion` under `Runes` or `Battlefields`. `category: 'unknown'` or a `null` attribute never produces this warning. SPEC-002 then reports it (LEGAL-015 / LEGAL-014). | design rule; [[Deck Legality]] LEGAL-014, LEGAL-015 |
 | DECK-023 | SHOULD | A `ZONE_CATEGORY_MISMATCH` warning offers a one-click "Move to <zone>". Nothing moves without that click. | design rule |
 | DECK-024 | MUST | A section label that appears twice (e.g. two `Sideboard:` blocks) appends to the same zone. | design rule |
-| DECK-025 | MUST | If a published list puts the Chosen Champion inside `Main Deck` **and** also lists it under `Champion`, both entries are kept as written (champion 1, main +1). The importer MUST NOT dedupe; SPEC-002 LEGAL-003/005 report any count problem. Riot's lists show the champion only under Champion, so this normally does not arise. | [[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]] notes (main lists 39 non-champion cards) |
+| DECK-025 | MUST | If a published list puts the Chosen Champion inside `Main Deck` **and** also lists it under `Champion`, both entries are kept as written (champion 1, main +1). The importer MUST NOT dedupe; SPEC-002 LEGAL-003/005 report any count problem. Riot's lists show the champion only under Champion, so this normally does not arise. **v0.12 (H-342): this is about the champion on two separate entries (two zones). Several copies inside the `Champion` zone itself are DECK-027, not this rule.** | [[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]] notes (main lists 39 non-champion cards) |
 | DECK-026 | MUST | **Tokens are not deck cards.** An entry whose resolved card has `category: 'token'`, in any section or unsectioned, is **rejected**: it is not added to any zone, gets warning `TOKEN_NOT_DECK_CARD` ("<name> is a token and can't be put in a deck") with its location, and its raw text is added to `importRemovedLines` (DECK-042). It does not block saving. | board H-030 retry 1; [[Card Data Model]] CARD-024 (`token` category); research confirmation pending (Open questions) |
+| DECK-027 | MUST | **The `champion` slot holds one copy (v0.12, H-342).** The Chosen Champion is one card ([[Deck Construction Rules]] fact 4, Core 103.3.a), and further copies of the same name are ordinary cards that count toward the copy limit (fact 15, 103.3.a.3). So when the entries that end up in `champion` (from a `Champion:` section, or by DECK-034) add up to **more than one copy of the same card**, **1 copy stays in `champion` and the other copies go to `main`** (`zoneMethod: 'user'` if the user picked it, else the label's `section`), each shown with a reason line (DECK-030). Example: `Champion:` / `2 Kennen, Storm of Shuriken` → `champion` 1, `main` +1. Copies are never dropped or deduped: the total is unchanged (DECK-025). This is **one** card with several copies; two or more **different** cards under `Champion:` are DECK-034 (b). Because SPEC-002 `DeckInput.chosenChampion` carries a name and no quantity (LEGAL-003 counts it as 1), a stored `champion` with qty 2 would lose a copy in the legality count. | RJ, 2026-11-25 (in chat, H-253 row) for the 2+ cards case; [[Deck Construction Rules]] fact 4, fact 15 (`verified`, as of 2026-11-24); [[Deck Legality]] LEGAL-003, LEGAL-004; settled by the rules and our zone model, not a product choice (H-342 (d)) |
 
 ### D. Reconstructing missing zones
 Applies to unsectioned entries and to zones with no section in the input (plain text, TTS, a deck
@@ -137,8 +139,8 @@ have no Legend or Champion section).
 | DECK-030 | MUST | **Never guess silently.** Every zone not taken from a section label is either (a) **inferred from Riot card data** by the rules below, shown with `method: 'inferred'` and the reason, and changeable before saving, or (b) a **zone question** the user answers. | design rule; [[ADR-0005 MVP Product Defaults]] #4 (Riot data only) |
 | DECK-031 | MUST | Inference uses only SPEC-001 `category`, `isChampionUnit`, `championTag`, `isSignature` of the resolved card. No curated tables, no deck-site conventions, no position-in-list heuristics. | [[ADR-0005 MVP Product Defaults]] #4; [[Card Data Model]] CARD-024, CARD-026, CARD-027 |
 | DECK-032 | MUST | Every unsectioned entry gets its zone from its SPEC-001 `category` by this table (every enum value has exactly one rule): `legend` → **Legend** (DECK-033); `champion`, or `unit` with `isChampionUnit === true` → **Chosen Champion candidate** (DECK-034; copies not chosen go to `main`); `unit` (with `isChampionUnit` `false` or `null`), `spell`, `gear` → **`main`**; `rune` → **`runes`**; `battlefield` → **`battlefields`**; `token` → **rejected with a warning** (DECK-026); `unknown` → **ask** (zone question `PICK_ZONE`, DECK-035). | [[Deck Construction Rules]] #1, #4, #7, #8; [[Card Data Model]] CARD-024, CARD-026; [[Deck Legality]] (Champion Unit definition) |
-| DECK-033 | MUST | Unsectioned entries with `category = 'legend'`: if there is exactly **one** such entry with quantity 1 and the input has no `Legend` section, it becomes the Legend (`inferred`). Otherwise (2+ legend entries, or quantity > 1) the user gets zone question `PICK_LEGEND` listing them; unpicked legends stay where the user puts them. | [[Deck Construction Rules]] #1 |
-| DECK-034 | MUST | **Chosen Champion** when the input has no `Champion` section and a Legend is known: candidates = distinct unsectioned entries that are Champion Units (`category === 'champion'` or `isChampionUnit === true`), are not known Signature cards (`isSignature !== true`), and whose `championTag` is not known to differ from the Legend's. If **exactly one** candidate exists **and** it has `isSignature === false` and a `championTag` equal to the Legend's (both known), move **one copy** to `champion` (`inferred`); the rest stays in `main`. If **several** candidates exist, the user is **asked**: zone question `PICK_CHAMPION` listing them. If there are **none**, or the single candidate has a needed attribute `null`, `PICK_CHAMPION` opens with the candidates (if any) plus a catalog search. Copies not picked stay in `main`. | [[Deck Construction Rules]] #4; [[Deck Legality]] LEGAL-004 |
+| DECK-033 | MUST | Unsectioned entries with `category = 'legend'`: if there is exactly **one** such entry with quantity 1 and the input has no `Legend` section, it becomes the Legend (`inferred`). Otherwise (2+ legend entries, or quantity > 1) the user gets zone question `PICK_LEGEND` listing them. **v0.12 (H-342): one Legend per deck. When the input holds 2 or more different Legends (under `Legend:`, unsectioned, or both), `PICK_LEGEND` lists all of them; the picked one is the Legend and the others leave the deck**: they are placed in no zone and their raw lines are added to `importRemovedLines` (DECK-042). **"Leave empty" stays** (DECK-036): the deck then has no Legend and every listed Legend leaves it. Nothing is picked for the user (DECK-030). *(Before v0.12 this said "unpicked legends stay where the user puts them", which no Legend slot allows.)* The question is the only blocker it adds (DECK-038); it never makes the deck illegal to save (DECK-050). | RJ, 2026-11-25 (in chat, H-253 row), checked against [[Deck Construction Rules]] fact 1 (Core 103, `verified`, as of 2026-11-24) |
+| DECK-034 | MUST | **Chosen Champion** when the input has no `Champion` section and a Legend is known: candidates = distinct unsectioned entries that are Champion Units (`category === 'champion'` or `isChampionUnit === true`), are not known Signature cards (`isSignature !== true`), and whose `championTag` is not known to differ from the Legend's. If **exactly one** candidate exists **and** it has `isSignature === false` and a `championTag` equal to the Legend's (both known), move **one copy** to `champion` (`inferred`); the rest stays in `main`. If **several** candidates exist, the user is **asked**: zone question `PICK_CHAMPION` listing them. If there are **none**, or the single candidate has a needed attribute `null`, `PICK_CHAMPION` opens with the candidates (if any) plus a catalog search. Copies not picked stay in `main`. **(b) v0.12 (H-342): 2 or more different cards under a `Champion:` section** (e.g. a precon's "Champion Unit Options", [[Physical Copies Across Decks]] fact 5, `verified`, as of 2026-11-23, official: 4 options plus a 36-card main deck make 40) are a single `champion` slot, so `PICK_CHAMPION` lists exactly those cards. The user picks one: **one copy of the pick is the Chosen Champion** (`zoneMethod: 'user'`), and **the other copies of the pick and every unpicked card go to `main`** (`zoneMethod: 'user'`, each with a reason line); none is dropped and none goes to `importRemovedLines`. **"Leave empty" stays** (DECK-036): then all of them go to `main` and the deck has no Chosen Champion (SPEC-002 LEGAL-004 reports it). The question blocks Save until answered (DECK-038), never legality (DECK-050). **(c)** One card with quantity above 1 under `Champion:` is DECK-027. The reason lines the review shows for (b) are `championNotPicked` and `championExtraToMain`; their wording is **pending H-341** (ui-engineer critique) and is not adopted in DECK-099. | RJ, 2026-11-25 (in chat, H-253 row), checked against [[Deck Construction Rules]] facts 1, 4, 15 (Core 103, 103.3.a, 103.3.a.3; `verified`, as of 2026-11-24) and [[Physical Copies Across Decks]] fact 5; [[Deck Legality]] LEGAL-004 |
 | DECK-035 | MUST | Unsectioned entry with `category === 'unknown'` → zone question `PICK_ZONE` for that line, defaulting the picker to `main` but not applying it. The UI MUST offer one explicit bulk action **"Put all in Main Deck"** that answers every open `PICK_ZONE` with `main` (`zoneMethod: 'user'`). | design rule; [[Card Data Model]] CARD-024, CARD-029 (`unknown` = not evaluated) |
 | DECK-036 | MUST | No Legend in the input at all → zone question `PICK_LEGEND` with a catalog search limited to `category = 'legend'`. The user may answer **Leave empty**; the deck then saves without a Legend (SPEC-002 LEGAL-001 fails). | [[Deck Construction Rules]] #1; DECK-050 (never block on legality) |
 | DECK-037 | MUST | A **sideboard is never inferred**. Unsectioned `unit`, `spell`, `gear` and `champion` cards (other than the Chosen Champion) all go to `main`. If `main` then exceeds 39 (+ champion), the result carries info `NO_SIDEBOARD_SECTION`: "This list has no Sideboard section, so all cards are in the Main Deck. Move sideboard cards if needed." | [[Deck Construction Rules]] #3, #9 |
@@ -150,7 +152,7 @@ have no Legend or Champion section).
 |---|---|---|---|
 | DECK-040 | MUST | Name resolution is SPEC-003's (IMP-025…030): exact `nameKey` match resolves, then the optional leading "a" / "the" rule (IMP-025, [[Card Data Model]] CARD-034, RJ 2026-11-25): `Dreaming Tree` resolves to `The Dreaming Tree` with no review, same as in the owned-card import; fuzzy suggestions are **never applied automatically** (IMP-027); `AMBIGUOUS_NAME` for shared prefixes (IMP-029) and for several cards sharing a loose key (IMP-025). No curated alias table is used. Catalog search in the deck editor (DECK-036, DECK-080) uses the name search match of CARD-038. | [[ADR-0005 MVP Product Defaults]] #4; [[Collection Import]]; [[Card Data Model]] CARD-034, CARD-038 |
 | DECK-041 | MUST | **A deck cannot be saved while any line is `needs-review` or an error line with `UNKNOWN_CARD`/`UNKNOWN_PRINTING`/`UNKNOWN_SET_INDEX`** (v0.5: a resolved line with only a warning, e.g. `UNKNOWN_PRINTING` after a name fallback, does not block; DECK-015). For each, the user picks a suggestion, types another name (re-resolved), or **removes the line**. Save shows "N cards need attention" until the count is 0. | design rule (see Rationale) |
-| DECK-042 | MUST | Removing an unresolved line is recorded in the import summary (`removedLines`) and shown on the saved deck's notes area as a one-time info "2 lines were removed during import" with the raw text, so the user knows the deck is not the full original list. | design rule |
+| DECK-042 | MUST | Removing an unresolved line is recorded in the import summary (`removedLines`) and shown on the saved deck's notes area as a one-time info "2 lines were removed during import" with the raw text, so the user knows the deck is not the full original list. **v0.12:** Legends that leave the deck by DECK-033 are recorded the same way. | design rule; RJ, 2026-11-25 (in chat, H-253 row) |
 | DECK-043 | SHOULD | Pre-selection and "Accept all pre-selected" follow IMP-028. "Accept all" is one explicit user action and counts as resolving. | [[Collection Import]] IMP-028 |
 | DECK-044 | MUST | Resolution and zone assignment are independent: picking a suggestion for a line under `Champion:` keeps it in `champion`. For an unsectioned line, zone inference (section D) runs again after resolution. | design rule |
 
@@ -223,6 +225,77 @@ information about a deck the user wants to build, so it never blocks (DECK-050).
 |---|---|---|---|
 | DECK-098 | MUST | **Feedback after Save.** After a successful Save from "Import deck" (DECK-001): the dialog closes, the page stays on Decks (no navigation), the new deck is in the list (first under the default order, OWN-005, as its `updatedAt` is the newest) and a snack bar reads **"Deck saved."** with a **View deck** action that opens `/decks/<id>` (polite status; the snack bar clears itself). A failed Save (`DECK_LIMIT`, `DECK_TOO_LARGE`, `STORAGE_FULL`, DECK-092, DECK-093) keeps the dialog open, writes nothing and shows the error. The Tournaments "Add to your decks" path (DECK-060) has its own feedback in SPEC-004 and is not changed here. | RJ default ([[Decks]] §13 choice 17a) |
 
+### L. Review and save strings (v0.12)
+| ID | Level | Requirement | Source |
+|---|---|---|---|
+| DECK-099 | MUST | **The review and save wording is the builder's, adopted verbatim** from three constants in the build: `DECK_REVIEW_TEXT` (messages, `web/src/app/shared/import/deck-import.ts`), `DECK_REVIEW_WORDS` (labels, hints and buttons of the review step, `web/src/app/shared/import/deck-review.ts`) and `DECK_SAVE_TEXT` (`web/src/app/core/import/deck-import.ts`), as in the three tables below. `{…}` is a filled-in value. The strings carry no rule or game claim. **Not adopted here, pending H-341** (ui-engineer critique): the two champion reason lines `championNotPicked` and `championExtraToMain` (`DECK_REVIEW_TEXT`; DECK-034 (b)), which were written after RJ's approval, and `championMany` (`DECK_REVIEW_WORDS`), which says "The other Champion lines are left out." while DECK-034 (b) puts them in the Main Deck (RJ's rule came after the strings were approved; wording to be settled by H-341, then written here). A wording change is a spec change: edit these tables, then file a builder item. | RJ approved 2026-11-25 (H-253 row: the builder's review and error strings "look good"); [[Validation H-253]] (strings judged acceptable, wording review to H-341) |
+
+**Review messages (`DECK_REVIEW_TEXT`)**
+
+| Key | Requirement | String |
+|---|---|---|
+| `unknownCard(name)` | DECK-041 | `No card named "{name}" in the card data.` |
+| `unknownCode(code)` | DECK-015 | `{code} isn't in the card data. Add the card name or fix the code.` |
+| `codeMismatch(code, codeCard, named)` | DECK-015 | `{code} is {codeCard}, but the line says {named}.` |
+| `ambiguousCode(code)` | DECK-015 | `{code} matches more than one card in the card data.` |
+| `codeUsed(code, card)` | DECK-015 | `{code} is {card}, so that card was used.` |
+| `nameUsed(code)` | DECK-015 | `{code} isn't in the card data, so the card name was used.` |
+| `token(name)` | DECK-026 | `{name} is a token and can't be put in a deck` |
+| `mismatch(name, type)` | DECK-022 | `{name} is a {type}` |
+| `noSideboard` | DECK-037 | `This list has no Sideboard section, so all cards are in the Main Deck. Move sideboard cards if needed.` |
+| `sourceUrlInvalid` | DECK-071 | `This link isn't an http or https address, so it is kept as text.` |
+| `sourceTooLong` | DECK-071 | `The source can be at most 200 characters.` |
+| `nameRequired` | DECK-070 | `Give the deck a name.` |
+| `needAttention(n)` | DECK-041, AC 8 | `1 card needs attention` / `{n} cards need attention` |
+| `questions(n)` | DECK-038, AC 3 | `1 question to answer` / `{n} questions to answer` |
+| `fallbackName(date)` | DECK-070 | `Imported deck {date}` |
+
+**Review step labels (`DECK_REVIEW_WORDS`)**
+
+| Key | Requirement | String |
+|---|---|---|
+| `name` | DECK-070 | `Deck name` |
+| `fix` | DECK-041 | `Lines to fix` |
+| `fixNote` | DECK-041 | `Remove a line here, or go Back and fix it in the list.` |
+| `remove` | DECK-041 | `Remove line` |
+| `removeLine(line)` | DECK-041 (accessible name) | `Remove line {line}` |
+| `sectionFor(name)` | DECK-030 (accessible name) | `Section for {name}` |
+| `use(name)` | DECK-015, DECK-041 | `Use {name}` |
+| `legendNone` | DECK-036 | `This list has no Legend. Pick one, or leave it empty.` |
+| `legendMany` | DECK-033 | `Pick the deck's Legend. The other Legend lines are left out.` |
+| `championAsk` | DECK-034 | `Pick the deck's Chosen Champion.` |
+| `zoneAsk(line, name)` | DECK-035 | `Line {line}: {name}. Its card type isn't known, so pick its section.` |
+| `allMain` | DECK-035 | `Put all in Main Deck` |
+| `legend` | DECK-033 | `Legend` |
+| `champion` | DECK-034 | `Chosen Champion` |
+| `section` | DECK-030, DECK-035 | `Section` |
+| `leaveEmpty` | DECK-036 | `Leave empty` |
+| `fromList` | DECK-034 | `From this list` |
+| `otherCards` | DECK-034 | `Other cards` |
+| `inferred` | DECK-030 | `Placed by card type` |
+| `inferredNote` | DECK-030 | `Change a section if it is wrong.` |
+| `moveTo(zone)` | DECK-023 | `Move to {zone}` |
+| `removed(n)` | DECK-033, DECK-042 | `1 line is left out of the deck and listed on it.` / `{n} lines are left out of the deck and listed on it.` |
+| `source` | DECK-071 | `Source (optional)` |
+| `sourceHint` | DECK-071 | `Where the list comes from, e.g. a player or a site.` |
+| `link` | DECK-071 | `Link (optional)` |
+| `linkHint` | DECK-071 | `An http or https address. It opens only when you click it.` |
+
+**Save strings (`DECK_SAVE_TEXT`)**
+
+| Key | Requirement | String |
+|---|---|---|
+| `saved` | DECK-098 | `Deck saved.` |
+| `view` | DECK-098 | `View deck` |
+| `catalogError` | DECK-015 | `Card data couldn't load, so the cards can't be matched yet. Try again in a moment.` |
+| `limit` | DECK-092 `DECK_LIMIT` | `You already have 200 decks, the most you can keep. Delete a deck to save this one.` |
+| `tooLarge` | DECK-092 `DECK_TOO_LARGE` | `This deck is too large to save: at most 150 different entries and 300 cards.` |
+| `storageFull` | DECK-093 `STORAGE_FULL` | `Couldn't save: this device's storage is full. Nothing was saved.` |
+| `failed` | DECK-093 | `Couldn't save the deck. Nothing was saved. Try again.` |
+| `signedOut` | DECK-097 | `Sign in again to save this deck. Nothing was saved.` |
+
+*(The numbers 200, 150 and 300 in `limit` and `tooLarge` come from the limits of DECK-092 (`LIMITS` in the build); if DECK-092 changes, these strings change with it.)*
+
 ## Data contract
 ```ts
 // shapes only; no implementation
@@ -278,17 +351,23 @@ interface UserDeck {
   updatedAt: IsoDateTime;
   catalogVersion: string;       // SPEC-001
   duplicatedFrom?: string;      // DECK-084
-  importRemovedLines?: string[];// DECK-042 / DECK-026, raw text of removed or rejected lines
+  importRemovedLines?: string[];// DECK-042 / DECK-026 / DECK-033, raw text of removed, rejected or unpicked-Legend lines
   legend: DeckCard | null;      // qty 1 when valid; stored as given
-  champion: DeckCard | null;
+  champion: DeckCard | null;    // v0.12: qty 1; extra copies of the same card are in `main` (DECK-027)
   main: DeckCard[];             // excludes the Chosen Champion
   sideboard: DeckCard[];
   runes: DeckCard[];
   battlefields: DeckCard[];
 }
-// NOTE: legend/champion are single slots. If an input lists 2+ cards under `Legend:`, the extra
-// entries are a zone question (PICK_LEGEND); the user moves or removes them. LEGAL-001 still
-// reports the count from what the user keeps.
+// NOTE (v0.12, RJ 2026-11-25 (in chat, H-253 row)): legend/champion are single slots.
+// - 2+ different Legends in the input (`Legend:` or unsectioned): PICK_LEGEND; the picked Legend is
+//   `legend`, the others are in NO zone and their raw lines are in `importRemovedLines` (DECK-033).
+//   "Leave empty" (answer { leaveEmpty: true }): `legend` is null and all of them leave the deck.
+// - 2+ different cards under `Champion:`: PICK_CHAMPION; one copy of the pick is `champion`, the other
+//   copies of the pick and every unpicked card are in `main`, none in `importRemovedLines`
+//   (DECK-034 (b)). "Leave empty": `champion` is null and all of them are in `main`.
+// - One card with qty > 1 as the Chosen Champion: 1 in `champion`, the rest in `main` (DECK-027).
+// LEGAL-001 / LEGAL-004 still report what the user keeps (e.g. no Legend after "Leave empty").
 
 type ZoneMethod = 'section' | 'inferred' | 'user';
 
@@ -399,10 +478,13 @@ shown in the display format (`Nov 23, 2026`).
    Main Deck but is unanswered and Save is disabled; **When** the user chooses "Put all in Main Deck"
    **Then** `Gust` is in `main` with `zoneMethod: 'user'` and Save is enabled.
 
-7. **Section label beats card data** (DECK-022, 023) **Given** `Main Deck:` / `1 Zaun Warrens`
-   (`category: 'battlefield'`) **When** parsed **Then** `Zaun Warrens` stays in `main` with warning `ZONE_CATEGORY_MISMATCH` ("Zaun Warrens is a
-   Battlefield") and a "Move to Battlefields" action; legality shows LEGAL-015; saving is allowed
-   without moving it.
+7. **Section label beats card data** (DECK-022, 023, 034, 038) **Given** `Legend:` / `1 Kennen, Heart of the Tempest`,
+   `Champion:` / `1 Kennen, Storm of Shuriken` and `Main Deck:` / `1 Zaun Warrens` (`category: 'battlefield'`)
+   (the Legend and Champion sections are there so no zone question is open; with a Legend and no Champion section,
+   DECK-034 would ask `PICK_CHAMPION` first, and with no Legend at all DECK-036 asks `PICK_LEGEND`)
+   **When** parsed **Then** `Zaun Warrens` stays in `main` with warning `ZONE_CATEGORY_MISMATCH` ("Zaun Warrens is a
+   Battlefield") and a "Move to Battlefields" action; no question is open; legality shows LEGAL-015; Save is enabled
+   and saving is allowed without moving it.
 
 8. **Typo must be resolved before save** (DECK-041, 043) **Given** `Main Deck:` / `3 Lightnig Rush`
    **When** parsed **Then** the line is `needs-review` with pre-selected suggestion `Lightning Rush`,
@@ -507,13 +589,16 @@ shown in the display format (`Nov 23, 2026`).
 23. **Quantity forms and printing codes in a deck** (DECK-014, 015, 041, 096; SPEC-003 IMP-020, IMP-064…069)
     Uses SPEC-003 fixture F1 (hypothetical collector numbers). **Given** the paste
     `Legend: 1 Kennen, Heart of the Tempest (OGN 299/298)` / `Main Deck:` / `Lightning Rush x3 RAD 001 /167` /
-    `x2 Hextech Ray` / `2 RAD 001a` / `1 Hextech Ray RAD 001` **When** parsed and reviewed **Then**
+    `x2 Hextech Ray` / `2 RAD 001a` / `1 Hextech Ray RAD 001` (there is a Legend but no `Champion:` section, so
+    DECK-034 also asks `PICK_CHAMPION`) **When** parsed and reviewed **Then**
     `Kennen, Heart of the Tempest` is in `legend`; `Lightning Rush` is 5 in `main` (lines 3 and 5 merged by
     `cardKey`, DECK-021); `Hextech Ray ×2` is in `main`; line 6 is `needs-review` with
     `PRINTING_NAME_MISMATCH` and Save is disabled ("1 card needs attention"). **When** the user picks
-    `Hextech Ray` **Then** `main` has `Hextech Ray ×3`, Save is enabled, and the saved `DeckCard`s hold
+    `Hextech Ray` **Then** `main` has `Hextech Ray ×3`; Save is still disabled by the open `PICK_CHAMPION`
+    question ("1 question to answer", DECK-038) **until the user answers it, here with "Leave empty"** (DECK-036),
+    after which Save is enabled, and the saved `DeckCard`s hold
     only `cardKey`, `name` and `qty` (no printing). **Given** instead `Main Deck:` / `3 Lightning Rush RAD 999`
-    **Then** `Lightning Rush ×3` is in `main` with warning `UNKNOWN_PRINTING` and Save is not blocked.
+    **Then** `Lightning Rush ×3` is in `main` with warning `UNKNOWN_PRINTING`, and that warning does not block Save (the Legend question of DECK-036 for this Legend-less paste is a separate blocker).
 
 24. **Entry point, label and landing** (DECK-001, DECK-097; v0.9, H-174)
     **Given** a signed-in user with the gate open and at least one deck **When** they open `/decks` **Then** the
@@ -548,6 +633,29 @@ shown in the display format (`Nov 23, 2026`).
 29. **After Save; delete and duplicate feedback** (DECK-098, DECK-082…084; v0.11)
     **Given** a valid paste in the "Import deck" dialog on `/decks` **When** the user presses Save **Then** the dialog closes, the page is still `/decks`, the new deck is first in the list, and a snack bar reads "Deck saved." with a "View deck" action that opens `/decks/<id>`. **Given** 200 stored decks **Then** the dialog stays open and shows `DECK_LIMIT`, nothing is written, no "Deck saved."
     **When** a deck is deleted **Then** the confirmation reads "Delete 'Kennen, Heart of the Tempest'?" with no "This can't be undone.", and after the delete the snack bar "Deck deleted." offers Undo for 10 seconds. **When** a deck is duplicated **Then** the page stays and the snack bar "Deck duplicated." offers "Open".
+
+30. **Two Legends: pick one, the other leaves the deck** (DECK-033, 036, 038, 042, 070; v0.12, RJ 2026-11-25)
+    **Given** `Legend:` / `1 Kennen, Heart of the Tempest` / `1 Riven, The Exile`, `Champion:` / `1 Kennen, Storm of Shuriken`, `Main Deck:` / `3 Lightning Rush`
+    **When** parsed **Then** one `PICK_LEGEND` question lists both Legends and Save is disabled ("1 question to answer"). **When** the user picks
+    `Kennen, Heart of the Tempest` **Then** `legend` = Kennen, `Riven, The Exile` is in no zone, `importRemovedLines = ["1 Riven, The Exile"]`,
+    the default name is `Kennen, Heart of the Tempest`, and Save is enabled. **When** the user answers "Leave empty" instead **Then** `legend` is null, both
+    Legends are in `importRemovedLines`, the default name is `Imported deck <date>`, Save is enabled, and LEGAL-001 fails (DECK-050).
+
+31. **2+ cards under `Champion:`: pick one, the rest go to Main Deck** (DECK-034 (b), 038, 042; v0.12, RJ 2026-11-25; [[Physical Copies Across Decks]] fact 5)
+    Card names `<Champ A>` and `<Champ B>` stand for two Champion Units with the Legend's tag (hypothetical fixture). **Given** `Legend:` / `1 Kennen, Heart of the Tempest`,
+    `Champion:` / `2 <Champ A>` / `2 <Champ B>`, `Main Deck:` with 36 other cards **When** parsed **Then** one `PICK_CHAMPION` question lists exactly `<Champ A>` and `<Champ B>`
+    and Save is disabled. **When** the user picks `<Champ A>` **Then** `champion` = `<Champ A>` ×1, `main` holds `<Champ A>` ×1 and `<Champ B>` ×2 next to the 36 cards (39 in all),
+    each of those lines shows a reason line, `importRemovedLines` is absent, LEGAL-003 counts 40, and Save is enabled. **When** the user answers "Leave empty" instead **Then** `champion` is
+    null, all four copies are in `main`, nothing is removed, and LEGAL-004 reports the missing Chosen Champion.
+
+32. **One champion line with quantity 2** (DECK-027, DECK-025; v0.12, H-342 (d); build item H-410)
+    **Given** `Legend:` / `1 Kennen, Heart of the Tempest`, `Champion:` / `2 Kennen, Storm of Shuriken`, `Main Deck:` with 38 other cards **When** parsed **Then** no question is open, `champion` = `Kennen, Storm of Shuriken` ×1,
+    `main` holds `Kennen, Storm of Shuriken` ×1 next to the 38 cards (39 in all) with a reason line, nothing is removed, LEGAL-003 counts 40 and LEGAL-005 counts 2 copies (champion 1, main 1), and Save is enabled.
+    **Given** instead `Champion:` / `1 Kennen, Storm of Shuriken` and `Main Deck:` / `1 Kennen, Storm of Shuriken` (two entries, DECK-025) **Then** both are kept as written: `champion` 1, `main` +1.
+
+33. **Adopted strings** (DECK-099; v0.12) **Given** `Main Deck:` / `3 Lightnig Rush` and no Legend **Then** the review reads "1 card needs attention" and "1 question to answer", the line reads `No card named "Lightnig Rush" in the card data.`,
+    and the Legend question reads "This list has no Legend. Pick one, or leave it empty." with the option "Leave empty". **Given** 200 stored decks **When** Save is pressed **Then** the dialog shows
+    "You already have 200 decks, the most you can keep. Delete a deck to save this one." and no "Deck saved." appears.
 
 ## Out of scope
 - **Fetching URLs** or importing from a deck site by link or API (DECK-072; IMP-005).
@@ -584,6 +692,9 @@ shown in the display format (`Nov 23, 2026`).
 - **Resolved (RJ, 2026-11-25, H-320; was "For RJ (H-252 a), DECK-073"): the description reuses the existing `notes` field (option (a)).** Up to 4,000 characters, shown clamped to 3 lines; no schema, Firestore rules or [[API Contracts]] change (the new `description` field of option (b) was not chosen).
 - **Resolved (RJ, 2026-11-25, H-320; was "For RJ (H-252 b)"), DECK-070 and DECK-062: the written defaults.** (1) With no Legend the default name is `Imported deck <date>`; (2) two imports with the same Legend get the **same name, no suffix** (decks are told apart by source line, Updated date and the list's Legend art; the name is editable; the " (2)" option was not chosen); (3) **tournament decks keep the DECK-062 name** (`Kennen: ASC Evansrhim (1st, Riftbound Regional Championship: Europe)`) although the tile also shows the player and event; option (b), the Legend's name for them too, was not chosen.
 - **Resolved (RJ, 2026-11-25, H-320; was "For RJ (H-252 c)"), DECK-081: a rename updates `updatedAt`** and moves the deck to the top of the default list order (OWN-005); option (b), leave `updatedAt` alone, was not chosen.
+- **Resolved (H-342, v0.12):** (c) RJ's 2026-11-25 Legend and Champion rule is in DECK-033, DECK-034 (b) and the data contract (RJ, 2026-11-25, in chat, H-253 row); (d) `Champion: 2 <champion>` is settled by the rules and our zone model, not a product choice (DECK-027; [[Deck Construction Rules]] facts 4 and 15, `verified`, as of 2026-11-24; the build differs, item H-410).
+- **Pending H-341 (wording):** the reason lines `championNotPicked` and `championExtraToMain`, and the review label `championMany`, which says the other Champion lines are "left out" although DECK-034 (b) puts them in the Main Deck (DECK-099).
+- **Not specified (no research or RJ answer yet):** a **Legend** with quantity above 1 (`Legend:` / `2 <legend>`). It is stored as given (data contract) and SPEC-002 LEGAL-001 reports it; the build does the same. Whether the importer should reduce it to 1 is not decided here.
 
 ## Changelog
-Current: 0.11.1 (2026-11-25, H-320, RJ 2026-11-25 answers to open questions (a)…(c)): all three closed with the written defaults, no behaviour change: DECK-073 `notes` is the description, DECK-070 fallback and no suffix on duplicate names and DECK-062 kept for tournament decks, DECK-081 (d) a rename moves the deck to the top of the list (OWN-005), AC 28 checks it; *proposal* markers replaced by RJ's attribution; status stays `review`. Previous: 0.11 (2026-11-25, H-252, RJ 2026-11-25 (H-260 answers, "default for all" on [[Decks]] §13, and §13a)): DECK-070 rewritten (named after the Legend, follows the Legend until typed over, fallback, duplicate names allowed); DECK-073 (`notes` is the description); DECK-080 deferred; DECK-081 rewritten (Rename at any time, locked and tournament decks included; tournament source read-only); DECK-082 (no "can't be undone"); DECK-083, DECK-084 (snack bars); new DECK-098 ("Deck saved." with "View deck"); ACs 26…29; Open questions (a)…(c); no `UserDeck` field added, `schemaVersion` stays 1; pins SPEC-008 0.4.5; status `draft` → `review`. Pin-only 2026-11-25 (H-167, no version bump): SPEC-004 pin 0.7; the RC Europe event name in the DECK-061, DECK-062 and AC 11 / 11a examples is now `Riftbound Regional Championship: Europe`. Previous: 0.10 (2026-11-25, H-166, [[Collection Import Formats]] facts 7 to 9: DECK-010 cites SPEC-003 IMP-036a (TTS trailing number is an art number, community) and the Piltover set / variant tables to RAD (IMP-032, IMP-033, community); DECK-020 labels may carry `*` bold marks (IMP-016, official); DECK-039 records what the code versions V3…V6 add (community) and keeps the zone mapping BLOCKED; AC 25 new; Open questions updated; pins SPEC-001 0.4.1, SPEC-003 0.14). Previous: 0.9.1 (2026-11-25, H-165, RJ decision 2026-11-25: DECK-040 follows SPEC-003 IMP-025 (optional leading "a" / "the", CARD-034) and says the deck editor's catalog search uses CARD-038; no other rule changed; pin SPEC-003 0.13). Previous: 0.9 (2026-11-25, H-174, RJ 2026-11-24 header decision / gate H-178: DECK-001 is the "Import deck" entry point (FAB on Decks, empty-state button, `/decks?import=1`; a saved deck stays on Decks; no import page, `/import` goes to Home); DECK-097 gate note names the Decks page; Purpose wording; AC 24 new; no parsing or deck rule changed; pins SPEC-003 0.12, SPEC-010 0.14). Previous: 0.8 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: DECK-090 and DECK-097 without modes; DECK-087 restore wording; pins SPEC-003 0.11, SPEC-004 0.6, SPEC-008 0.4.4). Previous: 0.7.1 (2026-11-25, H-160). Earlier: 0.7 (2026-11-24, H-071: DECK-074 monotonic `updatedAt`). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.
+Current: 0.12 (2026-11-25, H-342, RJ 2026-11-25 in chat on the H-253 row): ACs 7 and 23 now agree with DECK-034 and DECK-038 (Legend and Champion sections added to AC 7's Given; AC 23 answers `PICK_CHAMPION` with "Leave empty"); the builder's review and save strings are adopted verbatim (new DECK-099, RJ approved 2026-11-25), without the champion reason lines `championNotPicked` / `championExtraToMain` and the label `championMany` (pending H-341); DECK-033 and DECK-034 (b): 2+ Legends → pick one, the others leave the deck, 2+ cards under `Champion:` → pick one, the others and extra copies of the pick go to `main`, "Leave empty" stays for both; new DECK-027 (`Champion: 2 <champion>` → 1 in `champion`, the extra copy in `main`); DECK-025 and DECK-042 cross-references; data contract comments (`champion` qty 1, `importRemovedLines`); ACs 30…33; research added: [[Physical Copies Across Decks]]; status stays `review`. Previous: 0.11.1 (2026-11-25, H-320, RJ 2026-11-25 answers to open questions (a)…(c)): all three closed with the written defaults, no behaviour change: DECK-073 `notes` is the description, DECK-070 fallback and no suffix on duplicate names and DECK-062 kept for tournament decks, DECK-081 (d) a rename moves the deck to the top of the list (OWN-005), AC 28 checks it; *proposal* markers replaced by RJ's attribution; status stays `review`. Previous: 0.11 (2026-11-25, H-252, RJ 2026-11-25 (H-260 answers, "default for all" on [[Decks]] §13, and §13a)): DECK-070 rewritten (named after the Legend, follows the Legend until typed over, fallback, duplicate names allowed); DECK-073 (`notes` is the description); DECK-080 deferred; DECK-081 rewritten (Rename at any time, locked and tournament decks included; tournament source read-only); DECK-082 (no "can't be undone"); DECK-083, DECK-084 (snack bars); new DECK-098 ("Deck saved." with "View deck"); ACs 26…29; Open questions (a)…(c); no `UserDeck` field added, `schemaVersion` stays 1; pins SPEC-008 0.4.5; status `draft` → `review`. Pin-only 2026-11-25 (H-167, no version bump): SPEC-004 pin 0.7; the RC Europe event name in the DECK-061, DECK-062 and AC 11 / 11a examples is now `Riftbound Regional Championship: Europe`. Previous: 0.10 (2026-11-25, H-166, [[Collection Import Formats]] facts 7 to 9: DECK-010 cites SPEC-003 IMP-036a (TTS trailing number is an art number, community) and the Piltover set / variant tables to RAD (IMP-032, IMP-033, community); DECK-020 labels may carry `*` bold marks (IMP-016, official); DECK-039 records what the code versions V3…V6 add (community) and keeps the zone mapping BLOCKED; AC 25 new; Open questions updated; pins SPEC-001 0.4.1, SPEC-003 0.14). Previous: 0.9.1 (2026-11-25, H-165, RJ decision 2026-11-25: DECK-040 follows SPEC-003 IMP-025 (optional leading "a" / "the", CARD-034) and says the deck editor's catalog search uses CARD-038; no other rule changed; pin SPEC-003 0.13). Previous: 0.9 (2026-11-25, H-174, RJ 2026-11-24 header decision / gate H-178: DECK-001 is the "Import deck" entry point (FAB on Decks, empty-state button, `/decks?import=1`; a saved deck stays on Decks; no import page, `/import` goes to Home); DECK-097 gate note names the Decks page; Purpose wording; AC 24 new; no parsing or deck rule changed; pins SPEC-003 0.12, SPEC-010 0.14). Previous: 0.8 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: DECK-090 and DECK-097 without modes; DECK-087 restore wording; pins SPEC-003 0.11, SPEC-004 0.6, SPEC-008 0.4.4). Previous: 0.7.1 (2026-11-25, H-160). Earlier: 0.7 (2026-11-24, H-071: DECK-074 monotonic `updatedAt`). Full history: [[Deck Import changelog]] (archived). New entries go in the archive note.
