@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "dataVersion": "2026-11-24.1",
+  "lastVerified": "2026-11-24",
+  "lists": [
+    {
+      "format": "standard",
+      "region": "global",
+      "status": "verified",
+      "waves": [
+        {
+          "id": "std-2026-03-31",
+          "name": "First bans",
+          "announced": "2026-03-30",
+          "effective": "2026-03-31",
+          "sourceUrl": "https://playriftbound.com/en-us/news/announcements/announcing-riftbounds-first-bans/",
+          "add": [
+            { "name": "Called Shot", "kind": "card" },
+            { "name": "Draven, Vanquisher", "kind": "card" },
+            { "name": "Fight or Flight", "kind": "card" },
+            { "name": "Scrapheap", "kind": "card" },
+            { "name": "The Dreaming Tree", "kind": "battlefield" },
+            { "name": "Obelisk of Power", "kind": "battlefield" },
+            { "name": "Reaver's Row", "kind": "battlefield" }
+          ],
+          "remove": [],
+          "notes": "Rules Hub spells 'Dreaming Tree'; use the catalog's canonical name (LEGAL-B05)."
+        },
+        {
+          "id": "std-2026-07-24",
+          "name": "July ban list update",
+          "announced": "2026-07-17",
+          "effective": "2026-07-24",
+          "sourceUrl": "https://playriftbound.com/en-us/news/announcements/july-ban-list-updates/",
+          "add": [
+            { "name": "Stealthy Pursuer", "kind": "card" },
+            { "name": "The Arena's Greatest", "kind": "battlefield" },
+            { "name": "Aspirant's Climb", "kind": "battlefield" }
+          ],
+          "remove": [],
+          "notes": "A creator source says Stealthy Pursuer was flagged on 2026-07-07; official article dated 2026-07-17."
+        },
+        {
+          "id": "std-2026-09-18",
+          "name": "September ban list update",
+          "announced": "2026-09-15",
+          "effective": "2026-09-18",
+          "sourceUrl": "https://playriftbound.com/en-us/news/announcements/september-ban-list-updates-effective-september-18-2026/",
+          "add": [
+            { "name": "Ekko, Recurrent", "kind": "card" },
+            { "name": "Stacked Deck", "kind": "card" }
+          ],
+          "remove": []
+        },
+        {
+          "id": "std-2026-11-23",
+          "name": "Radiance ban list update",
+          "announced": "2026-11-13",
+          "effective": "2026-11-23",
+          "sourceUrl": "https://playriftbound.com/en-us/news/announcements/radiance-ban-list-updates-effective-november-23-2026/",
+          "add": [
+            { "name": "Riven, Broken Blade", "kind": "card" },
+            { "name": "Zhonya's Hourglass", "kind": "card" },
+            { "name": "Stellacorn Herder", "kind": "card" },
+            { "name": "Nocturne, Horrifying", "kind": "card" },
+            { "name": "Rhasa the Sunderer", "kind": "card" },
+            { "name": "Brynhir Thundersong", "kind": "card" },
+            { "name": "Dazzling Aurora", "kind": "card" },
+            { "name": "Baited Hook", "kind": "card" },
+            { "name": "Emperor's Dais", "kind": "battlefield" },
+            { "name": "Star Spring", "kind": "battlefield" }
+          ],
+          "remove": []
+        }
+      ]
+    },
+    {
+      "format": "2v2",
+      "region": "global",
+      "status": "unverified",
+      "waves": [
+        {
+          "id": "2v2-before-2026-11-23",
+          "name": "2v2 list before the Radiance ban list update",
+          "announced": "2026-09-15",
+          "effective": "2026-09-18",
+          "sourceUrl": "https://playriftbound.com/en-us/rules-hub/",
+          "add": [
+            { "name": "Master Yi, Wuju Bladesman", "kind": "legend" },
+            { "name": "Called Shot", "kind": "card" },
+            { "name": "Draven, Vanquisher", "kind": "card" },
+            { "name": "Scrapheap", "kind": "card" },
+            { "name": "Stealthy Pursuer", "kind": "card" },
+            { "name": "Ekko, Recurrent", "kind": "card" },
+            { "name": "Stacked Deck", "kind": "card" },
+            { "name": "The Arena's Greatest", "kind": "battlefield" },
+            { "name": "Aspirant's Climb", "kind": "battlefield" },
+            { "name": "The Dreaming Tree", "kind": "battlefield" },
+            { "name": "Obelisk of Power", "kind": "battlefield" },
+            { "name": "Reaver's Row", "kind": "battlefield" }
+          ],
+          "remove": [],
+          "notes": "UNVERIFIED SNAPSHOT, not one Riot wave (SPEC-002 LEGAL-B11, Open question 9, H-169). Only the totals are sourced: 1 Legend, 6 cards, 5 battlefields before the Radiance wave. Names = the Rules Hub 2v2 table (read 2026-11-26, [[Ban List]]) minus the Radiance names; the hub prints 'Draven Vanquisher' and 'Dreaming Tree', normalised to the Standard list's names. The real split and dates are unknown: the July update (effective 2026-07-24) created the 2v2 list and the September update (effective 2026-09-18) added Ekko, Recurrent and Stacked Deck. The September dates are used here only so the snapshot is never stated for a date before every name was on the list; counts before 2026-11-22 are not checked. Fight or Flight is on the Standard list but not on the hub's 2v2 list (Open question 9)."
+        },
+        {
+          "id": "2v2-2026-11-23",
+          "name": "Radiance ban list update",
+          "announced": "2026-11-13",
+          "effective": "2026-11-23",
+          "sourceUrl": "https://playriftbound.com/en-us/news/announcements/radiance-ban-list-updates-effective-november-23-2026/",
+          "add": [
+            { "name": "Riven, Broken Blade", "kind": "card" },
+            { "name": "Zhonya's Hourglass", "kind": "card" },
+            { "name": "Stellacorn Herder", "kind": "card" },
+            { "name": "Nocturne, Horrifying", "kind": "card" },
+            { "name": "Rhasa the Sunderer", "kind": "card" },
+            { "name": "Brynhir Thundersong", "kind": "card" },
+            { "name": "Dazzling Aurora", "kind": "card" },
+            { "name": "Baited Hook", "kind": "card" },
+            { "name": "Emperor's Dais", "kind": "battlefield" },
+            { "name": "Star Spring", "kind": "battlefield" }
+          ],
+          "remove": [],
+          "notes": "The Radiance wave applies to 2v2 as well ([[Ban List]] facts 5 and 8, as of 2026-11-24). 2v2 is data only: not offered or evaluated (LEGAL-B11, supported: false)."
+        }
+      ]
+    }
+  ]
+}
