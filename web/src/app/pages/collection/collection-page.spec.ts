@@ -56,6 +56,9 @@ async function setup(url: string, s: Setup = {}) {
   const cardData: Partial<CardData> = {
     loadCatalog: async (): Promise<CatalogResult> =>
       s.catalogError ? { status: 'error' } : { status: 'ok', catalog },
+    // H-233: the Owned Cards Import resolves against the /api catalog (the same one here).
+    loadApiCatalog: async (): Promise<CatalogResult> =>
+      s.catalogError ? { status: 'error' } : { status: 'ok', catalog },
     reload: async (): Promise<CatalogResult> => ({ status: 'ok', catalog }),
     loadBans: async () => s.bans ?? null,
   };

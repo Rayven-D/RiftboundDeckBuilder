@@ -38,10 +38,13 @@ export const DEV_SAMPLE_DECKS_KEY = 'rift.dev.sampleDecks';
 export class CardData {
   private readonly base = inject(API_BASE_URL);
   private readonly app = inject(AppStores);
+  /** The generated test catalog (SPEC-013 TEST-024), for the entry count in `source`. */
   private catalog: Promise<CatalogResult> | null = null;
+  /** The `/api` catalog, cached on its own so switching to or from test data never refetches it. */
+  private apiCatalog: Promise<CatalogResult> | null = null;
   private legality: Promise<LegalityData | null> | null = null;
-  /** Which catalog `catalog` holds: 'api' or the test set's entry count (SPEC-013 TEST-024). */
-  private source: 'api' | number | null = null;
+  /** The test set's entry count `catalog` was generated for (SPEC-013 TEST-024). */
+  private source: number | null = null;
 
   /**
    * SPEC-013 TEST-024: while the stored collection carries the test marker (`test-data-<n>`, with cards), the
@@ -50,17 +53,26 @@ export class CardData {
    */
   async loadCatalog(): Promise<CatalogResult> {
     const source = (await this.testSource()) ?? 'api';
+    if (source === 'api') return this.loadApiCatalog();
     if (this.catalog === null || this.source !== source) {
       this.source = source;
-      this.catalog = (source === 'api' ? this.fetchCatalog() : this.generated(source)).catch(
-        (): CatalogResult => ({ status: 'error' }),
-      );
+      this.catalog = this.generated(source).catch((): CatalogResult => ({ status: 'error' }));
     }
     return this.catalog;
   }
 
+  /**
+   * The `/api` card catalog, never the generated test catalog: imports resolve against the real card data, so a
+   * Replace import over test data writes the real `catalogVersion` and ends the test state (SPEC-013 TEST-033, AC 12).
+   */
+  loadApiCatalog(): Promise<CatalogResult> {
+    this.apiCatalog ??= this.fetchCatalog().catch((): CatalogResult => ({ status: 'error' }));
+    return this.apiCatalog;
+  }
+
   reload(): Promise<CatalogResult> {
     this.catalog = null;
+    this.apiCatalog = null;
     return this.loadCatalog();
   }
 

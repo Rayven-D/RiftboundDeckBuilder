@@ -55,6 +55,17 @@ describe('CardData and test data (SPEC-013 TEST-024, H-205)', () => {
     expect(fetchSpy).toHaveBeenCalled();
   });
 
+  it('TEST-033 / AC 12 loadApiCatalog reads /api even while test data is stored (imports resolve against real card data)', async () => {
+    const { stores, cardData } = setup();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
+    const plan = planTestLoad(generateLargeSample(150), 150, null, '2026-11-25T12:00:00.000Z');
+    await stores.raw.collection.save(plan.collection);
+    expect((await cardData.loadCatalog()).status).toBe('ok'); // the generated catalog, no /api call
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect((await cardData.loadApiCatalog()).status).toBe('error');
+    expect(fetchSpy).toHaveBeenCalled();
+  });
+
   it('TEST-024 the catalog follows the marker: after a Remove the next load goes back to /api', async () => {
     const { stores, cardData } = setup();
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));

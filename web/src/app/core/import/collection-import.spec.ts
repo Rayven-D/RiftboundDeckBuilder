@@ -12,6 +12,9 @@ import { parseCardText } from '../../shared/import/parse-card-list';
 import type { PreparedOk } from '../../shared/import/collection-commit';
 import type { StoredCollection } from '../../shared/storage/records';
 import { COMMIT_NOTICE_MS, COMMIT_TEXT, CollectionImport } from './collection-import';
+import { TEST_DECK_IDS, TEST_SETS, isTestCollection } from '../../shared/collection/test-data';
+import { generateLargeSample } from '../../shared/collection/sample-data';
+import { loadTestData } from '../test-data/test-data-ops';
 
 const CATALOG = makeCatalog(['Lightning Rush', 'Gust', 'Kennen, Heart of the Tempest']);
 
@@ -23,9 +26,14 @@ function setup(catalogError = false): CollectionImport {
   backend = new MemoryBackend();
   clock = Date.parse('2026-11-25T12:00:00.000Z');
   stores = createBrowserStores(backend, { now: () => clock, changed: () => undefined, readOnly: () => false });
+  const result = (): CatalogResult => (catalogError ? { status: 'error' } : { status: 'ok', catalog: CATALOG });
   const cardData: Partial<CardData> = {
+    // While test data is stored the app's catalog is the generated one (TEST-024); imports read the /api one.
     loadCatalog: async (): Promise<CatalogResult> =>
-      catalogError ? { status: 'error' } : { status: 'ok', catalog: CATALOG },
+      isTestCollection(await stores.raw.collection.load())
+        ? { status: 'ok', catalog: generateLargeSample(TEST_SETS.small).catalog }
+        : result(),
+    loadApiCatalog: async (): Promise<CatalogResult> => result(),
     reload: async (): Promise<CatalogResult> => ({ status: 'error' }),
   };
   TestBed.configureTestingModule({
@@ -230,6 +238,58 @@ describe('CollectionImport commit and Undo (SPEC-003 IMP-049…052, IMP-072…07
     await flush();
     expect(await quantities()).toEqual({ 'lightning rush': 2 });
     expect(snackText()).toBe("Import undone. 'Kennen Tempo' (locked) is now 1 card short.");
+  });
+
+  describe('SPEC-013 TEST-033 / AC 12: Replace import over test data (H-233)', () => {
+    async function withTestData(): Promise<void> {
+      expect(await loadTestData(stores, 'small', () => clock)).toBe('ok');
+      // An own locked deck next to the test decks: it must stay (TEST-050 scope).
+      await stores.decks.create(makeDeck('00000000-0000-4000-8000-0000000000aa', 'Own Deck', { main: [['Gust', 1]] }));
+      const locks = (await stores.locks.load())!;
+      await stores.locks.save({ ...locks, locks: [...locks.locks, lock('00000000-0000-4000-8000-0000000000aa')] });
+      expect(isTestCollection(await stores.collection.load())).toBe(true);
+    }
+
+    it('TEST-033 AC 12 a Replace over test data writes the real catalogVersion and removes the test decks and their locks in the same commit; the banner marker is gone', async () => {
+      const importer = setup();
+      await withTestData();
+      const testLocks = (await stores.locks.load())!.locks.filter((l) => TEST_DECK_IDS.includes(l.deckId));
+      expect(testLocks.length).toBeGreaterThan(0);
+
+      const out = await commitWith(importer, await prepared(importer, '2 Gust\n1 Lightning Rush'), 'replace', 'Replace');
+      expect(out).toEqual({ status: 'written' });
+
+      const collection = await stores.collection.load();
+      expect(collection!.catalogVersion).toBe(CATALOG.catalogVersion); // the real /api catalog, not "generated"
+      expect(isTestCollection(collection)).toBe(false); // TEST-030: no marker, so no TEST-010 banner
+      expect(await quantities()).toEqual({ gust: 2, 'lightning rush': 1 });
+      const deckIds = (await stores.decks.list()).map((d) => d.id);
+      expect(deckIds.filter((id) => TEST_DECK_IDS.includes(id))).toEqual([]);
+      expect(deckIds).toContain('00000000-0000-4000-8000-0000000000aa');
+      expect((await stores.locks.load())!.locks.map((l) => l.deckId)).toEqual(['00000000-0000-4000-8000-0000000000aa']);
+      expect(snackText()).toBe('Collection replaced: 2 cards.');
+    });
+
+    it('TEST-033 the Replace confirmation does not warn about test decks, which go in the same commit', async () => {
+      const importer = setup();
+      await withTestData();
+      const out = importer.commit(await prepared(importer, '1 Gust'), 'replace');
+      await flush();
+      expect(dialog()?.textContent).not.toContain('(locked) will be');
+      dialogButton('Cancel').click();
+      expect(await out).toEqual({ status: 'cancelled' });
+      // Cancel writes nothing: test data, decks and locks all stay.
+      expect(isTestCollection(await stores.collection.load())).toBe(true);
+      expect((await stores.decks.list()).filter((d) => TEST_DECK_IDS.includes(d.id))).toHaveLength(3);
+    });
+
+    it('TEST-033 an Add import never removes test decks (Add is blocked by TEST-032 before it gets here)', async () => {
+      const importer = setup();
+      await store({ gust: 1 });
+      await stores.decks.create(makeDeck('00000000-0000-4000-8000-0000000000aa', 'Own Deck', { main: [['Gust', 1]] }));
+      await commitWith(importer, await prepared(importer, '1 Gust'), 'add');
+      expect((await stores.decks.list()).map((d) => d.id)).toEqual(['00000000-0000-4000-8000-0000000000aa']);
+    });
   });
 
   it('IMP-050a (a): the Replace confirmation carries the locked-deck warning', async () => {
