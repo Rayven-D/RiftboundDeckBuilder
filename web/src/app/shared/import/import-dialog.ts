@@ -23,8 +23,14 @@ import { MatRadioButton, MatRadioGroup } from '@angular/material/radio';
 import { countLine } from '../collection/collection-view';
 import { Icon } from '../icon';
 import { CommitMode, ImportCommitter, PreparedOk } from './collection-commit';
-import type { DeckImportCommitter, PreparedDeck } from './deck-import';
-import { DeckReview } from './deck-review';
+import {
+  type DeckImportCommitter,
+  type DeckReviewState,
+  EMPTY_REVIEW_STATE,
+  type PreparedDeck,
+  carryReviewAnswers,
+} from './deck-import';
+import { DECK_REVIEW_STATUS_ID, DeckReview } from './deck-review';
 import {
   ParseResult,
   SECTION_LABELS,
@@ -70,6 +76,8 @@ export const REVIEW_TEXT = {
   replaceAction: 'Replace collection',
   saving: 'Saving…',
   back: 'Back',
+  /** H-469: the review's first heading (focus target after Continue). */
+  check: 'Check the cards',
   /** Deck Import (H-253). */
   saveDeck: 'Save deck',
 } as const;
@@ -103,6 +111,8 @@ export function hasFiles(event: DragEvent): boolean {
  */
 @Component({
   selector: 'app-import-dialog',
+  // H-453: the Import deck dialog fills a phone screen with its actions pinned (import-dialog.scss, styles.scss).
+  host: { '[class.deck-dialog]': "data.kind === 'deck'" },
   imports: [
     MatDialogTitle,
     MatDialogContent,
@@ -121,8 +131,8 @@ export function hasFiles(event: DragEvent): boolean {
   template: `
     <h2 mat-dialog-title>{{ copy.title }}</h2>
     @if (deckReview(); as d) {
-      <mat-dialog-content>
-        <app-deck-review [prepared]="d" />
+      <mat-dialog-content class="deck-content">
+        <app-deck-review [prepared]="d" [initialState]="deckAnswers()" />
         @if (submitError(); as err) {
           <p class="error commit-error" role="alert"><app-icon name="error" />{{ err }}</p>
         }
@@ -130,18 +140,23 @@ export function hasFiles(event: DragEvent): boolean {
       <mat-dialog-actions align="end">
         <button matButton type="button" class="back" (click)="back()">{{ words.back }}</button>
         <button matButton type="button" mat-dialog-close>Cancel</button>
+        <!-- H-451: styled disabled but focusable (disabledInteractive) and described by the review's status line. -->
         <button
           matButton="filled"
           type="button"
           class="commit save-deck"
-          [aria-disabled]="busy() || !canSaveDeck()"
+          [disabled]="busy() || !canSaveDeck()"
+          disabledInteractive
+          [attr.aria-describedby]="deckStatusId"
           (click)="saveDeck(d)"
         >
           {{ busy() ? words.saving : words.saveDeck }}
         </button>
       </mat-dialog-actions>
     } @else if (review(); as r) {
-      <mat-dialog-content>
+      <mat-dialog-content class="cards-review-content">
+        <!-- H-469: the review's first heading, focused after Continue (as the deck review's "Check the deck"). -->
+        <h3 class="step-heading review-heading" tabindex="-1">{{ words.check }}</h3>
         @if (r.resolved.cardCount) {
           <p class="totals" role="status">
             <strong>{{ readyText(r) }}</strong>
@@ -326,9 +341,16 @@ export class ImportDialog {
   /** The Deck Import review step (H-253): set by Continue once the list is resolved. */
   protected readonly deckReview = signal<PreparedDeck | null>(null);
   private readonly deckReviewStep = viewChild(DeckReview);
+  /** DECK-100: the answers the next deck review starts with (kept from the one left with Back). */
+  protected readonly deckAnswers = signal<DeckReviewState>(EMPTY_REVIEW_STATE);
+  /** DECK-100 / DECK-102: the review the user left with Back, held only while the dialog is open. */
+  private leftReview: { readonly prepared: PreparedDeck; readonly answers: DeckReviewState } | null = null;
   private readonly listBox = viewChild<ElementRef<HTMLTextAreaElement>>('listBox');
   private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly canSaveDeck = computed(() => this.deckReviewStep()?.view().canSave ?? false);
+  /** H-451: the review's status region (`DeckReview.statusId`), which describes Save. */
+  protected readonly deckStatusId = DECK_REVIEW_STATUS_ID;
   /** IMP-049: Add is the default. */
   protected readonly mode = signal<CommitMode>('add');
   protected readonly busy = signal(false);
@@ -363,6 +385,11 @@ export class ImportDialog {
   private replacingAll = false;
 
   constructor() {
+    if (this.data.kind === 'deck') {
+      // H-453: up to 720px on desktop; full screen at 40rem and below (.import-deck-panel in styles.scss).
+      this.dialogRef.addPanelClass('import-deck-panel');
+      this.dialogRef.updateSize('45rem');
+    }
     if (this.data.file) void this.loadFile(this.data.file);
   }
 
@@ -445,6 +472,10 @@ export class ImportDialog {
       else {
         this.submitError.set(null);
         this.review.set(prepared);
+        // H-469: the Continue button is gone; focus the review's first heading, not <body>.
+        afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>('.review-heading')?.focus(), {
+          injector: this.injector,
+        });
       }
     } finally {
       this.busy.set(false);
@@ -463,6 +494,9 @@ export class ImportDialog {
       if (prepared.status === 'error') this.submitError.set(prepared.message);
       else {
         this.submitError.set(null);
+        // DECK-100 / DECK-101: answers on lines that did not change are kept; the others are asked again.
+        const left = this.leftReview;
+        this.deckAnswers.set(left ? carryReviewAnswers(left.prepared, left.answers, prepared, new Date()) : EMPTY_REVIEW_STATE);
         this.deckReview.set(prepared);
         // H-450: the Continue button is gone; focus the review's first heading, not <body>.
         afterNextRender(() => this.deckReviewStep()?.focusStart(), { injector: this.injector });
@@ -478,8 +512,11 @@ export class ImportDialog {
    */
   protected async saveDeck(prepared: PreparedDeck): Promise<void> {
     const committer = this.data.deckCommitter;
-    const view = this.deckReviewStep()?.view();
-    if (!committer || !view || !view.canSave || this.busy()) return;
+    const step = this.deckReviewStep();
+    const view = step?.view();
+    if (!committer || !view || this.busy()) return;
+    // H-451: disabledInteractive still sends the press; while blocked, take the user to what needs doing.
+    if (!view.canSave) return step?.focusFirstOpen();
     this.busy.set(true);
     this.submitError.set(null);
     try {
@@ -491,9 +528,15 @@ export class ImportDialog {
     }
   }
 
-  /** Back to the list (the text and the upload are kept; the deck review's choices start over). */
+  /**
+   * Back to the list (the text and the upload are kept). DECK-100: the deck review's answers are held so the next
+   * Continue keeps those on unchanged lines; the Owned Cards review starts over.
+   */
   protected back(): void {
     if (this.busy()) return;
+    const deck = this.deckReview();
+    const step = this.deckReviewStep();
+    if (deck && step) this.leftReview = { prepared: deck, answers: step.answers() };
     this.review.set(null);
     this.deckReview.set(null);
     this.submitError.set(null);

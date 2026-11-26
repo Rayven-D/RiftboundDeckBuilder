@@ -93,7 +93,7 @@ describe('DecksPage Import deck save (H-253)', { timeout: 20_000 }, () => { // H
     const { harness, el } = await setup('/decks');
     await openAndContinue(harness, el, KENNEN);
     expect(dialog()!.querySelector<HTMLInputElement>('input.deck-name')!.value).toBe('Kennen, Heart of the Tempest');
-    expect(Array.from(dialog()!.querySelectorAll('.zone-counts span')).map(text)).toEqual(['Legend 1', 'Champion 1', 'Main Deck 5']);
+    expect(Array.from(dialog()!.querySelectorAll('.zone-counts span')).map(text)).toEqual(['Legend 1', 'Chosen Champion 1', 'Main Deck 5']);
     expect(await stores.decks.list()).toEqual([]);
   });
 
@@ -158,8 +158,9 @@ describe('DecksPage Import deck save (H-253)', { timeout: 20_000 }, () => { // H
     expect(remove.getAttribute('aria-label')).toBe('Remove line 8');
     remove.click();
     await settle(harness);
-    expect(dialog()!.querySelector('.blockers')).toBeNull();
-    expect(button('Save deck').getAttribute('aria-disabled')).toBe('false');
+    // H-451: the status region stays and reads "Ready to save.".
+    expect(text(dialog()!.querySelector('.blockers'))).toBe('Ready to save.');
+    expect(button('Save deck').getAttribute('aria-disabled')).not.toBe('true');
     button('Save deck').click();
     await vi.waitFor(async () => {
       await settle(harness);
