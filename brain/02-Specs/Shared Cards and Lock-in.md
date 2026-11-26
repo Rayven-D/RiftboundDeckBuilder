@@ -63,7 +63,7 @@ in and runes").
 `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck`. Functions `computeSharedPool()`,
 `availability()`, `canLock()`, `lockedShortfalls()` (all pure).
 **Depends on:** [[Card Data Model]] v0.4.1, [[Collection Import]] v0.14, [[Your Decks Ownership View]] v0.11.1 (pin-only, H-476; v0.11: H-481; v0.10.3: tile lock badge, H-383),
-[[Deck Import]] v0.13 (pin-only, H-479; v0.12 pin: H-342), [[My Collection]] v0.14.1 (pin-only: its edit confirmations COLL-088 (edit part) are deferred there, the Replace and Undo warnings stay; COLL-102/105/106 read `hold`, SHARE-040 and `availability()`). **Consumers:**
+[[Deck Import]] v0.14 (pin-only, H-454; v0.13 pin: H-479; v0.12 pin: H-342), [[My Collection]] v0.14.1 (pin-only: its edit confirmations COLL-088 (edit part) are deferred there, the Replace and Undo warnings stay; COLL-102/105/106 read `hold`, SHARE-040 and `availability()`). **Consumers:**
 [[Your Decks Ownership View]] (pool, labels, breakdown), [[My Collection]] and [[Collection Import]]
 (shortfall warnings), [[Deck Import]] (edit/delete/duplicate rules).
 **Open:** nothing waits on RJ in this spec. The two H-076 choices were answered by RJ on 2026-11-25 (in chat, H-157):
@@ -208,7 +208,7 @@ SPEC-005 owns the deck view and tiles and reads this spec's `SharedPool`. Runes 
 ## Data contract
 ```ts
 // shapes only; no implementation
-import type { UserDeck, DeckZone } from './deck-import';                  // SPEC-006 v0.13
+import type { UserDeck, DeckZone } from './deck-import';                  // SPEC-006 v0.14
 import type { DeckOwnershipInput } from './my-collection';              // SPEC-007 v0.11, COLL-081
 type CardKey = string;
 type IsoDateTime = string;                                              // ISO 8601 UTC
