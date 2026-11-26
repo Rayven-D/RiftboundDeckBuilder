@@ -2,7 +2,7 @@
 tags: [spec]
 id: SPEC-006
 version: 0.12
-status: review
+status: approved   # RJ approved 0.12 on 2026-11-26 (H-342, in chat)
 depends_on: [SPEC-001, SPEC-002, SPEC-003, SPEC-004, SPEC-008]
 consumers: [SPEC-005, SPEC-008]
 research: ["[[Collection Import Formats]]", "[[Deck Construction Rules]]", "[[Physical Copies Across Decks]]", "[[Ban List]]", "[[2026-11 RC Europe - 1 - ASC Evansrhim - Kennen]]", "[[2026-11 RC Europe - 2 - Sonecon - Riven]]"]
