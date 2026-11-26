@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.29
+version: 1.30
 ---
 # API Contracts
 
@@ -555,7 +555,12 @@ writes nothing (DECK-003).
   one copy of the pick goes to `champion` and every other copy (unpicked cards, extra copies of the pick) goes to
   `main` with `zoneMethod: 'user'` and the line reason `DECK_REVIEW_TEXT.championNotPicked` /
   `.championExtraToMain` (DECK-034 "copies not picked stay in `main`", as for unsectioned lists); "Leave empty"
-  puts them all in `main`. Save still waits for every answer (DECK-038).
+  puts them all in `main`. Save still waits for every answer (DECK-038). **`draft.champion.qty` is always 1**
+  (DECK-027, H-410): when one card's lines in `champion` (from `Champion:`, or placed there by the user) add up to more
+  than one copy (`Champion: 2 X`, or X on two lines under `Champion:`), 1 copy is the Chosen Champion and the rest
+  are added to `main` (merged by `cardKey`); each such line has `zone: 'main'`, keeps its `zoneMethod` (`section` /
+  `user`) and gets the reason `championExtraToMain`; nothing goes to `importRemovedLines`. A champion entry under
+  `Champion:` plus another under `Main Deck:` (DECK-025) is kept as written.
 - **Parser additions** (`parse-card-list.ts`): `sourceLines(text)` (the parser's line split), `sectionLabelOf(raw)`;
   section labels accept `*` bold marks (`**Legend:**`, `**Legend**:`, SPEC-003 IMP-016 v0.14).
 - **Service** (`web/src/app/core/import/deck-import.ts`, `DeckImport`, root): `prepare` loads the catalog
@@ -803,6 +808,8 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.30 (2026-11-26, H-410, SPEC-006 0.12 DECK-027): no endpoint change and no stored-shape change. `reviewDeck`
+  keeps one copy in `champion`; extra copies of the same card go to `main` with the `championExtraToMain` reason.
 - v1.29 (2026-11-25, H-343, SPEC-001 CARD-034, SPEC-006 DECK-040): no endpoint change and no stored-shape change.
   New `looseKey` and `nameLookup` in `core/cards/name-key.ts`, used by `resolveCollectionImport` and
   `prepareDeckImport`: a name with no exact match retries without a leading "a" / "the" (both ways); a name several

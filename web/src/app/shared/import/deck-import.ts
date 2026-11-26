@@ -524,6 +524,17 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
     champion = championCards[0];
     championMethod = inChampion[0].method;
     championReason = inChampion[0].reason;
+    // DECK-027 (H-410): the slot holds one copy. When the card's lines in `champion` add up to more than one copy
+    // (`Champion: 2 X`, or X on two lines under `Champion:`), 1 stays in `champion` and the rest go to `main`
+    // (merged by cardKey, DECK-021), each line keeping its method (`section`, or `user` if the user placed it).
+    const copies = inChampion.reduce((n, x) => n + x.line.qty, 0);
+    if (copies > 1) {
+      inChampion.forEach((x, i) => {
+        x.zone = 'main';
+        x.movedToChampion = i === 0 ? 1 : 0;
+        x.reason = T.championExtraToMain;
+      });
+    }
   } else if (championCards.length > 1) {
     // Two or more cards under `Champion:` (single slot, e.g. a precon's "Champion Unit Options"): the user picks
     // one. One copy of the pick is the Chosen Champion; every other copy is an ordinary Main Deck card (DECK-034:
@@ -538,9 +549,12 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
       x.zone = 'main';
       x.method = 'user';
       if (x.mismatch?.moveTo === 'main') x.mismatch = null; // now in the zone its card data expects
-      if (picked && !pickedLine && x.card.cardKey === picked.cardKey) {
-        pickedLine = x;
-        x.movedToChampion = 1;
+      if (picked && x.card.cardKey === picked.cardKey) {
+        // The pick's first line gives the one copy (DECK-027); its other lines are extra copies, not unpicked cards.
+        if (!pickedLine) {
+          pickedLine = x;
+          x.movedToChampion = 1;
+        }
         x.reason = T.championExtraToMain;
       } else {
         x.reason = T.championNotPicked;

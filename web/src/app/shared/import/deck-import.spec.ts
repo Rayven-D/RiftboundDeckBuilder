@@ -167,6 +167,54 @@ describe('SPEC-006 Deck Import review (H-253)', () => {
       expect(qtyOf(r.draft.main, 'kennen storm of shuriken')).toBe(1);
     });
 
+    describe('DECK-027: the champion slot holds one copy (H-410)', () => {
+      const MAIN_38 = ['Main Deck:', '12 Lightning Rush', '12 Gust', '12 Hextech Ray', '2 Rhasa the Sunderer'];
+      const KENNEN = 'kennen storm of shuriken';
+
+      it('DECK-027 / AC 32: Champion: 2 X gives champion x1 and main +1 (39 in all), no question, nothing removed, Save enabled', () => {
+        const text = ['Legend:', '1 Kennen, Heart of the Tempest', 'Champion:', '2 Kennen, Storm of Shuriken', ...MAIN_38].join('\n');
+        const r = review(prep(text));
+        expect(r.questions).toEqual([]);
+        expect(r.draft.champion).toEqual({ cardKey: KENNEN, name: 'Kennen, Storm of Shuriken', qty: 1 });
+        expect(qtyOf(r.draft.main, KENNEN)).toBe(1);
+        expect(r.byZone).toMatchObject({ legend: 1, champion: 1, main: 39 });
+        // LEGAL-005 counts the champion slot and main together: 2 copies, none dropped (DECK-025).
+        expect(r.draft.champion!.qty + qtyOf(r.draft.main, KENNEN)!).toBe(2);
+        expect(r.draft.importRemovedLines).toBeUndefined();
+        const line = r.lines.find((l) => l.name === 'Kennen, Storm of Shuriken')!;
+        expect([line.zone, line.zoneMethod, line.zoneReason]).toEqual(['main', 'section', DECK_REVIEW_TEXT.championExtraToMain]);
+        expect(r.slots.champion?.name).toBe('Kennen, Storm of Shuriken');
+        expect(r.canSave).toBe(true);
+      });
+
+      it('DECK-027: the same card on two lines under Champion: keeps 1 in champion and merges the rest into main by cardKey', () => {
+        const text = ['Legend: 1 Kennen, Heart of the Tempest', 'Champion:', '1 Kennen, Storm of Shuriken', '2 Kennen, Storm of Shuriken', 'Main Deck:', '1 Kennen, Storm of Shuriken', '3 Gust'].join('\n');
+        const r = review(prep(text));
+        expect(r.questions).toEqual([]);
+        expect(r.draft.champion?.qty).toBe(1);
+        expect(r.draft.main.filter((c) => c.cardKey === KENNEN)).toEqual([{ cardKey: KENNEN, name: 'Kennen, Storm of Shuriken', qty: 3 }]);
+        expect(r.draft.importRemovedLines).toBeUndefined();
+        expect(r.canSave).toBe(true);
+      });
+
+      it('DECK-027 / DECK-025 / AC 32: Champion: 1 X and Main Deck: 1 X stay as written (champion 1, main +1)', () => {
+        const r = review(prep('Legend: 1 Kennen, Heart of the Tempest\nChampion:\n1 Kennen, Storm of Shuriken\nMain Deck:\n1 Kennen, Storm of Shuriken'));
+        expect(r.draft.champion?.qty).toBe(1);
+        expect(qtyOf(r.draft.main, KENNEN)).toBe(1);
+        const champ = r.lines.find((l) => l.line === 3)!;
+        expect([champ.zone, champ.zoneMethod]).toEqual(['champion', 'section']);
+      });
+
+      it('DECK-027: a 3-copy line the user puts in Chosen Champion keeps 1 there and 2 in main (zoneMethod user)', () => {
+        const p = prep('Legend: 1 Kennen, Heart of the Tempest\n3 Mystery Card');
+        const id = p.lines.find((l) => l.card?.name === 'Mystery Card')!.id;
+        const r = review(p, { zones: new Map([[id, 'champion']]) });
+        expect(r.draft.champion?.qty).toBe(1);
+        expect(qtyOf(r.draft.main, 'mystery card')).toBe(2);
+        expect(r.lines.find((l) => l.id === id)?.zoneMethod).toBe('user');
+      });
+    });
+
     describe('DECK-034: several cards under Champion: (H-253 follow-up, Deck Construction Rules #1, #4)', () => {
       // Precon style: 4 "Champion Unit Options" next to a 36-card main deck.
       const PRECON = [
