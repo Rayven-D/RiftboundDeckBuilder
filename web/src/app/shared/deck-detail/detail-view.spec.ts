@@ -11,6 +11,7 @@ import {
   cardAccessibleName,
   cardFacts,
   cardsLine,
+  copiesLine,
   deckCards,
   duplicateDeck,
   excludedLine,
@@ -97,6 +98,17 @@ describe('Deck detail view (SPEC-005 section L, H-254)', () => {
       const none = detailView(makeDeck('n', 'None', { main: [['Lightning Rush', 1]] }), { owned: {} });
       expect(cardsLine(none)).toBe('0 of 1 card fully available');
       expect(cardsLine(view)).toBe('2 of 8 cards fully available');
+    });
+
+    it('H-521 / OWN-050: "1 of 1 copy available" / "1 of 1 copy locked in" when R is 1; plural otherwise', () => {
+      const deck1 = makeDeck('o', 'One', { main: [['Lightning Rush', 1]] });
+      const one = detailView(deck1, { owned: { 'Lightning Rush': 1 } });
+      expect(copiesLine(one)).toBe('1 of 1 copy available');
+      expect(headerSummary(one).copies).toBe('1 of 1 copy available');
+      expect(copiesLine(detailView(deck1, { owned: {} }))).toBe('0 of 1 copy available');
+      const locked = detailView(deck1, { owned: { 'Lightning Rush': 1 } }, { locks: [lock(deck1.id)] });
+      expect(copiesLine(locked)).toBe('1 of 1 copy locked in');
+      expect(copiesLine(view)).toBe('12 of 23 copies available');
     });
 
     it('OWN-050: "1 copy excluded from decks" only when an excluded copy would fill a gap', () => {
