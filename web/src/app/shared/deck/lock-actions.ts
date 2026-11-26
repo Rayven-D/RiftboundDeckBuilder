@@ -137,6 +137,14 @@ let nextId = 0;
         text-align: end;
       }
     }
+    /* H-467: in the Deck detail header row the button has the height of Copy missing list and More: 40px with a
+       fine pointer from 40rem, 44px on phones and touch (the rule above). */
+    @media (min-width: 40rem) and (pointer: fine) {
+      :host(.in-row) button {
+        min-height: 40px;
+        height: 40px;
+      }
+    }
   `,
 })
 export class LockActions {

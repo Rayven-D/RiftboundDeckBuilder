@@ -797,4 +797,165 @@ describe('Deck detail (H-254)', () => {
       expect(root(h).querySelector('app-deck-detail')).toBeNull();
     });
   });
+
+  describe('Decks Review fixes (H-462, H-464, H-466, H-467, H-468)', () => {
+    const moreButton = (h: RouterTestingHarness) => q(h, 'button[aria-label="More actions"]')!;
+    const dialogButton = (label: string) => Array.from(dialogEl()!.querySelectorAll('button')).find((b) => text(b) === label)!;
+    const STACKS_PATH = 'M480-410 41-645';
+
+    it('H-462 (1): after Rename → Cancel and Rename → Save, focus is back on the More actions button', async () => {
+      const h = await setup(URL_);
+      await openMore(h);
+      menuItem('Rename').click();
+      await settle(h);
+      dialogButton('Cancel').click();
+      await settle(h, 10);
+      expect(document.activeElement).toBe(moreButton(h));
+
+      await openMore(h);
+      menuItem('Rename').click();
+      await settle(h);
+      const name = dialogEl()!.querySelector<HTMLInputElement>('input')!;
+      name.value = 'Kennen budget';
+      name.dispatchEvent(new Event('input'));
+      dialogButton('Save').click();
+      await settle(h, 10);
+      expect(text(q(h, 'h1'))).toBe('Kennen budget');
+      expect(document.activeElement).toBe(moreButton(h));
+    });
+
+    it('H-462 (1): after Delete → Cancel focus is back on More actions', async () => {
+      const h = await setup(URL_);
+      await openMore(h);
+      menuItem('Delete').click();
+      await settle(h);
+      dialogButton('Cancel').click();
+      await settle(h, 10);
+      expect(document.activeElement).toBe(moreButton(h));
+    });
+
+    it('H-462 (2) / (3): Delete → focus on the first deck tile link on /decks; Undo → focus on the restored deck\'s tile', async () => {
+      const other = detailDeck('0b7c0000-0000-4000-8000-0000000000a2', 'Jinx Aggro');
+      const h = await setup(URL_, { decks: [detailDeck(), other] });
+      await openMore(h);
+      menuItem('Delete').click();
+      await settle(h);
+      dialogButton('Delete').click();
+      await settle(h, 10);
+      expect(TestBed.inject(Router).url).toBe('/decks');
+      const first = q(h, 'a.deck-tile')!;
+      expect(first.getAttribute('href')).toBe(`/decks/${other.id}`);
+      expect(document.activeElement).toBe(first);
+
+      snackAction()!.click();
+      await settle(h, 10);
+      await new Promise((r) => setTimeout(r, 50));
+      await settle(h);
+      expect(qa(h, 'a.deck-tile')).toHaveLength(2);
+      expect((document.activeElement as HTMLElement).getAttribute('href')).toBe(URL_);
+    });
+
+    it('H-462 (2): deleting the last deck puts focus on the empty state\'s Import deck', async () => {
+      const h = await setup(URL_);
+      await openMore(h);
+      menuItem('Delete').click();
+      await settle(h);
+      dialogButton('Delete').click();
+      await settle(h, 10);
+      expect(text(document.activeElement)).toBe('Import deck');
+      expect(document.activeElement!.closest('app-empty-state')).not.toBeNull();
+    });
+
+    it('H-464: the section bar is opaque (no translucent mix, no blur) and sits on the content edges; the back link is only as wide as its content', async () => {
+      await setup(URL_);
+      const bar = cssRules((s) => targets(s, 'deck-bar')).filter((r) => r.media === null);
+      expect(bar.map((r) => r.style.getPropertyValue('background').trim())).toContain('var(--color-bg)');
+      expect(bar.some((r) => /color-mix|transparent/.test(r.style.getPropertyValue('background')))).toBe(false);
+      expect(bar.some((r) => r.style.getPropertyValue('backdrop-filter'))).toBe(false);
+      expect(bar.some((r) => /content-gutter/.test(r.style.getPropertyValue('margin') + r.style.getPropertyValue('padding')))).toBe(false);
+      const back = cssRules((s) => targets(s, 'back')).filter((r) => r.media === null);
+      expect(back.map((r) => r.style.getPropertyValue('justify-self'))).toContain('start');
+    });
+
+    it('H-466 (1): a deck with one card reads "1 of 1 card fully available" in the header and the Missing tab', async () => {
+      const one = makeDeck(DETAIL_DECK_ID, 'One card', { main: [['Lightning Rush', 1]] });
+      const h = await setup(URL_, { decks: [one], owned: { 'Lightning Rush': 1 } });
+      expect(text(q(h, '.deck-header .cards'))).toBe('1 of 1 card fully available');
+      q(h, '#deck-tab-missing')!.click();
+      await settle(h);
+      expect(text(q(h, '.tabpanel .cards'))).toBe('1 of 1 card fully available');
+    });
+
+    it('H-466 (2): with nothing missing the Missing tab shows a plain "Missing" heading and "All cards available", no "0 copies"', async () => {
+      const h = await setup(URL_, { owned: DETAIL_ALL_OWNED });
+      q(h, '#deck-tab-missing')!.click();
+      await settle(h);
+      expect(text(q(h, '.tabpanel .missing-title'))).toBe('Missing');
+      expect(text(q(h, '.tabpanel .all'))).toBe('All cards available');
+      expect(text(q(h, '.tabpanel'))).not.toMatch(/0 copies/);
+    });
+
+    it('H-466 (3): an empty section heading reads "Legend · 0 cards" without "· 0 available"', async () => {
+      const h = await setup(URL_, { decks: [{ ...detailDeck(), legend: null }] });
+      expect(text(q(h, '#zone-legend'))).toBe('Legend · 0 cards');
+      expect(text(q(h, '#zone-champion'))).toBe('Chosen Champion · 1 card · 0 available');
+    });
+
+    it('H-467 (1): the not-found state uses the populated header\'s back link (.back with arrow_back icon, 44px on phones), no placeholder eyebrow', async () => {
+      const h = await setup('/decks/0b7c0000-0000-4000-8000-0000000000ff');
+      const back = q(h, 'header.deck-header > a.back')!;
+      expect(back.getAttribute('href')).toBe('/decks');
+      expect(text(back)).toBe('Decks');
+      expect(back.querySelector('app-icon')).not.toBeNull();
+      expect(q(h, '.page-eyebrow')).toBeNull();
+      expect(text(q(h, 'header.deck-header h1'))).toBe('Deck detail');
+      const phone = cssRules((s) => targets(s, 'back')).filter((r) => r.media === '(max-width: 39.99rem)');
+      expect(phone.map((r) => r.style.getPropertyValue('min-height'))).toContain('44px');
+    });
+
+    it('H-467 (2): in the header row the Lock in button is 40px with a fine pointer from 40rem, like Copy missing list and More', async () => {
+      await setup(URL_);
+      const rule = cssRules((s) => s.includes('in-row') && /button$/.test(s.trim())).find((r) => r.media === '(min-width: 40rem) and (pointer: fine)');
+      expect(rule?.style.getPropertyValue('height')).toBe('40px');
+      expect(rule?.style.getPropertyValue('min-height')).toBe('40px');
+      // More and the chevron are 40px at rest and 44px on phones / touch.
+      const more = cssRules((s) => targets(s, 'more'));
+      expect(more.find((r) => r.media === null)?.style.getPropertyValue('height')).toBe('40px');
+      expect(more.find((r) => r.media?.includes('pointer: coarse'))?.style.getPropertyValue('height')).toBe('44px');
+    });
+
+    it('H-468 (4) / (5): More menu icons sit in the menu item\'s icon slot (centred with the text); Duplicate has its own icon, not stacks', async () => {
+      const h = await setup(URL_);
+      await openMore(h);
+      for (const item of menuItems()) {
+        const icon = item.querySelector('app-icon')!;
+        expect(icon.hasAttribute('matmenuitemicon')).toBe(true);
+        expect(icon.closest('.mat-mdc-menu-item-text')).toBeNull();
+      }
+      const d = menuItem('Duplicate').querySelector('path')!.getAttribute('d')!;
+      expect(d.startsWith(STACKS_PATH)).toBe(false);
+      const others = menuItems().filter((b) => text(b) !== 'Duplicate').map((b) => b.querySelector('path')!.getAttribute('d'));
+      expect(others).not.toContain(d);
+    });
+
+    it('H-468 (10): at 64rem and wider, selecting a card announces "Showing <card name>" in the polite status', async () => {
+      const h = await setup(URL_);
+      const status = q(h, 'p[role="status"].visually-hidden')!;
+      expect(status.getAttribute('aria-live')).toBe('polite');
+      tile(h, 'main:lightning rush').click();
+      await settle(h);
+      expect(text(status)).toBe('Showing Lightning Rush');
+      tile(h, 'main:fizz trickster').click();
+      await settle(h);
+      expect(text(status)).toBe('Showing Fizz, Trickster');
+    });
+
+    it('H-468 (10): below 64rem a press opens the dialog and sets no "Showing" status', async () => {
+      const h = await setup(URL_, { width: 'tablet' });
+      tile(h, 'main:lightning rush').click();
+      await settle(h);
+      expect(dialogEl()).not.toBeNull();
+      expect(text(q(h, 'p[role="status"].visually-hidden'))).toBe('');
+    });
+  });
 });

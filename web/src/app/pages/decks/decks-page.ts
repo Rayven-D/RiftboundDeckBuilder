@@ -57,6 +57,7 @@ import {
   queryDecks,
 } from '../../shared/deck/deck-list';
 import { LOCK_TEXT } from '../../shared/deck/deck-locks';
+import { DeckListFocus } from '../../shared/deck/deck-list-focus';
 import { DeckLocks } from '../../shared/deck/deck-locks.service';
 import { OWNERSHIP_OPTION_ICON, OWNERSHIP_OPTION_LABEL } from '../../shared/deck/deck-status-chip';
 import { DeckTile } from '../../shared/deck/deck-tile';
@@ -151,6 +152,7 @@ export class DecksPage {
   private readonly stores = inject(AppStores).stores;
   private readonly cardData = inject(CardData);
   private readonly locks = inject(DeckLocks);
+  private readonly listFocus = inject(DeckListFocus);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -393,6 +395,8 @@ export class DecksPage {
     } finally {
       clearTimeout(timer);
       if (current()) this.showSkeleton.set(false);
+      // H-462: Deck detail's Delete / Undo asked for focus on a tile (or the empty state's Import deck).
+      if (current() && this.phase() !== 'loading') afterNextRender(() => this.listFocus.apply(this.doc), { injector: this.injector });
     }
   }
 

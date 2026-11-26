@@ -45,8 +45,10 @@ p {
 }
 
 // ---- header (OWN-010)
+// H-464: in the header's grid the link is only as wide as its icon and text (it was a full-row hit strip).
 .back {
   display: inline-flex;
+  justify-self: start;
   align-items: center;
   gap: var(--space-1);
   min-height: 32px;
@@ -165,13 +167,6 @@ app-lock-actions {
   }
 }
 
-// 40px Copy / More next to the 44px lock button: centred on its first line (the reason line sits under it).
-@media (min-width: 40rem) and (pointer: fine) {
-  .actions > .split,
-  .actions > .more {
-    margin-top: 2px;
-  }
-}
 
 .legality {
   display: inline-flex;

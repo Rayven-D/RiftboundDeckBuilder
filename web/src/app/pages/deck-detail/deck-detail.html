@@ -23,10 +23,10 @@
   }
 
   @case ('not-found') {
-    <!-- OWN-119 (b) / D3, D17. -->
-    <header class="page-header">
-      <p class="page-eyebrow"><a routerLink="/decks">&larr; Decks</a></p>
-      <h1>Deck detail</h1>
+    <!-- OWN-119 (b) / D3, D17. H-467: the same back link and spacing as the populated header. -->
+    <header class="deck-header">
+      <a class="back" routerLink="/decks"><app-icon name="arrow_back" />Decks</a>
+      <h1 class="deck-name">Deck detail</h1>
     </header>
     <app-empty-state [heading]="text.notFoundHeading" [message]="text.notFoundMessage">
       <a class="button" routerLink="/decks">Back to Decks</a>
@@ -125,13 +125,13 @@
               <app-icon name="more_vert" />
             </button>
             <mat-menu #moreMenu="matMenu" xPosition="before">
-              <button mat-menu-item type="button" (click)="copyDeckList()"><app-icon name="content_copy" class="menu-icon" />Copy deck list</button>
-              <button mat-menu-item type="button" (click)="downloadDeckList()"><app-icon name="download" class="menu-icon" />Download .txt</button>
-              <button mat-menu-item type="button" [disabled]="d.readOnly" (click)="duplicate()"><app-icon name="stacks" class="menu-icon" />Duplicate</button>
-              <button mat-menu-item type="button" [disabled]="d.readOnly" (click)="rename()"><app-icon name="edit" class="menu-icon" />Rename</button>
+              <button mat-menu-item type="button" (click)="copyDeckList()"><app-icon name="content_copy" class="menu-icon" matMenuItemIcon />Copy deck list</button>
+              <button mat-menu-item type="button" (click)="downloadDeckList()"><app-icon name="download" class="menu-icon" matMenuItemIcon />Download .txt</button>
+              <button mat-menu-item type="button" [disabled]="d.readOnly" (click)="duplicate()"><app-icon name="library_add" class="menu-icon" matMenuItemIcon />Duplicate</button>
+              <button mat-menu-item type="button" [disabled]="d.readOnly" (click)="rename()"><app-icon name="edit" class="menu-icon" matMenuItemIcon />Rename</button>
               <mat-divider />
               <button mat-menu-item type="button" class="danger" [disabled]="d.readOnly" (click)="delete()">
-                <app-icon name="delete" class="menu-icon" />Delete
+                <app-icon name="delete" class="menu-icon" matMenuItemIcon />Delete
               </button>
             </mat-menu>
           </div>

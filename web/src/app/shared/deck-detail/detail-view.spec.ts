@@ -10,6 +10,7 @@ import {
   breakdownLines,
   cardAccessibleName,
   cardFacts,
+  cardsLine,
   deckCards,
   duplicateDeck,
   excludedLine,
@@ -89,6 +90,15 @@ describe('Deck detail view (SPEC-005 section L, H-254)', () => {
       expect(headerSummary(v)).toEqual({ copies: 'Ownership unavailable', percent: null, cards: null });
     });
 
+    it('H-466 (1) / OWN-050: "1 of 1 card fully available" (singular when the total is 1); plural otherwise', () => {
+      const one = detailView(makeDeck('o', 'One', { main: [['Lightning Rush', 1]] }), { owned: { 'Lightning Rush': 1 } });
+      expect(cardsLine(one)).toBe('1 of 1 card fully available');
+      expect(headerSummary(one).cards).toBe('1 of 1 card fully available');
+      const none = detailView(makeDeck('n', 'None', { main: [['Lightning Rush', 1]] }), { owned: {} });
+      expect(cardsLine(none)).toBe('0 of 1 card fully available');
+      expect(cardsLine(view)).toBe('2 of 8 cards fully available');
+    });
+
     it('OWN-050: "1 copy excluded from decks" only when an excluded copy would fill a gap', () => {
       expect(excludedLine(view)).toBeNull();
       expect(excludedLine({ ...view, summary: { ...view.summary, copiesExcludedRelevant: 1 } })).toBe('1 copy excluded from decks');
@@ -119,6 +129,15 @@ describe('Deck detail view (SPEC-005 section L, H-254)', () => {
       expect(sectionCounts(locked.sections[4], locked)).toBe('· 12 cards · 12 locked in');
       const v = computeDeckOwnership(deck, { status: 'unavailable', locks: [] }, DETAIL_CATALOG, null, '2026-11-25');
       expect(sectionCounts(v.sections[2], v)).toBe('· 6 cards');
+    });
+
+    it('H-466 (3): an empty section reads "· 0 cards" with no "· 0 available" (also in a locked deck)', () => {
+      const noLegend = { ...deck, legend: null };
+      const v = detailView(noLegend);
+      expect(sectionCounts(v.sections[0], v)).toBe('· 0 cards');
+      expect(sectionCounts(v.sections[1], v)).toBe('· 1 card · 0 available');
+      const locked = detailView(noLegend, { owned: DETAIL_ALL_OWNED }, { locks: [lock(deck.id)] });
+      expect(sectionCounts(locked.sections[0], locked)).toBe('· 0 cards');
     });
 
     it('OWN-110: the section bar reads Legend, Champion, Main 6, Battlefields 1, Runes 12, Sideboard 2', () => {
