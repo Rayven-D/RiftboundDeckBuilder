@@ -35,8 +35,10 @@ export function deckArtState(fill: number | null): { state: OwnershipState; fill
  * from the engine's `DeckTileSummary` (OWN-073); nothing is recomputed here.
  * - **Art** (OWN-100, OWN-082): the Legend's thumbnail, decorative, lazy, filled left to right by the whole deck
  *   (`completionFill`, A of R), with the deck mark when there is no Legend. Ownership unavailable or R = 0: no fill.
- * - **Completion %** (OWN-101): `completionPercent` next to the art, "51%", accessible text "51 percent of copies
- *   available" ("… locked in" in a locked deck); nothing when null.
+ * - **Completion %** (OWN-101): `completionPercent` under the art, "51%", 16px 600 like the deck name (RJ 2026-11-26,
+ *   H-392 (c)). The visible % is aria-hidden; its words "51 percent of copies available" ("… locked in" in a locked
+ *   deck) sit in the details after the copies line, so the link's description carries them (H-465 (2)). Nothing
+ *   when null.
  * - name + "Read-only" tag (DECK-091), source line (OWN-003), player (OWN-104), the ownership chip, the lock badge
  *   ("Locked" / "Locked · 2 cards short", SHARE-041, no date; kept while ownership is unavailable, SHARE-053 (b))
  *   and the copies line (OWN-102). A locked complete deck (group `locked`) has no ownership chip, only the badge;
@@ -72,10 +74,8 @@ export function deckArtState(fill: number | null): { state: OwnershipState; fill
           <div class="mark-box"><app-deck-mark class="mark" /></div>
         }
         @if (s.completionPercent !== null) {
-          <p class="percent">
-            <span aria-hidden="true">{{ s.completionPercent }}%</span>
-            <span class="visually-hidden">{{ percentText() }}</span>
-          </p>
+          <!-- H-465 (2): the spoken form sits in the details (after the copies line), inside aria-describedby. -->
+          <p class="percent" aria-hidden="true">{{ s.completionPercent }}%</p>
         }
       </div>
       <div class="body">
@@ -96,6 +96,10 @@ export function deckArtState(fill: number | null): { state: OwnershipState; fill
             <app-lock-badge [label]="s.lockBadge" [showDate]="false" />
             <span class="copies">{{ s.ownershipLine }}</span>
           </p>
+          @if (s.completionPercent !== null) {
+            <!-- H-465 (2): the % in words, inside the link's description, after the copies line. -->
+            <p class="visually-hidden percent-text">{{ percentText() }}</p>
+          }
           <p class="legality" [class]="'legality legality--' + s.legalityVerdict">
             @if (s.legalityVerdict === 'illegal') {
               <app-icon name="block" />
@@ -168,11 +172,11 @@ export function deckArtState(fill: number | null): { state: OwnershipState; fill
     .mark {
       width: 60%;
     }
+    /* RJ 2026-11-26 (H-392 (c)): as loud as the deck name, not louder: 16px 600 in the name's font. */
     .percent {
       margin: 0;
-      font-family: var(--font-display);
-      font-size: var(--font-size-lg);
-      font-weight: 700;
+      font-size: var(--font-size-md);
+      font-weight: 600;
       font-variant-numeric: tabular-nums;
       line-height: 1.1;
       text-align: center;
@@ -231,8 +235,10 @@ export function deckArtState(fill: number | null): { state: OwnershipState; fill
       white-space: nowrap;
     }
     .copies {
+      min-width: 0;
       font-size: var(--font-size-sm);
       font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
     }
     .legality,
     .ban {
@@ -270,8 +276,10 @@ export function deckArtState(fill: number | null): { state: OwnershipState; fill
         gap: var(--space-3);
         padding: var(--space-3);
       }
-      .percent {
-        font-size: var(--font-size-md);
+      /* H-468 (8) / H-478: on phones the copies line is always its own line under the chip / lock badge, so locked
+       * and unlocked tiles share one rhythm and "66 of 66 copies locked in" never competes with the badge for width. */
+      .copies {
+        flex-basis: 100%;
       }
     }
     @media (forced-colors: active) {

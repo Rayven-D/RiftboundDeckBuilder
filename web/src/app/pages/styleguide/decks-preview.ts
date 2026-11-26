@@ -102,10 +102,8 @@ const CARD_STATES: readonly { id: string; label: string }[] = [
         <app-deck-status-chip filter="ready" />
         <app-deck-status-chip filter="partial" />
         <app-deck-status-chip filter="none" />
-        <app-deck-status-chip filter="locked" lockBadge="Locked" />
-        <app-deck-status-chip filter="partial" lockBadge="Locked · 2 cards short" />
-        <app-deck-status-chip filter="unavailable" lockBadge="Locked" />
-        <span class="caption">(unavailable, unlocked: no chip)</span>
+        <span class="caption">(locked or unavailable: no chip; the lock is its own badge, below)</span>
+        <app-deck-status-chip filter="locked" />
         <app-deck-status-chip filter="unavailable" />
       </div>
 

@@ -6,6 +6,7 @@ import {
   DeckListQuery,
   LOCK_OPTIONS,
   OWN_OPTIONS,
+  type OwnOption,
   SOURCE_OPTIONS,
   clearFilters,
   legalityOptions,
@@ -17,6 +18,8 @@ export interface DeckFiltersDialogData {
   readonly formatName: string;
   /** Decks the draft query would show ("Show <n> decks"). */
   readonly count: (q: DeckListQuery) => number;
+  /** H-468 (7): the Ownership option counts for the draft query, as the desktop chips show them (OWN-102). */
+  readonly ownCounts: (q: DeckListQuery) => Record<OwnOption | 'all', number>;
   /** OWN-105 (f): ownership options can't be chosen while ownership is unavailable. */
   readonly ownershipDisabled: boolean;
   /** SHARE-061: the Lock filter is disabled while the lock store is unreadable. */
@@ -24,8 +27,8 @@ export interface DeckFiltersDialogData {
 }
 
 /**
- * OWN-105 (a) phone Filters ([[Decks Components]] §4): a full-screen dialog with Ownership, Lock, Legality and
- * Source as native radio groups (44 px rows), and a sticky footer with "Clear filters" and "Show <n> decks" (live
+ * OWN-105 (a) phone Filters ([[Decks Components]] §4): a full-screen dialog with Ownership (with live counts, H-468 (7)),
+ * Lock, Legality and Source as native radio groups (44 px rows), and a sticky footer with "Clear filters" and "Show <n> decks" (live
  * count). Closes with the chosen query on Show, nothing on Close / Escape. The search and sort stay on the toolbar.
  */
 @Component({
@@ -44,10 +47,16 @@ export interface DeckFiltersDialogData {
         @if (data.ownershipDisabled) {
           <p class="hint">Not available while ownership is unavailable</p>
         }
-        <label><input type="radio" name="own" [checked]="draft().own === null" (change)="set({ own: null })" />All</label>
+        <!-- H-468 (7): each option shows its deck count, as the desktop chips do; heard as "Ready to build, 1 deck". -->
+        @let n = ownCounts();
+        <label
+          ><input type="radio" name="own" [checked]="draft().own === null" (change)="set({ own: null })" />All
+          <span class="n"><span class="visually-hidden">, </span>{{ n.all }}<span class="visually-hidden">{{ decks(n.all) }}</span></span></label
+        >
         @for (o of own; track o) {
           <label
-            ><input type="radio" name="own" [checked]="draft().own === o" (change)="set({ own: o })" />{{ ownLabel[o] }}</label
+            ><input type="radio" name="own" [checked]="draft().own === o" (change)="set({ own: o })" />{{ ownLabel[o] }}
+            <span class="n"><span class="visually-hidden">, </span>{{ n[o] }}<span class="visually-hidden">{{ decks(n[o]) }}</span></span></label
           >
         }
       </fieldset>
@@ -149,6 +158,19 @@ export interface DeckFiltersDialogData {
       margin: 0;
       accent-color: var(--color-accent);
     }
+    .n {
+      margin-left: calc(-1 * var(--space-2));
+      font-variant-numeric: tabular-nums;
+      color: var(--color-text-muted);
+    }
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
     .hint {
       margin: 0 0 var(--space-1);
       font-size: var(--font-size-sm);
@@ -178,10 +200,15 @@ export class DeckFiltersDialog {
   protected readonly lock = LOCK_OPTIONS;
   protected readonly legality = legalityOptions(this.data.formatName);
   protected readonly source = SOURCE_OPTIONS;
+  protected readonly ownCounts = computed(() => this.data.ownCounts(this.draft()));
   protected readonly showLabel = computed(() => {
     const n = this.data.count(this.draft());
     return `Show ${n} ${n === 1 ? 'deck' : 'decks'}`;
   });
+
+  protected decks(n: number): string {
+    return n === 1 ? ' deck' : ' decks';
+  }
 
   protected set(patch: Partial<DeckListQuery>): void {
     this.draft.update((q) => ({ ...q, ...patch }));
