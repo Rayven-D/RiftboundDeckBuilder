@@ -48,6 +48,16 @@ const EXPORT_LABEL: Readonly<Record<DeckZone, string>> = {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+/**
+ * SPEC-004 CAT-045 / OWN-004 / DECK-051 verdict labels: `legal` → "Legal in Standard as of Nov 23, 2026", `illegal` →
+ * "Not legal in Standard today", `incomplete` or no result → "Not fully checked" (DECK-052, never shown as legal).
+ */
+export function verdictLabel(legality: LegalityVerdict | null, formatName: string): string {
+  if (legality?.verdict === 'illegal') return `Not legal in ${formatName} today`;
+  if (legality?.verdict === 'legal') return `Legal in ${formatName} as of ${formatIsoDate(legality.asOf)}`;
+  return 'Not fully checked';
+}
+
 /** OWN-090: an ISO date ('YYYY-MM-DD…') as `MMM D, YYYY`, e.g. `Nov 23, 2026`. */
 export function formatIsoDate(iso: IsoDate): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
@@ -392,12 +402,7 @@ export function summarizeDeck(
   }
 
   const verdict = legality && format ? legality.verdict : 'incomplete';
-  let legalityLabel = 'Not fully checked';
-  if (legality && format && verdict === 'illegal')
-    legalityLabel = `Not legal in ${format.name} today`;
-  if (legality && format && verdict === 'legal') {
-    legalityLabel = `Legal in ${format.name} as of ${formatIsoDate(legality.asOf)}`;
-  }
+  const legalityLabel = legality && format ? verdictLabel(legality, format.name) : verdictLabel(null, '');
 
   return {
     deckId: deck.id,

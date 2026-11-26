@@ -369,3 +369,44 @@
 .link-field {
   width: 100%;
 }
+
+/* DECK-050…056 (H-344): the review's Rule check block, styled like the OWN-117 Rule check dialog. */
+.legality-check .verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.legality--legal app-icon {
+  color: var(--color-accent-text);
+}
+
+.legality--illegal app-icon {
+  color: var(--color-danger);
+}
+
+.legality--incomplete app-icon {
+  color: var(--color-text-muted);
+}
+
+.legality-sub {
+  margin: var(--space-3) 0 var(--space-1);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+}
+
+.legality-list {
+  margin: 0 0 var(--space-2);
+  padding-inline-start: var(--space-5);
+  font-size: var(--font-size-sm);
+
+  .muted {
+    color: var(--color-text-muted);
+  }
+}

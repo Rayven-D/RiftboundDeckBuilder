@@ -114,3 +114,4 @@ Heart"` → one line `1 Kennen, Heart`; (4) 2 MB `.txt` rejected before reading 
 2026-11-26 · H-620 · FAIL · ADR-0006 line 129 vs SYNC-153 (4) / SYNC-160 · allowed set omits `'` and `’`; filed H-661 · [[Validation H-483 H-620]]
 2026-11-26 · H-620 (attempt 2) · PASS · ADR-0006 line 129 now the full SYNC-153 (4) / SYNC-160 set incl. apostrophes and combining marks; Current State line fixed; H-661 closed · [[Validation H-483 H-620]]
 2026-11-26 · H-197 · PASS · Accept, RJ attribution, pins, version clash, cross-spec, V-009 · no failures; H-194 pin fixed, H-653 filed · [[Validation H-197]]
+2026-11-26 · H-194 + H-344 · PASS · V-008 web (lint, build, 93 files / 1470 tests), traceability ACs 1-27 and DECK-050..056, ban data vs Ban List, 2v2 snapshot review, loadBans side effect · V-001 / V-003 SKIPPED (no runner / no card DB) · filed H-484 (wording, RJ), H-485 (LEGAL-B11 text), H-486 (flaky app.spec run) · [[Validation H-194 H-344]]

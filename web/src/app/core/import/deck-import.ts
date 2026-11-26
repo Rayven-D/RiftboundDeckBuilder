@@ -66,7 +66,11 @@ export class DeckImport implements DeckImportCommitter {
       void this.cardData.reload(); // the next Continue tries again
       return { status: 'error', message: DECK_SAVE_TEXT.catalogError };
     }
-    return prepareDeckImport(result, sourceLines(text), c.catalog);
+    // DECK-050: the review shows SPEC-002 legality; without the data it reads "Not fully checked" and Save still works.
+    const legality = await Promise.resolve()
+      .then(() => this.cardData.loadLegalityData())
+      .catch(() => null);
+    return prepareDeckImport(result, sourceLines(text), c.catalog, legality);
   }
 
   /** Save (DECK-003): one new deck, `createdAt` = `updatedAt` = now; the store makes `updatedAt` monotonic (DECK-074). */

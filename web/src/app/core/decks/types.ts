@@ -98,7 +98,7 @@ export interface Printing {
   art: { thumbnailUrl: string | null; fullUrl: string | null; artist: string | null };
 }
 
-// ---- SPEC-002 v0.3 (ban data and the legality fields the deck tile reads) ----
+// ---- SPEC-002 v0.5 (ban data and the legality fields the deck tile reads; the engine is core/legality) ----
 export type RegionId = string;
 export type BanKind = 'card' | 'battlefield' | 'legend';
 export interface BanEntry {
@@ -117,9 +117,11 @@ export interface BanWave {
   notes?: string;
 }
 export interface BanList {
-  format: FormatId;
+  /** `'2v2'` is stored as data only (LEGAL-B11, SPEC-002 v0.5), never offered or evaluated. */
+  format: FormatId | (string & {});
   region: RegionId;
-  status: 'verified' | 'conflict';
+  /** `unverified`: the 2v2 list, of which only the totals are sourced (LEGAL-B11). */
+  status: 'verified' | 'conflict' | 'unverified';
   waves: BanWave[];
 }
 export interface BanListFile {

@@ -8,6 +8,10 @@ Newest first. One short entry per working session.
 Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
 
+## 2026-11-26 (evening): H-194 + H-344, SPEC-002 engine and legality in the Deck Import review (builder)
+- One branch `loop/H-194-H-344-legality` from `origin/dev` @ `cb1235b`, not pushed. Built `data/banlist.json` (Standard + 2v2 `unverified` snapshot), `data/formats.json`, the pure engine in `web/src/app/core/legality/` (LEGAL-001…019, set legality, SAMPLE stub, data check) and the review's "Rule check" block (DECK-050…056); `loadBans()` now returns real data.
+- Web: lint clean, build OK, 1470 unit tests pass (93 files). Notes, choices and chosen wording: [[Legality Build H-194 H-344]]; contracts v1.35.
+
 ## 2026-11-26 (afternoon): `/board` remaining Decks follow-ups (orchestrator; RJ on the phone)
 - RJ said "run everything", so four area sessions started (Import & Collection, Accounts & Sync, Legality & research, UI & Tournaments); RJ then corrected it to **Decks items only**. Two sessions were cut to their Decks items and two were stopped. A stopped session's background agents kept running and merged brain-only PRs before an explicit stop message reached them: lesson, a stop must also tell the session to stop its subagents and merge nothing.
 - **Decks items:** H-501 (spec-writer, SPEC-006 / SPEC-003 text catch-up) PASS, [#108](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/108) merged by the loop; H-321 (ui-engineer, stale % text in [[Decks]]) PASS, [#101](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/101) merged; **H-560** (flaky styleguide spec) and **H-521** (singular "1 of 1 copy", RJ's call still open) PASS, code in [PR #109](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/109) for RJ. H-344 not run (needs the legality engine, H-197 → H-194).
