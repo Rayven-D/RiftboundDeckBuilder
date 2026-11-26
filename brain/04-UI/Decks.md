@@ -22,7 +22,8 @@ specs: ["[[Your Decks Ownership View]]", "[[Shared Cards and Lock-in]]", "[[Deck
 ## Summary
 - **Decks (`/decks`)** becomes a grid of **deck tiles**: Legend art on the left (with that card's
   own ownership treatment, choice 1), then name, source line, an **ownership chip** (Ready to build /
-  Partly available / None available, or a Locked badge), the copies line ("34 of 66 copies
+  Partly available / None available; none on a locked complete deck) and, for a locked deck, a
+  separate **lock badge** next to it (no date; RJ 2026-11-25, H-382 (2)), the copies line ("34 of 66 copies
   available"), legality and ban flags, and "Updated Nov 22, 2026". A sticky toolbar holds search,
   ownership and lock filters (SHARE-051) and sort (OWN-006). The Import deck FAB stays as built (OWN-094).
 - **Deck detail (`/decks/:id`)** = header (name, source, legality, lock badge, summary, **Lock in /
@@ -32,8 +33,9 @@ specs: ["[[Your Decks Ownership View]]", "[[Shared Cards and Lock-in]]", "[[Deck
   is collapsed when it has more than 10 lines (OWN-051).
 - **Card details open in a dialog** (as on Collection), not an inline expand (choice 8). It holds the
   card info, the SHARE-043 breakdown, the owned printings (OWN-041) and the other decks.
-- Locked decks: "Locked" badge with a lock icon, "Locked in on <date>", labels "… locked in",
-  and "Locked · n cards short" in the warning color when short (SHARE-041).
+- Locked decks: "Locked" badge with a lock icon, labels "… locked in", and "Locked · n cards
+  short" in the warning color when short (SHARE-041). On the **tile** the badge has no date; "Locked
+  in on <date>" is only in the Deck detail header.
 - Every state is covered (§9, §10): gate, loading, empty, no filter match, ownership unavailable,
   locks unreadable, card data not loaded, ban data not loaded, read-only, deck not found, empty
   deck, unknown card, preview card.
@@ -89,11 +91,11 @@ Decks you want to build. Cards you own are shown in full color.        (lede, ch
 ┌───────────────────────────────┐ ┌───────────────────────────────┐ ┌──────────────── …
 │┌──────┐ Kennen Tempo          │ │┌──────┐ Kai'Sa, Daughter of…  │ │
 ││Legend│ 1st, Regional Champ… │ ││Legend│ Imported              │ │
-││ art  │ [◐ Partly available]  │ ││ art  │ [🔒 Locked]            │ │
-││ 63:88│ 34 of 66 copies avail.│ ││(dim) │ 54 of 54 copies locked│ │
+││ art  │ [◐ Partly available]  │ ││ art  │ [🔒 Locked] badge only│ │
+││ 63:88│ 34 of 66 copies avail.│ ││(full)│ 54 of 54 copies locked│ │
 │└──────┘ Not legal in Standard │ │└──────┘ Legal in Standard as… │ │
 │         ⛔ 1 banned card      │ │         Updated Nov 22, 2026  │ │
-│         Updated Nov 22, 2026  │ │                               │ │
+│         Updated Nov 22, 2026  │ │ (no ownership chip, no date)  │ │
 └───────────────────────────────┘ └───────────────────────────────┘ └──────────────── …
                                                               [⇧ Import deck]  (FAB, as built)
 ```
@@ -136,7 +138,7 @@ Decks
 │┌────────┐  Kennen Tempo                   │  name: --font-size-md 600, 2 lines max
 ││        │  1st, Regional Championship: …  │  source line: xs muted, 1 line (OWN-003)
 ││ Legend │  [◐ Partly available] 34 of 66  │  ownership chip + copies line (choice 1/3)
-││  art   │      copies available           │
+││  art   │      copies available           │  (a locked deck: lock badge next to the chip, no date)
 ││        │  Not legal in Standard today    │  legality label, sm muted (OWN-004)
 │└────────┘  ⛔ 1 banned card              │  ban flag (choice 2)
 │            Updated Nov 22, 2026          │  xs muted (OWN-002, OWN-090)
@@ -150,17 +152,20 @@ Decks
   `--color-surface-raised` in the same 63:88 box. Width 6rem on desktop and 4.5rem on phones,
   thumbnail URL only, lazy-loaded. **This needs OWN-082 changed** ("The Decks list shows no card
   images") in H-252.
-- **Ownership chip** (`app-deck-status-chip`), from `ownershipFilter`:
+- **Ownership chip** (`app-deck-status-chip`), from `ownershipFilter`, and **lock badge**
+  (`app-lock-badge`, `lockBadge`, no date, OWN-102; RJ 2026-11-25, H-382 (2)). The badge is its own
+  element next to the chip, never a chip variant; the lock date is only in the Deck detail header
+  (SHARE-041). Chip and badge sit in the same wrapping row, chip first:
 
-| `ownershipFilter` | Chip | Copies line (verbatim `ownershipLine`) |
-|---|---|---|
-| `ready` | filled accent, `check_circle`, **Ready to build** | "66 of 66 copies available" |
-| `partial` (unlocked) | accent outline, `contrast`, **Partly available** | "34 of 66 copies available" |
-| `none` (unlocked, R > 0) | neutral outline, `radio_button_unchecked`, **None available** | "0 of 66 copies available" |
-| `none` with R = 0 | neutral outline, **None available** | "No cards to count" |
-| `locked` | raised neutral, `lock`, **Locked** (`lockBadge`) | "54 of 54 copies locked in" |
-| locked + short (`partial`/`none`) | warning outline, `warning`, **Locked · 2 cards short** (`lockBadge`) | "50 of 54 copies locked in" |
-| `unavailable` (after H-155) | no chip; a locked deck still shows **Locked** | "Ownership unavailable" |
+| `ownershipFilter` | Chip | Lock badge | Copies line (verbatim `ownershipLine`) |
+|---|---|---|---|
+| `ready` (unlocked) | filled accent, `check_circle`, **Ready to build** | none | "66 of 66 copies available" |
+| `partial` (unlocked) | accent outline, `contrast`, **Partly available** | none | "34 of 66 copies available" |
+| `none` (unlocked, R > 0) | neutral outline, `radio_button_unchecked`, **None available** | none | "0 of 66 copies available" |
+| `none` with R = 0 | neutral outline, **None available** | none (or **Locked** if locked) | "No cards to count" |
+| `locked` (locked, complete) | **no chip** | `lock`, **Locked** | "54 of 54 copies locked in" |
+| locked + short (`partial`/`none`) | its group chip, **Partly available** or **None available** | warning outline, `warning`, **Locked · 2 cards short** | "50 of 54 copies locked in" |
+| `unavailable` (after H-155) | no chip | **Locked** if the deck is locked, else none | "Ownership unavailable" |
 
   The chip text for `ready` / `partial` / `none` uses the SHARE-051 filter option names, so the tile
   and the filter use the same words.
