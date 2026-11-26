@@ -423,3 +423,9 @@ Nothing plays on load; the global reduced-motion block covers everything.
   unavailable, read-only, no Legend; card tiles for full, partial 1/3, none, split, shared + locked,
   banned, upcoming, preview, unknown, placeholder, battlefield; the lock badge (both); the summary
   with > 10 missing lines; the card dialog (owned + excluded printings, other decks, unknown card).
+  **On `/styleguide` since H-391** (section "Decks (H-060, H-254)", `pages/styleguide/decks-preview.ts` on engine-built
+  sample data in `deck-samples.ts`): deck tiles (all of the above, plus ownership unavailable unlocked / locked), the
+  status chip rows, the lock badge (date, short, tile size), lock actions (Lock in that works on a preview-only lock
+  store, disabled with reason, Unlock, locks unreadable) and the Lock in dialog, card tiles and list rows (as above,
+  plus ownership unavailable), the desktop panel (Card / Missing tabs), the collapsed missing list, ownership
+  unavailable, and the card dialog. Not yet: excluded printings in the dialog.

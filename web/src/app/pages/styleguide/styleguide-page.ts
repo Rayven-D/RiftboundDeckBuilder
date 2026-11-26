@@ -22,6 +22,7 @@ import { Icon } from '../../shared/icon';
 import { CardTile } from '../../shared/deck/card-tile';
 import { DeckHeading } from '../../shared/deck/deck-heading';
 import { sampleCardArt } from '../../shared/deck/sample-art';
+import { StyleguideDecks } from './decks-preview';
 
 type Accent = 'teal' | 'green';
 
@@ -40,7 +41,18 @@ interface SampleCard {
  */
 @Component({
   selector: 'app-styleguide-page',
-  imports: [CardTile, DeckHeading, MatButton, Icon, CardArt, CountBadge, LockBand, StatusLabel, CollectionTile],
+  imports: [
+    CardTile,
+    DeckHeading,
+    MatButton,
+    Icon,
+    CardArt,
+    CountBadge,
+    LockBand,
+    StatusLabel,
+    CollectionTile,
+    StyleguideDecks,
+  ],
   template: `
     <p class="page-eyebrow sample">Component preview · sample data, not real cards</p>
     <div class="accent-switch" role="group" aria-labelledby="accent-label">
@@ -189,6 +201,8 @@ interface SampleCard {
         }
       }
     </section>
+
+    <app-styleguide-decks />
   `,
   styles: `
     .sample {
