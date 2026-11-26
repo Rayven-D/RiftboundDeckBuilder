@@ -212,8 +212,9 @@ list moves into the summary panel (§11).
 **Placement from 40rem (H-475, RJ 2026-11-25):** two columns under the back link. Left (`.header-main`): name,
 source, meta row and summary, `flex: 1 1 20rem; min-width: 0` so a long name wraps. Right (the actions row,
 `flex: 0 0 auto`): top-aligned with the name, right-aligned, in this order: Lock in / Unlock · Copy missing list
-+ chevron · More. The reason line goes under the **whole** actions row (right-aligned, wraps to the row's
-width), so Copy sits right next to Lock in (answers H-392 (1)); `app-lock-actions` takes class `in-row` for
++ chevron · More. The reason line goes under the **whole** actions row (start-aligned under Lock in, box =
+the row's width, wraps inside it; decided in H-477, see [[Decks]] §6, built in H-520), so Copy sits right next
+to Lock in (answers H-392 (1)); `app-lock-actions` takes class `in-row` for
 this (`display: contents` from 40rem). Built as a wrapping flex row (`.header-top`): when the two can't fit
 side by side (about 768 and below) the actions drop under the summary, never overlapping. The actions stay
 after the status in the DOM, so focus goes Rule check → Lock in → Copy missing list → chevron → More.
