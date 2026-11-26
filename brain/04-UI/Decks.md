@@ -20,8 +20,9 @@ specs: ["[[Your Decks Ownership View]]", "[[Shared Cards and Lock-in]]", "[[Deck
 > note wins on behavior.
 
 ## Summary
-- **Decks (`/decks`)** becomes a grid of **deck tiles**: Legend art on the left (with that card's
-  own ownership treatment, choice 1), then name, source line, an **ownership chip** (Ready to build /
+- **Decks (`/decks`)** becomes a grid of **deck tiles**: Legend art on the left (*superseded, H-321:* RJ
+  picked choice 1 (c), the art **filled left to right by the deck's copies, A of R**, with the user's own
+  **completion %** next to it; SPEC-005 0.11.1 OWN-100, OWN-101 (d)), then name, source line, an **ownership chip** (Ready to build /
   Partly available / None available; none on a locked complete deck) and, for a locked deck, a
   separate **lock badge** next to it (no date; RJ 2026-11-25, H-382 (2)), the copies line ("34 of 66 copies
   available"), legality and ban flags, and "Updated Nov 22, 2026". A sticky toolbar holds search,
@@ -71,8 +72,15 @@ contrast between the two pages is the point. Owned cards glow, missing ones rece
 4. **Same patterns as Collection:** the same toolbar, count line, notice lines, banners, dialog
    shell, FAB, empty state, status label and count badge. A user who learned Collection already
    knows Decks.
-5. **Counts, never percentages, scores or meta** (OWN-007, OWN-054, ADR-0003). No progress bar
-   unless RJ picks it (choice 3).
+5. **Counts, plus one percentage: the user's own completion** (OWN-007, OWN-054, OWN-101, ADR-0003).
+   *Superseded (H-321):* this brief first said "never percentages". RJ changed that (H-260 #1,
+   2026-11-25; H-320, 2026-11-25): the user's own completion % (`floor(100 × A / R)`, 1–99 unless
+   empty or complete) shows in **exactly two places**, the deck tile and the Deck detail header's
+   copies line ("34 of 66 copies available · 51%"), and **not** on the Missing tab, the Card tab, a
+   dialog, the section bar or Collection. See [[Your Decks Ownership View]] 0.11.1 OWN-101 (d),
+   OWN-010 (f), OWN-054, OWN-111 (c). Still no score, rank, sort or filter by it, and no meta
+   comparison (ADR-0003). No separate progress bar (choice 3); the tile's Legend art fill is the
+   only visual of it (OWN-100).
 
 ## 3. Decks list: layout
 Content uses the app edges (`--content-max-width` 72rem, `--content-gutter`).
@@ -151,7 +159,9 @@ Decks
   the page rule "cards you own are in full color". No Legend → `app-deck-mark` on
   `--color-surface-raised` in the same 63:88 box. Width 6rem on desktop and 4.5rem on phones,
   thumbnail URL only, lazy-loaded. **This needs OWN-082 changed** ("The Decks list shows no card
-  images") in H-252.
+  images") in H-252. *Superseded (H-321):* RJ picked choice 1 (c): the art is filled by the **whole
+  deck's** A / R, not the Legend card's own state, and the tile shows the user's own completion %
+  ("51%", 16 px, weight 600) next to it (SPEC-005 0.11.1 OWN-100, OWN-101 (d)).
 - **Ownership chip** (`app-deck-status-chip`), from `ownershipFilter`, and **lock badge**
   (`app-lock-badge`, `lockBadge`, no date, OWN-102; RJ 2026-11-25, H-382 (2)). The badge is its own
   element next to the chip, never a chip variant; the lock date is only in the Deck detail header
@@ -217,7 +227,7 @@ Desktop 1440 (content 1152px), unlocked deck, 3 cards short
 │ 1st, Regional Championship: Europe · Nov 6 –   │      │ ⓘ Lock in needs every card available: 3 cards short│
 │ Nov 8, 2026 · ASC Evansrhim · Source ↗         │      └ reason starts under Lock in, wraps in the row ────┘
 │ ⛔ Not legal in Standard today   Rule check     │        ⋮ = Copy deck list, Download .txt, Duplicate,
-│ 34 of 66 copies available · 52%                │            Rename, divider, Delete
+│ 34 of 66 copies available · 51%                │            Rename, divider, Delete
 │ 18 of 32 cards fully available                 │
 └────────────────────────────────────────────────┘
 ┌ sticky section bar ──────────────────────────────────────────────────────────────────────────────────┐
@@ -280,7 +290,7 @@ Kennen Tempo
 1st, Regional Championship: Europe · Nov 6 – 8, 2026 (wraps)
 [🔒 Locked · Locked in on Nov 23, 2026]   (locked deck only)
 ⛔ Not legal in Standard today · Rule check
-34 of 66 copies available · 52%
+34 of 66 copies available · 51%
 18 of 32 cards fully available
 [        🔒 Lock in        ] [⋮]          full-width primary 44px + More 44×44
 ⓘ Lock in needs every card available: 3 cards short   (only while disabled)
@@ -529,12 +539,16 @@ recommendations".
    Legend art always in full color. **Recommended: (b).** Decks are recognized by their Legend, the
    art is the centrepiece, and it keeps the page rule "full color = you own it". (c) is pretty but
    reads as a progress meter (OWN-054).
+   *Superseded (H-321):* RJ picked **(c)** (H-260 #1, 2026-11-25), with a completion % next to the art;
+   OWN-054 was rewritten to allow the user's own completion. See SPEC-005 0.11.1 OWN-100, OWN-101.
 2. **Ban flag on the deck tile.** (a) the legality label only; (b) add "N banned cards" and "1
    card banned from <date>". **Recommended: (b).** "Not legal in Standard today" doesn't say why, and
    a ban is the most common reason. Needs a count the engine doesn't return yet (§14).
 3. **A visual bar for copies on the tile.** (a) text only, "34 of 66 copies available"; (b) a thin
    A/R bar. **Recommended: (a).** OWN-054 bans completion percentages, and a bar is one in all but
-   name.
+   name. *Updated (H-321):* (a) stands (no bar), but the reason changed: OWN-054 (SPEC-005 0.11.1) now
+   allows the user's own completion %, shown as text on the tile and in the Deck detail header
+   (OWN-101 (d), OWN-010 (f)), with the Legend art fill as its only visual (OWN-100).
 4. **List layout.** (a) a grid of tiles (3 / 2 / 1 columns); (b) a one-column list of rows.
    **Recommended: (a).** It matches the Collection grid and uses desktop width. Rows waste it with
    short text.
@@ -680,7 +694,10 @@ Checked at 1440, 1024, 768 and 375, dark and light, on the test decks (extended 
 the styleguide samples.
 1. **A1** The list shows every deck in `updatedAt` order. Each tile has a name, source line, chip
    or badge per the §4 table, copies line, legality, ban flag (if accepted), Updated date, and one
-   link to the deck. No percentage, rank or meta anywhere.
+   link to the deck. No rank, score or meta anywhere. The one percentage is the user's own
+   completion ("51%") on the tile and in the Deck detail header ("34 of 66 copies available · 51%"),
+   never on the Missing tab, Card tab, dialogs, section bar or Collection (SPEC-005 0.11.1 OWN-101 (d),
+   OWN-010 (f), OWN-054; AC 23, 33, 36). (H-321: this point said "No percentage" before H-260 / H-320.)
 2. **A2** Ownership chips filter by `ownershipFilter`. Lock is independent. URL `own`, `lock`,
    `legality`, `source`, `sort` round-trip. "Showing X of Y decks" and Clear filters work. No-match
    state per L5.

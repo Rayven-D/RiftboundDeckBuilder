@@ -454,12 +454,11 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
 - **Resolved in 0.7 (H-167):** official name, no bracket and no printed player total for RC Europe, from
   [[Tournament Results]] facts 7 to 9 (note status `unverified`, as of 2026-11-24). If a later Riot article prints a
   player total or publishes a bracket for RC Europe, the spec changes then (research first); until then `playerCount: null` and CAT-006 hold.
-- Question for RJ (v0.7): the official name is long (39 characters), so rows read `1st, Riftbound Regional Championship: Europe` and
-  default deck names use it (CAT-032, CAT-073). Options: (a) the official name everywhere (the 0.7 default); (b) the official name in the
-  event header and source line, the short `RC Europe` in rows and deck names. The research gives the short name `RC Europe` only as Riot's
-  short form, so (b) would be a display choice for RJ, not a published fact.
-- Question for RJ (v0.7): whether to say anything about how RC Europe was played (Swiss days, then single elimination from the Top 8,
-  [[Tournament Results]] fact 7) on the event header. 0.7 default: no, because it is not a published result (CAT-006).
+- **Closed (RJ decision, 2026-11-25, in chat; H-291):** the official name `Riftbound Regional Championship: Europe` is used everywhere:
+  event header, source line, rows (`1st, Riftbound Regional Championship: Europe`) and default deck names (CAT-032, CAT-073). The short
+  `RC Europe` is not used in rows or deck names (it stays only in internal ids, file names and research note titles). This is option (a), the 0.7 default, so no requirement changed.
+- **Closed (RJ decision, 2026-11-25, in chat; H-291):** the event header does not describe how the event was played (Swiss days, then single
+  elimination from the Top 8, [[Tournament Results]] fact 7). This is the 0.7 default and matches CAT-006, so no requirement changed; CAT-032's header field list is the complete list.
 - **BLOCKED (policy):** whether copying decklists from Riot's articles is allowed (Riot Developer Rules rule 7,
   gray area; App Note via H-011). CAT-025 keeps import manual until answered.
 - **Depends on SPEC-002:** ban-list versioning, `bannedSince` dates, `legalAtEvent`, regional ban lists. Regional
@@ -474,4 +473,4 @@ Data below is the RC Europe Top 8 from [[Tournament Results]] and the 8 notes in
   Confirm, or use the full Legend name.
 
 ## Changelog
-Current: 0.7 (2026-11-25, H-167, from [[Tournament Results]] facts 7 to 9: RC Europe `name` is `Riftbound Regional Championship: Europe` (CAT-001, examples, ACs 1, 2, 16, 17, `TournamentDeckSource.eventName`); new CAT-006 no bracket or match model; CAT-002 no official player total and derived counts are not data; CAT-011 source note; ACs 25, 26; three BLOCKED items resolved; pins SPEC-006 examples only). Previous: 0.6 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: CAT-077 and CAT-078 without modes; new CAT-079 smooth scrolling, no pagination; ACs 23, 24). Earlier: 0.5.1 (2026-11-25, H-160). Earlier: 0.5 (2026-11-23). Full history: [[Tournament Deck Catalog changelog]] (archived). New entries go in the archive note.
+Note (2026-11-25, H-291, no version bump, no requirement change): RJ closed the two 0.7 open questions with the 0.7 defaults (official name everywhere; no event structure in the header); see Open questions. Current: 0.7 (2026-11-25, H-167, from [[Tournament Results]] facts 7 to 9: RC Europe `name` is `Riftbound Regional Championship: Europe` (CAT-001, examples, ACs 1, 2, 16, 17, `TournamentDeckSource.eventName`); new CAT-006 no bracket or match model; CAT-002 no official player total and derived counts are not data; CAT-011 source note; ACs 25, 26; three BLOCKED items resolved; pins SPEC-006 examples only). Previous: 0.6 (2026-11-24, H-171, ADR-0007 amendment 2, account-only: CAT-077 and CAT-078 without modes; new CAT-079 smooth scrolling, no pagination; ACs 23, 24). Earlier: 0.5.1 (2026-11-25, H-160). Earlier: 0.5 (2026-11-23). Full history: [[Tournament Deck Catalog changelog]] (archived). New entries go in the archive note.
