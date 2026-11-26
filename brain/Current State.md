@@ -59,7 +59,8 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 - **H-097 (runes are cards):** RJ answered "No notice" (2026-11-24). Build is H-098; it touches the uncommitted H-086 Collection files.
 - ~~**H-085 review**~~ *(RJ 2026-11-25: keep teal; green preview removed in H-258)*
 - **Review and merge `loop/ui-review-2026-11-24` into `dev`:** pushed 2026-11-24 (`60adb0c`), RJ opens the PR; the UI review chain, see [[UI Review Chain 2026-11-24]].
-- **Java PATH:** agent shells still find Oracle Java 17 first; rules tests need `C:\Program Files\Microsoft\jdk-21.0.13.102-hotspot\bin` first on PATH.
+- **Merge PR #81 (H-391, Decks pieces on `/styleguide`, code).**
+- **Java PATH:** on the old PC agent shells still find Oracle Java 17 first (prepend `C:\Program Files\Microsoft\jdk-21.0.13.102-hotspot\bin`). The new PC (2026-11-25) has only JDK 21 and Node 22.23.5 (Node 24.17 breaks `firebase login`); rules tests run as-is.
 - **H-138:** first real preview deploy (`cd web; npm run deploy:preview -- sync-test`) to check AC 35 by hand. An empty preview channel `sync-test` already exists (created by mistake in H-078 validation, nothing uploaded, expires 2026-12-01): reuse or delete it.
 - **H-063:** Email link is enabled; Google later. Console checklist before production is on the H-063 row (reply-to support inbox, app name, authorized domains, delete protection, enumeration protection, App Check optional).
 - **H-056:** angular.json analytics id; `riot.txt` is still uncommitted (RJ unsure whether it should be in the repo). The 2026-11-24 deploy of `main` removed it again; run `firebase deploy --only hosting` locally to restore it. **Every GitHub Actions deploy of `main` removes it** until it is committed or the workflow adds it.
@@ -68,6 +69,8 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 - **H-011:** apply for the production key once there's a demo ([[Riot App Application]]).
 
 ## Next for the loop
+**Decks follow-ups (`/board` 2026-11-25 late, first run on the new PC, seven parallel sessions):** all seven passed on attempt 1. Merged: H-383 (#75), H-342 (#76, [[Deck Import]] 0.12 `review`), H-341 (#77, [[Critique H-341 Deck Import Review]]), H-255 (#80, [[Decks Review]]: close, not done), H-343 (#78), H-380 (#79). Open for RJ: **H-391 (#81)**. **Next:** the blocking fixes **H-460** (deck tile focus ring), **H-461** (phone targets under 44 px) and **H-450** (import review stale select / lost focus), then H-451…H-453 and H-462…H-468 (review fixes), H-454 (SPEC-006 gaps from RJ's real deck lists), H-410 (`Champion: 2`), H-400, H-440, H-431; flaky timing tests under load H-420 / H-430. H-344 still waits on H-194. Then Tournaments.
+
 **Decks caught up with Collection (2026-11-25, orchestrator, one sub-session per item):** brief H-251 (#61) → specs H-252 (#66), H-320 (#69), H-256 (#70), H-330 (#71) → builds H-155 + H-253 (#72), H-311 + H-310 (#73), H-060 + H-254 (#74), all merged into `dev`. Open follow-ups: H-391 (styleguide entries), H-380 (tests), H-383 (spec text for the separate lock badge), H-341 (ui-engineer critique of the deck review step), H-342, H-343, H-344, H-255 (ui-engineer review of both Decks pages, now unblocked). Then Tournaments.
 
 **After `/board` (2026-11-25, fourth run, one session per item):** merged H-251 (#61), H-260 answers (#63), H-158 (#64), H-165 (#60), H-167 (#59), H-166 (#62). **Decks chain next:** H-320 (RJ's H-252 answers 2026-11-25: % also in the Deck detail header, rest default), H-252 (spec pass from the Decks brief + RJ's H-260 answers) and H-256 (H-157 answers) → H-253 (save imported decks), H-155 → H-060 (Decks UI), H-254 (Deck detail) → H-255 review. Also: H-291, H-271, H-257, H-270, H-273, H-258, H-290, H-300.
