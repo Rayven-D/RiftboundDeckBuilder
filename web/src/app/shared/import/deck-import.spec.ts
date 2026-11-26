@@ -207,7 +207,7 @@ describe('SPEC-006 Deck Import review (H-253)', () => {
         expect([champ.zone, champ.zoneMethod]).toEqual(['champion', 'section']);
       });
 
-      it('DECK-027: a 3-copy line the user puts in Chosen Champion keeps 1 there and 2 in main (zoneMethod user)', () => {
+      it('DECK-027 / DECK-105: a 3-copy line the user puts in Chosen Champion keeps 1 there and 2 in main (zoneMethod user)', () => {
         const p = prep('Legend: 1 Kennen, Heart of the Tempest\n3 Mystery Card');
         const id = p.lines.find((l) => l.card?.name === 'Mystery Card')!.id;
         const r = review(p, { zones: new Map([[id, 'champion']]) });
@@ -977,5 +977,103 @@ describe('SPEC-006 M. Back keeps the answers for unchanged lines (DECK-100, DECK
     expect([state.picks.size, state.typedName, state.sourceText, state.sourceUrl]).toEqual([0, null, '', '']);
     expect(r.attention.map((l) => l.line)).toEqual([3]);
     expect(r.name).toBe('Kennen, Heart of the Tempest');
+  });
+});
+
+describe('SPEC-006 N. Legend line that did not resolve; single-slot picks (DECK-104, DECK-105; H-500)', () => {
+  const AC39 = ['Legend:', '1 Kennen, Heart of the Tempst', 'Champion:', '1 Kennen, Storm of Shuriken', 'Main Deck:', '3 Lightning Rush'];
+  const legendQuestions = (r: ReturnType<typeof review>) => r.questions.filter((q) => q.kind === 'PICK_LEGEND');
+
+  it('DECK-104 / AC 39: a typo Legend line holds PICK_LEGEND: line to fix, Save blocked, no question, fallback name', () => {
+    const r = review(prep(AC39.join('\n')));
+    expect(r.attention.map((l) => [l.line, l.attention?.message])).toEqual([
+      [2, 'No card named "Kennen, Heart of the Tempst" in the card data.'],
+    ]);
+    expect(r.blockers).toEqual({ unresolvedLines: 1, openQuestions: 0 });
+    expect(DECK_REVIEW_TEXT.needAttention(r.blockers.unresolvedLines)).toBe('1 card needs attention');
+    expect(legendQuestions(r)).toEqual([]);
+    expect(r.questions).toEqual([]);
+    expect(r.canSave).toBe(false);
+    expect(r.name).toBe('Imported deck Nov 23, 2026');
+    expect(r.draft.legend).toBeNull();
+    expect(r.draft.champion?.name).toBe('Kennen, Storm of Shuriken');
+  });
+
+  it('DECK-104 / AC 39: once the line is fixed in the list (Back, type the name, Continue), it is the Legend and Save is enabled', () => {
+    const fixed = [...AC39];
+    fixed[1] = '1 Kennen, Heart of the Tempest';
+    const p = prep(AC39.join('\n'));
+    const next = prep(fixed.join('\n'));
+    const r = reviewDeck(next, carryReviewAnswers(p, EMPTY_REVIEW_STATE, next, TODAY), TODAY);
+    expect(r.attention).toEqual([]);
+    expect(r.questions).toEqual([]);
+    expect(r.draft.legend?.name).toBe('Kennen, Heart of the Tempest');
+    expect(r.name).toBe('Kennen, Heart of the Tempest');
+    expect(r.canSave).toBe(true);
+  });
+
+  it('DECK-104 / DECK-033: a Legend line fixed by a pick in Lines to fix becomes the Legend (DECK-041)', () => {
+    // RAD 001 is Lightning Rush in the fixture, so the line asks which card is meant.
+    const p = prep(['Legend:', '1 Kennen, Heart of the Tempest RAD 001', ...AC39.slice(2)].join('\n'));
+    const id = p.lines[0].id;
+    expect(p.lines[0].attention?.code).toBe('PRINTING_NAME_MISMATCH');
+    expect(legendQuestions(review(p))).toEqual([]);
+    const r = review(p, { picks: new Map([[id, 'kennen heart of the tempest']]) });
+    expect(r.draft.legend?.name).toBe('Kennen, Heart of the Tempest');
+    expect(r.questions).toEqual([]);
+    expect(r.canSave).toBe(true);
+  });
+
+  it('DECK-104 / DECK-036 / AC 39: removing the line asks PICK_LEGEND "no Legend"; importRemovedLines keeps its text', () => {
+    const p = prep(AC39.join('\n'));
+    const id = p.lines.find((l) => l.raw === '1 Kennen, Heart of the Tempst')!.id;
+    const r = review(p, { removed: new Set([id]) });
+    expect(legendQuestions(r)).toEqual([{ kind: 'PICK_LEGEND', lineIds: [], candidates: [], answer: null }]);
+    expect(DECK_REVIEW_TEXT.questions(r.blockers.openQuestions)).toBe('1 question to answer');
+    expect(r.canSave).toBe(false);
+    const saved = review(p, { removed: new Set([id]), legend: 'empty' });
+    expect(saved.canSave).toBe(true);
+    expect(saved.draft.importRemovedLines).toEqual(['1 Kennen, Heart of the Tempst']);
+  });
+
+  it('DECK-104: the question is held while any Legend line is unresolved, also next to one that resolved', () => {
+    const p = prep(['Legend:', '1 Kennen, Heart of the Tempest', '1 Riven, The Exle', ...AC39.slice(2)].join('\n'));
+    const r = review(p);
+    expect(r.questions).toEqual([]);
+    expect(r.draft.legend).toBeNull();
+    expect(r.name).toBe('Imported deck Nov 23, 2026');
+    // Removing the unresolved line leaves one Legend: it is the Legend (DECK-033), no question.
+    const gone = review(p, { removed: new Set([p.lines.find((l) => l.raw === '1 Riven, The Exle')!.id]) });
+    expect(gone.questions).toEqual([]);
+    expect(gone.draft.legend?.name).toBe('Kennen, Heart of the Tempest');
+  });
+
+  it('DECK-104 / AC 39 / AC 3 / AC 33: with no Legend line at all, PICK_LEGEND is asked at once; an unsectioned unknown line is no Legend line', () => {
+    const r = review(prep('Main Deck:\n3 Lightnig Rush'));
+    expect(legendQuestions(r)).toHaveLength(1);
+    expect(r.blockers).toEqual({ unresolvedLines: 1, openQuestions: 1 });
+    const plain = review(prep('1 Kennen, Heart of the Tempst\n3 Lightning Rush'));
+    expect(legendQuestions(plain)).toHaveLength(1);
+  });
+
+  it('DECK-105 / DECK-027 / DECK-025 / AC 40: Chosen Champion picked in a Section select on a 2-copy line keeps 1 there, 1 in main', () => {
+    const MAIN_38 = ['12 Lightning Rush', '12 Hextech Ray', '12 Decree of Unity', '2 Rhasa the Sunderer'];
+    // The Section select is a PICK_ZONE, so the line is unsectioned (under `Main Deck:` the section would place it).
+    const p = prep(['2 Mystery Card', 'Legend:', '1 Kennen, Heart of the Tempest', 'Main Deck:', ...MAIN_38].join('\n'));
+    const id = p.lines.find((l) => l.raw === '2 Mystery Card')!.id;
+    expect(review(p).questions.map((q) => q.kind)).toContain('PICK_ZONE');
+    const r = review(p, { zones: new Map([[id, 'champion']]) });
+    expect(r.draft.champion).toEqual({ cardKey: 'mystery card', name: 'Mystery Card', qty: 1 });
+    expect(qtyOf(r.draft.main, 'mystery card')).toBe(1);
+    expect(r.byZone.main).toBe(39);
+    const line = r.lines.find((l) => l.id === id)!;
+    expect([line.zoneMethod, line.zoneReason, line.movedToMain]).toEqual([
+      'user',
+      '1 copy is the Chosen Champion; the other copy moves to the Main Deck',
+      1,
+    ]);
+    expect(r.slots.champion?.method).toBe('user');
+    expect(r.draft.importRemovedLines).toBeUndefined();
+    expect(r.draft.champion!.qty + qtyOf(r.draft.main, 'mystery card')!).toBe(2);
   });
 });

@@ -506,7 +506,12 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
     legendMethod = 'user';
     legend = a === 'empty' ? null : (p.catalog.cards[a as CardKey] ?? null);
   };
-  if (legendCards.length === 0) {
+  // DECK-104: while a line under a `Legend` section is in Lines to fix, PICK_LEGEND is held (neither "no Legend" nor
+  // "several Legends" is asked) and the Legend lines that did resolve wait with it; Save is blocked by that line.
+  const legendHeld = attention.some((l) => l.section === 'legend');
+  if (legendHeld) {
+    legendOpen = true;
+  } else if (legendCards.length === 0) {
     answerLegend([], []); // DECK-036: no Legend in the input at all
   } else if (unsectionedLegends.length === 0 && legendCards.length === 1) {
     legend = legendCards[0];
@@ -658,7 +663,8 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
       continue;
     }
     if (x.zone === null) {
-      if (x.pending === null && !questions.some((q) => q.lineIds.includes(x.line.id))) {
+      const waitsForLegend = legendHeld && legendLines.includes(x); // DECK-104: no question while held
+      if (x.pending === null && !waitsForLegend && !questions.some((q) => q.lineIds.includes(x.line.id))) {
         questions.push({ kind: 'PICK_ZONE', lineIds: [x.line.id], answer: null }); // DECK-035
       }
       continue;

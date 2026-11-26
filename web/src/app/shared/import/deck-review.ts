@@ -59,8 +59,6 @@ export const DECK_REVIEW_WORDS = {
   checks: 'Check these',
   use: (name: string) => `Use ${name}`,
   legendNone: 'This list has no Legend. Pick one, or leave it empty.',
-  /** H-452 (§4): the input has a Legend line, but it is in Lines to fix (critique finding 7; spec gap S3). */
-  legendUnresolved: (line: number) => `The Legend on line ${line} isn't in the card data. Fix that line, or pick a Legend here.`,
   legendMany: 'Pick the deck\'s Legend. The other Legend lines are left out.',
   championAsk: 'Pick the deck\'s Chosen Champion.',
   /** H-452 (§4): DECK-034 (b) puts the other cards in the Main Deck. */
@@ -488,11 +486,9 @@ export class DeckReview {
     return this.words.removed(left.length, left.map((l) => this.words.removedItem(l.line, l.name)).join(', '));
   });
 
-  /** DECK-033 / DECK-036; H-452: a Legend line in Lines to fix gets its own wording (critique finding 7). */
+  /** DECK-033 / DECK-036. A Legend line in Lines to fix holds the question with no prompt of its own (DECK-104). */
   protected legendPrompt(q: ZoneQuestion): string {
-    if (q.kind !== 'PICK_ZONE' && q.candidates.length) return this.words.legendMany;
-    const unresolved = this.view().attention.find((l) => l.section === 'legend');
-    return unresolved ? this.words.legendUnresolved(unresolved.line) : this.words.legendNone;
+    return q.kind !== 'PICK_ZONE' && q.candidates.length ? this.words.legendMany : this.words.legendNone;
   }
 
   /** H-452: Remove line on a code-used warning. Focus moves to the next such Remove line, else "Check the deck". */

@@ -371,10 +371,26 @@ describe('DeckReview champion and placement wording (H-452, critique H-341 §4)'
     );
   });
 
-  it('H-452 / DECK-036: a Legend line in Lines to fix gives the legendUnresolved prompt naming its line', async () => {
-    const f = await setup('Legend:\n1 Evelynn, Widowmaker\nMain Deck:\n3 Gust');
+  it('DECK-104 / AC 39: a Legend line in Lines to fix holds PICK_LEGEND with no prompt; removing it asks "no Legend"', async () => {
+    const f = await setup('Legend:\n1 Varrow, Ember Wardn\nChampion:\n1 Varrow, Ashen Blade\nMain Deck:\n3 Gust');
+    f.componentRef.setInput('today', () => new Date(2026, 10, 23));
+    await settle(f);
+    const status = () => document.getElementById('deck-review-status')!.textContent!.replace(/\s+/g, ' ').trim();
+    const fix = Array.from(el(f).querySelectorAll('ul.attention li')).map((li) => li.textContent!.replace(/\s+/g, ' ').trim());
+    expect(fix).toEqual(['Line 2: No card named "Varrow, Ember Wardn" in the card data. Remove line']);
+    expect(status()).toBe('1 card needs attention');
+    expect(el(f).querySelector('.question')).toBeNull();
+    expect(el(f).querySelector('mat-select.pick-legend')).toBeNull();
+    expect(el(f).textContent).not.toContain('This list has no Legend.');
+    expect(el(f).textContent).not.toMatch(/to answer|Legend on line/);
+    expect(el(f).querySelector<HTMLInputElement>('input.deck-name')!.value).toBe('Imported deck Nov 23, 2026');
+
+    clickButton(f, 'ul.attention button.remove');
+    await settle(f);
     const prompt = el(f).querySelector('mat-select.pick-legend')!.closest('.question')!.querySelector('p')!;
-    expect(prompt.textContent!.trim()).toBe("The Legend on line 2 isn't in the card data. Fix that line, or pick a Legend here.");
+    expect(prompt.textContent!.trim()).toBe('This list has no Legend. Pick one, or leave it empty.');
+    expect(status()).toBe('1 question to answer');
+    expect(el(f).querySelector('.removed-note')!.textContent).toContain('line 2 (1 Varrow, Ember Wardn)');
   });
 
   it('H-452 / DECK-036: with no Legend line at all the prompt stays "This list has no Legend."', async () => {
