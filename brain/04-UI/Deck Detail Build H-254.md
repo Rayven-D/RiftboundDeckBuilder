@@ -18,7 +18,8 @@ SPEC-005 OWN-010…119. Contracts: [[API Contracts]] → "Deck detail" (v1.27). 
   (locked: "copies locked in"; the percentage is `aria-hidden` with a visually hidden ", N percent"; nothing when
   `completionPercent` is null) and "N of M cards fully available" (no percentage); actions (`app-lock-actions`: Lock in / Unlock with its reason line under the button, Copy missing
   list split button with "Copy as one list", More menu: Copy deck list, Download .txt, Duplicate, Rename, divider,
-  Delete).
+  Delete). From 40rem the actions sit top-right beside the name and status, with the reason line under the whole
+  row (H-475; [[Decks Components]] §5).
 - **Notices** under the header: read-only (info), ownership unavailable, card data not loaded with Try again, locks
   unreadable, and the dismissible ban notice (OWN-015).
 - **Sticky deck bar** under the site header: section links in Riot order (Legend and Champion without a count,
@@ -62,7 +63,7 @@ state contrast). New icons: `arrow_back`, `open_in_new`, `edit`, `delete`, `grid
 - `.meta`: `app-lock-badge` (`view.lock`, `tile.lockBadge`), before the legality label.
 - `.actions`, first: `app-lock-actions` (`deck`, `view`, `pool`, `readOnly`, `locksUnreadable`). Its reason line is
   its own; the actions row aligns to the top so the line sits under the button, and Copy / More sit level with the
-  button. On phones the lock button fills the row with More beside it.
+  button. Since H-475 (from 40rem) it has class `in-row` and its reason line runs under the whole actions row. On phones the lock button fills the row with More beside it.
 - The page re-reads on `DeckLocks.changed` and `(changed)`; after a change focus moves to the new button (Lock in ↔
   Unlock). Delete releases the lock through `DeckLocks.unlock`.
 - No `app-shortfall-warning` here: [[Decks]] §9 and [[Decks Components]] §10 keep SHARE-034 warnings in Collection's

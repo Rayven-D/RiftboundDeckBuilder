@@ -118,7 +118,7 @@ them from there; brief §14.10.)
   | default | `--shadow-rest` |
   | hover (fine pointer) | `.lift`: rise 2px, `--shadow-lift`, border `--color-border-strong`, `--dur-med` `--ease-out` |
   | active | `translateY(1px) scale(.99)`, 90ms |
-  | focus-visible | global ring around the link (2px `--color-focus`, 2px offset, `--radius-lg`) |
+  | focus-visible | 2px `--color-focus` ring drawn **inside** the link (`outline-offset: -2px`, over the 1px border, following `--radius-lg`), because the grid `li`'s `content-visibility: auto` (OWN-084) clips anything outside it (H-460). Outer edge on the page, inner edge on the surface: 5.05 / 5.47 light, 8.90 / 7.78 dark |
 - **Screen reader:** "Kennen Tempo, link" then the description: "1st, Regional Championship: Europe
   · Nov 6, 2026 – Nov 8, 2026. Partly available, 34 of 66 copies available. Not legal in Standard
   today. 1 banned card. Updated Nov 22, 2026." Icons are `aria-hidden`.
@@ -179,7 +179,8 @@ border). Controls are 40px tall on desktop and 44px on phones; control edges use
   a sticky footer. Applying closes it and returns focus to the Filters button.
 - **Active chips row** (only when a filter is on): one chip per filter, `<button>` with `close`
   icon, `aria-label="Remove filter: Ready to build"`, then text button `Clear filters`. Removing a
-  chip moves focus to the next chip, or to the search field.
+  chip moves focus to the next chip, or to the search field. Chips are 32px tall with a fine pointer on
+  desktop and 44px on phones (`max-width: 40rem`) and touch (H-461).
 - **URL:** `q`, `own`, `lock`, `legality`, `source`, `sort`; defaults omitted; `replaceUrl` while
   typing. Unknown values → notice line `1 filter value not found and was ignored` (dismissible).
 - **Locked hint** (brief choice 7): under the count line when `own=ready` hides locked complete
@@ -207,6 +208,16 @@ Extends `app-deck-heading` (keep it for the name + source):
 
 Phone: the actions row puts Lock in / Unlock at full width (flex 1) + More (44×44). Copy missing
 list moves into the summary panel (§11).
+
+**Placement from 40rem (H-475, RJ 2026-11-25):** two columns under the back link. Left (`.header-main`): name,
+source, meta row and summary, `flex: 1 1 20rem; min-width: 0` so a long name wraps. Right (the actions row,
+`flex: 0 0 auto`): top-aligned with the name, right-aligned, in this order: Lock in / Unlock · Copy missing list
++ chevron · More. The reason line goes under the **whole** actions row (right-aligned, wraps to the row's
+width), so Copy sits right next to Lock in (answers H-392 (1)); `app-lock-actions` takes class `in-row` for
+this (`display: contents` from 40rem). Built as a wrapping flex row (`.header-top`): when the two can't fit
+side by side (about 768 and below) the actions drop under the summary, never overlapping. The actions stay
+after the status in the DOM, so focus goes Rule check → Lock in → Copy missing list → chevron → More.
+Notices stay under the header. Phones (< 40rem) keep the one-column layout above.
 
 ## 6. Lock badge, `app-lock-badge`
 **Inputs:** `lock: DeckLockState | null`, `label: string | null` (`summary.lockBadge`). It renders
@@ -339,6 +350,8 @@ For the Collection Replace / Undo confirmations (H-158, H-060), not for Decks pa
   `aria-label="More copy options"`): main `Copy missing list` (`content_copy`) copies
   `view.missingText`; menu item `Copy as one list` copies the merged list (per `cardKey`, deck order
   of first appearance, `<total> <name>`; built from `view.missing`). Both snack `Missing list copied`.
+  Both halves are 40px with a fine pointer on desktop and 44px on phones (`max-width: 39.99rem`) and
+  touch, always the same height (H-461; the main half via `--mat-button-outlined-container-height`).
   Clipboard failure: `Couldn't copy. Select the list and copy it yourself.` (proposed; the spec is
   silent). Hidden when `missing` is empty or ownership is unavailable.
 

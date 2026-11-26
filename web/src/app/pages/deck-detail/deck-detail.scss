@@ -67,10 +67,39 @@ p {
   }
 }
 
-.deck-header {
+.deck-header,
+.header-top,
+.header-main {
   display: grid;
   gap: var(--space-2);
+}
+
+.deck-header {
   margin-bottom: var(--space-4);
+}
+
+// H-475 (RJ 2026-11-25): from 40rem the actions sit top-right, level with the title. A wrapping flex row, not a
+// two-column grid: the title side shrinks (min-width 0) down to 20rem, the actions keep their content width, and
+// when both can't fit (a narrow tablet) the actions drop under the status lines instead of overlapping.
+@media (min-width: 40rem) {
+  .header-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-3) var(--space-6);
+  }
+
+  .header-main {
+    flex: 1 1 20rem;
+    min-width: 0;
+  }
+
+  .header-top > .actions {
+    flex: 0 0 auto;
+    justify-content: flex-end;
+    max-width: 100%;
+    margin-top: 0;
+  }
 }
 
 .deck-name {
@@ -202,6 +231,11 @@ app-lock-actions {
   app-icon {
     margin-inline-end: var(--space-2);
     font-size: 18px;
+  }
+
+  // H-461 (A13): same height as .split-more on phones / touch, so the two halves match.
+  @media (pointer: coarse), (max-width: 39.99rem) {
+    --mat-button-outlined-container-height: 44px;
   }
 }
 

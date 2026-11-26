@@ -18,6 +18,7 @@ import { BrowserStores, createBrowserStores } from '../../core/storage/browser-s
 import { MemoryBackend } from '../../core/storage/kv-backend';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
 import { provideOpenGate } from '../../core/sync/testing/open-gate';
+import { cssRules, targets } from '../../shared/testing/css-rules';
 import { DECKS_TEXT } from './decks-page';
 
 const LEGEND = 'Kennen, Heart of the Tempest';
@@ -361,6 +362,28 @@ describe('DecksPage toolbar and states (SPEC-005 OWN-005, OWN-006, OWN-084, OWN-
     await settle(harness);
     expect(tiles()).toHaveLength(3);
     expect(TestBed.inject(Location).path()).toBe('/decks');
+  });
+
+  it('H-460 (WCAG 2.4.7): the tile focus ring is drawn inside the link, so the li paint containment (OWN-084) cannot clip it', async () => {
+    const { tiles } = await setup({ decks: three() });
+    expect(tiles()).toHaveLength(3);
+    const ring = cssRules((s) => targets(s, 'deck-tile', ':focus-visible'));
+    expect(ring).toHaveLength(1);
+    expect(ring[0].style.getPropertyValue('outline')).toContain('var(--color-focus)');
+    expect(ring[0].style.getPropertyValue('outline-offset')).toBe('-2px');
+    // The OWN-084 rendering win stays on the grid items.
+    const li = cssRules((s) => /\.deck-grid\s*>\s*li$/.test(s.trim()));
+    expect(li.map((r) => r.style.getPropertyValue('content-visibility'))).toContain('auto');
+  });
+
+  it('H-461 (A13): the "Remove filter" chips are 44px tall on phones (≤ 40rem) and on touch, 32px otherwise', async () => {
+    const { el } = await setup({ decks: three(), url: '/decks?own=ready' });
+    expect(el.querySelectorAll('.filter-chip')).toHaveLength(1);
+    const rules = cssRules((s) => targets(s, 'filter-chip'));
+    expect(rules.find((r) => r.media === null)!.style.getPropertyValue('min-height')).toBe('32px');
+    const phone = rules.find((r) => r.media?.includes('max-width: 40rem'));
+    expect(phone?.media).toContain('pointer: coarse');
+    expect(phone!.style.getPropertyValue('min-height')).toBe('44px');
   });
 
   it('L5 / OWN-008 no match: "No decks match these filters" with Clear filters; count "Showing 0 of 3 decks"', async () => {

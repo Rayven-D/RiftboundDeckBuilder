@@ -176,7 +176,11 @@ let nextId = 0;
       border-radius: 0 var(--radius-md) var(--radius-md) 0;
       font-size: 24px;
     }
+    /* H-461 (A13): both halves 44px on phones / touch (this is the copy button Deck detail shows at 390). */
     @media (pointer: coarse), (max-width: 39.99rem) {
+      .copy-main {
+        --mat-button-outlined-container-height: 44px;
+      }
       .copy-more {
         width: 44px;
         height: 44px;

@@ -138,9 +138,14 @@ export function deckArtState(fill: number | null): { state: OwnershipState; fill
         border-color: var(--color-border-strong);
       }
     }
+    /* H-460 (WCAG 2.4.7): the Decks grid li has content-visibility: auto (OWN-084), whose paint
+     * containment clips anything outside the li, and this link fills the li. So the ring is drawn
+     * inside: offset -2px lays it over the 1px border and the first 1px of padding, following the
+     * --radius-lg corners. Its outer edge meets the page and its inner edge the tile surface; teal on
+     * bg / surface is 5.05 / 5.47 light and 8.90 / 7.78 dark (Brief H-139), all >= 3:1. */
     .deck-tile:focus-visible {
       outline: 2px solid var(--color-focus);
-      outline-offset: 2px;
+      outline-offset: -2px;
     }
     .art-col {
       display: flex;
