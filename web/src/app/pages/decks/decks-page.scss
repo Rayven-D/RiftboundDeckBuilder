@@ -437,7 +437,8 @@
     border-color: var(--color-text-muted);
   }
 
-  @media (pointer: coarse) {
+  // H-461 (A13): 44px on phones (the page's PHONE query) and on touch; 32px with a fine pointer on desktop.
+  @media (pointer: coarse), (max-width: 40rem) {
     min-height: 44px;
   }
 }

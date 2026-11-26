@@ -20,6 +20,7 @@ import { STORAGE_KEYS } from '../../core/storage/local-stores';
 import { provideOpenGate } from '../../core/sync/testing/open-gate';
 import { DETAIL_ALL_OWNED, DETAIL_CATALOG, DETAIL_DECK_ID, DETAIL_OWNED, detailDeck } from '../../shared/deck-detail/detail-fixtures';
 import { DECK_VIEW_KEY } from '../../shared/deck-detail/detail-view';
+import { cssRules, targets } from '../../shared/testing/css-rules';
 import { DEVICE_STORAGE, RAW_DECK_RECORD } from './deck-detail';
 
 type Width = 'desktop' | 'tablet' | 'phone';
@@ -447,6 +448,53 @@ describe('Deck detail (H-254)', () => {
       await settle(h2);
       expect(flow.querySelectorAll('li')).toHaveLength(11);
       expect(more.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('H-475: the header actions come after the title and status in the DOM; from 40rem they sit beside them (wrapping flex row) with the reason line under the whole row', async () => {
+      const h = await setup(URL_);
+      const header = q(h, 'header.deck-header')!;
+      const main = header.querySelector('.header-top > .header-main')!;
+      const actions = header.querySelector('.header-top > .actions')!;
+      expect(main.nextElementSibling).toBe(actions);
+      for (const sel of ['.deck-name', '.meta', '.summary']) expect(main.querySelector(sel)).not.toBeNull();
+      // Focus order (DOM order of the header's controls): status → Lock in → Copy missing list → chevron → More.
+      const controls = Array.from(header.querySelectorAll<HTMLElement>('a, button')).map((b) => b.getAttribute('aria-label') ?? text(b));
+      expect(controls).toEqual(['Decks', 'Rule check', 'Lock in', 'Copy missing list', 'More copy options', 'More actions']);
+      expect(q(h, 'app-lock-actions')!.classList).toContain('in-row');
+      // The ban-list and other notices stay below the header.
+      expect(header.nextElementSibling!.classList).toContain('notices');
+
+      const DESKTOP = (m: string | null) => m === '(min-width: 40rem)';
+      const desktop = (cls: string) => cssRules((s) => targets(s, cls)).filter((r) => DESKTOP(r.media));
+      expect(desktop('header-top')[0].style.getPropertyValue('display')).toBe('flex');
+      expect(desktop('header-top')[0].style.getPropertyValue('flex-wrap')).toBe('wrap');
+      expect(desktop('header-main')[0].style.getPropertyValue('min-width')).toBe('0px');
+      const side = cssRules((s) => s.trim() === '.header-top > .actions').find((r) => DESKTOP(r.media))!;
+      expect(side.style.getPropertyValue('flex')).toMatch(/^0 0 auto$/);
+      // Phones keep the one-column header (no flex row outside the desktop query).
+      expect(cssRules((s) => targets(s, 'header-top')).filter((r) => r.media === null).map((r) => r.style.getPropertyValue('display'))).toEqual(['grid']);
+      // app-lock-actions joins the row and puts its reason under it, desktop only.
+      const inRow = cssRules((s) => s.includes('in-row') && s.includes('.reason'));
+      expect(inRow.map((r) => r.media)).toEqual(['(min-width: 40rem)']);
+      expect(inRow[0].style.getPropertyValue('flex-basis') || inRow[0].style.getPropertyValue('flex')).toContain('100%');
+    });
+
+    it('H-461 (A13): both halves of Copy missing list are 44px tall on phones / touch (header split and the Missing copy), 40px on desktop', async () => {
+      const phone = await setup(URL_, { width: 'phone' });
+      expect(q(phone, '.split-main')).toBeNull(); // the phone shows the copy button under the Missing list
+      expect(q(phone, 'app-deck-missing .copy-main')).not.toBeNull();
+      const PHONE_OR_TOUCH = (m: string | null) => !!m && m.includes('pointer: coarse') && m.includes('max-width: 39.99rem');
+      for (const [main, more] of [['split-main', 'split-more'], ['copy-main', 'copy-more']]) {
+        const height = (cls: string, prop: string) =>
+          cssRules((s) => targets(s, cls))
+            .filter((r) => PHONE_OR_TOUCH(r.media))
+            .map((r) => r.style.getPropertyValue(prop).trim())
+            .find((v) => v !== '');
+        expect(height(main, '--mat-button-outlined-container-height')).toBe('44px');
+        expect(height(more, 'height')).toBe('44px');
+        // Desktop / fine pointer: no top-level height override on the main half (Material's 40px).
+        expect(cssRules((s) => targets(s, main)).filter((r) => r.media === null && r.style.getPropertyValue('--mat-button-outlined-container-height'))).toHaveLength(0);
+      }
     });
 
     it('OWN-113: the dialog follows the deck and closes with "This card is no longer in this deck." when its card leaves', async () => {

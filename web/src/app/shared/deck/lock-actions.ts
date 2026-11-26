@@ -119,6 +119,24 @@ let nextId = 0;
         flex: 1 1 auto;
       }
     }
+    /* H-475 (class "in-row", Deck detail header from 40rem): the button joins the parent's flex row of actions and
+       the reason line goes under the whole row, so Copy missing list sits right next to Lock in (H-392 (1)). The
+       reason adds no width of its own (contain: inline-size); it wraps to the row's width. The negative start margin
+       cancels the row's column gap (--space-2) that it would otherwise add to the row's width. */
+    @media (min-width: 40rem) {
+      :host(.in-row) {
+        display: contents;
+      }
+      :host(.in-row) .reason {
+        order: 1;
+        flex: 1 0 100%;
+        margin-top: 0;
+        margin-inline-start: calc(-1 * var(--space-2));
+        justify-content: flex-end;
+        contain: inline-size;
+        text-align: end;
+      }
+    }
   `,
 })
 export class LockActions {
