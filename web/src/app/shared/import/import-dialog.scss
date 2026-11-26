@@ -233,6 +233,43 @@
   }
 }
 
+/* H-452: where the Chosen Champion slot's other copies went. */
+.also-main-heading {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.also-main-block {
+  margin: var(--space-3) 0;
+}
+
+.moved {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-sm);
+
+  li {
+    padding: var(--space-1) 0;
+  }
+
+  .qty {
+    display: inline-block;
+    min-width: 2.5ch;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-muted);
+  }
+
+  .reason {
+    display: block;
+    padding-left: calc(2.5ch + 0.25em);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+  }
+}
+
 .all-main {
   margin-bottom: var(--space-3);
 }

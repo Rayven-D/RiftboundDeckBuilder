@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.30
+version: 1.31
 ---
 # API Contracts
 
@@ -560,7 +560,13 @@ writes nothing (DECK-003).
   than one copy (`Champion: 2 X`, or X on two lines under `Champion:`), 1 copy is the Chosen Champion and the rest
   are added to `main` (merged by `cardKey`); each such line has `zone: 'main'`, keeps its `zoneMethod` (`section` /
   `user`) and gets the reason `championExtraToMain`; nothing goes to `importRemovedLines`. A champion entry under
-  `Champion:` plus another under `Main Deck:` (DECK-025) is kept as written.
+  `Champion:` plus another under `Main Deck:` (DECK-025) is kept as written. **H-452 additions:** `ReviewLine.movedToMain`
+  (copies of the line that were in the Chosen Champion zone and went to `main`, else 0); `DeckReview.notes` items are
+  `ReviewNote { id, line, message, removable }` (`removable` = the code's card was used over the typed name: IMP-068 (c),
+  or the user picked the code's card on a `PRINTING_NAME_MISMATCH` line); `DeckReview.removedLines` (`{ line, name }[]`
+  in `importRemovedLines` order; name = the card's name, or the line's text when unresolved); `DeckImportLine.code`
+  (the printing code as written, or null) and `noteKind` (`'codeUsed' | 'nameUsed' | null`);
+  `DECK_REVIEW_TEXT.championExtraToMain` is a function of the extra copies (`(n: number) => string`).
 - **Parser additions** (`parse-card-list.ts`): `sourceLines(text)` (the parser's line split), `sectionLabelOf(raw)`;
   section labels accept `*` bold marks (`**Legend:**`, `**Legend**:`, SPEC-003 IMP-016 v0.14).
 - **Service** (`web/src/app/core/import/deck-import.ts`, `DeckImport`, root): `prepare` loads the catalog
@@ -808,6 +814,9 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.31 (2026-11-26, H-452, critique H-341 §4): no endpoint change and no stored-shape change. Review-only shape
+  additions: `ReviewLine.movedToMain`, `ReviewNote` (`id`, `removable`), `DeckReview.removedLines`,
+  `DeckImportLine.code` / `noteKind`; `championExtraToMain(n)` and `championNotPicked` reworded.
 - v1.30 (2026-11-26, H-410, SPEC-006 0.12 DECK-027): no endpoint change and no stored-shape change. `reviewDeck`
   keeps one copy in `champion`; extra copies of the same card go to `main` with the `championExtraToMain` reason.
 - v1.29 (2026-11-25, H-343, SPEC-001 CARD-034, SPEC-006 DECK-040): no endpoint change and no stored-shape change.

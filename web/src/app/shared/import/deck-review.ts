@@ -10,6 +10,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { MatButton } from '@angular/material/button';
 import { type ErrorStateMatcher, MatOptgroup, MatOption } from '@angular/material/core';
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
@@ -57,9 +58,14 @@ export const DECK_REVIEW_WORDS = {
   checks: 'Check these',
   use: (name: string) => `Use ${name}`,
   legendNone: 'This list has no Legend. Pick one, or leave it empty.',
+  /** H-452 (§4): the input has a Legend line, but it is in Lines to fix (critique finding 7; spec gap S3). */
+  legendUnresolved: (line: number) => `The Legend on line ${line} isn't in the card data. Fix that line, or pick a Legend here.`,
   legendMany: 'Pick the deck\'s Legend. The other Legend lines are left out.',
   championAsk: 'Pick the deck\'s Chosen Champion.',
-  championMany: 'Pick the deck\'s Chosen Champion. The other Champion lines are left out.',
+  /** H-452 (§4): DECK-034 (b) puts the other cards in the Main Deck. */
+  championMany: 'Pick the deck\'s Chosen Champion. The other Champion cards go in the Main Deck.',
+  /** H-452 (§4): heading of the lines the champion slot sent to the Main Deck. */
+  alsoMain: 'Also in the Main Deck:',
   zoneAsk: (line: number, name: string) => `Line ${line}: ${name}. Its card type isn't known, so pick its section.`,
   allMain: 'Put all in Main Deck',
   legend: 'Legend',
@@ -68,10 +74,19 @@ export const DECK_REVIEW_WORDS = {
   leaveEmpty: 'Leave empty',
   fromList: 'From this list',
   otherCards: 'Other cards',
-  inferred: 'Placed by card type',
-  inferredNote: 'Change a section if it is wrong.',
+  /** H-452 (§4): the list also holds lines the user placed (critique finding 9). */
+  inferred: 'Lines without a section',
+  inferredNote:
+    'These lines had no section label, so they were placed by card type or by your answers. Change any that are wrong.',
+  /** H-452 (§4): the reason on a line the user placed. */
+  pickedSection: 'You picked this section',
   moveTo: (zone: string) => `Move to ${zone}`,
-  removed: (n: number) => `${n} ${n === 1 ? 'line is' : 'lines are'} left out of the deck and listed on it.`,
+  /** H-452 (§4): names the lines left out (critique finding 10). `list` = "line 2 (Sorrel, Tide Reader), …". */
+  removed: (n: number, list: string) =>
+    n === 1
+      ? `1 line is left out of the deck: ${list}. It will be listed on the deck's page.`
+      : `${n} lines are left out of the deck: ${list}. They will be listed on the deck's page.`,
+  removedItem: (line: number, name: string) => `line ${line} (${name})`,
   source: 'Source (optional)',
   sourceHint: 'Where the list comes from, e.g. a player or a site.',
   link: 'Link (optional)',
@@ -85,7 +100,7 @@ export const DECK_REVIEW_WORDS = {
  */
 @Component({
   selector: 'app-deck-review',
-  imports: [MatButton, MatFormField, MatLabel, MatHint, MatError, MatInput, MatSelect, MatOption, MatOptgroup, Icon],
+  imports: [NgTemplateOutlet, MatButton, MatFormField, MatLabel, MatHint, MatError, MatInput, MatSelect, MatOption, MatOptgroup, Icon],
   template: `
     @let v = view();
     <h3 class="step-heading review-heading" tabindex="-1">{{ words.check }}</h3>
@@ -179,7 +194,7 @@ export const DECK_REVIEW_WORDS = {
         }
         @switch (q.kind) {
           @case ('PICK_LEGEND') {
-            <p [id]="promptId(q)">{{ q.candidates.length ? words.legendMany : words.legendNone }}</p>
+            <p [id]="promptId(q)">{{ legendPrompt(q) }}</p>
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>{{ words.legend }}</mat-label>
               <mat-select
@@ -224,6 +239,9 @@ export const DECK_REVIEW_WORDS = {
                 <mat-option value="empty">{{ words.leaveEmpty }}</mat-option>
               </mat-select>
             </mat-form-field>
+            @if (q.answer !== null && !withCatalog(q) && movedToMain().length) {
+              <ng-container [ngTemplateOutlet]="alsoMain" />
+            }
           }
           @case ('PICK_ZONE') {
             <p [id]="promptId(q)">{{ words.zoneAsk(lineNo(q.lineIds[0]), lineName(q.lineIds[0])) }}</p>
@@ -248,6 +266,21 @@ export const DECK_REVIEW_WORDS = {
     @if (openZoneQuestions()) {
       <button matButton="outlined" type="button" class="all-main" (click)="allMain()">{{ words.allMain }}</button>
     }
+    <!-- H-452: extra copies of a single Chosen Champion (DECK-027) have no question to sit under. -->
+    @if (movedToMain().length && !sectionChampionQuestion()) {
+      <div class="also-main-block"><ng-container [ngTemplateOutlet]="alsoMain" /></div>
+    }
+    <ng-template #alsoMain>
+      <p class="also-main-heading" [id]="alsoMainId">{{ words.alsoMain }}</p>
+      <ul class="moved" [attr.aria-labelledby]="alsoMainId">
+        @for (l of movedToMain(); track l.id) {
+          <li>
+            <span class="qty">{{ l.movedToMain }}</span> {{ l.name }}
+            <span class="reason">{{ l.zoneReason }}</span>
+          </li>
+        }
+      </ul>
+    </ng-template>
 
     @if (mismatches().length || otherIssues().length || v.notes.length) {
       <h3 class="step-heading checks-heading">{{ words.checks }}</h3>
@@ -282,15 +315,33 @@ export const DECK_REVIEW_WORDS = {
             </span>
           </li>
         }
-        @for (n of v.notes; track $index) {
+        @for (n of v.notes; track n.id) {
           <li class="warn">
-            <app-icon name="warning" /><span><strong>Line {{ n.line }}:</strong> {{ n.message }}</span>
+            <app-icon name="warning" />
+            <span class="grow">
+              <strong>Line {{ n.line }}:</strong> {{ n.message }}
+              <!-- H-452: the code's card was used over the typed name; it can be left out like a line to fix. -->
+              @if (n.removable) {
+                <span class="line-actions">
+                  <button
+                    matButton
+                    type="button"
+                    class="remove remove-used"
+                    [attr.data-line]="n.id"
+                    [attr.aria-label]="words.removeLine(n.line)"
+                    (click)="removeUsed(n.id)"
+                  >
+                    {{ words.remove }}
+                  </button>
+                </span>
+              }
+            </span>
           </li>
         }
       </ul>
     }
-    @if (v.draft.importRemovedLines?.length; as n) {
-      <p class="note">{{ words.removed(n) }}</p>
+    @if (v.removedLines.length) {
+      <p class="note removed-note">{{ removedText() }}</p>
     }
 
     @if (inferred().length) {
@@ -301,7 +352,7 @@ export const DECK_REVIEW_WORDS = {
           <li>
             <span class="grow">
               <span class="qty">{{ l.qty }}</span> {{ l.name }}
-              <span class="reason">{{ l.zoneReason }}</span>
+              <span class="reason">{{ l.zoneMethod === 'user' ? words.pickedSection : l.zoneReason }}</span>
             </span>
             <mat-form-field appearance="outline" subscriptSizing="dynamic" class="zone-field">
               <mat-label>{{ words.section }}</mat-label>
@@ -419,6 +470,34 @@ export class DeckReview {
         if (el && this.view().nameError && el.getAttribute('aria-invalid') !== 'true') el.setAttribute('aria-invalid', 'true');
       },
     });
+  }
+
+  /** H-452: lines the Chosen Champion slot sent to the Main Deck (DECK-027, DECK-034 b), with their reasons. */
+  protected readonly movedToMain = computed(() => this.view().lines.filter((l) => l.movedToMain > 0));
+  /** H-452: the `Champion:`-section PICK_CHAMPION, under whose select the moved lines are listed once answered. */
+  protected readonly sectionChampionQuestion = computed(() =>
+    this.view().questions.some((q) => q.kind === 'PICK_CHAMPION' && !this.withCatalog(q)),
+  );
+  protected readonly alsoMainId = 'deck-review-also-main';
+  /** H-452 (§4): the left-out note names its lines. */
+  protected readonly removedText = computed(() => {
+    const left = this.view().removedLines;
+    return this.words.removed(left.length, left.map((l) => this.words.removedItem(l.line, l.name)).join(', '));
+  });
+
+  /** DECK-033 / DECK-036; H-452: a Legend line in Lines to fix gets its own wording (critique finding 7). */
+  protected legendPrompt(q: ZoneQuestion): string {
+    if (q.kind !== 'PICK_ZONE' && q.candidates.length) return this.words.legendMany;
+    const unresolved = this.view().attention.find((l) => l.section === 'legend');
+    return unresolved ? this.words.legendUnresolved(unresolved.line) : this.words.legendNone;
+  }
+
+  /** H-452: Remove line on a code-used warning. Focus moves to the next such Remove line, else "Check the deck". */
+  protected removeUsed(id: number): void {
+    const ids = this.view().notes.filter((n) => n.removable).map((n) => n.id);
+    const next = ids.slice(ids.indexOf(id) + 1).map((n) => `button.remove-used[data-line="${n}"]`);
+    this.state.update((s) => ({ ...s, removed: new Set([...s.removed, id]) }));
+    this.focusFirst(next);
   }
 
   /** H-451: the prompt's id, which names the question's group and describes its select. */

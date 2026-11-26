@@ -320,3 +320,116 @@ describe('DeckReview status and screen-reader structure (H-451, critique H-341 f
     expect(active()).toBe(name);
   });
 });
+
+describe('DeckReview champion and placement wording (H-452, critique H-341 §4)', () => {
+  const pickOption = async (f: Fixture, selector: string, label: string) => {
+    f.debugElement.query(By.css(selector)).injector.get(MatSelect).open();
+    await settle(f);
+    Array.from(document.querySelectorAll<HTMLElement>('mat-option'))
+      .find((o) => o.textContent?.trim() === label)!
+      .click();
+    await settle(f);
+  };
+  const VARIANT_B = [
+    'Legend:',
+    '1 Varrow, Ember Warden',
+    'Champion:',
+    '2 Varrow, Ashen Blade',
+    '1 Ember Volley',
+    '1 Flashfire',
+    'Main Deck:',
+    '3 Gust',
+  ].join('\n');
+
+  it('H-452 / DECK-034 (b): the Champion: prompt says the other cards go in the Main Deck', async () => {
+    const f = await setup(VARIANT_B);
+    const prompt = el(f).querySelector('mat-select.pick-champion')!.closest('.question')!.querySelector('p')!;
+    expect(prompt.textContent!.trim()).toBe("Pick the deck's Chosen Champion. The other Champion cards go in the Main Deck.");
+    expect(el(f).querySelector('.moved')).toBeNull();
+  });
+
+  it('H-452 / DECK-034 (b) / AC 31: after the pick, "Also in the Main Deck:" lists the 3 moved copies with their reasons', async () => {
+    const f = await setup(VARIANT_B);
+    await pickOption(f, 'mat-select.pick-champion', 'Varrow, Ashen Blade');
+    const q = el(f).querySelector('mat-select.pick-champion')!.closest('.question')!;
+    expect(q.querySelector('.also-main-heading')!.textContent!.trim()).toBe('Also in the Main Deck:');
+    const rows = Array.from(q.querySelectorAll('ul.moved li')).map((li) => li.textContent!.replace(/\s+/g, ' ').trim());
+    expect(rows).toEqual([
+      '1 Varrow, Ashen Blade 1 copy is the Chosen Champion; the other copy moves to the Main Deck',
+      '1 Ember Volley Not picked as Chosen Champion, so it moves to the Main Deck',
+      '1 Flashfire Not picked as Chosen Champion, so it moves to the Main Deck',
+    ]);
+  });
+
+  it('H-452 / DECK-027 / AC 32: one champion line with 2 copies lists the extra copy with no question', async () => {
+    const f = await setup('Legend:\n1 Varrow, Ember Warden\nChampion:\n2 Varrow, Ashen Blade\nMain Deck:\n3 Gust');
+    expect(el(f).querySelector('.question')).toBeNull();
+    const block = el(f).querySelector('.also-main-block')!;
+    expect(block.querySelector('.also-main-heading')!.textContent!.trim()).toBe('Also in the Main Deck:');
+    expect(block.querySelector('ul.moved li')!.textContent!.replace(/\s+/g, ' ').trim()).toBe(
+      '1 Varrow, Ashen Blade 1 copy is the Chosen Champion; the other copy moves to the Main Deck',
+    );
+  });
+
+  it('H-452 / DECK-036: a Legend line in Lines to fix gives the legendUnresolved prompt naming its line', async () => {
+    const f = await setup('Legend:\n1 Evelynn, Widowmaker\nMain Deck:\n3 Gust');
+    const prompt = el(f).querySelector('mat-select.pick-legend')!.closest('.question')!.querySelector('p')!;
+    expect(prompt.textContent!.trim()).toBe("The Legend on line 2 isn't in the card data. Fix that line, or pick a Legend here.");
+  });
+
+  it('H-452 / DECK-036: with no Legend line at all the prompt stays "This list has no Legend."', async () => {
+    const f = await setup('Main Deck:\n3 Gust\n1 Not A Card');
+    const prompt = el(f).querySelector('mat-select.pick-legend')!.closest('.question')!.querySelector('p')!;
+    expect(prompt.textContent!.trim()).toBe('This list has no Legend. Pick one, or leave it empty.');
+  });
+
+  it('H-452 / DECK-030: "Lines without a section" with the new note; user-placed lines say "You picked this section"', async () => {
+    const f = await setup('1 Quiet Harbor\n2 Flashfire\nLegend: 1 Varrow, Ember Warden\nChampion: 1 Varrow, Ashen Blade');
+    await chooseZone(f, 0, 'Main Deck');
+    const headings = Array.from(el(f).querySelectorAll('h3')).map((h) => h.textContent!.trim());
+    expect(headings).toContain('Lines without a section');
+    expect(headings).not.toContain('Placed by card type');
+    expect(el(f).textContent).toContain(
+      'These lines had no section label, so they were placed by card type or by your answers. Change any that are wrong.',
+    );
+    const reasons = Array.from(el(f).querySelectorAll('ul.inferred li')).map((li) => li.querySelector('.reason')!.textContent!.trim());
+    expect(reasons).toEqual(['Card type is Battlefield', 'You picked this section']);
+  });
+
+  it('H-452 / DECK-042: the left-out note names the lines (Variant A: the unpicked Legend and removed lines)', async () => {
+    const f = await setup();
+    await pickOption(f, 'mat-select.pick-legend', 'Varrow, Ember Warden');
+    clickButton(f, 'ul.attention button.remove', 0);
+    await settle(f);
+    expect(el(f).querySelector('.removed-note')!.textContent!.trim()).toBe(
+      "2 lines are left out of the deck: line 6 (2 Nothing Like It), line 2 (Sorrel, Tide Reader). They will be listed on the deck's page.",
+    );
+    clickButton(f, 'ul.attention button.remove', 0);
+    await settle(f);
+    expect(el(f).querySelector('.removed-note')!.textContent).toContain('3 lines are left out of the deck: line 6');
+  });
+
+  it('H-452 / DECK-015: a code-used warning has a Remove line that leaves the line out', async () => {
+    const catalogWithCode = makeCatalog([
+      { name: 'Varrow, Ember Warden', category: 'legend' },
+      { name: 'Gust', category: 'spell' },
+    ]);
+    // Every fixture printing is OGN 001; give Gust its own number so the code resolves.
+    const gust = Object.values(catalogWithCode.printings).find((x) => x.cardKey === 'gust')!;
+    catalogWithCode.printings[gust.printingId] = { ...gust, collectorNumber: '012' };
+    const text = 'Legend: 1 Varrow, Ember Warden\nMain Deck:\n3 Noxus Hopeful (OGN-012)';
+    TestBed.configureTestingModule({ imports: [DeckReview] });
+    const f = TestBed.createComponent(DeckReview);
+    f.componentRef.setInput('prepared', prepareDeckImport(parseCardText(text), sourceLines(text), catalogWithCode));
+    await settle(f);
+    const remove = el(f).querySelector<HTMLButtonElement>('button.remove-used')!;
+    expect(remove.closest('li')!.textContent).toContain('so that card was used.');
+    expect(remove.getAttribute('aria-label')).toBe('Remove line 3');
+    remove.click();
+    await settle(f);
+    expect(el(f).querySelector('button.remove-used')).toBeNull();
+    expect(f.componentInstance.view().draft.main).toEqual([]);
+    expect(el(f).querySelector('.removed-note')!.textContent).toContain('line 3 (Gust)');
+    expect(active()?.textContent?.trim()).toBe('Check the deck');
+  });
+});

@@ -70,6 +70,10 @@ export interface DeckImportLine {
   readonly choices: readonly PlayableCard[];
   /** A note on a resolved line that does not block Save (IMP-068 c, IMP-069 a). */
   readonly note: string | null;
+  /** H-452: `codeUsed` = the code's card was used over the typed name (IMP-068 c); `nameUsed` = IMP-069 (a). */
+  readonly noteKind: 'codeUsed' | 'nameUsed' | null;
+  /** The printing code as written on the line (DECK-015), or null. */
+  readonly code: string | null;
 }
 
 /** What Continue produced: the resolved lines and what the review needs from the catalog. */
@@ -163,6 +167,8 @@ export interface ReviewLine {
   readonly zoneMethod: ZoneMethod | null;
   /** DECK-030: why an inferred zone was chosen, e.g. "Card type is Battlefield". */
   readonly zoneReason: string | null;
+  /** H-452: copies of this line that were in the Chosen Champion zone and went to `main` (DECK-027, DECK-034 b). */
+  readonly movedToMain: number;
   /** DECK-022 / DECK-023: the zone the card data expects, when it disagrees with the section. */
   readonly mismatch: { readonly message: string; readonly moveTo: DeckZone } | null;
 }
@@ -171,6 +177,15 @@ export interface SlotInfo {
   readonly name: string;
   readonly method: ZoneMethod | null;
   readonly reason: string | null;
+}
+
+export interface ReviewNote {
+  /** The line's id (`DeckImportLine.id`), for Remove line. */
+  readonly id: number;
+  readonly line: number;
+  readonly message: string;
+  /** H-452: the code's card was used instead of the typed name, so the review offers Remove line. */
+  readonly removable: boolean;
 }
 
 export interface ReviewIssue {
@@ -194,7 +209,9 @@ export interface DeckReview {
   readonly questions: readonly ZoneQuestion[];
   readonly issues: readonly ReviewIssue[];
   /** Resolution notes on resolved lines (DECK-015 warnings), by line. */
-  readonly notes: readonly { readonly line: number; readonly message: string }[];
+  readonly notes: readonly ReviewNote[];
+  /** H-452: lines left out of the deck (DECK-042), in `importRemovedLines` order: line number and card name or text. */
+  readonly removedLines: readonly { readonly line: number; readonly name: string }[];
   /** Copies per zone (DECK-001 summary). */
   readonly byZone: Readonly<Record<DeckZone, number>>;
   /** DECK-070: the default name for the Legend as it stands now. */
@@ -223,10 +240,11 @@ export const DECK_REVIEW_TEXT = {
   token: (name: string) => `${name} is a token and can't be put in a deck`,
   /** DECK-022 */
   mismatch: (name: string, type: string) => `${name} is a ${type}`,
-  /** DECK-034: a card under `Champion:` that was not picked as the Chosen Champion (a line's zone reason). */
-  championNotPicked: 'Not picked as the Chosen Champion, so it is in the Main Deck',
-  /** DECK-034: the picked card's line had more than one copy (a line's zone reason). */
-  championExtraToMain: 'One copy is the Chosen Champion; the other copies are in the Main Deck',
+  /** DECK-034: a card under `Champion:` that was not picked as the Chosen Champion (a line's zone reason; H-452). */
+  championNotPicked: 'Not picked as Chosen Champion, so it moves to the Main Deck',
+  /** DECK-027 / DECK-034: the Chosen Champion had more copies; `n` = the extra copies (a line's zone reason; H-452). */
+  championExtraToMain: (n: number) =>
+    `1 copy is the Chosen Champion; ${n === 1 ? 'the other copy moves' : `the other ${n} move`} to the Main Deck`,
   /** DECK-037 */
   noSideboard:
     'This list has no Sideboard section, so all cards are in the Main Deck. Move sideboard cards if needed.',
@@ -293,7 +311,7 @@ export function prepareDeckImport(
     if (e.section) sections.add(e.section);
     if (e.quantity <= 0) continue; // ZERO_QUANTITY adds nothing (IMP-008)
     const raw = (sourceLines[e.line - 1] ?? '').trim() || rawOf(e);
-    const base = { id: lines.length, line: e.line, raw, qty: e.quantity, section: e.section };
+    const base = { id: lines.length, line: e.line, raw, qty: e.quantity, section: e.section, code: e.printing?.text ?? null };
     lines.push({ ...base, ...resolveEntry(e, exact, findName, lookup, catalog) });
   }
   const cards = Object.values(catalog.cards);
@@ -314,7 +332,7 @@ function rawOf(e: ParsedEntry): string {
   return [String(e.quantity), e.name, e.printing?.text].filter(Boolean).join(' ');
 }
 
-type Resolution = Pick<DeckImportLine, 'card' | 'attention' | 'choices' | 'note'>;
+type Resolution = Pick<DeckImportLine, 'card' | 'attention' | 'choices' | 'note' | 'noteKind'>;
 
 function resolveEntry(
   e: ParsedEntry,
@@ -324,17 +342,24 @@ function resolveEntry(
   catalog: CollectionCatalogView,
 ): Resolution {
   const T = DECK_REVIEW_TEXT;
-  const ok = (card: PlayableCard, note: string | null = null): Resolution => ({ card, attention: null, choices: [], note });
+  const ok = (card: PlayableCard, note: string | null = null, noteKind: Resolution['noteKind'] = null): Resolution => ({
+    card,
+    attention: null,
+    choices: [],
+    note,
+    noteKind: note ? noteKind : null,
+  });
   const needs = (code: AttentionCode, message: string, choices: PlayableCard[] = []): Resolution => ({
     card: null,
     attention: { code, message },
     choices,
     note: null,
+    noteKind: null,
   });
   // DECK-040 / IMP-025 / CARD-034: exact name, then the optional leading article; several cards → AMBIGUOUS_NAME.
   const resolveName = (name: string, note: string | null = null): Resolution => {
     const r = findName(name);
-    if (r.status === 'found') return ok(catalog.cards[r.cardKey], note);
+    if (r.status === 'found') return ok(catalog.cards[r.cardKey], note, 'nameUsed');
     if (r.status === 'ambiguous') {
       return needs('AMBIGUOUS_NAME', T.ambiguousName(name), r.cardKeys.map((k) => catalog.cards[k]));
     }
@@ -354,7 +379,7 @@ function resolveEntry(
     const named = exact(e.name);
     // DECK-015: PRINTING_NAME_MISMATCH blocks Save until the user picks (IMP-068 b).
     if (named) return needs('PRINTING_NAME_MISMATCH', T.codeMismatch(code, codeCard.name, named.name), [codeCard, named]);
-    return ok(codeCard, T.codeUsed(code, codeCard.name)); // IMP-068 (c)
+    return ok(codeCard, T.codeUsed(code, codeCard.name), 'codeUsed'); // IMP-068 (c)
   }
   if (found.status === 'ambiguous') return needs('AMBIGUOUS_PRINTING', T.ambiguousCode(code));
   if (!e.name) return needs('UNKNOWN_PRINTING', T.unknownCode(code)); // code-only, IMP-069 (b)
@@ -410,6 +435,8 @@ interface Placed {
   movedToChampion: number;
   /** Dropped by the slot rules (an unpicked Legend; DECK-033), saved in `importRemovedLines`. */
   dropped: boolean;
+  /** In the Chosen Champion zone, sent to `main` by the slot rules (DECK-027, DECK-034 b). */
+  fromChampion: boolean;
 }
 
 /**
@@ -419,15 +446,20 @@ interface Placed {
 export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): DeckReview {
   const T = DECK_REVIEW_TEXT;
   const issues: ReviewIssue[] = [];
-  const notes: { line: number; message: string }[] = [];
+  const notes: ReviewNote[] = [];
   const removedRaw: string[] = [];
+  const removedLines: { line: number; name: string }[] = [];
+  const leaveOut = (line: DeckImportLine, card: PlayableCard | null) => {
+    removedRaw.push(line.raw);
+    removedLines.push({ line: line.line, name: card?.name ?? line.raw });
+  };
   const attention: DeckImportLine[] = [];
   const placed: Placed[] = [];
   const questions: ZoneQuestion[] = [];
 
   for (const line of p.lines) {
     if (s.removed.has(line.id)) {
-      removedRaw.push(line.raw);
+      leaveOut(line, line.card ?? line.choices.find((c) => c.cardKey === s.picks.get(line.id)) ?? null);
       continue;
     }
     let card = line.card;
@@ -439,11 +471,15 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
         continue;
       }
       card = picked;
-    } else if (line.note) notes.push({ line: line.line, message: line.note });
+      // H-452: the user kept the code's card over the typed name (DECK-015, IMP-068 b): same warning as IMP-068 (c).
+      if (line.attention?.code === 'PRINTING_NAME_MISMATCH' && line.code && picked === line.choices[0])
+        notes.push({ id: line.id, line: line.line, message: T.codeUsed(line.code, picked.name), removable: true });
+    } else if (line.note)
+      notes.push({ id: line.id, line: line.line, message: line.note, removable: line.noteKind === 'codeUsed' });
     // DECK-026: tokens are rejected in any section, with a warning; their text goes to importRemovedLines.
     if (card.category === 'token') {
       issues.push({ code: 'TOKEN_NOT_DECK_CARD', severity: 'warning', message: T.token(card.name), line: line.line });
-      removedRaw.push(line.raw);
+      leaveOut(line, card);
       continue;
     }
     placed.push(place(line, card, s.zones.get(line.id) ?? null));
@@ -531,8 +567,9 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
     if (copies > 1) {
       inChampion.forEach((x, i) => {
         x.zone = 'main';
+        x.fromChampion = true;
         x.movedToChampion = i === 0 ? 1 : 0;
-        x.reason = T.championExtraToMain;
+        x.reason = T.championExtraToMain(copies - 1);
       });
     }
   } else if (championCards.length > 1) {
@@ -541,6 +578,10 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
     // copies not picked stay in `main`; Deck Construction Rules #1, #4). "Leave empty" puts them all in `main`.
     const picked = answerChampion(championCards, inChampion.map((x) => x.line.id), false);
     let pickedLine: Placed | undefined;
+    const pickedCopies =
+      picked && picked !== 'open'
+        ? inChampion.filter((x) => x.card.cardKey === picked.cardKey).reduce((n, x) => n + x.line.qty, 0)
+        : 0;
     for (const x of inChampion) {
       if (picked === 'open') {
         x.zone = null;
@@ -548,6 +589,7 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
       }
       x.zone = 'main';
       x.method = 'user';
+      x.fromChampion = true;
       if (x.mismatch?.moveTo === 'main') x.mismatch = null; // now in the zone its card data expects
       if (picked && x.card.cardKey === picked.cardKey) {
         // The pick's first line gives the one copy (DECK-027); its other lines are extra copies, not unpicked cards.
@@ -555,7 +597,7 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
           pickedLine = x;
           x.movedToChampion = 1;
         }
-        x.reason = T.championExtraToMain;
+        x.reason = T.championExtraToMain(pickedCopies - 1);
       } else {
         x.reason = T.championNotPicked;
       }
@@ -612,7 +654,7 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
   };
   for (const x of placed) {
     if (x.dropped) {
-      removedRaw.push(x.line.raw);
+      leaveOut(x.line, x.card);
       continue;
     }
     if (x.zone === null) {
@@ -694,6 +736,7 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
         zone,
         zoneMethod: zone ? (allMoved ? championMethod : x.method) : null,
         zoneReason: zone ? (allMoved ? championReason : x.reason) : null,
+        movedToMain: zone === 'main' && x.fromChampion ? x.line.qty - x.movedToChampion : 0,
         mismatch: zone ? x.mismatch : null,
       };
     });
@@ -709,6 +752,7 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
     questions,
     issues,
     notes,
+    removedLines,
     byZone,
     defaultName,
     name,
@@ -731,6 +775,7 @@ function place(line: DeckImportLine, card: PlayableCard, override: DeckZone | nu
     pending: null,
     movedToChampion: 0,
     dropped: false,
+    fromChampion: false,
   };
   if (override) {
     x.zone = override;

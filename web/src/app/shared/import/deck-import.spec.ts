@@ -182,7 +182,7 @@ describe('SPEC-006 Deck Import review (H-253)', () => {
         expect(r.draft.champion!.qty + qtyOf(r.draft.main, KENNEN)!).toBe(2);
         expect(r.draft.importRemovedLines).toBeUndefined();
         const line = r.lines.find((l) => l.name === 'Kennen, Storm of Shuriken')!;
-        expect([line.zone, line.zoneMethod, line.zoneReason]).toEqual(['main', 'section', DECK_REVIEW_TEXT.championExtraToMain]);
+        expect([line.zone, line.zoneMethod, line.zoneReason]).toEqual(['main', 'section', '1 copy is the Chosen Champion; the other copy moves to the Main Deck']);
         expect(r.slots.champion?.name).toBe('Kennen, Storm of Shuriken');
         expect(r.canSave).toBe(true);
       });
@@ -270,7 +270,7 @@ describe('SPEC-006 Deck Import review (H-253)', () => {
         expect(qtyOf(r.draft.main, 'kennen second form')).toBe(1);
         expect(mainPlusChampion(r)).toBe(40);
         const riven = r.lines.find((l) => l.name === 'Riven, Broken Blade')!;
-        expect([riven.zone, riven.zoneReason]).toEqual(['main', DECK_REVIEW_TEXT.championExtraToMain]);
+        expect([riven.zone, riven.zoneReason]).toEqual(['main', '1 copy is the Chosen Champion; the other copy moves to the Main Deck']);
       });
 
       it('DECK-034 / DECK-036: "Leave empty" on PICK_CHAMPION puts every card under Champion: in the Main Deck', () => {
@@ -524,7 +524,7 @@ describe('SPEC-006 Deck Import review (H-253)', () => {
     it('DECK-015 / AC 23: an unknown code with a known name falls back to the name and does not block', () => {
       const r = review(prep('Legend: 1 Kennen, Heart of the Tempest\nMain Deck:\n3 Lightning Rush RAD 999'), { champion: 'empty' });
       expect(qtyOf(r.draft.main, 'lightning rush')).toBe(3);
-      expect(r.notes).toEqual([{ line: 3, message: "RAD 999 isn't in the card data, so the card name was used." }]);
+      expect(r.notes).toEqual([{ id: 1, line: 3, message: "RAD 999 isn't in the card data, so the card name was used.", removable: false }]);
       expect(r.canSave).toBe(true);
     });
 
@@ -596,7 +596,7 @@ describe('SPEC-006 Deck Import review (H-253)', () => {
       it('DECK-040 / IMP-069 (a): an unknown code falls back to the name through the article rule', () => {
         const r = review(prep(deck('1 Dreaming Tree RAD 999\n1 Pit RAD 998'), ARTICLES), { champion: 'empty' });
         expect(qtyOf(r.draft.main, 'the dreaming tree')).toBe(1);
-        expect(r.notes).toEqual([{ line: 3, message: "RAD 999 isn't in the card data, so the card name was used." }]);
+        expect(r.notes).toEqual([{ id: 1, line: 3, message: "RAD 999 isn't in the card data, so the card name was used.", removable: false }]);
         expect(r.attention.map((l) => l.attention?.code)).toEqual(['AMBIGUOUS_NAME']);
       });
     });
@@ -720,5 +720,68 @@ describe('H-450 questionKey (stable track for the review questions)', () => {
   it('H-450 / DECK-036: a question with no lines (no Legend in the input) still has a key', () => {
     expect(questionKey({ kind: 'PICK_LEGEND', lineIds: [], candidates: [], answer: null })).toBe('PICK_LEGEND:');
     expect(questionKey({ kind: 'PICK_ZONE', lineIds: [4], answer: null })).toBe('PICK_ZONE:4');
+  });
+});
+
+describe('H-452 where the cards went (critique H-341 findings 5, 8, 10; §4 strings)', () => {
+  it('H-452 / DECK-034 (b): the two champion reason lines use the §4 wording; championExtraToMain counts the copies', () => {
+    expect(DECK_REVIEW_TEXT.championNotPicked).toBe('Not picked as Chosen Champion, so it moves to the Main Deck');
+    expect(DECK_REVIEW_TEXT.championExtraToMain(1)).toBe('1 copy is the Chosen Champion; the other copy moves to the Main Deck');
+    expect(DECK_REVIEW_TEXT.championExtraToMain(2)).toBe('1 copy is the Chosen Champion; the other 2 move to the Main Deck');
+  });
+
+  it('H-452 / DECK-034 (b) / AC 31: after the pick, movedToMain gives each moved line its copies in main (Variant B: 3 copies)', () => {
+    const text = 'Legend: 1 Kennen, Heart of the Tempest\nChampion:\n2 Kennen, Storm of Shuriken\n1 Kennen, Second Form\n1 Riven, Broken Blade\nMain Deck:\n3 Gust';
+    const open = review(prep(text));
+    expect(open.lines.filter((l) => l.movedToMain > 0)).toEqual([]);
+    const r = review(prep(text), { champion: 'kennen storm of shuriken' });
+    const moved = r.lines.filter((l) => l.movedToMain > 0).map((l) => [l.name, l.movedToMain, l.zoneReason]);
+    expect(moved).toEqual([
+      ['Kennen, Storm of Shuriken', 1, '1 copy is the Chosen Champion; the other copy moves to the Main Deck'],
+      ['Kennen, Second Form', 1, DECK_REVIEW_TEXT.championNotPicked],
+      ['Riven, Broken Blade', 1, DECK_REVIEW_TEXT.championNotPicked],
+    ]);
+    expect(moved.reduce((n, m) => n + (m[1] as number), 0)).toBe(3);
+  });
+
+  it('H-452 / DECK-027: Champion: 3 X moves 2 copies, with "the other 2 move to the Main Deck"', () => {
+    const r = review(prep('Legend: 1 Kennen, Heart of the Tempest\nChampion:\n3 Kennen, Storm of Shuriken\nMain Deck:\n3 Gust'));
+    expect(r.lines.filter((l) => l.movedToMain > 0).map((l) => [l.movedToMain, l.zoneReason])).toEqual([
+      [2, '1 copy is the Chosen Champion; the other 2 move to the Main Deck'],
+    ]);
+  });
+
+  it('H-452 / DECK-042: removedLines names every line left out, in importRemovedLines order', () => {
+    const p = prep('Legend:\n1 Kennen, Heart of the Tempest\n1 Riven, The Exile\nMain Deck:\n3 Gust\n2 Nothing Like It\n1 Spark Token');
+    const unknown = p.lines.find((l) => l.raw === '2 Nothing Like It')!.id;
+    const r = review(p, { legend: 'kennen heart of the tempest', champion: 'empty', removed: new Set([unknown]) });
+    expect(r.draft.importRemovedLines).toEqual(['2 Nothing Like It', '1 Spark Token', '1 Riven, The Exile']);
+    expect(r.removedLines).toEqual([
+      { line: 6, name: '2 Nothing Like It' },
+      { line: 7, name: 'Spark Token' },
+      { line: 3, name: 'Riven, The Exile' },
+    ]);
+  });
+
+  it('H-452 / DECK-015 / IMP-068 (c): a code-used warning can be removed; a name-used one cannot', () => {
+    const p = prep('Legend: 1 Kennen, Heart of the Tempest\nMain Deck:\n3 Quiet Harbor RAD 001\n2 Gust RAD 999');
+    const r = review(p, { champion: 'empty' });
+    expect(r.notes.map((n) => [n.line, n.message, n.removable])).toEqual([
+      [3, 'RAD 001 is Lightning Rush, so that card was used.', true],
+      [4, "RAD 999 isn't in the card data, so the card name was used.", false],
+    ]);
+    const gone = review(p, { champion: 'empty', removed: new Set([r.notes[0].id]) });
+    expect(qtyOf(gone.draft.main, 'lightning rush')).toBeUndefined();
+    expect(gone.draft.importRemovedLines).toEqual(['3 Quiet Harbor RAD 001']);
+    expect(gone.notes.map((n) => n.line)).toEqual([4]);
+  });
+
+  it('H-452 / DECK-015 / IMP-068 (b): picking the code\'s card on a mismatch line shows a removable code-used warning', () => {
+    const p = prep('Legend: 1 Kennen, Heart of the Tempest\nMain Deck:\n1 Hextech Ray RAD 001');
+    const id = p.lines[1].id;
+    const code = review(p, { champion: 'empty', picks: new Map([[id, 'lightning rush']]) });
+    expect(code.notes).toEqual([{ id, line: 3, message: 'RAD 001 is Lightning Rush, so that card was used.', removable: true }]);
+    const named = review(p, { champion: 'empty', picks: new Map([[id, 'hextech ray']]) });
+    expect(named.notes).toEqual([]);
   });
 });
