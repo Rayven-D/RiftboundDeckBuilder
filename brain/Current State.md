@@ -50,9 +50,8 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 
 ## Waiting on RJ
 **From the 2026-11-26 Decks runs:**
-1. **Merge [PR #109](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/109)** (H-560 flaky styleguide spec, H-521 singular "1 of 1 copy"; both validator PASS). If you prefer the plural "copies", say so and H-521's part is dropped.
-2. **H-483:** [[Deck Import]] 0.14 `review`: approve, and decide the S4–S7 proposals (S4 DECK-105 section choice on quantity > 1; S5 cards vs lines; S6 "Remove all lines to fix"; S7 unknown name with a known code).
-3. **H-620:** ADR-0006 line 129 still says usernames are 1–24 characters; SPEC-010 says 1–20, no emoji (your H-206 / H-212). Edit the ADR?
+1. ~~Merge PR #109~~ merged by RJ 2026-11-26 (H-560, H-521 singular "1 of 1 copy").
+2. ~~H-483, H-620~~ answered by RJ 2026-11-26: [[Deck Import]] 0.15 `approved` (S4 keep, S5 keep, S6 not now, S7 keep); ADR-0006 username line amended to 1–20 characters, no emoji.
 4. Kept local by RJ (2026-11-26): `brain/Build Matching.md`, `web/public/import/riot.txt`.
 
 - **Decks screen reviews:** **H-382** Decks list still open (deferred by RJ 2026-11-25). **H-392** Deck detail answered by RJ 2026-11-26 (H-481 / H-482). Also **H-340**: try the deck import review step (built in H-253, PR #72).
@@ -74,9 +73,9 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 - **H-011:** apply for the production key once there's a demo ([[Riot App Application]]).
 
 ## Next for the loop
-**Decks follow-ups (`/board` 2026-11-26 afternoon):** H-501 (#108), H-321 (#101) merged; H-560 + H-521 in [PR #109](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/109) for RJ. The run briefly covered every area before RJ narrowed it to Decks; brain-only PRs #99, #100, #102–#107 merged from that, and unpushed local work (H-197 PASS, H-093, SPEC-010 0.18.0 draft, Accounts code WIP) waits for a later run (see the [[Session Log]]). **Decks are done** except H-344 (needs H-197 → H-194) and RJ's gates H-483, H-382, H-340. **Next:** Tournaments, or a legality run (H-197 → H-194 → H-344).
+**Decks follow-ups (`/board` 2026-11-26 afternoon):** H-501 (#108), H-321 (#101) merged; H-560 + H-521 in [PR #109](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/109) for RJ. The run briefly covered every area before RJ narrowed it to Decks; brain-only PRs #99, #100, #102–#107 merged from that, and unpushed local work (H-197 PASS, H-093, SPEC-010 0.18.0 draft, Accounts code WIP) waits for a later run (see the [[Session Log]]). **Decks are done** except H-344 (needs H-197 → H-194) and RJ's gates H-382, H-340. **Next:** Tournaments, or a legality run (H-197 → H-194 → H-344).
 
-**Decks run (`/board` 2026-11-26, four parallel sessions):** every remaining Decks item built and validated (all attempt 1); brain PRs #86–#89, #94, #95 merged; code in one [PR #97](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/97) for RJ. Specs now: [[Deck Import]] 0.14 `review` (gate H-483), [[Your Decks Ownership View]] 0.11.1. Playwright is in `web/` (`npm run e2e`). **Next:** after #97: H-501 (spec catch-up), H-521, H-560; H-344 waits on H-194; then **Tournaments**. `next_id` 484.
+**Decks run (`/board` 2026-11-26, four parallel sessions):** every remaining Decks item built and validated (all attempt 1); brain PRs #86–#89, #94, #95 merged; code in one [PR #97](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/97) for RJ. Specs now: [[Deck Import]] 0.14 `review` at the time (now 0.15 `approved`, H-483), [[Your Decks Ownership View]] 0.11.1. Playwright is in `web/` (`npm run e2e`). **Next:** after #97: H-501 (spec catch-up), H-521, H-560; H-344 waits on H-194; then **Tournaments**. `next_id` 484.
 
 **Blocking fixes (`/board` 2026-11-25 night, two parallel sessions):** H-450 PASS, [PR #83](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/83) merged by RJ (follow-up H-469); H-460 + H-461 + RJ's H-475 (Deck detail actions top-right on desktop) PASS, one [PR #84](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/84) open for RJ (follow-ups H-476 spec text, H-477 ui-engineer, H-478 locked tile text clipped at 390). H-391 (#81) merged. **Next:** RJ's questions above, then H-451…H-453, H-462…H-468, H-454, H-410, H-478, H-400, H-440, H-431, H-469; flaky timing tests H-420 / H-430. `next_id` 479.
 
