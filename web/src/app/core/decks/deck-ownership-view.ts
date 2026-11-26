@@ -370,7 +370,8 @@ export function summarizeDeck(
   let ownershipLine: string;
   if (!view.ownershipAvailable) ownershipLine = 'Ownership unavailable';
   else if (r === 0) ownershipLine = 'No cards to count';
-  else ownershipLine = `${a} of ${r} copies ${locked ? 'locked in' : 'available'}`;
+  // H-521: singular when the required total is 1 ("1 of 1 copy available").
+  else ownershipLine = `${a} of ${r} ${r === 1 ? 'copy' : 'copies'} ${locked ? 'locked in' : 'available'}`;
 
   // SHARE-051: first matching rule wins; rule 0 (SHARE-053 (d), OWN-065 (d)) whatever the lock.
   let ownershipFilter: OwnershipFilter;

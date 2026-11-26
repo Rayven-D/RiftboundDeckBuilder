@@ -119,10 +119,14 @@ export function cardsLine(view: DeckOwnershipView): string {
   return `${s.cardsFullyAvailable} of ${s.cardsTotal} ${s.cardsTotal === 1 ? 'card' : 'cards'} fully available`;
 }
 
-/** OWN-050 / SHARE-050: "A of R copies available", or "… copies locked in" in a locked deck. */
+/**
+ * OWN-050 / SHARE-050: "A of R copies available", or "… copies locked in" in a locked deck; singular when
+ * R is 1 ("1 of 1 copy available", H-521).
+ */
 export function copiesLine(view: DeckOwnershipView): string {
   const s = view.summary;
-  return `${s.copiesAvailable} of ${s.copiesRequired} copies ${isLocked(view) ? 'locked in' : 'available'}`;
+  const noun = s.copiesRequired === 1 ? 'copy' : 'copies';
+  return `${s.copiesAvailable} of ${s.copiesRequired} ${noun} ${isLocked(view) ? 'locked in' : 'available'}`;
 }
 
 /** OWN-050: "X copies excluded from decks" when excluded copies would have filled a gap; else null. */

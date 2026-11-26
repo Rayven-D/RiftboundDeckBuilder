@@ -36,8 +36,10 @@ connectors used).
 ---
 
 ## RJ decisions (2026-11-24, gate H-178), these win over the sections above
-1. **Username:** 1–24 characters, any script and emoji (an emoji counts as 1), no line breaks, not unique; the
-   prompt after a new account's first sign-in is **skippable** ("Not now"). As recommended (§5).
+1. **Username:** ~~1–24 characters, any script and emoji (an emoji counts as 1)~~ **1–20 characters, no emoji**
+   (RJ 2026-11-25, H-206, and the allowed set confirmed in H-212: letters and numbers of any script, spaces and
+   `.` `_` `-` `'` `’`; see U3), no line breaks, not unique; the prompt after a new account's first sign-in is
+   **skippable** ("Not now"). As recommended (§5). *(Updated 2026-11-26 to SPEC-010 0.17.2, H-210.)*
 2. **No `/account` page. Settings live in the header menu** (replaces §3 and changes §2). RJ: settings go "inside
    the menu. but have 'Account Information' as a menu item for username changing and deleting account". The menu:
    username / "Signed in as {email}" / sync status, then **Account Information** (opens a **dialog** with the
@@ -73,14 +75,16 @@ signed out, any width: ................................................ [ Sign i
     `--color-text`, `--font-size-md`, weight 600. Why: it is navigation-like chrome, not the page's main action (the
     main action is now on each page), and a filled or outlined pill would compete with the FAB.
   - The initial: first grapheme of the username, upper-cased where the script has case (use `Intl.Segmenter`, so an
-    emoji or an accented letter stays whole), on `--color-accent` with `--color-accent-contrast` text (5.81:1 dark,
+    accented letter stays whole; new names cannot hold emoji, but a name saved before v0.15 may still start with one
+    and must stay whole too; updated 2026-11-26 to SPEC-010 0.17.2, H-210), on `--color-accent` with `--color-accent-contrast` text (5.81:1 dark,
     5.47:1 light), `--font-size-sm`, weight 700, `aria-hidden`. It keeps one touch of the accent in the header now that
     the filled Import button is gone.
   - Chevron turns 180° while the menu is open (`--dur-fast`, `--ease-out`; under reduced motion it just swaps, no
     turn).
 - **H2. Truncation.** The name is one line, `white-space: nowrap; overflow: hidden; text-overflow: ellipsis`.
   The button is `flex: 0 1 auto; min-width: 0; max-width: 14rem`; the wordmark and the tab list are `flex: none`. So
-  the name gives way first: at 1440 / 1024 / 768 a 24-character name shows in full or nearly; at 641px (just above
+  the name gives way first: at 1440 / 1024 / 768 a 20-character name (the longest allowed; was 24, updated
+  2026-11-26 to SPEC-010 0.17.2, H-210) shows in full or nearly; at 641px (just above
   the phone breakpoint) about 140px is left for the whole control (measured), so the name cuts to about 9
   characters; at 390 it has up to about 14rem. The initial and the chevron never shrink. The **full** name is always
   in the accessible name (H4) and at the top of the menu (M1), so a cut name is never the only place it appears. No
@@ -209,12 +213,14 @@ Your username, theme and account.                   (page-lede)
   ```
   Choose a username
   It's shown at the top right of every page. Only you can see it,
-  and you can change it any time in Account settings.
+  and you can change it any time in Account Information.
   ┌ Username ───────────────────────┐
-  │                                 │   7 / 24
+  │                                 │   7 / 20
   └─────────────────────────────────┘
                          [ Not now ]  [ Save ]
   ```
+  *(Updated 2026-11-26 to SPEC-010 0.17.2, H-210: counter `n / 20`; the text says "Account Information" as in
+  SYNC-154.)*
   - Field focused on open, empty (no guess from the email: the address is private and its local part is often not
     what people want shown). `autocomplete="nickname"`, `autocapitalize="words"`, `spellcheck="false"`,
     `enterkeyhint="done"`; Enter saves.
@@ -224,18 +230,27 @@ Your username, theme and account.                   (page-lede)
 - **U2. "Change username"** is the same dialog opened from A1: title **Change username**, no explanatory line beyond
   "Only you can see it.", the current name filled and selected, buttons **Cancel** / **Save**. Saving the same
   value just closes.
-- **U3. Rules (proposed, open choice 1):** trimmed; inner runs of spaces collapsed to one; **1–24 characters**
-  counted as graphemes (so an emoji or accented letter is one); letters, numbers, spaces, punctuation and emoji from
-  any script; no line breaks, tabs or control characters. Not unique (RJ). The counter shows `n / 24`; going over does
-  not cut pasted text, it shows the error.
+- **U3. Rules (decided; updated 2026-11-26 to SPEC-010 0.17.2 SYNC-153 and SYNC-160, H-210; was 1–24 graphemes
+  with emoji):** NFC-normalized; trimmed; inner runs of spaces collapsed to one; **1–20 characters**, a character
+  being one Unicode code point of the normalized name (a separate combining mark counts as 1); **allowed:** letters
+  and numbers of any script (with the combining marks those scripts need), spaces, and `.` `_` `-` `'` `’`, the first
+  character a letter or digit; **no emoji**, symbols, other punctuation, line breaks, tabs or control characters. Not
+  unique (RJ). The counter shows `n / 20` (the count after normalizing, so a trailing space does not count) and turns
+  to the error colour with an icon above 20; going over does not cut pasted text (no `maxlength`), it shows the
+  error. The Firestore rules check the same set and the 20 again when the name changes (SYNC-160), so the client
+  check is for the message, not the only guard. A name saved before v0.15 (emoji, over 20) keeps showing until it is
+  changed.
 - **U4. After Save:** the dialog closes, the header and menu update at once, focus returns to the opener (the Change
   button; after U1, to the header account control), success notice "Username saved." (SYNC-087 success kind: 6 s,
   polite).
 - **U5. Errors (inline under the field, icon + `--color-danger`, `aria-invalid`, `aria-describedby`, focus stays in
   the field; as the sign-in send-failure line, H-106):**
   - empty: "Enter a username."
-  - too long: "Use 24 characters or fewer."
-  - not allowed (line break / control character): "Use letters, numbers, spaces and punctuation."
+  - too long: "Use 20 characters or fewer."
+  - not allowed (any character outside the U3 set, emoji included; checked after the length): "Use letters,
+    numbers, spaces and . _ - ' only. No emoji."
+  - both can apply: the length error shows first.
+  - *(Updated 2026-11-26 to SPEC-010 0.17.2 SYNC-153, H-210; strings copied exactly from the spec.)*
   - save failed: "Couldn't save your username. Check your connection and try again."
   - offline: Save `aria-disabled` and "You're offline." above the buttons (SYNC-081 pattern).
 - **U6. Where it is stored (for spec-writer, H-174):** the ADR says "stored with the account", but SYNC-012 allows no
@@ -369,9 +384,10 @@ Your username, theme and account.                   (page-lede)
 | Change button | Change (accessible name "Change username") |
 | Theme options / hint | System · Light · Dark / Saved on this device. System follows your device's setting. |
 | Delete section line | Deletes your account and everything saved in it, on every device. This can't be undone. |
-| Username dialog (create) | Choose a username / It's shown at the top right of every page. Only you can see it, and you can change it any time in Account settings. / Username / Not now / Save |
+| Username dialog (create) | Choose a username / It's shown at the top right of every page. Only you can see it, and you can change it any time in Account Information. / Username / Not now / Save |
 | Username dialog (change) | Change username / Only you can see it. / Username / Cancel / Save |
-| Username errors | Enter a username. · Use 24 characters or fewer. · Use letters, numbers, spaces and punctuation. · Couldn't save your username. Check your connection and try again. |
+| Username counter | `n / 20` |
+| Username errors | Enter a username. · Use 20 characters or fewer. · Use letters, numbers, spaces and . _ - ' only. No emoji. · Couldn't save your username. Check your connection and try again. *(Updated 2026-11-26 to SPEC-010 0.17.2, H-210.)* |
 | Username saved | Username saved. |
 | FAB / collection dialog title | Add to your collection |
 | Collection empty state | Your collection is empty / Add the cards you own and they'll show up here. / Add to your collection |
@@ -393,7 +409,7 @@ and data (+ its dialog), You're offline., the status lines.
 1. No `/import` route, no Import button in the header and no Import tab; the tab bar has exactly 3 tabs at 390.
 2. Signed out, the header right shows only **Sign in**; signed in, a ghost button with the initial, the username and a
    chevron, 44px tall, right edge on the content edge (± 1px of the page content at 1440).
-3. A 24-character name: shows in full at 1440; ellipsis (no wrap, no overflow, no horizontal scroll) at 641 and 390
+3. A 20-character name (was 24; updated 2026-11-26 to SPEC-010 0.17.2, H-210): shows in full at 1440; ellipsis (no wrap, no overflow, no horizontal scroll) at 641 and 390
    and 320; the accessible name is "Account: {full name}"; the menu shows the full name on its first line.
 4. No username: label "Account" with the person icon.
 5. Menu: username, Signed in as, status; Sync now; Account settings + Sign out; exactly 2 dividers; no Delete item.
@@ -423,7 +439,9 @@ and data (+ its dialog), You're offline., the status lines.
 
 ## Open choices for RJ
 1. **Username rules:** 1–24 characters, any letters / numbers / spaces / punctuation / emoji (recommended), or a
-   tighter set (letters, numbers, `_ - .`, no spaces), or a longer cap (32)?
+   tighter set (letters, numbers, `_ - .`, no spaces), or a longer cap (32)? **Closed:** RJ chose 1–24 with emoji
+   (H-178), then changed it to 1–20, no emoji, letters, numbers, spaces and `.` `_` `-` `'` `’` (H-206, H-212); see
+   U3 *(updated 2026-11-26 to SPEC-010 0.17.2, H-210)*.
 2. **Where Account settings lives:** (a) **a page `/account`** (recommended: room for "more later", a real URL and
    Back button, no dialog opening a dialog for Delete or Change username); (b) a dialog from the menu (faster, but
    the Delete and username dialogs would open on top of it); (c) everything inside the menu (Theme as radio items),

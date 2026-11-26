@@ -40,7 +40,7 @@ PASS / FAIL per width. "–" = not applicable at that width; "n/t" = not tested 
 |---|---|---|---|---|---|---|
 | 1 | No `/import` route, no Import button or tab; 3 tabs at 390 | PASS | PASS | PASS | PASS | `/import?type=deck` lands on Home (query kept: H-190). Tab bar: Decks / Collection / Tournaments, 125 px each, 64 px tall. |
 | 2 | Signed out: only **Sign in**; signed in: ghost button, initial + name + chevron, 44 px, right edge on content edge | PASS | PASS | PASS | PASS | Right edge 1272.5 = grid right 1272.5 (1440); 993 (1024); 737 (768); 359 (390). No fill, no border; name 16 px / 600. |
-| 3 | 24-char name: full at 1440, ellipsis (no wrap, no scroll) at 641 / 390 / 320; full accessible name; menu shows full name | PASS | – | – | PASS | 641: 6 characters + ellipsis; 390: 146 px of name; 320: 76 px. No horizontal scroll at any width. Accessible name "Account: Abcdefghijklmnopqrstuvwx". |
+| 3 | 24-char name: full at 1440, ellipsis (no wrap, no scroll) at 641 / 390 / 320; full accessible name; menu shows full name | PASS | – | – | PASS | 641: 6 characters + ellipsis; 390: 146 px of name; 320: 76 px. No horizontal scroll at any width. Accessible name "Account: Abcdefghijklmnopqrstuvwx". *(Updated 2026-11-26 to SPEC-010 0.17.2, H-210: the limit is now 20 characters (SYNC-153), so the recheck uses a 20-character name; this row is the 24-character v0.14 build.)* |
 | 4 | No username: "Account" + person icon | PASS | – | – | PASS | After **Not now**; accessible name "Account". |
 | 5 | Menu order and dividers (SYNC-151 supersedes the brief's 2 dividers) | PASS | – | PASS | PASS | Name / Signed in as / status, divider, Sync now, divider, Account Information, Theme (System/Light/Dark radios), divider, Sign out: 3 dividers, no Delete, no Settings. Privacy notice item: H-180. Radio check alignment: finding 8. |
 | 6 | (now Account Information dialog + Theme) Light on a dark system turns everything light at once; survives reload with no flash and sign-out; System follows the system live | PASS | PASS | PASS | PASS | Header, page, menus, dialogs and form fields switched; both `theme-color` metas become `#1b1f24` / `#f4f6f8`. Inline script in `index.html` sets `data-theme` before the app loads. After sign-out only `device-theme` was left in storage and the app stayed dark. |
@@ -62,7 +62,7 @@ PASS / FAIL per width. "–" = not applicable at that width; "n/t" = not tested 
 | 71 Header control | PASS | Lost session and offline reload: n/t. |
 | 72 Account menu | PASS (Privacy notice: H-180) | Choosing Dark by keyboard applied at once, closed the menu, focus returned to the trigger, footer showed Dark. |
 | 73 Account Information | PASS, finding 4 | Change → Cancel/Save returns focus to Change; Delete → SYNC-095 dialog (sign-in-first state) → Escape returns to Delete; no username → "No username yet." + **Add username** (dialog titled "Add username"); offline → Delete `aria-disabled` + "You're offline.". |
-| 74 Username rules | PASS (parts tested) | `  RJ   Smith  ` saved as "RJ Smith"; empty / three spaces → "Enter a username."; 25 letters → "Use 24 characters or fewer." (text kept); `👨‍👩‍👧 Squad` → `7 / 24`. Long emoji and control characters: not tested in the UI (unit tests). |
+| 74 Username rules | PASS (parts tested) | `  RJ   Smith  ` saved as "RJ Smith"; empty / three spaces → "Enter a username."; 25 letters → "Use 24 characters or fewer." (text kept); `👨‍👩‍👧 Squad` → `7 / 24`. Long emoji and control characters: not tested in the UI (unit tests). *(Updated 2026-11-26 to SPEC-010 0.17.2, H-210: rules now 1–20 code points, no emoji, letters / numbers / spaces / `. _ - ' ’` only; counter `n / 20`; errors "Use 20 characters or fewer." and "Use letters, numbers, spaces and . _ - ' only. No emoji." (SYNC-153). `👨‍👩‍👧 Squad` is now refused with the second error. This row is the v0.14 build.)* |
 | 75 One-time prompt | PASS | Not now → "Account"; no prompt for the returning account. "Getting your account ready…": n/t (first sync too fast). |
 | 76 Saving | PASS (UI parts) | Header and menu update without a reload; focus returns to the opener; "Username saved." lasted about 6.2 s (1153 → 7351 ms). |
 | 77 Theme per device | PASS | Live system change, Dark on a light system, reload, `theme-color`. "System removes the key": n/t. |
@@ -184,14 +184,14 @@ scratchpad folder. Console: 0 errors, 0 warnings.
 
 **New defects (all nits; none caused by de84200):**
 
-- **N1 (nit, Material default): every keystroke reads out the `n / 24` counter.**
+- **N1 (nit, Material default): every keystroke reads out the `n / 20` counter (was `n / 24`; updated 2026-11-26 to SPEC-010 0.17.2, H-210).**
   - **Repro:** any width, any username dialog, type in the field.
   - **Cause:** the counter is a `mat-hint`, which Material renders inside its form-field subscript wrapper. That
-    wrapper is `aria-live="polite" aria-atomic="true"`, so screen readers announce "1 / 24", "2 / 24" and so on, and
+    wrapper is `aria-live="polite" aria-atomic="true"`, so screen readers announce "1 / 20", "2 / 20" and so on, and
     the same region also announces the error.
   - **Fix:** move the counter out of `mat-hint` into a plain element below the field that is not inside the live
     region. Keep it in the input's `aria-describedby` so it is read on focus. Optionally announce once, through the
-    `LiveAnnouncer`, when the 24-character limit is crossed.
+    `LiveAnnouncer`, when the 20-character limit is crossed.
   - **Accept:** typing 5 characters adds nothing to any `aria-live` region. The error still goes through the
     announcer.
 - **N2 (nit, tokens): the field outline uses Material's error colour, not `--color-danger`.**
@@ -225,7 +225,7 @@ username "Bee Tester" during the check. Screenshots are `h189-r2-*.png` in the s
 |---|---|---|
 | N3 Menu edge | **PASS** | Gap between the menu's right edge and the trigger's right edge, in px: 0 at 1440 on Decks (`h189-r2-01`), Home and Collection. With the menu open, resizing 1440 → 1100 → 1440 keeps the gap at 0 (1069, then 1272.5). With the menu open, resizing 1440 → 390 also keeps it at 0 (menu 114–359, trigger right 359, no horizontal scroll; `h189-r2-02`). |
 | N2 One red | **PASS** | On error the outline, floating label, caret, error text and icon all use `--color-danger`. Light: `#a32d2d` on white, 7.07:1. Dark: `#f09595` on `#2d343c`, 5.66:1. The field returns to the accent outline and `aria-invalid="false"` on the next valid input. `h189-r2-04` (1440 dark), `h189-r2-05` (390 light). |
-| N1 Counter not live | **PASS** | The counter is now a `<p id="username-count-n">` outside the Material subscript, not inside any `aria-live` region. It is still in the input's `aria-describedby` (`username-error-n username-count-n` on error, `username-count-n` otherwise). Typing 5 characters added nothing to any live region; the errors still go through the announcer ("Enter a username.", "Use 24 characters or fewer."). **Layout:** right-aligned, 12 px, 4 px below the field, inset to match the field's text like Material's hint. Contrast: 4.93:1 dark, 6.4:1 light. It looks right at 1440 (`h189-r2-03`) and 390 (`h189-r2-05`). |
+| N1 Counter not live | **PASS** | The counter is now a `<p id="username-count-n">` outside the Material subscript, not inside any `aria-live` region. It is still in the input's `aria-describedby` (`username-error-n username-count-n` on error, `username-count-n` otherwise). Typing 5 characters added nothing to any live region; the errors still go through the announcer ("Enter a username.", "Use 24 characters or fewer." (now "Use 20 characters or fewer.", SYNC-153; updated 2026-11-26 to SPEC-010 0.17.2, H-210)). **Layout:** right-aligned, 12 px, 4 px below the field, inset to match the field's text like Material's hint. Contrast: 4.93:1 dark, 6.4:1 light. It looks right at 1440 (`h189-r2-03`) and 390 (`h189-r2-05`). |
 | Regression: username dialog | **PASS** | Add username: errors, then a valid save. The dialog closes, the row and the header ("Account: Bee Tester") update without a reload, focus returns to **Change username**, and "Username saved." is announced. |
 | Regression: menu | **PASS** | 390 light (`h189-r2-06`): name, Signed in as, status, divider, Sync now, divider, Account Information, Theme group, divider, Sign out. Theme rows are 48 px each; the menu edge is level with the trigger; keyboard open focuses Sync now. |
 

@@ -227,6 +227,15 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', { timeout: 20
     expect(text(el.querySelector('#own-hint'))).toBe('Not available while ownership is unavailable');
   });
 
+  it('H-521: a deck tile whose required total is 1 reads "1 of 1 copy available", and "1 of 1 copy locked in" when locked', async () => {
+    const one = makeDeck(id(7), 'One copy', { main: [['Lightning Rush', 1]] });
+    let tile = (await setup({ decks: [one], owned: { 'Lightning Rush': 1 } })).tiles()[0];
+    expect(text(tile.querySelector('.copies'))).toBe('1 of 1 copy available');
+    TestBed.resetTestingModule();
+    tile = (await setup({ decks: [one], owned: { 'Lightning Rush': 1 }, locks: [lock(id(7))] })).tiles()[0];
+    expect(text(tile.querySelector('.copies'))).toBe('1 of 1 copy locked in');
+  });
+
   it('SPEC-005 AC 25 / SHARE-041 locked complete deck of 54: "100%", "54 of 54 copies locked in", badge Locked; 4 short in 2 cards: "92%", badge "Locked · 2 cards short" next to the chip', async () => {
     const deck54 = { ...makeDeck(id(4), 'Locked 54', { legend: [[LEGEND, 1]], main: [['Lightning Rush', 3], ['Gust', 50]] }) };
     const ok = await setup({ decks: [deck54], owned: { [LEGEND]: 1, 'Lightning Rush': 3, Gust: 50 }, locks: [lock(id(4))] });
