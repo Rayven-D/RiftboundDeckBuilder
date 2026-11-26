@@ -52,7 +52,7 @@ that the user wants to own ([[ADR-0006 Two Imports - Collection and Decks]]).
 | "Which of my decks can I build today?" | Deck list: ownership chip + Ready to build filter (SHARE-051) |
 | "How close is this deck?" | Deck tile copies line; deck header summary (OWN-050) |
 | "What exactly am I missing?" | Deck detail missing list + Copy missing list (OWN-051…053) |
-| "Which cards are contested between my decks?" | Shared line on each card tile, Other decks in the card dialog (SHARE-042/043) |
+| "Which cards are contested between my decks?" | Other decks in the card dialog or panel only (SHARE-043); no line on the tile or row (SHARE-042, v0.5, H-663) |
 | "I've built this one, stop counting its cards elsewhere" | Lock in / Unlock (SHARE-020…023) |
 | "Is this deck legal, is anything banned?" | Legality label and ban flags on the tile; ban label per card (OWN-004/015) |
 
@@ -246,8 +246,8 @@ Main Deck · 39 cards · 12 available                    │ [⧉ Copy missing l
 └────┘└────┘└────┘└────┘└────┘
 Lightning…  Hextech…
 [◐ 1 of 3 available]
-⧉ Also in 2 other decks · 1 locked
 ⛔ Banned since Nov 23, 2026
+(H-663: no "Also in 2 other decks · 1 locked" line on a tile or row; that is in the card dialog or panel only)
 
 Locked deck (H-662): the toggle after the name is a closed lock [🔒] = Unlock deck; no badge, no date, no reason line
 │ Kennen Tempo [🔒]                                                    │      [⋮]
@@ -335,7 +335,7 @@ Lightning Rush               name, sm 600, 2 lines max
 Spell · Unit?                type verbatim (OWN-014); "Card no longer in the card data" for unknown
 [◐ 1 of 3 available]          chip: tile label first part (OWN-033, SHARE-040)
 2 of 3 in this deck          split suffix on its own muted line (only when split)
-⧉ Also in 2 other decks · 1 locked     shared line (SHARE-042), xs muted + icon
+                             (H-663: no shared line; SHARE-042 MUST NOT. Remove `.shared` and its `stacks` icon)
 ⛔ Banned since Nov 23, 2026  ban label (OWN-015), app-status-label
 [Preview]                    OWN-017 flag chip, when isPreview
 ```
@@ -347,7 +347,7 @@ Spell · Unit?                type verbatim (OWN-014); "Card no longer in the ca
   - **Battlefields:** the same 63:88 box with `landscape` set from `card.category ===
     'battlefield'`, so the art is letterboxed, never cropped (OWN-081 BLOCKED on H-020; the
     `app-card-art` landscape input exists).
-  - **Ownership unavailable** (OWN-062/063): full color, no chip, no split line, no shared line,
+  - **Ownership unavailable** (OWN-062/063): full color, no chip, no split line,
     nothing darkened (`label === ''`).
 - **Never** a darkened ban: a banned card you own in full is full color with the ban label (design
   decision 3).
@@ -507,8 +507,8 @@ without " It stays locked." The block appends it, or H-060 fixes the helper.
 
 ## 12. Accessibility (WCAG 2.1 AA + 44px)
 1. Ownership, lock, ban and legality are each text + icon, never color alone (OWN-033, SHARE-041).
-2. Card tile button name (OWN-033, SHARE-044): "Lightning Rush, Main Deck, 1 of 3 available, also
-   in 2 other decks, 1 locked, banned since Nov 23, 2026". Split cards include the full label.
+2. Card tile button name (OWN-033, SHARE-044): "Lightning Rush, Main Deck, 1 of 3 available,
+   banned since Nov 23, 2026" (H-663: no "also in 2 other decks, 1 locked"). Split cards include the full label.
    Unknown: "Zaun Warrens, Battlefields, card no longer in the card data, 0 of 1 available".
 3. Text on or beside tiles ≥ 4.5:1 in every state. Icons, the fill divider and control edges ≥ 3:1
    (OWN-034). The none-state chip edge moves from `--color-border` (1.29:1, fails) to
@@ -567,10 +567,11 @@ recommendations".
    (a) inline expand inside the grid; (b) a dialog like Collection's. **Recommended: (b).**
    Expanding a 150px tile in a 5-column grid reflows the whole section; the dialog has room, matches
    Collection and is already built. Needs an OWN-038/041 wording change.
-9. **What's on the card tile face.** (a) the spec face: art, name, type, chip, shared line, ban
+9. **What's on the card tile face.** (a) the spec face: art, name, type, chip, ban
    label; (b) image only like Collection, everything else in the dialog. **Recommended: (a).**
-   OWN-014 and SHARE-042 require them on the face, and in a deck the text is the point (what's
-   missing), unlike Collection.
+   OWN-014 requires them on the face, and in a deck the text is the point (what's
+   missing), unlike Collection. *Updated (H-663, RJ 2026-11-26):* the shared line is no longer on the
+   face (SHARE-042 MUST NOT); the other decks are in the dialog or panel only.
 10. **Quantity badge ×N on deck tiles.** (a) hide at 1, as Collection does; (b) always show.
     **Recommended: (a).** The chip already says "1 of 1"; ×1 on every Legend and Champion is noise.
 11. **"Ban status unknown" when the ban list didn't load.** OWN-015 puts it on every card. Today
@@ -705,7 +706,7 @@ the styleguide samples.
 3. **A3** The deck detail shows six sections in Riot order with "N cards · M available"
    headings and "No cards in this zone" for empty ones.
 4. **A4** Tiles show full / partial (divider at exactly `fill` of the width) / none art, and the
-   chip, shared line and ban label match the engine's `label`, `sharedLabel`, `banStatus`. The
+   chip and ban label match the engine's `label` and `banStatus` (H-663: no shared line, `sharedLabel` is not rendered). The
    accessible name follows §12.2.
 5. **A5** The card dialog shows the SHARE-043 lines verbatim, the printing groups, other decks
    with links, and the card info. Unknown and unavailable variants per §8.
@@ -719,7 +720,7 @@ the styleguide samples.
    printed name is legible at 100%. Targets ≥ 44px on phones. Keyboard per §11. Reduced motion
    rests.
 10. **A10** FAB as built (OWN-094 AC 22 still passes). No console errors. `/styleguide` shows the
-    deck tile (each chip row of the §4 table), the card tile (full, partial, none, split, shared,
+    deck tile (each chip row of the §4 table), the card tile (full, partial, none, split, shared (H-663: no shared line; keep the fixture as a split-free "used by another deck" tile showing no extra line),
     banned, unknown, preview, placeholder, battlefield) and the dialog.
 
 ## What I looked at (2026-11-25)

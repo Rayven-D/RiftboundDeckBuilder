@@ -292,7 +292,7 @@ scrolled into view. Clicking scrolls smoothly (instant under reduced motion), wi
     <span class="type">…</span>
     <span class="labels">app-ownership-chip [state] [label]=chipLabel</span>
     <span class="split">2 of 3 in this deck</span>
-    <span class="shared">stacks icon + sharedLabel</span>
+    <!-- H-663: no `.shared` line (stacks icon + sharedLabel). Removed; SHARE-042 MUST NOT -->
     <app-status-label …/>   <span class="flag">Preview</span>
   </button>
 </li>
@@ -310,14 +310,13 @@ scrolled into view. Clicking scrolls smoothly (instant under reduced motion), wi
   | type | `--font-size-xs` muted, 1 line | `card.card?.type`; unknown card: `Card no longer in the card data` in `--color-text` (not muted) |
   | chip | `app-ownership-chip`, now allowed to wrap (`white-space: normal`) | `chipLabel` = `card.label.split(' · ')[0]`; hidden when `card.label === ''` |
   | split | `--font-size-xs` muted | the part after ` · ` when present |
-  | shared | `--font-size-xs` muted, `stacks` 12px | `card.sharedLabel` |
+  | ~~shared~~ | **removed (H-663, RJ 2026-11-26):** no other-deck line on the tile; `card.sharedLabel` is not rendered | ~~`card.sharedLabel`~~ |
   | ban | `app-status-label` | `banned` → `Banned since <date>`; `upcoming` → `Banned from <date>`; `unknown` → nothing on the face (brief choice 11; the page notice covers it) |
   | flag | 1px `--color-border-strong` `--radius-sm` xs tag `Preview` | `flags.includes('preview')` |
 - **Accessible name** (joined with ", "): name · `zoneLabel` · `card.label` (the whole label) ·
-  `sharedLabel` lowercased-first (`also in 2 other decks · 1 locked` → `also in 2 other decks, 1 locked`)
-  · ban (`banned since Nov 23, 2026` / `banned from …` / `ban status unknown`) · `preview` · unknown:
-  `card no longer in the card data` placed after the zone. Example: "Hextech Ray, Main Deck, 0 of 3
-  available, also in 1 other deck, 1 locked" (SPEC-005 AC 16).
+  ban (`banned since Nov 23, 2026` / `banned from …` / `ban status unknown`) · `preview` · unknown:
+  `card no longer in the card data` placed after the zone. **H-663: no `sharedLabel` part.** Example:
+  "Hextech Ray, Main Deck, 0 of 3 available" (SPEC-005 AC 16, AC 40).
 - **States:** default · hover `.lift` (fine pointer) · active press · focus-visible ring (2px offset,
   `--radius-md`, around the whole button) · fill change (`clip-path` and divider `left` transition
   `--dur-fill` `--ease-out`, only after first render; none under reduced motion).
@@ -441,7 +440,7 @@ Nothing plays on load; the global reduced-motion block covers everything.
 - One Tab stop per section grid; arrows move; Enter opens the dialog; Escape returns to the tile.
 - Lock in disabled = `aria-disabled` + visible reason with `aria-describedby`.
 - `/styleguide` shows: deck tiles for ready, partial, none, empty deck, locked, locked short,
-  unavailable, read-only, no Legend; card tiles for full, partial 1/3, none, split, shared + locked,
+  unavailable, read-only, no Legend; card tiles for full, partial 1/3, none, split, locked by another deck (H-663: no other-deck line),
   banned, upcoming, preview, unknown, placeholder, battlefield; the lock badge (both); the summary
   with > 10 missing lines; the card dialog (owned + excluded printings, other decks, unknown card).
   **On `/styleguide` since H-391** (section "Decks (H-060, H-254)", `pages/styleguide/decks-preview.ts` on engine-built
