@@ -70,6 +70,8 @@ export const REVIEW_TEXT = {
   replaceAction: 'Replace collection',
   saving: 'Saving…',
   back: 'Back',
+  /** H-469: the review's first heading (focus target after Continue). */
+  check: 'Check the cards',
   /** Deck Import (H-253). */
   saveDeck: 'Save deck',
 } as const;
@@ -146,7 +148,9 @@ export function hasFiles(event: DragEvent): boolean {
         </button>
       </mat-dialog-actions>
     } @else if (review(); as r) {
-      <mat-dialog-content>
+      <mat-dialog-content class="cards-review-content">
+        <!-- H-469: the review's first heading, focused after Continue (as the deck review's "Check the deck"). -->
+        <h3 class="step-heading review-heading" tabindex="-1">{{ words.check }}</h3>
         @if (r.resolved.cardCount) {
           <p class="totals" role="status">
             <strong>{{ readyText(r) }}</strong>
@@ -333,6 +337,7 @@ export class ImportDialog {
   private readonly deckReviewStep = viewChild(DeckReview);
   private readonly listBox = viewChild<ElementRef<HTMLTextAreaElement>>('listBox');
   private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly canSaveDeck = computed(() => this.deckReviewStep()?.view().canSave ?? false);
   /** H-451: the review's status region (`DeckReview.statusId`), which describes Save. */
   protected readonly deckStatusId = DECK_REVIEW_STATUS_ID;
@@ -457,6 +462,10 @@ export class ImportDialog {
       else {
         this.submitError.set(null);
         this.review.set(prepared);
+        // H-469: the Continue button is gone; focus the review's first heading, not <body>.
+        afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>('.review-heading')?.focus(), {
+          injector: this.injector,
+        });
       }
     } finally {
       this.busy.set(false);

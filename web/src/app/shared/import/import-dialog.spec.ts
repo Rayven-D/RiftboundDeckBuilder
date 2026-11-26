@@ -375,3 +375,32 @@ describe('ImportDialog Import deck layout (H-453, critique H-341 findings 15, 16
     expect(el(f).classList).not.toContain('deck-dialog');
   });
 });
+
+describe('ImportDialog Owned Cards review focus (H-469, Validation H-450)', () => {
+  it('H-469 / IMP-049: Continue focuses the review\'s first heading "Check the cards" (tabindex -1), never <body>', async () => {
+    const catalog = makeCatalog(['Gust']);
+    const committer: ImportCommitter = {
+      prepare: async (r) => ({ status: 'ok', resolved: resolveCollectionImport(r, catalog), catalog }),
+      commit: vi.fn(),
+    };
+    TestBed.configureTestingModule({
+      imports: [ImportDialog],
+      providers: [
+        { provide: MAT_DIALOG_DATA, useValue: { kind: 'collection', committer } },
+        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+      ],
+    });
+    const f = TestBed.createComponent(ImportDialog);
+    f.detectChanges();
+    type(f, '2 Gust');
+    const cont = Array.from(el(f).querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent?.trim() === 'Continue')!;
+    cont.focus();
+    cont.click();
+    await settle(f);
+    const heading = el(f).querySelector<HTMLElement>('h3.review-heading')!;
+    expect(heading.textContent!.trim()).toBe('Check the cards');
+    expect(heading.getAttribute('tabindex')).toBe('-1');
+    expect(document.activeElement).toBe(heading);
+    expect(document.activeElement).not.toBe(document.body);
+  });
+});
