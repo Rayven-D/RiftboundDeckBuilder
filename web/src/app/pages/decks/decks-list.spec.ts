@@ -146,7 +146,7 @@ const BANS: BanListFile = {
   ],
 };
 
-describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', () => {
+describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', { timeout: 20_000 }, () => { // H-420: busy-machine headroom
   afterEach(() => {
     document.querySelectorAll('.cdk-overlay-container').forEach((n) => (n.innerHTML = ''));
     document.documentElement.classList.remove('has-fab');

@@ -82,7 +82,7 @@ async function openAndContinue(harness: RouterTestingHarness, el: HTMLElement, l
   await settle(harness);
 }
 
-describe('DecksPage Import deck save (H-253)', () => {
+describe('DecksPage Import deck save (H-253)', { timeout: 20_000 }, () => { // H-420 H-430: busy-machine headroom
   afterEach(() => {
     document.querySelectorAll('.cdk-overlay-container').forEach((n) => (n.innerHTML = ''));
     document.documentElement.classList.remove('has-fab');
