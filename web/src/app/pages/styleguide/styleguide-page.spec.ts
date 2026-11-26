@@ -118,14 +118,8 @@ describe('StyleguidePage Decks section (H-391)', () => {
   it('H-391: shows status chips, lock badges, lock actions, card tiles, rows and the panel', async () => {
     const el = section(await render());
     const chips = [...el.querySelectorAll('.row-items app-deck-status-chip .chip')].map((c) => c.textContent!.trim());
-    expect(chips).toEqual([
-      'Ready to build',
-      'Partly available',
-      'None available',
-      'Locked',
-      'Locked · 2 cards short',
-      'Locked',
-    ]);
+    // H-400: the chip has no locked / short kinds (the lock is app-lock-badge); locked and unavailable render nothing.
+    expect(chips).toEqual(['Ready to build', 'Partly available', 'None available']);
     expect(el.querySelector('.column-items app-lock-badge')!.textContent).toContain('Locked in on');
     const actions = [...el.querySelectorAll<HTMLButtonElement>('app-lock-actions button')];
     expect(actions.map((b) => b.textContent!.trim())).toEqual(['Lock in', 'Lock in', 'Unlock', 'Lock in']);

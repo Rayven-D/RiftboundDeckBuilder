@@ -157,8 +157,9 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', { timeout: 20
     const tile = tiles()[0];
     expect(Number(artFill(tile))).toBeCloseTo(34 / 66, 10);
     expect(tile.querySelector('app-card-art .art')!.className).toContain('art--partial');
-    expect(text(tile.querySelector('.percent [aria-hidden="true"]'))).toBe('51%');
-    expect(text(tile.querySelector('.percent .visually-hidden'))).toBe('51 percent of copies available');
+    expect(tile.querySelector('.percent')!.getAttribute('aria-hidden')).toBe('true');
+    expect(text(tile.querySelector('.percent'))).toBe('51%');
+    expect(text(tile.querySelector('.details .percent-text'))).toBe('51 percent of copies available');
     expect(text(tile.querySelector('.copies'))).toBe('34 of 66 copies available');
     expect(text(tile.querySelector('app-deck-status-chip'))).toBe('Partly available');
     // OWN-082: the Legend is the only card image on the tile (the darkened layer is the same image).
@@ -172,14 +173,14 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', { timeout: 20
     const full = await setup({ owned: { [LEGEND]: 1, 'Lightning Rush': 3, Gust: 62 } });
     let tile = full.tiles()[0];
     expect(tile.querySelector('app-card-art .art')!.className).toContain('art--full');
-    expect(text(tile.querySelector('.percent [aria-hidden="true"]'))).toBe('100%');
+    expect(text(tile.querySelector('.percent'))).toBe('100%');
     expect(text(tile.querySelector('.copies'))).toBe('66 of 66 copies available');
     expect(text(tile.querySelector('app-deck-status-chip'))).toBe('Ready to build');
     TestBed.resetTestingModule();
     const none = await setup({ owned: {} });
     tile = none.tiles()[0];
     expect(tile.querySelector('app-card-art .art')!.className).toContain('art--none');
-    expect(text(tile.querySelector('.percent [aria-hidden="true"]'))).toBe('0%');
+    expect(text(tile.querySelector('.percent'))).toBe('0%');
     expect(text(tile.querySelector('.copies'))).toBe('0 of 66 copies available');
     expect(text(tile.querySelector('app-deck-status-chip'))).toBe('None available');
   });
@@ -191,7 +192,7 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', { timeout: 20
     dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEYS.collection }));
     await vi.waitFor(async () => {
       await settle(harness);
-      expect(text(tiles()[0].querySelector('.percent [aria-hidden="true"]'))).toBe('100%');
+      expect(text(tiles()[0].querySelector('.percent'))).toBe('100%');
     });
     expect(text(tiles()[0].querySelector('app-deck-status-chip'))).toBe('Ready to build');
   });
@@ -207,7 +208,7 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', { timeout: 20
     expect(text(e.querySelector('.copies'))).toBe('No cards to count');
     const n = tileOf(el, 'No Legend');
     expect(n.querySelector('app-deck-mark')).not.toBeNull();
-    expect(text(n.querySelector('.percent [aria-hidden="true"]'))).toBe('50%');
+    expect(text(n.querySelector('.percent'))).toBe('50%');
   });
 
   it('SPEC-005 AC 24 / AC 13 / L6 ownership unavailable: no %, full-colour Legend, "Ownership unavailable", banner, chips disabled', async () => {
@@ -231,8 +232,8 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', { timeout: 20
     const ok = await setup({ decks: [deck54], owned: { [LEGEND]: 1, 'Lightning Rush': 3, Gust: 50 }, locks: [lock(id(4))] });
     let tile = ok.tiles()[0];
     expect(tile.querySelector('app-card-art .art')!.className).toContain('art--full');
-    expect(text(tile.querySelector('.percent [aria-hidden="true"]'))).toBe('100%');
-    expect(text(tile.querySelector('.percent .visually-hidden'))).toBe('100 percent of copies locked in');
+    expect(text(tile.querySelector('.percent'))).toBe('100%');
+    expect(text(tile.querySelector('.details .percent-text'))).toBe('100 percent of copies locked in');
     expect(text(tile.querySelector('.copies'))).toBe('54 of 54 copies locked in');
     // RJ 2026-11-25: the lock is its own badge; a locked complete deck (group `locked`) has no ownership chip.
     expect(text(tile.querySelector('app-deck-status-chip'))).toBe('');
@@ -243,7 +244,7 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', { timeout: 20
     const short = await setup({ decks: [deck54], owned: { [LEGEND]: 1, 'Lightning Rush': 1, Gust: 48 }, locks: [lock(id(4))] });
     tile = short.tiles()[0];
     expect(Number(artFill(tile))).toBeCloseTo(50 / 54, 10);
-    expect(text(tile.querySelector('.percent [aria-hidden="true"]'))).toBe('92%');
+    expect(text(tile.querySelector('.percent'))).toBe('92%');
     expect(text(tile.querySelector('.copies'))).toBe('50 of 54 copies locked in');
     expect(text(tile.querySelector('app-deck-status-chip'))).toBe('Partly available');
     expect(text(tile.querySelector('.ownership app-lock-badge'))).toBe('Locked · 2 cards short');
@@ -362,6 +363,87 @@ describe('DecksPage toolbar and states (SPEC-005 OWN-005, OWN-006, OWN-084, OWN-
     await settle(harness);
     expect(tiles()).toHaveLength(3);
     expect(TestBed.inject(Location).path()).toBe('/decks');
+  });
+
+  it('H-465 (2) / OWN-101: the link description starts with the source line and carries "N percent of copies available" after the copies line', async () => {
+    const { el } = await setup({ decks: three(), owned: { [LEGEND]: 1, 'Lightning Rush': 3, Gust: 30 } });
+    const link = tileOf(el, 'Kennen Tempo').querySelector('a.deck-tile')!;
+    const described = document.getElementById(link.getAttribute('aria-describedby')!)!;
+    const desc = text(described);
+    expect(desc.startsWith('Imported')).toBe(true);
+    const copies = desc.indexOf('34 of 66 copies available');
+    expect(copies).toBeGreaterThan(0);
+    expect(desc.indexOf('51 percent of copies available')).toBeGreaterThan(copies);
+    // The visible % stays out of the tree (no double reading); its words are inside the description.
+    expect(link.querySelector('.percent')!.getAttribute('aria-hidden')).toBe('true');
+    expect(described.querySelector('.percent-text')).not.toBeNull();
+  });
+
+  it('H-465 (1) (WCAG 1.3.1 / 4.1.2): the desktop Filters menu has two groups, named Legality and Source, each holding its own options', async () => {
+    const { el, harness } = await setup({ decks: three() });
+    (el.querySelector('.menu-control') as HTMLButtonElement).click();
+    await settle(harness);
+    const groups = Array.from(document.querySelectorAll<HTMLElement>('.deck-filters-menu [role="group"]'));
+    const names = groups.map((g) => text(document.getElementById(g.getAttribute('aria-labelledby')!)));
+    expect(names).toEqual(['Legality', 'Source']);
+    const items = (g: Element) => Array.from(g.querySelectorAll('[role="menuitemradio"]')).map((b) => text(b).replace('✓', ''));
+    expect(items(groups[0])).toEqual(['Any', 'Legal in Standard', 'Not legal in Standard today', 'Not fully checked']);
+    expect(items(groups[1])).toEqual(['Any', 'Imported', 'From Tournaments']);
+    // The headings are heard once, as the group names, not again as loose text in the menu.
+    expect(document.querySelectorAll('.deck-filters-menu p.menu-group[aria-hidden="true"]')).toHaveLength(2);
+    expect(document.querySelector('.deck-filters-menu [role="presentation"]')).toBeNull();
+  });
+
+  it('H-463 one-row toolbar at 1440: Lock / Sort fixed to their longest option, 14px values with a gap before the arrow; search alone flexes', async () => {
+    const { el } = await setup({ decks: three(), url: '/decks?lock=unlocked&legality=incomplete&source=user&q=gen' });
+    expect(el.querySelectorAll('.filter-chip')).toHaveLength(3);
+    const one = (cls: string) => cssRules((s) => targets(s, cls)).find((r) => r.media === null)!.style;
+    expect(one('lock-select').getPropertyValue('width')).toBe('7.25rem');
+    expect(one('sort-select').getPropertyValue('width')).toBe('8rem');
+    expect(one('select').getPropertyValue('--mat-select-trigger-text-size').trim()).toBe('var(--font-size-sm)');
+    expect(one('control').getPropertyValue('flex')).toMatch(/^none|0 0 auto$/);
+    const arrow = cssRules((s) => /\.select\s+\.mat-mdc-select-arrow-wrapper/.test(s));
+    expect(arrow.map((r) => r.style.getPropertyValue('margin-left'))).toContain('var(--space-2)');
+    expect(one('search').getPropertyValue('flex')).toBe('1 1 10rem');
+    // Active filter chips are 14px like the toolbar.
+    expect(one('filter-chip').getPropertyValue('font-size')).toBe('var(--font-size-sm)');
+  });
+
+  it('H-468 (8) / H-478: on phones the copies line is its own line in every state, so "66 of 66 copies locked in" never clips', async () => {
+    await setup({ decks: three(), locks: [lock(id(2))], owned: { 'Hextech Ray': 3 } });
+    const phone = cssRules((s) => targets(s, 'copies')).filter((r) => r.media?.includes('max-width: 40rem'));
+    expect(phone.map((r) => r.style.getPropertyValue('flex-basis'))).toContain('100%');
+    const base = cssRules((s) => targets(s, 'copies')).find((r) => r.media === null)!.style;
+    expect(base.getPropertyValue('min-width')).toMatch(/^0(px)?$/);
+    expect(base.getPropertyValue('overflow-wrap')).toBe('anywhere');
+  });
+
+  it('RJ 2026-11-26 (H-392 (c), H-481): the tile % is 16px 600 like the deck name, not louder', async () => {
+    await setup({ decks: three() });
+    const pct = cssRules((s) => targets(s, 'percent'));
+    expect(pct.every((r) => !r.style.getPropertyValue('font-size') || r.style.getPropertyValue('font-size') === 'var(--font-size-md)')).toBe(true);
+    const base = pct.find((r) => r.media === null)!.style;
+    expect(base.getPropertyValue('font-size')).toBe('var(--font-size-md)');
+    expect(base.getPropertyValue('font-weight')).toBe('600');
+    const name = cssRules((s) => targets(s, 'name')).find((r) => r.media === null)!.style;
+    expect([name.getPropertyValue('font-size'), name.getPropertyValue('font-weight')]).toEqual(['var(--font-size-md)', '600']);
+  });
+
+  it('H-468 (9) / OWN-105 (d): "Ready to build" with no match and locked decks hidden offers Show locked decks inside the empty state too', async () => {
+    const { el, harness, tiles } = await setup({ decks: three(), owned: { 'Hextech Ray': 3 }, locks: [lock(id(2))], url: '/decks?own=ready' });
+    expect(tiles()).toHaveLength(0);
+    expect(text(el.querySelector('app-empty-state h2'))).toBe('No decks match these filters');
+    const buttons = Array.from(el.querySelectorAll<HTMLButtonElement>('app-empty-state button'));
+    expect(buttons.map(text)).toEqual(['Clear filters', 'Show locked decks']);
+    buttons[1].click();
+    await settle(harness);
+    expect(TestBed.inject(Location).path()).toBe('/decks?lock=locked');
+    expect(tiles().map((t) => text(t.querySelector('.name-text')))).toEqual(['Ray Deck']);
+    expect(document.activeElement).toBe(el.querySelector('input[type="search"]'));
+    TestBed.resetTestingModule();
+    // No locked deck hidden: only Clear filters.
+    const plain = await setup({ decks: three(), url: '/decks?own=ready' });
+    expect(Array.from(plain.el.querySelectorAll('app-empty-state button')).map(text)).toEqual(['Clear filters']);
   });
 
   it('H-460 (WCAG 2.4.7): the tile focus ring is drawn inside the link, so the li paint containment (OWN-084) cannot clip it', async () => {
@@ -605,7 +687,7 @@ describe('DecksPage loading and in-place recompute ([[Decks]] §10 L2, L11; SPEC
     dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEYS.collection }));
     await vi.waitFor(async () => {
       await settle(harness);
-      expect(tiles().map((t) => text(t.querySelector('.percent [aria-hidden="true"]')))).toEqual(['100%', '100%', '100%']);
+      expect(tiles().map((t) => text(t.querySelector('.percent')))).toEqual(['100%', '100%', '100%']);
     });
     observer.disconnect();
 
