@@ -42,7 +42,7 @@ as_of: 2026-11-24
 - **v0.14.1 (H-501, text catch-up, no requirement changed):** the review step of "Add to your collection" opens with the heading **"Check the cards"** (`REVIEW_TEXT.check`, H-469), the builder's own wording, not RJ's; recorded in Open questions (RJ to confirm).
 
 **Shared types:** `CardKey`, `PrintingId`, `PrintingCode` (keys) · `ImportResult` / `ParsedLine` / `PrintingHint` / `ImportIssue` / `UploadInfo` (parser output, reused by SPEC-006) · `SourceFormat` · `StoredCollection` (`cardKey` → quantity + `byPrinting`) · `CollectionStore`.
-**Depends on:** [[Card Data Model]] v0.4.1; [[Shared Cards and Lock-in]] v0.4.6 (IMP-050a locked-deck warning only; pin-only, H-252, H-256). **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
+**Depends on:** [[Card Data Model]] v0.4.2 (pin-only, H-645); [[Shared Cards and Lock-in]] v0.4.6 (IMP-050a locked-deck warning only; pin-only, H-252, H-256). **Consumers:** [[Deck Import]] (Part A), [[My Collection]], [[Your Decks Ownership View]].
 **BLOCKED (needs research):**
 - Real deck codes with known contents for fixtures (AC 16); which section tag the V3…V6 groups (chosen champion, runes, additional legends) get (IMP-031).
 - Whether the Riot API's printings use the same suffix letters and `SP` numbers as Piltover codes and TTS art numbers (IMP-033, IMP-036a; needs H-020).

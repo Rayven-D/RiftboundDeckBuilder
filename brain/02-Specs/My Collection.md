@@ -37,7 +37,7 @@ as_of: 2026-11-25
 - COLL-089 (v0.8, RJ 2026-11-24): **runes are cards**: listed, tagged, edited, exported and counted toward decks like any card, with no rune-specific text or section (COLL-087 withdrawn; SPEC-009 withdrawn).
 
 **Shared types:** `DeckOwnership` / `DeckOwnershipInput` (read by SPEC-005, SPEC-008) · `CollectionCatalogView` (catalog view read by the pure functions) · `Tag`, `TagTarget`, `StoredTags` · `CollectionEntry`, `EntryBan` · `CollectionQuery`, `CollectionQueryInput`.
-**Depends on:** [[Card Data Model]] v0.4.1, [[Deck Legality]] v0.5, [[Collection Import]] v0.15 (v0.14.1 pin: H-501), [[Shared Cards and Lock-in]] v0.4.6 (`lockedShortfalls()`, SHARE-034; `hold`, `availability()`, SHARE-040; pin-only, H-252), [[Keyword Explanations]] v0.2.1 (the dialog's Keywords section, COLL-107). **Consumers:** [[Your Decks Ownership View]], [[Shared Cards and Lock-in]].
+**Depends on:** [[Card Data Model]] v0.4.2, [[Deck Legality]] v0.6 (pin-only, H-645, H-485), [[Collection Import]] v0.15 (v0.14.1 pin: H-501), [[Shared Cards and Lock-in]] v0.4.6 (`lockedShortfalls()`, SHARE-034; `hold`, `availability()`, SHARE-040; pin-only, H-252), [[Keyword Explanations]] v0.2.1 (the dialog's Keywords section, COLL-107). **Consumers:** [[Your Decks Ownership View]], [[Shared Cards and Lock-in]].
 **BLOCKED (needs research):**
 - Whether a foil is its own Riot API printing (COLL-011/016/020).
 - Rarity order (COLL-034); domain list (CARD-025); variant representation (CARD-040/041); API set order (CARD-071).
