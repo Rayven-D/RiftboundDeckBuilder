@@ -23,7 +23,13 @@ import { MatRadioButton, MatRadioGroup } from '@angular/material/radio';
 import { countLine } from '../collection/collection-view';
 import { Icon } from '../icon';
 import { CommitMode, ImportCommitter, PreparedOk } from './collection-commit';
-import type { DeckImportCommitter, PreparedDeck } from './deck-import';
+import {
+  type DeckImportCommitter,
+  type DeckReviewState,
+  EMPTY_REVIEW_STATE,
+  type PreparedDeck,
+  carryReviewAnswers,
+} from './deck-import';
 import { DECK_REVIEW_STATUS_ID, DeckReview } from './deck-review';
 import {
   ParseResult,
@@ -126,7 +132,7 @@ export function hasFiles(event: DragEvent): boolean {
     <h2 mat-dialog-title>{{ copy.title }}</h2>
     @if (deckReview(); as d) {
       <mat-dialog-content class="deck-content">
-        <app-deck-review [prepared]="d" />
+        <app-deck-review [prepared]="d" [initialState]="deckAnswers()" />
         @if (submitError(); as err) {
           <p class="error commit-error" role="alert"><app-icon name="error" />{{ err }}</p>
         }
@@ -335,6 +341,10 @@ export class ImportDialog {
   /** The Deck Import review step (H-253): set by Continue once the list is resolved. */
   protected readonly deckReview = signal<PreparedDeck | null>(null);
   private readonly deckReviewStep = viewChild(DeckReview);
+  /** DECK-100: the answers the next deck review starts with (kept from the one left with Back). */
+  protected readonly deckAnswers = signal<DeckReviewState>(EMPTY_REVIEW_STATE);
+  /** DECK-100 / DECK-102: the review the user left with Back, held only while the dialog is open. */
+  private leftReview: { readonly prepared: PreparedDeck; readonly answers: DeckReviewState } | null = null;
   private readonly listBox = viewChild<ElementRef<HTMLTextAreaElement>>('listBox');
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -484,6 +494,9 @@ export class ImportDialog {
       if (prepared.status === 'error') this.submitError.set(prepared.message);
       else {
         this.submitError.set(null);
+        // DECK-100 / DECK-101: answers on lines that did not change are kept; the others are asked again.
+        const left = this.leftReview;
+        this.deckAnswers.set(left ? carryReviewAnswers(left.prepared, left.answers, prepared, new Date()) : EMPTY_REVIEW_STATE);
         this.deckReview.set(prepared);
         // H-450: the Continue button is gone; focus the review's first heading, not <body>.
         afterNextRender(() => this.deckReviewStep()?.focusStart(), { injector: this.injector });
@@ -515,9 +528,15 @@ export class ImportDialog {
     }
   }
 
-  /** Back to the list (the text and the upload are kept; the deck review's choices start over). */
+  /**
+   * Back to the list (the text and the upload are kept). DECK-100: the deck review's answers are held so the next
+   * Continue keeps those on unchanged lines; the Owned Cards review starts over.
+   */
   protected back(): void {
     if (this.busy()) return;
+    const deck = this.deckReview();
+    const step = this.deckReviewStep();
+    if (deck && step) this.leftReview = { prepared: deck, answers: step.answers() };
     this.review.set(null);
     this.deckReview.set(null);
     this.submitError.set(null);

@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.31
+version: 1.32
 ---
 # API Contracts
 
@@ -567,6 +567,14 @@ writes nothing (DECK-003).
   in `importRemovedLines` order; name = the card's name, or the line's text when unresolved); `DeckImportLine.code`
   (the printing code as written, or null) and `noteKind` (`'codeUsed' | 'nameUsed' | null`);
   `DECK_REVIEW_TEXT.championExtraToMain` is a function of the extra copies (`(n: number) => string`).
+  **Back keeps answers (H-480, DECK-100…102):** `lineIdentities(prepared)` → one identity per `DeckImportLine.id`
+  (DECK-101: trimmed `raw`, section context = the line's `section` zone or none, occurrence number among lines with
+  the same text and context; position is not part of it). `carryReviewAnswers(prev, state, next, today)` →
+  `DeckReviewState` for the next review: `removed` and `zones` entries of unchanged lines (a zone answer only when the
+  line resolves without a pick), and the `legend` / `champion` answer only when `next` asks that question again with
+  the same lines (mapped by identity) and the same candidate `cardKey`s; `picks`, `typedName`, `sourceText`,
+  `sourceUrl` start empty. The dialog holds the review left with Back in memory only and passes the result to
+  `app-deck-review` as the `initialState` input; `DeckReview.answers()` returns the current state.
 - **Parser additions** (`parse-card-list.ts`): `sourceLines(text)` (the parser's line split), `sectionLabelOf(raw)`;
   section labels accept `*` bold marks (`**Legend:**`, `**Legend**:`, SPEC-003 IMP-016 v0.14).
 - **Service** (`web/src/app/core/import/deck-import.ts`, `DeckImport`, root): `prepare` loads the catalog
@@ -814,6 +822,9 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.32 (2026-11-26, H-480, SPEC-006 0.13 DECK-100, DECK-101): no endpoint change and no stored-shape change. New
+  pure `lineIdentities()` and `carryReviewAnswers()` in `shared/import/deck-import.ts`; `app-deck-review` input
+  `initialState` and method `answers()`.
 - v1.31 (2026-11-26, H-452, critique H-341 §4): no endpoint change and no stored-shape change. Review-only shape
   additions: `ReviewLine.movedToMain`, `ReviewNote` (`id`, `removable`), `DeckReview.removedLines`,
   `DeckImportLine.code` / `noteKind`; `championExtraToMain(n)` and `championNotPicked` reworded.

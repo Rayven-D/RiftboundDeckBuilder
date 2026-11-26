@@ -7,6 +7,7 @@ import {
   computed,
   inject,
   input,
+  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
@@ -416,6 +417,8 @@ export class DeckReview {
   readonly prepared = input.required<PreparedDeck>();
   /** The user's local date for the DECK-070 fallback name; a function so tests can pin it. */
   readonly today = input<() => Date>(() => new Date());
+  /** DECK-100: the answers kept from the review the user left with Back (`carryReviewAnswers`); empty the first time. */
+  readonly initialState = input<DeckReviewState>(EMPTY_REVIEW_STATE);
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
@@ -426,7 +429,7 @@ export class DeckReview {
   protected readonly maxText = MAX_SOURCE_TEXT;
   protected readonly maxUrl = MAX_SOURCE_URL;
 
-  protected readonly state = signal<DeckReviewState>(EMPTY_REVIEW_STATE);
+  protected readonly state = linkedSignal<DeckReviewState>(() => this.initialState());
   readonly view = computed<Review>(() => reviewDeck(this.prepared(), this.state(), this.today()()));
 
   protected readonly mismatches = computed(() => this.view().lines.filter((l) => l.mismatch));
@@ -610,6 +613,11 @@ export class DeckReview {
       zones: new Map([...s.zones, ...open.map((q) => [q.lineIds[0], 'main'] as const)]),
     }));
     this.focusFirst(after);
+  }
+
+  /** DECK-100: the user's answers as they stand, read by the dialog when the user presses Back. */
+  answers(): DeckReviewState {
+    return this.state();
   }
 
   /** H-450: the review's first heading, focused after Continue (and the last fallback of every focus move). */

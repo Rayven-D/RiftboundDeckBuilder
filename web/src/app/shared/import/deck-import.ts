@@ -764,6 +764,78 @@ export function reviewDeck(p: PreparedDeck, s: DeckReviewState, today: Date): De
   };
 }
 
+/**
+ * DECK-101: each line's identity across Back → Continue, by `DeckImportLine.id`: its trimmed text (exact,
+ * case-sensitive), its section context (the zone of its section label, or none) and its occurrence number (the n-th
+ * line from the top with the same text and context). Position in the text box is not part of it.
+ */
+export function lineIdentities(p: PreparedDeck): readonly string[] {
+  const seen = new Map<string, number>();
+  return p.lines.map((l) => {
+    const base = `${l.section ?? ''}\n${l.raw}`;
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    return `${base}\n${n}`;
+  });
+}
+
+/**
+ * DECK-100 / DECK-101: the review answers that survive Back → edit → Continue. `prev` and `s` are the review the user
+ * left with Back; `next` is the list as resolved again. Kept, for lines whose identity is unchanged: removed lines
+ * (DECK-041, DECK-042) and zone answers (PICK_ZONE, "Move to", "Put all in Main Deck", a changed inferred zone) on
+ * lines that resolve. The PICK_LEGEND / PICK_CHAMPION answer (a card or "Leave empty") is kept only when the
+ * question is asked again with the same lines and the same candidates (no line changed or left, no new one came).
+ * Not kept (DECK-101 open-question defaults): suggestion picks ("Use X"), the typed name, Source and Link.
+ * Pure: the result lives only in the open dialog (DECK-102).
+ */
+export function carryReviewAnswers(
+  prev: PreparedDeck,
+  s: DeckReviewState,
+  next: PreparedDeck,
+  today: Date,
+): DeckReviewState {
+  const prevIds = lineIdentities(prev);
+  const nextIdByIdentity = new Map(lineIdentities(next).map((k, i) => [k, next.lines[i].id]));
+  const map = (id: number): number | undefined => nextIdByIdentity.get(prevIds[id]);
+
+  const removed = new Set<number>();
+  for (const id of s.removed) {
+    const to = map(id);
+    if (to !== undefined) removed.add(to);
+  }
+  const zones = new Map<number, DeckZone>();
+  for (const [id, zone] of s.zones) {
+    const to = map(id);
+    // A line that needs attention again (its pick is not kept) gets its zone asked again once it resolves.
+    if (to !== undefined && next.lines[to].card) zones.set(to, zone);
+  }
+  let carried: DeckReviewState = { ...EMPTY_REVIEW_STATE, removed, zones };
+
+  const before = reviewDeck(prev, s, today).questions;
+  const keep = (kind: 'PICK_LEGEND' | 'PICK_CHAMPION'): CardKey | 'empty' | null => {
+    const old = before.find((q) => q.kind === kind);
+    if (!old || old.kind === 'PICK_ZONE' || old.answer === null) return null;
+    const now = reviewDeck(next, carried, today).questions.find((q) => q.kind === kind);
+    if (!now || now.kind === 'PICK_ZONE') return null;
+    const mapped = old.lineIds.map(map);
+    if (mapped.some((id) => id === undefined)) return null;
+    const keys = (cs: readonly PlayableCard[]) => cs.map((c) => c.cardKey);
+    return sameSet(mapped as number[], now.lineIds) && sameSet(keys(old.candidates), keys(now.candidates))
+      ? old.answer
+      : null;
+  };
+  carried = { ...carried, legend: keep('PICK_LEGEND') };
+  // After the Legend: an unsectioned list asks PICK_CHAMPION only once its Legend is known (DECK-034).
+  carried = { ...carried, champion: keep('PICK_CHAMPION') };
+  return carried;
+}
+
+function sameSet<T>(a: readonly T[], b: readonly T[]): boolean {
+  const sa = new Set(a);
+  const sb = new Set(b);
+  return sa.size === sb.size && [...sa].every((x) => sb.has(x));
+}
+
 function place(line: DeckImportLine, card: PlayableCard, override: DeckZone | null): Placed {
   const x: Placed = {
     line,

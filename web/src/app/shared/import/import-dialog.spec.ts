@@ -404,3 +404,106 @@ describe('ImportDialog Owned Cards review focus (H-469, Validation H-450)', () =
     expect(document.activeElement).not.toBe(document.body);
   });
 });
+
+describe('ImportDialog Deck Import Back keeps answers (H-480, DECK-100…102)', () => {
+  const catalog = makeCatalog([
+    { name: 'Varrow, Ember Warden', category: 'legend' },
+    { name: 'Varrow, Ashen Blade', category: 'champion' },
+    { name: 'Gust', category: 'spell' },
+    { name: 'Flashfire', category: 'unknown' },
+  ]);
+  const LIST = ['2 Flashfire', 'Legend:', '1 Varrow, Ember Warden', 'Champion:', '1 Varrow, Ashen Blade', 'Main Deck:', '3 Gust'];
+  function deckDialog() {
+    const commit = vi.fn<DeckImportCommitter['commit']>().mockResolvedValue({ status: 'written' });
+    const deckCommitter: DeckImportCommitter = {
+      prepare: async (r, text) => prepareDeckImport(r, sourceLines(text), catalog),
+      commit,
+    };
+    TestBed.configureTestingModule({
+      imports: [ImportDialog],
+      providers: [
+        { provide: MAT_DIALOG_DATA, useValue: { kind: 'deck', deckCommitter } },
+        { provide: MatDialogRef, useValue: deckRef() },
+      ],
+    });
+    const f = TestBed.createComponent(ImportDialog);
+    f.detectChanges();
+    return { f, commit };
+  }
+  const button = (f: Fixture, label: string) =>
+    Array.from(el(f).querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent?.trim() === label)!;
+  async function answerZone(f: Fixture, label: string): Promise<void> {
+    el(f).querySelector<HTMLElement>('mat-select.pick-zone .mat-mdc-select-trigger')!.click();
+    await settle(f);
+    Array.from(document.querySelectorAll<HTMLElement>('mat-option')).find((o) => o.textContent?.trim() === label)!.click();
+    await settle(f);
+  }
+  async function continueWith(f: Fixture, text: string): Promise<void> {
+    type(f, text);
+    button(f, 'Continue').click();
+    await settle(f);
+  }
+  const sectionOf = (f: Fixture, name: string) =>
+    Array.from(el(f).querySelectorAll('ul.inferred li'))
+      .find((li) => li.textContent?.includes(name))
+      ?.querySelector('mat-select .mat-mdc-select-value')
+      ?.textContent?.trim();
+
+  it('DECK-100 / AC 34: answer a zone question, Back, edit a different line, Continue: the answer is still set', async () => {
+    const { f, commit } = deckDialog();
+    await continueWith(f, LIST.join('\n'));
+    expect(el(f).querySelectorAll('mat-select.pick-zone')).toHaveLength(1);
+    await answerZone(f, 'Sideboard');
+    expect(el(f).querySelector('mat-select.pick-zone')).toBeNull();
+
+    button(f, 'Back').click();
+    await settle(f);
+    await continueWith(f, [...LIST.slice(0, -1), '4 Gust'].join('\n'));
+    expect(el(f).querySelector('mat-select.pick-zone')).toBeNull();
+    expect(sectionOf(f, 'Flashfire')).toBe('Sideboard');
+    expect(document.getElementById('deck-review-status')!.textContent!.trim()).toBe('Ready to save.');
+    button(f, 'Save deck').click();
+    await settle(f);
+    const draft = commit.mock.calls[0][1].draft;
+    expect(draft.sideboard).toEqual([{ cardKey: 'flashfire', name: 'Flashfire', qty: 2 }]);
+    expect(draft.main).toEqual([{ cardKey: 'gust', name: 'Gust', qty: 4 }]);
+  });
+
+  it('DECK-100 / AC 36: editing the answered line asks its question again', async () => {
+    const { f } = deckDialog();
+    await continueWith(f, LIST.join('\n'));
+    await answerZone(f, 'Sideboard');
+    button(f, 'Back').click();
+    await settle(f);
+    await continueWith(f, ['3 Flashfire', ...LIST.slice(1)].join('\n'));
+    expect(el(f).querySelectorAll('.question.open mat-select.pick-zone')).toHaveLength(1);
+    expect(document.getElementById('deck-review-status')!.textContent).toContain('1 question to answer');
+  });
+
+  it('DECK-100 (c) / DECK-041: a removed line stays removed after Back and Continue with no edit', async () => {
+    const { f } = deckDialog();
+    await continueWith(f, [...LIST, '2 Not A Card'].join('\n'));
+    await answerZone(f, 'Main Deck');
+    el(f).querySelector<HTMLButtonElement>('ul.attention button.remove')!.click();
+    await settle(f);
+    expect(el(f).querySelector('ul.attention')).toBeNull();
+    button(f, 'Back').click();
+    await settle(f);
+    button(f, 'Continue').click();
+    await settle(f);
+    expect(el(f).querySelector('ul.attention')).toBeNull();
+    expect(el(f).querySelector('.removed-note')!.textContent).toContain('line 8 (2 Not A Card)');
+    expect(document.getElementById('deck-review-status')!.textContent!.trim()).toBe('Ready to save.');
+  });
+
+  it('DECK-102: a new dialog starts with no answers (nothing is kept after the dialog closes)', async () => {
+    const first = deckDialog();
+    await continueWith(first.f, LIST.join('\n'));
+    await answerZone(first.f, 'Sideboard');
+    first.f.destroy();
+    TestBed.resetTestingModule();
+    const { f } = deckDialog();
+    await continueWith(f, LIST.join('\n'));
+    expect(el(f).querySelectorAll('.question.open mat-select.pick-zone')).toHaveLength(1);
+  });
+});

@@ -10,6 +10,8 @@ import {
   type DeckReviewState,
   EMPTY_REVIEW_STATE,
   type PreparedDeck,
+  carryReviewAnswers,
+  lineIdentities,
   deckSource,
   displayDate,
   prepareDeckImport,
@@ -783,5 +785,197 @@ describe('H-452 where the cards went (critique H-341 findings 5, 8, 10; §4 stri
     expect(code.notes).toEqual([{ id, line: 3, message: 'RAD 001 is Lightning Rush, so that card was used.', removable: true }]);
     const named = review(p, { champion: 'empty', picks: new Map([[id, 'hextech ray']]) });
     expect(named.notes).toEqual([]);
+  });
+});
+
+describe('SPEC-006 M. Back keeps the answers for unchanged lines (DECK-100, DECK-101; H-480)', () => {
+  // AC 34 has Gust with `category: 'unknown'`, so its line gets a PICK_ZONE.
+  const GUST_UNKNOWN: CollectionCatalogView = {
+    ...CATALOG,
+    cards: { ...CATALOG.cards, gust: { ...CATALOG.cards['gust'], category: 'unknown' } },
+  };
+  const prepG = (text: string) => prep(text, GUST_UNKNOWN);
+  /** Back → the text box now holds `text` → Continue: the kept answers, and the review they give. */
+  const backAndContinue = (p: PreparedDeck, s: Partial<DeckReviewState>, text: string, catalog = CATALOG) => {
+    const next = prep(text, catalog);
+    const state = carryReviewAnswers(p, { ...EMPTY_REVIEW_STATE, ...s }, next, TODAY);
+    return { next, state, r: reviewDeck(next, state, TODAY) };
+  };
+  const AC34 = ['1 Kennen, Heart of the Tempest', '1 Kennen, Storm of Shuriken', '3 Lightning Rush', '2 Gust'];
+  const gustId = (p: PreparedDeck, n = 0) => p.lines.filter((l) => l.raw.endsWith('Gust'))[n].id;
+  const answeredAc34 = () => {
+    const p = prepG(AC34.join('\n'));
+    expect(review(p).questions.map((q) => q.kind)).toEqual(['PICK_ZONE']);
+    return { p, s: { zones: new Map([[gustId(p), 'sideboard' as const]]) } };
+  };
+  const gustLine = (r: ReturnType<typeof review>) => r.lines.find((l) => l.name === 'Gust');
+  /** The PICK_ZONE questions still listed (all open: an answered PICK_ZONE leaves the list). */
+  const zoneAnswers = (r: ReturnType<typeof review>) => r.questions.filter((q) => q.kind === 'PICK_ZONE').map((q) => q.answer);
+
+  it('DECK-101: a line is identified by trimmed text, section context and occurrence, not by position', () => {
+    const a = prep('Main Deck:\n2 Gust\n  2 Gust  \nSideboard:\n2 Gust');
+    expect(lineIdentities(a)).toEqual(['main\n2 Gust\n1', 'main\n2 Gust\n2', 'sideboard\n2 Gust\n1']);
+    const b = prep('\n\nMain Deck:\n1 Lightning Rush\n2 Gust');
+    expect(lineIdentities(b)[1]).toBe(lineIdentities(a)[0]);
+    // Unsectioned lines have no context; case matters.
+    expect(lineIdentities(prep('2 Gust\n2 gust'))).toEqual(['\n2 Gust\n1', '\n2 gust\n1']);
+  });
+
+  it('DECK-100 (a) / AC 34: editing another line keeps the PICK_ZONE answer; Gust stays in sideboard and Lightning Rush is x4', () => {
+    const { p, s } = answeredAc34();
+    const edited = [...AC34];
+    edited[2] = '4 Lightning Rush';
+    const { r } = backAndContinue(p, s, edited.join('\n'), GUST_UNKNOWN);
+    expect([gustLine(r)?.zone, gustLine(r)?.zoneMethod]).toEqual(['sideboard', 'user']);
+    expect(r.questions.filter((q) => q.kind === 'PICK_ZONE')).toEqual([]);
+    expect(qtyOf(r.draft.main, 'lightning rush')).toBe(4);
+    expect(qtyOf(r.draft.sideboard, 'gust')).toBe(2);
+    expect(r.canSave).toBe(true);
+  });
+
+  it('DECK-101 / AC 34: a blank line added above line 1 keeps the answer (position does not matter)', () => {
+    const { p, s } = answeredAc34();
+    const { r } = backAndContinue(p, s, ['', ...AC34].join('\n'), GUST_UNKNOWN);
+    expect([gustLine(r)?.zone, gustLine(r)?.zoneMethod]).toEqual(['sideboard', 'user']);
+    expect(r.blockers.openQuestions).toBe(0);
+  });
+
+  it('DECK-100 / AC 36: an edited line drops its answer; `2 Gust` → `3 Gust` asks PICK_ZONE again, unanswered', () => {
+    const { p, s } = answeredAc34();
+    const edited = [...AC34];
+    edited[3] = '3 Gust';
+    const { r, state } = backAndContinue(p, s, edited.join('\n'), GUST_UNKNOWN);
+    expect(state.zones.size).toBe(0);
+    expect(r.questions).toEqual([{ kind: 'PICK_ZONE', lineIds: [3], answer: null }]);
+    expect(r.canSave).toBe(false);
+  });
+
+  it('DECK-101 / AC 36: a changed section label drops the "Move to" under it; ZONE_CATEGORY_MISMATCH comes back', () => {
+    const p = prep('Legend: 1 Kennen, Heart of the Tempest\nMain Deck:\n1 Zaun Warrens');
+    const id = p.lines.find((l) => l.raw === '1 Zaun Warrens')!.id;
+    const zones = new Map([[id, 'battlefields' as const]]);
+    expect(review(p, { zones }).draft.battlefields.map((c) => c.cardKey)).toEqual(['zaun warrens']);
+    // `Main:` gives the same zone, so the context is unchanged.
+    const same = backAndContinue(p, { zones }, 'Legend: 1 Kennen, Heart of the Tempest\nMain:\n1 Zaun Warrens');
+    expect(same.r.draft.battlefields.map((c) => c.cardKey)).toEqual(['zaun warrens']);
+    const { r } = backAndContinue(p, { zones }, 'Legend: 1 Kennen, Heart of the Tempest\nSideboard:\n1 Zaun Warrens');
+    expect(r.draft.sideboard.map((c) => c.cardKey)).toEqual(['zaun warrens']);
+    expect(r.draft.battlefields).toEqual([]);
+    expect(r.issues.map((i) => i.code)).toContain('ZONE_CATEGORY_MISMATCH');
+  });
+
+  it('DECK-101 / AC 36: of two identical `2 Gust` lines, deleting the answered first one gives its answer to the other', () => {
+    // Unsectioned lines come before the first label (a label holds until the next one).
+    const text = ['2 Gust', '3 Lightning Rush', '2 Gust', 'Legend: 1 Kennen, Heart of the Tempest'];
+    const p = prepG(text.join('\n'));
+    const s = { zones: new Map([[gustId(p, 0), 'sideboard' as const]]) };
+    expect(zoneAnswers(review(p, s))).toEqual([null]);
+    const { r, next } = backAndContinue(p, s, text.slice(1).join('\n'), GUST_UNKNOWN);
+    expect(r.lines.find((l) => l.id === gustId(next))?.zone).toBe('sideboard');
+    expect(zoneAnswers(r)).toEqual([]);
+  });
+
+  it('DECK-100 (a) / DECK-035: "Put all in Main Deck" answers are kept for the unchanged lines only', () => {
+    const text = ['2 Gust', '1 Mystery Card', 'Legend: 1 Kennen, Heart of the Tempest'];
+    const p = prepG(text.join('\n'));
+    const s = { zones: new Map(p.lines.filter((l) => l.section === null).map((l) => [l.id, 'main' as const])) };
+    expect(zoneAnswers(review(p, s))).toEqual([]);
+    const { r } = backAndContinue(p, s, [text[0], '2 Mystery Card', text[2]].join('\n'), GUST_UNKNOWN);
+    expect(zoneAnswers(r)).toEqual([null]);
+    expect(gustLine(r)?.zoneMethod).toBe('user');
+  });
+
+  const AC30 = ['Legend:', '1 Kennen, Heart of the Tempest', '1 Riven, The Exile', 'Champion:', '1 Kennen, Storm of Shuriken', 'Main Deck:', '3 Lightning Rush'];
+
+  it('DECK-100 (b) / AC 35: a whitespace-only edit keeps the Legend pick; Riven stays out and the name is the Legend', () => {
+    const p = prep(AC30.join('\n'));
+    const edited = [...AC30];
+    edited[2] = '   1 Riven, The Exile  ';
+    const { r } = backAndContinue(p, { legend: 'kennen heart of the tempest' }, edited.join('\n'));
+    expect(r.questions.map((q) => [q.kind, q.answer])).toEqual([['PICK_LEGEND', 'kennen heart of the tempest']]);
+    expect(r.draft.legend?.name).toBe('Kennen, Heart of the Tempest');
+    expect(r.draft.importRemovedLines).toEqual(['1 Riven, The Exile']);
+    expect(r.name).toBe('Kennen, Heart of the Tempest');
+    expect(r.canSave).toBe(true);
+  });
+
+  it('DECK-101 / AC 35: a third Legend line opens PICK_LEGEND again, unanswered, with three candidates; Save is disabled', () => {
+    const p = prep(AC30.join('\n'));
+    const added = [...AC30.slice(0, 3), `1 ${LONG_LEGEND}`, ...AC30.slice(3)];
+    const { r, state } = backAndContinue(p, { legend: 'kennen heart of the tempest' }, added.join('\n'));
+    expect(state.legend).toBeNull();
+    const q = r.questions.find((x) => x.kind === 'PICK_LEGEND')!;
+    expect(q.answer).toBeNull();
+    expect(q.candidates.length).toBe(3);
+    expect(r.canSave).toBe(false);
+  });
+
+  it('DECK-100 (b) / AC 35: an edited candidate line drops the Legend answer', () => {
+    const p = prep(AC30.join('\n'));
+    const edited = [...AC30];
+    edited[2] = '2 Riven, The Exile';
+    const { state } = backAndContinue(p, { legend: 'kennen heart of the tempest' }, edited.join('\n'));
+    expect(state.legend).toBeNull();
+  });
+
+  it('DECK-100 (b) / AC 35: "Leave empty" on the no-Legend question is kept while the input still has no Legend line', () => {
+    const text = ['Main Deck:', '3 Lightning Rush', '2 Gust'];
+    const p = prep(text.join('\n'));
+    expect(review(p).questions[0]).toMatchObject({ kind: 'PICK_LEGEND', lineIds: [] });
+    const kept = backAndContinue(p, { legend: 'empty' }, [...text, '1 Hextech Ray'].join('\n'));
+    expect(kept.state.legend).toBe('empty');
+    expect(kept.r.questions.find((q) => q.kind === 'PICK_LEGEND')?.answer).toBe('empty');
+    const withLegend = backAndContinue(p, { legend: 'empty' }, ['Legend: 1 Kennen, Heart of the Tempest', ...text].join('\n'));
+    expect(withLegend.state.legend).toBeNull();
+    expect(withLegend.r.questions.find((q) => q.kind === 'PICK_LEGEND')).toBeUndefined();
+  });
+
+  it('DECK-100 (b) / AC 35 with AC 31: the Chosen Champion pick and "Leave empty" are kept; a new Champion line asks again', () => {
+    const text = ['Legend:', '1 Kennen, Heart of the Tempest', 'Champion:', '2 Kennen, Storm of Shuriken', '2 Riven, Broken Blade', 'Main Deck:', '12 Gust'];
+    const p = prep(text.join('\n'));
+    for (const champion of ['kennen storm of shuriken', 'empty'] as const) {
+      const { r } = backAndContinue(p, { champion }, [...text, '1 Hextech Ray'].join('\n'));
+      expect(r.questions.find((q) => q.kind === 'PICK_CHAMPION')?.answer).toBe(champion);
+      expect(r.canSave).toBe(true);
+    }
+    const more = [...text.slice(0, 5), '1 Kennen, Second Form', ...text.slice(5)];
+    const { r } = backAndContinue(p, { champion: 'kennen storm of shuriken' }, more.join('\n'));
+    expect(r.questions.find((q) => q.kind === 'PICK_CHAMPION')?.answer).toBeNull();
+    expect(r.canSave).toBe(false);
+  });
+
+  const AC9 = ['Legend: 1 Kennen, Heart of the Tempest', 'Main Deck:', '3 Lightning Rush', 'Sideboard:', '2 Totally Fake Card'];
+
+  it('DECK-100 (c) / DECK-042 / AC 37: a removed line stays removed with no edit and is saved in importRemovedLines', () => {
+    const p = prep(AC9.join('\n'));
+    const id = p.lines.find((l) => l.raw === '2 Totally Fake Card')!.id;
+    const { r } = backAndContinue(p, { removed: new Set([id]), champion: 'empty' }, AC9.join('\n'));
+    expect(r.attention).toEqual([]);
+    expect(r.draft.importRemovedLines).toEqual(['2 Totally Fake Card']);
+  });
+
+  it('DECK-100 (c) / AC 37: a removed line that is edited is in Lines to fix again', () => {
+    const p = prep(AC9.join('\n'));
+    const id = p.lines.find((l) => l.raw === '2 Totally Fake Card')!.id;
+    const edited = [...AC9.slice(0, 4), '3 Totally Fake Card'];
+    const { r } = backAndContinue(p, { removed: new Set([id]) }, edited.join('\n'));
+    expect(r.attention.map((l) => l.raw)).toEqual(['3 Totally Fake Card']);
+    expect(r.draft.importRemovedLines).toBeUndefined();
+    expect(r.canSave).toBe(false);
+  });
+
+  it('DECK-100 / open-question defaults (1), (2): suggestion picks, the typed name, Source and Link are not kept', () => {
+    const text = 'Legend: 1 Kennen, Heart of the Tempest\nMain Deck:\n1 Hextech Ray RAD 001';
+    const p = prep(text);
+    const s: Partial<DeckReviewState> = {
+      picks: new Map([[p.lines[1].id, 'lightning rush']]),
+      typedName: 'My deck',
+      sourceText: 'A friend',
+      sourceUrl: 'https://example.com/list',
+    };
+    const { state, r } = backAndContinue(p, s, text);
+    expect([state.picks.size, state.typedName, state.sourceText, state.sourceUrl]).toEqual([0, null, '', '']);
+    expect(r.attention.map((l) => l.line)).toEqual([3]);
+    expect(r.name).toBe('Kennen, Heart of the Tempest');
   });
 });
