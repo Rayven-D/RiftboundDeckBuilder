@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
+import { provideRouter } from '@angular/router';
 import { CardData, CatalogResult, DEV_SAMPLE_DECKS_KEY } from '../../core/cards/card-data';
 import { AppStores } from '../../core/storage/app-stores';
 import { BrowserStores, createBrowserStores } from '../../core/storage/browser-stores';
@@ -21,6 +22,7 @@ async function render() {
   };
   TestBed.configureTestingModule({
     providers: [
+      provideRouter([]),
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       { provide: AppStores, useValue: { stores } },
       { provide: CardData, useValue: cardData },
@@ -90,5 +92,66 @@ describe('StyleguidePage Buttons section (H-102)', () => {
     const row = [...section.querySelectorAll('.dialog-actions button')];
     expect(row.map((b) => b.textContent!.trim())).toEqual(['Cancel', 'Delete account']);
     expect(row[1].classList.contains('danger')).toBe(true);
+  });
+});
+
+describe('StyleguidePage Decks section (H-391)', () => {
+  function section(fixture: Awaited<ReturnType<typeof render>>): HTMLElement {
+    return (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('section[aria-labelledby="sg-decks"]')!;
+  }
+
+  it('H-391: shows deck tiles for every ownership group, with the engine lines', async () => {
+    const el = section(await render());
+    const tiles = [...el.querySelectorAll<HTMLElement>('app-deck-tile')];
+    expect(tiles.length).toBe(10);
+    const text = tiles.map((t) => t.textContent!.replace(/\s+/g, ' '));
+    expect(text.some((t) => t.includes('Ready to build'))).toBe(true);
+    expect(text.some((t) => t.includes('Partly available') && t.includes('1 banned card'))).toBe(true);
+    expect(text.some((t) => t.includes('None available'))).toBe(true);
+    expect(text.some((t) => /Locked · \d+ cards? short/.test(t))).toBe(true);
+    expect(text.some((t) => t.includes('No cards to count'))).toBe(true);
+    expect(text.some((t) => t.includes('Read-only'))).toBe(true);
+    expect(text.filter((t) => t.includes('Ownership unavailable')).length).toBe(2);
+    expect(el.querySelectorAll('app-deck-tile app-deck-mark').length).toBeGreaterThan(0);
+  });
+
+  it('H-391: shows status chips, lock badges, lock actions, card tiles, rows and the panel', async () => {
+    const el = section(await render());
+    const chips = [...el.querySelectorAll('.row-items app-deck-status-chip .chip')].map((c) => c.textContent!.trim());
+    expect(chips).toEqual([
+      'Ready to build',
+      'Partly available',
+      'None available',
+      'Locked',
+      'Locked · 2 cards short',
+      'Locked',
+    ]);
+    expect(el.querySelector('.column-items app-lock-badge')!.textContent).toContain('Locked in on');
+    const actions = [...el.querySelectorAll<HTMLButtonElement>('app-lock-actions button')];
+    expect(actions.map((b) => b.textContent!.trim())).toEqual(['Lock in', 'Lock in', 'Unlock', 'Lock in']);
+    expect(actions[0].getAttribute('aria-disabled')).not.toBe('true');
+    expect(actions[1].getAttribute('aria-disabled')).toBe('true');
+    expect(actions[3].getAttribute('aria-disabled')).toBe('true');
+    expect(el.textContent).toContain('Locked decks could not be read');
+    expect(el.querySelectorAll('app-deck-card-tile').length).toBe(12);
+    expect(el.querySelectorAll('app-deck-card-row').length).toBe(11);
+    expect(el.querySelector('[role="tablist"]')).not.toBeNull();
+    expect(el.querySelector('app-deck-card-content')).not.toBeNull();
+    expect(el.textContent).toContain('Card no longer in the card data');
+  });
+
+  it('H-391: Lock in on the preview deck flips to Unlock without touching the browser stores', async () => {
+    const fixture = await render();
+    const el = section(fixture);
+    const first = el.querySelector<HTMLButtonElement>('app-lock-actions button')!;
+    first.click();
+    await settle(fixture);
+    const confirm = document.querySelector<HTMLButtonElement>('.confirm')!;
+    expect(confirm.textContent!.trim()).toBe('Lock in');
+    confirm.click();
+    await settle(fixture);
+    fixture.detectChanges();
+    expect(el.querySelector('app-lock-actions button')!.textContent).toContain('Unlock');
+    expect(await stores.raw.locks.load()).toBeNull();
   });
 });
