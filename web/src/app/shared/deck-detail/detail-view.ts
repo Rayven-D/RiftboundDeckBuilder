@@ -65,6 +65,8 @@ export const DETAIL_TEXT = {
   emptyZone: 'No cards in this zone',
   noDeckCards: 'This deck has no cards.',
   cardLeft: 'That card is no longer in this deck.',
+  /** H-468 (10): the polite status when a card is selected in the desktop panel. */
+  showing: (name: string) => `Showing ${name}`,
   cardLeftDialog: 'This card is no longer in this deck.',
   allAvailable: 'All cards available',
   unknownCard: 'Card no longer in the card data',
@@ -107,8 +109,14 @@ export function headerSummary(view: DeckOwnershipView): HeaderSummary {
   return {
     copies: copiesLine(view),
     percent: s.completionPercent,
-    cards: `${s.cardsFullyAvailable} of ${s.cardsTotal} cards fully available`,
+    cards: cardsLine(view),
   };
+}
+
+/** OWN-050: "F of C cards fully available"; singular when C is 1 ("1 of 1 card fully available", H-466). */
+export function cardsLine(view: DeckOwnershipView): string {
+  const s = view.summary;
+  return `${s.cardsFullyAvailable} of ${s.cardsTotal} ${s.cardsTotal === 1 ? 'card' : 'cards'} fully available`;
 }
 
 /** OWN-050 / SHARE-050: "A of R copies available", or "… copies locked in" in a locked deck. */
@@ -137,18 +145,25 @@ export function sourceParts(deck: UserDeck): { pilot: string | null; sourceUrl: 
 
 // ---------------------------------------------------------------- sections (OWN-011, OWN-110)
 
-/** OWN-011: "Main Deck · 39 cards · 12 available" (the part after the label); "· 39 cards" while unavailable. */
+/**
+ * OWN-011: "Main Deck · 39 cards · 12 available" (the part after the label); "· 39 cards" while unavailable. An empty
+ * section reads "· 0 cards", with no "· 0 available" (H-466).
+ */
 export function sectionCounts(section: ZoneSection, view: DeckOwnershipView): string {
   const n = section.required;
   const cards = `${n} ${n === 1 ? 'card' : 'cards'}`;
-  if (!view.ownershipAvailable) return `· ${cards}`;
+  if (!view.ownershipAvailable || n === 0) return `· ${cards}`;
   return `· ${cards} · ${section.allocated} ${isLocked(view) ? 'locked in' : 'available'}`;
 }
 
-/** OWN-110: "Main 39"; the single-card zones (Legend, Champion) show no count. */
+/**
+ * OWN-110 (v0.11, H-482): "Main 39", "Battlefields 0" (always a count); the single slots (Legend, Champion) show no
+ * count when they hold their card and "Legend 0" / "Champion 0" only when empty (words, not colour alone).
+ */
 export function navLabel(section: ZoneSection): string {
   const label = NAV_LABEL[section.zone];
-  return section.zone === 'legend' || section.zone === 'champion' ? label : `${label} ${section.required}`;
+  const slot = section.zone === 'legend' || section.zone === 'champion';
+  return slot && section.required > 0 ? label : `${label} ${section.required}`;
 }
 
 // ---------------------------------------------------------------- cards (OWN-033, OWN-111…115)

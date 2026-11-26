@@ -9,11 +9,12 @@
   align-items: center;
   gap: var(--space-3);
   min-height: var(--deck-bar);
-  margin: 0 calc(-1 * var(--content-gutter)) var(--space-2);
-  padding: var(--space-1) var(--content-gutter);
+  // H-464: on the content edges (no bleed into the gutter) and opaque in both themes, so a section heading
+  // scrolling under it never shows through.
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) 0;
   border-bottom: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-bg) 82%, transparent);
-  backdrop-filter: blur(12px) saturate(1.2);
+  background: var(--color-bg);
 }
 
 .section-nav {

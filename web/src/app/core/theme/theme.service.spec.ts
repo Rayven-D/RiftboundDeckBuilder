@@ -248,6 +248,22 @@ describe('SYNC-158 header theme toggle (AC 79, H-246)', () => {
     (fixture.nativeElement as HTMLElement).remove();
   });
 
+  it('H-468 (1): toggling re-creates the icon (swap animation) without the dev warning NG0956', async () => {
+    fakeOs(false);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const fixture = TestBed.createComponent(ThemeToggle);
+    await fixture.whenStable();
+    const iconEl = () => (fixture.nativeElement as HTMLElement).querySelector('app-icon');
+    const before = iconEl();
+    button(fixture.nativeElement).click();
+    await fixture.whenStable();
+    button(fixture.nativeElement).click();
+    await fixture.whenStable();
+    expect(iconEl()).not.toBe(before); // re-created, so the swap animation plays
+    expect(warn.mock.calls.flat().join(' ')).not.toContain('NG0956');
+    warn.mockRestore();
+  });
+
   it('AC 77 / SYNC-157 (d) with nothing stored the toggle follows the OS live', async () => {
     const os = fakeOs(false);
     const fixture = TestBed.createComponent(ThemeToggle);
