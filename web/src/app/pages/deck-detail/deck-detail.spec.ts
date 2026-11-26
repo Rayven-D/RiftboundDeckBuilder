@@ -886,6 +886,21 @@ describe('Deck detail (H-254)', () => {
       expect(text(q(h, '.tabpanel .cards'))).toBe('1 of 1 card fully available');
     });
 
+    it('H-521: a deck whose required total is 1 reads "1 of 1 copy available" in the header and the Missing tab, "1 of 1 copy locked in" when locked', async () => {
+      const one = makeDeck(DETAIL_DECK_ID, 'One card', { main: [['Lightning Rush', 1]] });
+      let h = await setup(URL_, { decks: [one], owned: { 'Lightning Rush': 1 } });
+      expect(text(q(h, '.deck-header .copies'))).toMatch(/^1 of 1 copy available ·/);
+      q(h, '#deck-tab-missing')!.click();
+      await settle(h);
+      expect(text(q(h, '.tabpanel .copies'))).toMatch(/^1 of 1 copy available/);
+      TestBed.resetTestingModule();
+      h = await setup(URL_, { decks: [one], owned: { 'Lightning Rush': 1 }, locks: [DETAIL_DECK_ID] });
+      expect(text(q(h, '.deck-header .copies'))).toMatch(/^1 of 1 copy locked in ·/);
+      q(h, '#deck-tab-missing')!.click();
+      await settle(h);
+      expect(text(q(h, '.tabpanel .copies'))).toMatch(/^1 of 1 copy locked in/);
+    });
+
     it('H-466 (2): with nothing missing the Missing tab shows a plain "Missing" heading and "All cards available", no "0 copies"', async () => {
       const h = await setup(URL_, { owned: DETAIL_ALL_OWNED });
       q(h, '#deck-tab-missing')!.click();

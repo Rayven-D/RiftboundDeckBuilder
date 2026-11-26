@@ -416,3 +416,36 @@ describe('SPEC-005 summarizeDeck', () => {
     expect(best).toBeLessThan(900);
   }, 30_000);
 });
+
+describe('H-521 summarizeDeck copies line: singular "copy" when the required total is 1', () => {
+  function withLocks(deck: UserDeck, owned: Record<string, number>, locked: boolean) {
+    const input = makeInput(catalog, { owned });
+    const locks = locked ? [lock(deck.id)] : [];
+    const shared = computeSharedPool({ decks: [deck], locks, ownership: input });
+    return computeDeckOwnership(deck, { status: 'ok', input, shared }, catalog, null, TODAY);
+  }
+  const one = makeDeck('h521', 'One', { main: [['Lightning Rush', 1]] });
+
+  it('H-521: R = 1 reads "1 of 1 copy available", and "0 of 1 copy available" when not owned', () => {
+    expect(summarizeDeck(one, withLocks(one, { 'Lightning Rush': 1 }, false), null, null).ownershipLine).toBe(
+      '1 of 1 copy available',
+    );
+    expect(summarizeDeck(one, withLocks(one, {}, false), null, null).ownershipLine).toBe('0 of 1 copy available');
+  });
+
+  it('H-521: a locked deck with R = 1 reads "1 of 1 copy locked in"', () => {
+    expect(summarizeDeck(one, withLocks(one, { 'Lightning Rush': 1 }, true), null, null).ownershipLine).toBe(
+      '1 of 1 copy locked in',
+    );
+  });
+
+  it('H-521: other totals stay plural ("1 of 3 copies available", "3 of 3 copies locked in")', () => {
+    const three = makeDeck('h521b', 'Three', { main: [['Lightning Rush', 3]] });
+    expect(summarizeDeck(three, withLocks(three, { 'Lightning Rush': 1 }, false), null, null).ownershipLine).toBe(
+      '1 of 3 copies available',
+    );
+    expect(summarizeDeck(three, withLocks(three, { 'Lightning Rush': 3 }, true), null, null).ownershipLine).toBe(
+      '3 of 3 copies locked in',
+    );
+  });
+});
