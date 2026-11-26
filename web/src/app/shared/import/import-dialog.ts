@@ -103,6 +103,8 @@ export function hasFiles(event: DragEvent): boolean {
  */
 @Component({
   selector: 'app-import-dialog',
+  // H-453: the Import deck dialog fills a phone screen with its actions pinned (import-dialog.scss, styles.scss).
+  host: { '[class.deck-dialog]': "data.kind === 'deck'" },
   imports: [
     MatDialogTitle,
     MatDialogContent,
@@ -121,7 +123,7 @@ export function hasFiles(event: DragEvent): boolean {
   template: `
     <h2 mat-dialog-title>{{ copy.title }}</h2>
     @if (deckReview(); as d) {
-      <mat-dialog-content>
+      <mat-dialog-content class="deck-content">
         <app-deck-review [prepared]="d" />
         @if (submitError(); as err) {
           <p class="error commit-error" role="alert"><app-icon name="error" />{{ err }}</p>
@@ -368,6 +370,11 @@ export class ImportDialog {
   private replacingAll = false;
 
   constructor() {
+    if (this.data.kind === 'deck') {
+      // H-453: up to 720px on desktop; full screen at 40rem and below (.import-deck-panel in styles.scss).
+      this.dialogRef.addPanelClass('import-deck-panel');
+      this.dialogRef.updateSize('45rem');
+    }
     if (this.data.file) void this.loadFile(this.data.file);
   }
 

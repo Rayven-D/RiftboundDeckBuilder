@@ -79,14 +79,14 @@ function clickButton(f: Fixture, selector: string, index = 0): void {
 }
 
 describe('DeckReview stable questions (H-450, critique H-341 finding 1)', () => {
-  it('H-450 / DECK-035: answering the first PICK_ZONE with Champion leaves every other Section select empty', async () => {
+  it('H-450 / DECK-035: answering the first PICK_ZONE with Chosen Champion leaves every other Section select empty', async () => {
     const f = await setup();
     expect(zoneSelects(f).map(promptOf)).toEqual([
       "Line 3: Varrow, Ashen Blade. Its card type isn't known, so pick its section.",
       "Line 4: Ember Volley. Its card type isn't known, so pick its section.",
       "Line 5: Flashfire. Its card type isn't known, so pick its section.",
     ]);
-    await chooseZone(f, 0, 'Champion');
+    await chooseZone(f, 0, 'Chosen Champion');
     const left = zoneSelects(f);
     expect(left.map(promptOf)).toEqual([
       "Line 4: Ember Volley. Its card type isn't known, so pick its section.",
@@ -431,5 +431,21 @@ describe('DeckReview champion and placement wording (H-452, critique H-341 §4)'
     expect(f.componentInstance.view().draft.main).toEqual([]);
     expect(el(f).querySelector('.removed-note')!.textContent).toContain('line 3 (Gust)');
     expect(active()?.textContent?.trim()).toBe('Check the deck');
+  });
+});
+
+describe('DeckReview layout labels (H-453, critique H-341 finding 16)', () => {
+  it('H-453 / DECK-034: the counts line says "Chosen Champion 1"', async () => {
+    const f = await setup('Legend:\n1 Varrow, Ember Warden\nChampion:\n1 Varrow, Ashen Blade\nMain Deck:\n3 Gust');
+    const counts = Array.from(el(f).querySelectorAll('.zone-counts span')).map((s) => s.textContent!.trim());
+    expect(counts).toEqual(['Legend 1', 'Chosen Champion 1', 'Main Deck 3']);
+  });
+
+  it('H-453: Section select options say "Chosen Champion", never "Champion"', async () => {
+    const f = await setup();
+    el(f).querySelector<HTMLElement>('mat-select.pick-zone .mat-mdc-select-trigger')!.click();
+    await settle(f);
+    const options = Array.from(document.querySelectorAll('mat-option')).map((o) => o.textContent!.trim());
+    expect(options).toEqual(['Legend', 'Chosen Champion', 'Main Deck', 'Battlefields', 'Rune Pool', 'Sideboard']);
   });
 });

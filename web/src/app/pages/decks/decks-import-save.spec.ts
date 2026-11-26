@@ -93,7 +93,7 @@ describe('DecksPage Import deck save (H-253)', () => {
     const { harness, el } = await setup('/decks');
     await openAndContinue(harness, el, KENNEN);
     expect(dialog()!.querySelector<HTMLInputElement>('input.deck-name')!.value).toBe('Kennen, Heart of the Tempest');
-    expect(Array.from(dialog()!.querySelectorAll('.zone-counts span')).map(text)).toEqual(['Legend 1', 'Champion 1', 'Main Deck 5']);
+    expect(Array.from(dialog()!.querySelectorAll('.zone-counts span')).map(text)).toEqual(['Legend 1', 'Chosen Champion 1', 'Main Deck 5']);
     expect(await stores.decks.list()).toEqual([]);
   });
 

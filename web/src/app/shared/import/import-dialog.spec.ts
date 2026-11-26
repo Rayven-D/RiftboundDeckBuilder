@@ -21,6 +21,9 @@ function setup(): Fixture {
   return fixture;
 }
 
+/** The Import deck dialog sets its panel class and width on open (H-453). */
+const deckRef = () => ({ close: vi.fn(), addPanelClass: vi.fn(), updateSize: vi.fn() });
+
 const el = (f: Fixture): HTMLElement => f.nativeElement;
 const textarea = (f: Fixture) => el(f).querySelector('textarea')!;
 const hint = (f: Fixture) => el(f).querySelector('.upload-hint')!.textContent!.trim();
@@ -254,7 +257,7 @@ describe('ImportDialog Deck Import focus (H-450, critique H-341 finding 2)', () 
       imports: [ImportDialog],
       providers: [
         { provide: MAT_DIALOG_DATA, useValue: { kind: 'deck', deckCommitter } },
-        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+        { provide: MatDialogRef, useValue: deckRef() },
       ],
     });
     const f = TestBed.createComponent(ImportDialog);
@@ -296,7 +299,7 @@ describe('ImportDialog Deck Import Save state (H-451, critique H-341 finding 3)'
       imports: [ImportDialog],
       providers: [
         { provide: MAT_DIALOG_DATA, useValue: { kind: 'deck', deckCommitter } },
-        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+        { provide: MatDialogRef, useValue: deckRef() },
       ],
     });
     const f = TestBed.createComponent(ImportDialog);
@@ -336,5 +339,39 @@ describe('ImportDialog Deck Import Save state (H-451, critique H-341 finding 3)'
     save.click();
     await settle(f);
     expect(commit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ImportDialog Import deck layout (H-453, critique H-341 findings 15, 16)', () => {
+  it('H-453 / DECK-001: the Import deck dialog gets the full-screen phone panel and a 720px (45rem) width', () => {
+    const ref = deckRef();
+    TestBed.configureTestingModule({
+      imports: [ImportDialog],
+      providers: [
+        { provide: MAT_DIALOG_DATA, useValue: { kind: 'deck' } },
+        { provide: MatDialogRef, useValue: ref },
+      ],
+    });
+    const f = TestBed.createComponent(ImportDialog);
+    f.detectChanges();
+    expect(ref.addPanelClass).toHaveBeenCalledWith('import-deck-panel');
+    expect(ref.updateSize).toHaveBeenCalledWith('45rem');
+    expect(el(f).classList).toContain('deck-dialog');
+  });
+
+  it('H-453: Add to your collection keeps its own size and panel', () => {
+    const ref = deckRef();
+    TestBed.configureTestingModule({
+      imports: [ImportDialog],
+      providers: [
+        { provide: MAT_DIALOG_DATA, useValue: { kind: 'collection' } },
+        { provide: MatDialogRef, useValue: ref },
+      ],
+    });
+    const f = TestBed.createComponent(ImportDialog);
+    f.detectChanges();
+    expect(ref.addPanelClass).not.toHaveBeenCalled();
+    expect(ref.updateSize).not.toHaveBeenCalled();
+    expect(el(f).classList).not.toContain('deck-dialog');
   });
 });

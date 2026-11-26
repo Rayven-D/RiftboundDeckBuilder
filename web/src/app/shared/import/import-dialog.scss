@@ -2,6 +2,33 @@
   display: block;
 }
 
+/* H-453 (critique findings 13, 15): the Import deck dialog. The review's first field sits below the content's top
+   edge, so its floating label is never clipped. At 40rem and below the dialog fills the screen (.import-deck-panel
+   in styles.scss) and the content scrolls between the title and the pinned actions. */
+:host(.deck-dialog) .mat-mdc-dialog-content.deck-content {
+  padding-top: var(--space-3);
+}
+
+@media (max-width: 40rem) {
+  :host(.deck-dialog) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+
+    .mat-mdc-dialog-content {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none;
+    }
+
+    .mat-mdc-dialog-actions {
+      padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+      border-top-color: var(--color-border);
+    }
+  }
+}
+
 .lede {
   margin: 0 0 var(--space-3);
   color: var(--color-text-muted);
@@ -274,11 +301,15 @@
   margin-bottom: var(--space-3);
 }
 
+/* H-453 (finding 14): the deck review lists grow with the dialog, so it has one scroll. */
+:host(app-deck-review) .issues {
+  max-height: none;
+  overflow-y: visible;
+}
+
 .inferred {
-  max-height: 16rem;
   margin: 0 0 var(--space-2);
   padding: 0;
-  overflow-y: auto;
   list-style: none;
   font-size: var(--font-size-sm);
 
@@ -307,6 +338,18 @@
 
   .zone-field {
     width: 11rem;
+  }
+
+  /* H-453 (finding 15): below 40rem a row stacks: name and reason full width, the Section select under them. */
+  @media (max-width: 40rem) {
+    li {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .zone-field {
+      width: 100%;
+    }
   }
 }
 

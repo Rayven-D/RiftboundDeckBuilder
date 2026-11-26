@@ -524,8 +524,10 @@ export class DeckReview {
     this.focusFirst(targets);
   }
 
+  /** H-453 (critique finding 16): the review calls the `champion` zone "Chosen Champion" (display only; the parser's
+   * section label stays "Champion"). */
   protected label(z: DeckZone): string {
-    return SECTION_LABELS[z];
+    return z === 'champion' ? this.words.champion : SECTION_LABELS[z];
   }
 
   protected lineNo(id: number): number {
