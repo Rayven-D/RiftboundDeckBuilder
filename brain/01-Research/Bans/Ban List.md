@@ -22,7 +22,7 @@ sources:
 ## Summary
 Riftbound has **bans only, no restricted or limited list** (Riot said in March 2026 it had no plans to
 restrict). There are separate lists for **Standard Constructed** and **2v2 Constructed**, kept in the
-"Constructed Format Legality" sections of the Rules Hub. **The newest wave takes effect today, 2026-11-23**,
+"Constructed Format Legality" sections of the Rules Hub. **The newest wave took effect on 2026-11-23**,
 bringing Standard to **15 cards + 7 battlefields**. 2v2 has **14 cards, 7 battlefields and 1
 Legend** banned (rechecked 2026-11-24; it was 6 / 5 / 1 before the Radiance wave). Riot announced on 2026-11-13 that from 23 Nov, regions behind on set releases (Korea,
 Traditional Chinese) get **separate regional ban lists**.
