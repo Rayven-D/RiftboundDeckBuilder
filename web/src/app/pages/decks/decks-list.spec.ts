@@ -48,6 +48,8 @@ interface Setup {
   catalog?: 'error';
   bans?: BanListFile | null;
   url?: string;
+  /** L2: the deck read waits for this promise (the page stays in its loading state until it settles). */
+  hold?: Promise<void>;
 }
 
 let backend: MemoryBackend;
@@ -56,6 +58,14 @@ let stores: BrowserStores;
 async function setup(s: Setup = {}) {
   backend = new MemoryBackend();
   stores = createBrowserStores(backend, { now: () => Date.now(), changed: () => undefined, readOnly: () => false });
+  if (s.hold) {
+    const hold = s.hold;
+    const list = stores.decks.list.bind(stores.decks);
+    vi.spyOn(stores.decks, 'list').mockImplementation(async () => {
+      await hold;
+      return list();
+    });
+  }
   for (const d of s.decks ?? [kennen(1)]) backend.set(`${STORAGE_KEYS.deckPrefix}${d.id}`, JSON.stringify(d));
   const cards: Record<string, { quantity: number; byPrinting: Record<string, number> }> = {};
   for (const [name, n] of Object.entries(s.owned ?? {})) cards[nameKey(name)] = { quantity: n, byPrinting: {} };
@@ -477,3 +487,139 @@ function makeTournamentSource(): UserDeck['source'] {
     addedAt: '2026-11-20T12:00:00Z',
   };
 }
+
+describe('DecksPage loading and in-place recompute ([[Decks]] §10 L2, L11; SPEC-005 OWN-070, OWN-071)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.querySelectorAll('.cdk-overlay-container').forEach((n) => (n.innerHTML = ''));
+    document.documentElement.classList.remove('has-fab');
+  });
+
+  const nameOf = (t: Element) => text(t.querySelector('.name-text'));
+
+  it('L2 loading under 200ms shows no skeleton; past 200ms: count placeholder, toolbar disabled, 6 skeleton tiles, aria-busy, "Loading your decks…"', async () => {
+    let release!: () => void;
+    const hold = new Promise<void>((r) => (release = r));
+    // The 200ms skeleton delay is held here and fired by hand, so the test doesn't depend on machine speed.
+    const delayed: (() => void)[] = [];
+    const realSetTimeout = globalThis.setTimeout;
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation(((fn: () => void, ms?: number, ...args: unknown[]) => {
+      if (ms === 200) {
+        delayed.push(fn);
+        return 0;
+      }
+      return realSetTimeout(fn, ms, ...args);
+    }) as typeof setTimeout);
+    const { harness, el, tiles } = await setup({ hold });
+    // Before the 200ms delay nothing flashes.
+    expect(el.querySelector('.skeleton')).toBeNull();
+    expect(el.querySelector('.count-placeholder')).toBeNull();
+    expect(delayed.length).toBe(1);
+    delayed[0]();
+    harness.fixture.detectChanges();
+    const grid = el.querySelector('.deck-grid.skeleton')!;
+    expect(grid).not.toBeNull();
+    expect(grid.getAttribute('aria-busy')).toBe('true');
+    expect(grid.querySelectorAll('.skeleton-tile').length).toBe(6);
+    for (const t of Array.from(grid.querySelectorAll('.skeleton-tile'))) {
+      expect(t.querySelector('.skeleton-art')).not.toBeNull();
+      expect(t.querySelectorAll('.skeleton-lines span').length).toBe(3);
+    }
+    expect(text(grid.querySelector('.visually-hidden'))).toBe(DECKS_TEXT.loading);
+    expect(DECKS_TEXT.loading).toBe('Loading your decks…');
+    expect(el.querySelector('.count-line .count-placeholder')!.getAttribute('aria-hidden')).toBe('true');
+    expect(el.querySelector('#count-line')).toBeNull();
+    expect(el.querySelector<HTMLInputElement>('.deck-toolbar input[type="search"]')!.disabled).toBe(true);
+    const controls = Array.from(el.querySelectorAll<HTMLElement>('.deck-toolbar button, .deck-toolbar mat-select'));
+    expect(controls.length).toBeGreaterThan(0);
+    for (const c of controls) {
+      const disabled = c instanceof HTMLButtonElement ? c.disabled : c.getAttribute('aria-disabled') === 'true';
+      expect(disabled, c.outerHTML.slice(0, 80)).toBe(true);
+    }
+    expect(tiles().length).toBe(0);
+    expect(el.querySelector('app-page-fab')).toBeNull();
+
+    release();
+    await vi.waitFor(async () => {
+      await settle(harness);
+      expect(tiles().length).toBe(1);
+    });
+    expect(el.querySelector('.skeleton')).toBeNull();
+    expect(el.querySelector('[aria-busy]')).toBeNull();
+    expect(el.querySelector('.count-placeholder')).toBeNull();
+    expect(text(el.querySelector('#count-line'))).toBe('1 deck');
+    expect(el.querySelector<HTMLInputElement>('.deck-toolbar input[type="search"]')!.disabled).toBe(false);
+  });
+
+  it('L11 / OWN-071 another tab changes the collection: tiles recompute in place, same DOM nodes, focus and scroll kept, no loading state', async () => {
+    const decks = [
+      { ...kennen(1, 'Kennen Tempo'), updatedAt: '2026-11-23T10:00:00Z' },
+      { ...kennen(2, 'Kennen Control'), updatedAt: '2026-11-22T10:00:00Z' },
+      { ...kennen(3, 'Kennen Aggro'), updatedAt: '2026-11-21T10:00:00Z' },
+    ];
+    const { harness, el, tiles } = await setup({ decks, owned: { [LEGEND]: 1, 'Lightning Rush': 3, Gust: 30 } });
+    const before = tiles();
+    expect(before.map(nameOf)).toEqual(['Kennen Tempo', 'Kennen Control', 'Kennen Aggro']);
+    const items = Array.from(el.querySelectorAll('ul.deck-grid > li'));
+    const grid = el.querySelector('ul.deck-grid')!;
+    const link = before[1].querySelector<HTMLAnchorElement>('a')!;
+    link.focus();
+    expect(document.activeElement).toBe(link);
+
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    const scrollY = window.scrollY;
+    const added: string[] = [];
+    const observer = new MutationObserver((records) => {
+      for (const r of records)
+        for (const n of Array.from(r.addedNodes))
+          if (n instanceof Element && (n.matches('.skeleton, app-deck-tile, li') || n.querySelector('.skeleton, app-deck-tile')))
+            added.push(n.tagName);
+    });
+    observer.observe(el, { childList: true, subtree: true });
+
+    const cards = { [nameKey(LEGEND)]: { quantity: 1, byPrinting: {} }, 'lightning rush': { quantity: 3, byPrinting: {} }, gust: { quantity: 62, byPrinting: {} } };
+    backend.set(STORAGE_KEYS.collection, JSON.stringify({ schemaVersion: 1, updatedAt: '2026-11-24T00:00:00Z', catalogVersion: '0.3+test', cards }));
+    dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEYS.collection }));
+    await vi.waitFor(async () => {
+      await settle(harness);
+      expect(tiles().map((t) => text(t.querySelector('.percent [aria-hidden="true"]')))).toEqual(['100%', '100%', '100%']);
+    });
+    observer.disconnect();
+
+    // Recomputed in place: the same list, items and tiles (tracked by deck id), nothing re-rendered or skeleton shown.
+    expect(el.querySelector('ul.deck-grid')).toBe(grid);
+    expect(Array.from(el.querySelectorAll('ul.deck-grid > li'))).toEqual(items);
+    tiles().forEach((t, i) => expect(t).toBe(before[i]));
+    expect(added).toEqual([]);
+    expect(el.querySelector('.skeleton')).toBeNull();
+    // Focus kept on the same element.
+    expect(link.isConnected).toBe(true);
+    expect(document.activeElement).toBe(link);
+    // Scroll kept: the page never scrolls on a recompute.
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(window.scrollY).toBe(scrollY);
+  });
+
+  it('L11 / OWN-070 a lock change in this tab recomputes in place with focus kept', async () => {
+    const decks = [
+      { ...kennen(1, 'Kennen Tempo'), updatedAt: '2026-11-23T10:00:00Z' },
+      { ...kennen(2, 'Kennen Control'), updatedAt: '2026-11-22T10:00:00Z' },
+    ];
+    const { harness, el, tiles } = await setup({ decks, owned: { [LEGEND]: 1, 'Lightning Rush': 3, Gust: 62 } });
+    const before = tiles();
+    const link = before[1].querySelector<HTMLAnchorElement>('a')!;
+    link.focus();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    backend.set(STORAGE_KEYS.locks, JSON.stringify({ schemaVersion: 1, updatedAt: 'x', locks: [lock(id(1), '2026-11-24T10:00:00Z')] }));
+    dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEYS.locks }));
+    await vi.waitFor(async () => {
+      await settle(harness);
+      expect(text(tileOf(el, 'Kennen Tempo').querySelector('app-lock-badge'))).toBe('Locked');
+    });
+    // Deck 1 holds every copy now, so deck 2 drops; its tile is the same node.
+    expect(text(tileOf(el, 'Kennen Control').querySelector('app-deck-status-chip'))).not.toBe('Ready to build');
+    tiles().forEach((t, i) => expect(t).toBe(before[i]));
+    expect(document.activeElement).toBe(link);
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+});
