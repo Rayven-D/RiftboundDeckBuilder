@@ -27,7 +27,7 @@ not collections. The formats worth supporting are: (1) a **plain text list**, `<
 optionally with section headers like Riot's own (`Legend:`, `Champion:`, `Main Deck:`, `Battlefields:`,
 `Rune Pool:`, `Sideboard:`); (2) **Piltover Archive deck codes** (an open, Apache-2.0 base32/varint
 format adapted from LoR deck codes, using card codes like `OGN-007a`); (3) **TTS** lines of
-`SET-NUMBER-COPY`; and (4) **CSV** with at least a card-name column (TCGplayer-style exports). Matching by
+space-separated `SET-NUMBER-ART` tokens (the trailing number is an art number, 1 = base and above 1 = alternate art, not a copy count; fact 8); and (4) **CSV** with at least a card-name column (TCGplayer-style exports). Matching by
 **name** covers everything. Matching by **set + collector number (+ variant)** is more precise for
 collections. Riftcodex exposes `tcgplayer_id`, which helps map TCGplayer CSVs.
 
@@ -38,7 +38,7 @@ collections. Riftcodex exposes `tcgplayer_id`, which helps map TCGplayer CSVs.
 | Piltover Archive text | piltoverarchive.com | `<qty> <name>` lines, groups separated by blank lines, no headers | name | from the silhouette-card-maker docs |
 | Piltover Archive deck code | piltoverarchive.com, npm `@piltoverarchive/riftbound-deck-codes` | base32 string. Header nibble = format/version (V2 from 2025-11-20 adds sideboard) | `SET-NNN[variant]` e.g. `OGN-007a`, with set IDs OGN = 0, OGS = 1, ARC = 2, SFD = 3 and variant IDs a/s/b | Only main deck + sideboard. Doesn't validate rules. The set table in v1.0.0 stopped at SFD; **v1.5.0 adds UNL 4, VEN 5, RAD 6** (see fact 7). |
 | Pixelborn code | Pixelborn (online client) | base64-like string ending `==` | — | Pixelborn reportedly **shut down 2025-08-07**. Low priority. |
-| TTS | Tabletop Simulator mods | space-separated `SET-NUMBER-COPY` tokens, one per physical copy | set + collector number | e.g. `OGN-265-1 OGN-265-1`. The last number is an art number, not a copy count (fact 8). |
+| TTS | Tabletop Simulator mods | space-separated `SET-NUMBER-ART` tokens, one token listed per physical copy | set + collector number (+ art) | e.g. `OGN-265-1 OGN-265-1` = two copies of the base art. The trailing number is an art number (1 = base, above 1 = alternate art), not a copy index (fact 8; see also variant IDs in fact 7). |
 | CSV (collection) | TCGplayer app exports, TCG Stacked (also reads Moxfield, Deckbox, Dreamborn CSVs) | header row. "Card name" is the minimum column | name (+ set/number/printing if present) | Exact TCGplayer Riftbound column set **not verified** |
 
 ## Facts
