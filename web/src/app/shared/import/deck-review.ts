@@ -1,4 +1,4 @@
-import { Component, computed, input, signal } from '@angular/core';
+import { Component, ElementRef, Injector, afterNextRender, computed, inject, input, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatOptgroup, MatOption } from '@angular/material/core';
 import { MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
@@ -17,12 +17,15 @@ import {
   MAX_SOURCE_URL,
   type PreparedDeck,
   type ZoneQuestion,
+  questionKey,
   reviewDeck,
 } from './deck-import';
 import { SECTION_LABELS } from './parse-card-list';
 
 /** Review-step strings for Deck Import (H-253). SPEC-006 words only the ones in `DECK_REVIEW_TEXT`. */
 export const DECK_REVIEW_WORDS = {
+  /** H-450 (critique H-341 §4): the review's first heading, where focus lands after Continue. */
+  check: 'Check the deck',
   name: 'Deck name',
   fix: 'Lines to fix',
   fixNote: 'Remove a line here, or go Back and fix it in the list.',
@@ -62,6 +65,7 @@ export const DECK_REVIEW_WORDS = {
   imports: [MatButton, MatFormField, MatLabel, MatHint, MatInput, MatSelect, MatOption, MatOptgroup, Icon],
   template: `
     @let v = view();
+    <h3 class="step-heading review-heading" tabindex="-1">{{ words.check }}</h3>
     <mat-form-field appearance="outline" class="name-field" subscriptSizing="dynamic">
       <mat-label>{{ words.name }}</mat-label>
       <input matInput class="deck-name" maxlength="80" [value]="v.name" (input)="onName($event)" />
@@ -90,10 +94,10 @@ export const DECK_REVIEW_WORDS = {
     }
 
     @if (v.attention.length) {
-      <h3 class="step-heading">{{ words.fix }}</h3>
+      <h3 class="step-heading fix-heading" tabindex="-1">{{ words.fix }}</h3>
       <ul class="issues attention">
         @for (l of v.attention; track l.id) {
-          <li>
+          <li [attr.data-line]="l.id">
             <app-icon name="error" />
             <span class="grow">
               <strong>Line {{ l.line }}:</strong> {{ l.attention?.message }}
@@ -120,8 +124,8 @@ export const DECK_REVIEW_WORDS = {
       <p class="note">{{ words.fixNote }}</p>
     }
 
-    @for (q of v.questions; track $index) {
-      <div class="question" [class.open]="q.answer === null">
+    @for (q of v.questions; track key(q)) {
+      <div class="question" [class.open]="q.answer === null" [attr.data-q]="key(q)">
         @switch (q.kind) {
           @case ('PICK_LEGEND') {
             <p>{{ q.candidates.length ? words.legendMany : words.legendNone }}</p>
@@ -164,7 +168,7 @@ export const DECK_REVIEW_WORDS = {
             <p>{{ words.zoneAsk(lineNo(q.lineIds[0]), lineName(q.lineIds[0])) }}</p>
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>{{ words.section }}</mat-label>
-              <mat-select class="pick-zone" [value]="null" (selectionChange)="setZone(q.lineIds[0], $event.value)">
+              <mat-select class="pick-zone" [value]="q.answer" (selectionChange)="answerZone(q, $event.value)">
                 @for (z of zones; track z) {
                   <mat-option [value]="z">{{ label(z) }}</mat-option>
                 }
@@ -186,7 +190,13 @@ export const DECK_REVIEW_WORDS = {
             <span class="grow">
               <strong>Line {{ l.line }}:</strong> {{ l.mismatch!.message }}
               <span class="line-actions">
-                <button matButton="outlined" type="button" class="move" (click)="setZone(l.id, l.mismatch!.moveTo)">
+                <button
+                  matButton="outlined"
+                  type="button"
+                  class="move"
+                  [attr.data-line]="l.id"
+                  (click)="move(l.id, l.mismatch!.moveTo)"
+                >
                   {{ words.moveTo(label(l.mismatch!.moveTo)) }}
                 </button>
               </span>
@@ -265,6 +275,9 @@ export class DeckReview {
   /** The user's local date for the DECK-070 fallback name; a function so tests can pin it. */
   readonly today = input<() => Date>(() => new Date());
 
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+
   protected readonly words = DECK_REVIEW_WORDS;
   protected readonly text = DECK_REVIEW_TEXT;
   protected readonly zones = DECK_ZONE_ORDER;
@@ -324,27 +337,86 @@ export class DeckReview {
     this.state.update((s) => ({ ...s, [field]: value }));
   }
 
-  /** DECK-041 / DECK-042 */
+  /** DECK-041 / DECK-042. H-450: focus moves to the next line's Remove line, else "Lines to fix", else the top. */
   protected remove(id: number): void {
+    const next = this.fixLinesAfter(id).map((n) => `ul.attention li[data-line="${n}"] button.remove`);
     this.state.update((s) => ({ ...s, removed: new Set([...s.removed, id]) }));
+    this.focusFirst([...next, '.fix-heading']);
   }
 
-  /** DECK-015: pick the code's card or the named card. */
+  /** DECK-015: pick the code's card or the named card. H-450: the resolved line leaves the list, as with remove. */
   protected pick(id: number, cardKey: CardKey): void {
+    const next = this.fixLinesAfter(id).map((n) => `ul.attention li[data-line="${n}"] button`);
     this.state.update((s) => ({ ...s, picks: new Map([...s.picks, [id, cardKey]]) }));
+    this.focusFirst([...next, '.fix-heading']);
   }
 
-  /** DECK-035 PICK_ZONE, DECK-023 "Move to", DECK-030 changing an inferred zone. */
+  /** DECK-030 changing an inferred zone (the line stays in its list, so its select keeps focus). */
   protected setZone(id: number, zone: DeckZone): void {
     this.state.update((s) => ({ ...s, zones: new Map([...s.zones, [id, zone]]) }));
   }
 
-  /** DECK-035: one explicit action answers every open PICK_ZONE with `main`. */
+  /** DECK-023 "Move to". H-450: focus moves to the next line's Move to, else "Check the deck". */
+  protected move(id: number, zone: DeckZone): void {
+    const ids = this.mismatches().map((l) => l.id);
+    const next = ids.slice(ids.indexOf(id) + 1).map((n) => `button.move[data-line="${n}"]`);
+    this.setZone(id, zone);
+    this.focusFirst(next);
+  }
+
+  /** DECK-035 PICK_ZONE. H-450: the answered question leaves the list; focus moves to the next question's select. */
+  protected answerZone(q: ZoneQuestion, zone: DeckZone): void {
+    const next = this.questionsAfter(q);
+    this.setZone(q.lineIds[0], zone);
+    this.focusFirst(next);
+  }
+
+  /** DECK-035: one explicit action answers every open PICK_ZONE with `main`. H-450: focus the next open question. */
   protected allMain(): void {
-    const open = this.view()
-      .questions.filter((q) => q.kind === 'PICK_ZONE' && q.answer === null)
-      .map((q) => q.lineIds[0]);
-    this.state.update((s) => ({ ...s, zones: new Map([...s.zones, ...open.map((id) => [id, 'main'] as const)]) }));
+    const questions = this.view().questions;
+    const open = questions.filter((q) => q.kind === 'PICK_ZONE' && q.answer === null);
+    const after = open.length ? this.questionsAfter(open[0]) : [];
+    this.state.update((s) => ({
+      ...s,
+      zones: new Map([...s.zones, ...open.map((q) => [q.lineIds[0], 'main'] as const)]),
+    }));
+    this.focusFirst(after);
+  }
+
+  /** H-450: the review's first heading, focused after Continue (and the last fallback of every focus move). */
+  focusStart(): void {
+    this.focusFirst([]);
+  }
+
+  protected key(q: ZoneQuestion): string {
+    return questionKey(q);
+  }
+
+  private fixLinesAfter(id: number): number[] {
+    const ids = this.view().attention.map((l) => l.id);
+    return ids.slice(ids.indexOf(id) + 1);
+  }
+
+  private questionsAfter(q: ZoneQuestion): string[] {
+    const keys = this.view().questions.map(questionKey);
+    return keys.slice(keys.indexOf(questionKey(q)) + 1).map((k) => `[data-q="${k}"] mat-select`);
+  }
+
+  /**
+   * H-450 (WCAG 2.4.3): once the change has rendered, focus the first target that still exists, else "Check the
+   * deck", so focus is never left on `<body>` when the control the user pressed goes away.
+   */
+  private focusFirst(selectors: readonly string[]): void {
+    afterNextRender(
+      () => {
+        const root = this.host.nativeElement;
+        const target = [...selectors, '.review-heading']
+          .map((s) => root.querySelector<HTMLElement>(s))
+          .find((el) => el !== null);
+        target?.focus();
+      },
+      { injector: this.injector },
+    );
   }
 
   protected answerLegend(value: CardKey | 'empty'): void {

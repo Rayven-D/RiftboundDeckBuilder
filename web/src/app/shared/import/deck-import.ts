@@ -144,6 +144,14 @@ export type ZoneQuestion =
     }
   | { readonly kind: 'PICK_ZONE'; readonly lineIds: readonly [number]; readonly answer: null };
 
+/**
+ * A question's identity across reviews (H-450): its kind and its first line. The review tracks questions by this key,
+ * so when an answered question leaves the list the next one keeps its own select, never the old one's value.
+ */
+export function questionKey(q: ZoneQuestion): string {
+  return `${q.kind}:${q.lineIds[0] ?? ''}`;
+}
+
 /** One line as it stands in the review. */
 export interface ReviewLine {
   readonly id: number;

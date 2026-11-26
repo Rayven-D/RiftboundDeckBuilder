@@ -3,7 +3,7 @@
  * Card data is a small hand-made catalog with the SPEC-001 attributes the ACs assume (Deck Import, "Acceptance
  * criteria" preamble): categories, `isChampionUnit`, `championTag`, `isSignature`.
  */
-import { makeCard } from '../../core/decks/engine-fixtures';
+import { makeCard, makeCatalog } from '../../core/decks/engine-fixtures';
 import type { CardCategory, CollectionCatalogView, PlayableCard, Printing } from '../../core/decks/types';
 import {
   DECK_REVIEW_TEXT,
@@ -13,6 +13,7 @@ import {
   deckSource,
   displayDate,
   prepareDeckImport,
+  questionKey,
   reviewDeck,
 } from './deck-import';
 import { parseCardText, sourceLines } from './parse-card-list';
@@ -646,5 +647,30 @@ describe('SPEC-006 Deck Import review (H-253)', () => {
       const r = review(prep(KENNEN_RIOT));
       expect('id' in r.draft || 'createdAt' in r.draft || 'updatedAt' in r.draft).toBe(false);
     });
+  });
+});
+
+describe('H-450 questionKey (stable track for the review questions)', () => {
+  it('H-450 / DECK-033…035: a question is keyed by its kind and first line, so it keeps its key when others leave', () => {
+    const catalog = makeCatalog([
+      { name: 'Mystery Card', category: 'unknown' },
+      { name: 'Other Mystery', category: 'unknown' },
+      { name: 'Kennen, Heart of the Tempest', category: 'legend' },
+      { name: 'Riven, The Exile', category: 'legend' },
+    ]);
+    const p = prep('3 Mystery Card\n2 Other Mystery\n1 Kennen, Heart of the Tempest\n1 Riven, The Exile', catalog);
+    const keys = review(p).questions.map(questionKey);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(keys).toContain('PICK_ZONE:0');
+    expect(keys).toContain('PICK_ZONE:1');
+    // Answering line 0 removes its question; line 1's question keeps its key.
+    const after = review(p, { zones: new Map([[0, 'main']]) }).questions.map(questionKey);
+    expect(after).not.toContain('PICK_ZONE:0');
+    expect(after).toContain('PICK_ZONE:1');
+  });
+
+  it('H-450 / DECK-036: a question with no lines (no Legend in the input) still has a key', () => {
+    expect(questionKey({ kind: 'PICK_LEGEND', lineIds: [], candidates: [], answer: null })).toBe('PICK_LEGEND:');
+    expect(questionKey({ kind: 'PICK_ZONE', lineIds: [4], answer: null })).toBe('PICK_ZONE:4');
   });
 });

@@ -1,4 +1,13 @@
-import { Component, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import {
   MAT_DIALOG_DATA,
@@ -206,6 +215,7 @@ export function hasFiles(event: DragEvent): boolean {
       <mat-form-field appearance="outline" class="list-field" subscriptSizing="dynamic">
         <mat-label>Card list</mat-label>
         <textarea
+          #listBox
           matInput
           rows="12"
           spellcheck="false"
@@ -316,6 +326,8 @@ export class ImportDialog {
   /** The Deck Import review step (H-253): set by Continue once the list is resolved. */
   protected readonly deckReview = signal<PreparedDeck | null>(null);
   private readonly deckReviewStep = viewChild(DeckReview);
+  private readonly listBox = viewChild<ElementRef<HTMLTextAreaElement>>('listBox');
+  private readonly injector = inject(Injector);
   protected readonly canSaveDeck = computed(() => this.deckReviewStep()?.view().canSave ?? false);
   /** IMP-049: Add is the default. */
   protected readonly mode = signal<CommitMode>('add');
@@ -452,6 +464,8 @@ export class ImportDialog {
       else {
         this.submitError.set(null);
         this.deckReview.set(prepared);
+        // H-450: the Continue button is gone; focus the review's first heading, not <body>.
+        afterNextRender(() => this.deckReviewStep()?.focusStart(), { injector: this.injector });
       }
     } finally {
       this.busy.set(false);
@@ -483,6 +497,8 @@ export class ImportDialog {
     this.review.set(null);
     this.deckReview.set(null);
     this.submitError.set(null);
+    // H-450: back on the list step, focus the Card list the user came back to fix.
+    afterNextRender(() => this.listBox()?.nativeElement.focus(), { injector: this.injector });
   }
 
   /**

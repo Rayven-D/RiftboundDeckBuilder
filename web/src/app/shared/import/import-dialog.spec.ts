@@ -2,7 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { makeCatalog } from '../../core/decks/engine-fixtures';
 import { ImportCommitter, resolveCollectionImport } from './collection-commit';
+import { type DeckImportCommitter, prepareDeckImport } from './deck-import';
 import { ImportDialog } from './import-dialog';
+import { sourceLines } from './parse-card-list';
 
 type Fixture = ComponentFixture<ImportDialog>;
 
@@ -238,5 +240,42 @@ describe('ImportDialog review step (Owned Cards Import commit, H-158)', () => {
     await settle(f);
     expect(alert(f)).toContain('None of these lines match a card.');
     expect(el(f).textContent).not.toContain('Add cards');
+  });
+});
+
+describe('ImportDialog Deck Import focus (H-450, critique H-341 finding 2)', () => {
+  const catalog = makeCatalog([{ name: 'Gust', category: 'spell' }]);
+  function deckDialog() {
+    const deckCommitter: DeckImportCommitter = {
+      prepare: async (r, text) => prepareDeckImport(r, sourceLines(text), catalog),
+      commit: vi.fn(),
+    };
+    TestBed.configureTestingModule({
+      imports: [ImportDialog],
+      providers: [
+        { provide: MAT_DIALOG_DATA, useValue: { kind: 'deck', deckCommitter } },
+        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+      ],
+    });
+    const f = TestBed.createComponent(ImportDialog);
+    f.detectChanges();
+    return f;
+  }
+  const button = (f: Fixture, label: string) =>
+    Array.from(el(f).querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent?.trim() === label)!;
+
+  it('H-450 / DECK-003: Continue focuses "Check the deck"; Back focuses the Card list, never <body>', async () => {
+    const f = deckDialog();
+    type(f, 'Main Deck:\n3 Gust');
+    button(f, 'Continue').focus();
+    button(f, 'Continue').click();
+    await settle(f);
+    expect(el(f).querySelector('app-deck-review')).not.toBeNull();
+    expect(document.activeElement?.textContent?.trim()).toBe('Check the deck');
+
+    button(f, 'Back').click();
+    await settle(f);
+    expect(document.activeElement).toBe(textarea(f));
+    expect(textarea(f).value).toBe('Main Deck:\n3 Gust');
   });
 });
