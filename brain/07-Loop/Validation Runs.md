@@ -113,3 +113,4 @@ Heart"` → one line `1 Kennen, Heart`; (4) 2 MB `.txt` rejected before reading 
 2026-11-26 · H-483 · PASS · SPEC-006 0.15 vs RJ's S4 to S7 answers (attribution, no over-claim, no behaviour change), pins in SPEC-005/008/010 and Spec Index, SPEC-003 IMP-068 (c), V-009, board and Current State · no failures (note: stale 0.14 line in Current State, in H-661) · [[Validation H-483 H-620]]
 2026-11-26 · H-620 · FAIL · ADR-0006 line 129 vs SYNC-153 (4) / SYNC-160 · allowed set omits `'` and `’`; filed H-661 · [[Validation H-483 H-620]]
 2026-11-26 · H-620 (attempt 2) · PASS · ADR-0006 line 129 now the full SYNC-153 (4) / SYNC-160 set incl. apostrophes and combining marks; Current State line fixed; H-661 closed · [[Validation H-483 H-620]]
+2026-11-26 · H-197 · PASS · Accept, RJ attribution, pins, version clash, cross-spec, V-009 · no failures; H-194 pin fixed, H-653 filed · [[Validation H-197]]
