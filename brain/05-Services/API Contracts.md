@@ -1,14 +1,16 @@
 ---
 tags: [services, contract]
-version: 1.33
+version: 1.34
 ---
 # API Contracts
 
 Owner: **builder**. The UI builds only against this note. Update it *before* behavior
 changes, and post breaking changes to the [[Handoff Board]].
 
-Implementation: `services/` (Node `http`, TypeScript). Card shapes are the SPEC-001 v0.2 data
+Implementation: `services/` (Node `http`, TypeScript). Card shapes are the SPEC-001 0.4.1 data
 contract ([[Card Data Model]]); the TypeScript source of truth is `services/src/domain/types.ts`.
+The snapshot's own `schemaVersion` is still `'0.2'` (SPEC-001 has not changed the data contract since 0.2),
+so `catalogVersion` starts with `0.2+`: that prefix is the snapshot schema version, not the spec version (CARD-068).
 
 ## Conventions
 - **Base URL: `/api` in every environment** (H-055). The web app's `API_BASE_URL` token is `/api`
@@ -74,6 +76,10 @@ Playable cards sorted by `cardKey`, each with its printings in `printingSortKey`
 ### `GET /api/cards/:cardKey`
 One card by `cardKey`. The path value is passed through `nameKey` (CARD-030), so the canonical name
 also works (`/api/cards/Kai'Sa%2C%20Survivor`). No fuzzy matching or aliases (CARD-033).
+**As built: exact `nameKey` match only.** SPEC-001 0.4 CARD-033 / CARD-034 add a second step (retry with the
+leading "a" / "the" dropped on both sides; several matches give `ambiguous`) that `services/` does not do yet
+(H-648). Until then `/api/cards/Dreaming%20Tree` is `404` even if the card is "The Dreaming Tree". When H-648
+lands, this endpoint's article and `ambiguous` behaviour is written here first.
 → `200 CardResponse` · `404 not-found` · `503 snapshot-unavailable`
 ```json
 {
@@ -128,8 +134,13 @@ All errors use one shape:
 | 500 | `internal` | unexpected error (details only in the server log) |
 
 ## Shared types
-SPEC-001 v0.2 shapes, unchanged: `CardSet`, `PlayableCard`, `Printing`, `CardCategory`,
-`VariantKind`, `CardLookup` (see [[Card Data Model]] → Data contract). API wrappers:
+SPEC-001 0.4.1 shapes (data contract unchanged since 0.2): `CardSnapshot`, `CardSet`, `PlayableCard`,
+`Printing`, `CardCategory`, `VariantKind`, `CardLookup`, `VariantRule` / `VariantRulesFile`, `IngestionReport`
+(see [[Card Data Model]] → Data contract). Checked field by field against `services/src/domain/types.ts` on
+2026-11-26 (H-195): they match. `services/` adds named helper types for inline spec shapes (`CardStats`,
+`CollectorInfo`, `CollectorForm`, `RiotRegion`, `NullCountedAttribute`), same fields. SPEC-001 0.4 adds no
+field: `looseKey` (CARD-034) is a function, not a stored value, and the SAMPLE marker (CARD-044) has no field
+yet (BLOCKED, H-020). API wrappers:
 ```ts
 interface CardWithPrintings extends PlayableCard {
   printings: Printing[];            // printingSortKey order (CARD-070)
@@ -160,7 +171,7 @@ cards: counted, shared and locked like any card, SHARE-006 / OWN-028), plus the 
 |---|---|
 | SPEC-008 | `DeckLock`, `StoredDeckLocks`, `DeckLockStore`, `SharedPoolInput`, `SharedPool`, `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck` (`LockFailure`), `LockedShortfall` |
 | SPEC-005 | `CollectionOwnership`, `DeckOwnershipView`, `ZoneSection`, `OwnershipCard`, `OwnedPrintingRow`, `MissingLine`, `CardBan`, `DeckTileSummary` (`OwnershipFilter`) |
-| Read from other specs | SPEC-006 `UserDeck`, `DeckCard`, `DeckZone`, `DeckSource`; SPEC-007 `DeckOwnershipInput`, `DeckOwnership`, `CollectionCatalogView`, `StoredTags`, `Tag`, `StoredPrintingCodes`; SPEC-003 `StoredCollection`; SPEC-002 `BanListFile`, `BanStatus`; SPEC-001 `PlayableCard`, `Printing`, `CardSet` (subset: no `collector` / `extra`) |
+| Read from other specs | SPEC-006 `UserDeck`, `DeckCard`, `DeckZone`, `DeckSource`; SPEC-007 `DeckOwnershipInput`, `DeckOwnership`, `CollectionCatalogView`, `StoredTags`, `Tag`, `StoredPrintingCodes`; SPEC-003 `StoredCollection`; SPEC-002 `BanListFile`, `BanStatus`; SPEC-001 0.4.1 `PlayableCard`, `Printing`, `CardSet` (`Printing` is a subset: no `collector` / `extra`; `PlayableCard` and `CardSet` are the full shapes) |
 
 ```ts
 computeSharedPool(input: SharedPoolInput): SharedPool                              // SHARE-070
@@ -825,6 +836,11 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.34 (2026-11-26, H-195, SPEC-001 0.4.1): no endpoint change and no shape change. Doc pins move from SPEC-001
+  v0.2 to 0.4.1 (header, Shared types, browser-side "Read from other specs"); the `0.2+` prefix of `catalogVersion`
+  is explained as the snapshot `schemaVersion`. Card types checked against the spec and `services/src/domain/types.ts`:
+  no mismatch. `GET /api/cards/:cardKey` now states it is exact-only as built and that the CARD-034 article step is
+  missing in `services/` (H-648). The v1 entry below keeps its historical v0.2 pin.
 - v1.33 (2026-11-26, H-500, SPEC-006 0.14 DECK-104): no endpoint change and no shape change. `reviewDeck` holds
   `PICK_LEGEND` while a Legend-section line is unresolved; `DECK_REVIEW_WORDS.legendUnresolved` is removed.
 - v1.32 (2026-11-26, H-480, SPEC-006 0.13 DECK-100, DECK-101): no endpoint change and no stored-shape change. New
