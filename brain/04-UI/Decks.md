@@ -27,16 +27,16 @@ specs: ["[[Your Decks Ownership View]]", "[[Shared Cards and Lock-in]]", "[[Deck
   separate **lock badge** next to it (no date; RJ 2026-11-25, H-382 (2)), the copies line ("34 of 66 copies
   available"), legality and ban flags, and "Updated Nov 22, 2026". A sticky toolbar holds search,
   ownership and lock filters (SHARE-051) and sort (OWN-006). The Import deck FAB stays as built (OWN-094).
-- **Deck detail (`/decks/:id`)** = header (name, source, legality, lock badge, summary, **Lock in /
-  Unlock**, Copy missing list, ⋯ menu) and the six sections in Riot order (OWN-011) as card-tile
+- **Deck detail (`/decks/:id`)** = header (name with the **icon-only lock toggle** right after it, source, legality, summary,
+  Copy missing list, ⋯ menu; H-662, RJ 2026-11-26) and the six sections in Riot order (OWN-011) as card-tile
   grids with the full / darkened / left-to-right fill (OWN-030…036). On desktop a **sticky aside**
   holds the summary and the missing list. On phones the missing list sits under the summary and
   is collapsed when it has more than 10 lines (OWN-051).
 - **Card details open in a dialog** (as on Collection), not an inline expand (choice 8). It holds the
   card info, the SHARE-043 breakdown, the owned printings (OWN-041) and the other decks.
 - Locked decks: "Locked" badge with a lock icon, labels "… locked in", and "Locked · n cards
-  short" in the warning color when short (SHARE-041). On the **tile** the badge has no date; "Locked
-  in on <date>" is only in the Deck detail header.
+  short" in the warning color when short (SHARE-041) on the **tile**, with no date. **Deck detail shows only the
+  lock icon toggle after the name, no badge and no date** (RJ 2026-11-26, H-662).
 - Every state is covered (§9, §10): gate, loading, empty, no filter match, ownership unavailable,
   locks unreadable, card data not loaded, ban data not loaded, read-only, deck not found, empty
   deck, unknown card, preview card.
@@ -223,9 +223,9 @@ Decks
 Desktop 1440 (content 1152px), unlocked deck, 3 cards short
 ← Decks
 ┌ .header-main (flex 1 1 20rem) ────────────────┐      ┌ .actions (content width, top = name top) ─────────┐
-│ Kennen Tempo                   (H1, Archivo xl)│      │ [🔒 Lock in] [⧉ Copy missing list|▾] [⋮]          │
-│ 1st, Regional Championship: Europe · Nov 6 –   │      │ ⓘ Lock in needs every card available: 3 cards short│
-│ Nov 8, 2026 · ASC Evansrhim · Source ↗         │      └ reason starts under Lock in, wraps in the row ────┘
+│ Kennen Tempo [🔓]     (H1, Archivo xl; icon 44px)│      │ [⧉ Copy missing list|▾] [⋮]                       │
+│ 1st, Regional Championship: Europe · Nov 6 –   │      └───────────────────────────────────────────────────┘
+│ Nov 8, 2026 · ASC Evansrhim · Source ↗         │        [🔓] = Lock deck (aria-label); reason line placement: SPEC-005 Open question 21
 │ ⛔ Not legal in Standard today   Rule check     │        ⋮ = Copy deck list, Download .txt, Duplicate,
 │ 34 of 66 copies available · 51%                │            Rename, divider, Delete
 │ 18 of 32 cards fully available                 │
@@ -249,17 +249,19 @@ Lightning…  Hextech…
 ⧉ Also in 2 other decks · 1 locked
 ⛔ Banned since Nov 23, 2026
 
-Locked deck: the badge joins the meta row; Unlock replaces Lock in; no reason line
-│ [🔒 Locked · Locked in on Nov 23, 2026]  ⛔ Not legal …  Rule check │      [🔓 Unlock] [⋮]
+Locked deck (H-662): the toggle after the name is a closed lock [🔒] = Unlock deck; no badge, no date, no reason line
+│ Kennen Tempo [🔒]                                                    │      [⋮]
 ```
 - **Header from 40rem (H-475, RJ 2026-11-25):** a wrapping flex row (`.header-top`). Left, `.header-main`: name,
-  description (if any), source line, meta row, summary lines. Right, `.actions`: Lock in / Unlock · Copy missing
-  list + chevron · More, top-aligned with the name and flush with the content's end edge. The **lock badge sits in
-  the meta row** with the legality label and Rule check, never with the actions. When both sides can't fit (a
+  description (if any), source line, meta row, summary lines. Right, `.actions`: Copy missing
+  list + chevron · More, top-aligned with the name and flush with the content's end edge. **Since H-662 (RJ
+  2026-11-26) the lock is the icon toggle right after the name, not a badge in the meta row and not in the actions.** When both sides can't fit (a
   long name or a narrow tablet, about 768 and below) the actions **wrap under the summary lines**, starting at the
-  page gutter, never overlapping. The actions follow the summary in the DOM, so focus goes Rule check → Lock in →
+  page gutter, never overlapping. The actions follow the summary in the DOM, so focus goes the lock toggle (after the name) → Rule check →
   Copy missing list → More copy options → More actions.
-- **Reason line (decision, H-477, 2026-11-26): start-aligned under Lock in, at every width from 40rem.** Its box
+- **Reason line (decision, H-477, 2026-11-26): start-aligned under Lock in, at every width from 40rem.** *Superseded in
+  part by H-662 (2026-11-26): Lock in is now the toggle by the name, so "under Lock in" no longer applies; where the line
+  sits is SPEC-005 Open question 21 (not decided).* Its box
   spans exactly the actions row (left edge = Lock in's left edge, right edge = More's right edge); the text starts
   at the left and wraps inside the row; it adds no width to the row. Reasoning:
   1. **Proximity to its owner.** The line says why *Lock in* is disabled (`aria-describedby` ties it to that
@@ -286,14 +288,13 @@ Locked deck: the badge joins the meta row; Unlock replaces Lock in; no reason li
 - **Phone < 40rem:**
 ```
 ← Decks
-Kennen Tempo
+Kennen Tempo [🔓]                         lock toggle 44×44 (🔒 closed when locked)
 1st, Regional Championship: Europe · Nov 6 – 8, 2026 (wraps)
-[🔒 Locked · Locked in on Nov 23, 2026]   (locked deck only)
 ⛔ Not legal in Standard today · Rule check
 34 of 66 copies available · 51%
 18 of 32 cards fully available
-[        🔒 Lock in        ] [⋮]          full-width primary 44px + More 44×44
-ⓘ Lock in needs every card available: 3 cards short   (only while disabled)
+[⋮]                                      More 44×44 (no full-width Lock in / Unlock button)
+ⓘ Lock in needs every card available: 3 cards short   (only while disabled; placement: SPEC-005 Open question 21)
 (notices)
 ┌ Missing cards ───────────────────┐
 │ ▸ Missing: 14 lines, 32 copies   │   collapsed > 10 lines
@@ -411,8 +412,7 @@ tiles on desktop). The opener is the tile button with `aria-haspopup="dialog"`, 
 ## 9. Header actions and lock flow (SHARE-020…026, DECK-080…085)
 | Action | Look | Rules |
 |---|---|---|
-| **Lock in** | filled primary, `lock` icon | `canLock()`. Disabled = `aria-disabled="true"` with focus kept, plus the visible reason line from `lockCheckMessage()` under the actions (choice 22), tied with `aria-describedby` |
-| **Unlock** | outlined, `lock_open` icon | Only on a locked deck. No confirmation (SHARE-023). Works while ownership is unavailable (SHARE-053c). Disabled only when locks are unreadable (SHARE-061) |
+| **Lock toggle** (H-662, RJ 2026-11-26; replaces the Lock in and Unlock buttons) | icon-only, right after the deck name: `lock` (closed) when locked, `lock_open` when not; 44 px target; accessible name **"Lock deck"** / **"Unlock deck"**, `aria-pressed`, tooltip with the same text (the names are the builder's, SPEC-005 Open question 21) | Unlocked: `canLock()`; disabled = `aria-disabled="true"` with focus kept, plus the visible reason line from `lockCheckMessage()` tied with `aria-describedby` (placement: SPEC-005 Open question 21). Locked: unlocks at once, no confirmation (SHARE-023); works while ownership is unavailable (SHARE-053c); disabled only when locks are unreadable (SHARE-061) |
 | **Copy missing list** | outlined split button: main = copy (OWN-052); ▾ menu = "Copy as one list" (OWN-053, choice 19) | Hidden when nothing is missing or ownership is unavailable. "Missing list copied" snack |
 | **⋯ More** (`more_vert`, "More actions") | menu | **Export deck**: "Copy deck list" and "Download .txt" (DECK-085) · **Duplicate** (DECK-084) · **Rename** (name, source, notes; DECK-081; choice 14) · divider · **Delete** (danger) |
 
@@ -422,17 +422,18 @@ tiles on desktop). The opener is the tile button with `aria-haspopup="dialog"`, 
 - When other decks share cards: **2 other decks use some of these cards: Jinx Aggro, Draven
   Midrange** (3 names max, then "and 2 more").
 - Buttons: **Cancel** (text) · **Lock in** (filled). Focus starts on Lock in. Escape = Cancel.
-- After saving: the header badge appears, tiles switch to "… locked in", and a success snack bar
-  says **"Kennen Tempo is locked in."** (choice 16). While saving: the button reads "Locking in…" and
-  stays `aria-disabled`. A failed save shows the error notice **"Couldn't save the lock. Try
+- After saving: the toggle shows the closed lock, tiles switch to "… locked in", and a success snack bar
+  says **"Kennen Tempo is locked in."** (choice 16). While saving: the toggle stays `aria-disabled` (no
+  "Locking in…" text on an icon-only button). A failed save shows the error notice **"Couldn't save the lock. Try
   again."** (SHARE-063) and nothing changes.
 - **Unlock:** done at once, with the snack bar **"Kennen Tempo is unlocked. Its cards count toward
   your other decks again."** No Undo (re-locking needs `canLock` and a new `lockedAt`).
 
-**Lock badge** in the header (SHARE-041): `lock` icon + **Locked** + muted "Locked in on Nov 23,
-2026". Short: `warning` icon + **Locked · 2 cards short** in `--color-warning` on a warning outline;
-the short tiles are partial or darkened by their holds. An unparseable `lockedAt` shows the badge
-without the date (SHARE-030).
+**Lock status in the header (SHARE-041; changed 2026-11-26, H-662, RJ: "No need to show the date locked,
+just lock/unlocked status"):** only the closed-lock toggle after the name. There is **no "Locked" badge, no
+"Locked in on <date>" and no "Locked · 2 cards short" badge in the header**; the short tiles are still partial or
+darkened by their holds. `lockedAt` stays in the data and is not shown. The **tile** badge (Decks list) is unchanged:
+**Locked** / **Locked · 2 cards short** in `--color-warning` on a warning outline, no date.
 
 **Delete confirmation** (DECK-082, SHARE-024; copy depends on choice 15): title **Delete 'Kennen
 Tempo'?**, body for a locked deck adds **Its locked cards will count toward your other decks
@@ -480,8 +481,8 @@ without " It stays locked." The block appends it, or H-060 fixes the helper.
 | D4 | Populated | §6–§8 | OWN-010…055 |
 | D5 | Complete, unlocked | Lock in enabled; missing list reads **All cards available**; Copy missing list hidden | SHARE-020, OWN-051 |
 | D6 | Incomplete | Lock in disabled + reason **Lock in needs every card available: 3 cards short** | SHARE-020 |
-| D7 | Locked | Badge, "… locked in" labels, Unlock. Card-edit controls disabled if editing exists | SHARE-041, SHARE-025 |
-| D8 | Locked and short | Warning badge **Locked · 2 cards short**; short tiles partial or darkened | SHARE-033, SHARE-041 |
+| D7 | Locked | Closed-lock toggle after the name ("Unlock deck"), no badge, no date; "… locked in" labels. Card-edit controls disabled if editing exists (H-662) | SHARE-041, SHARE-025 |
+| D8 | Locked and short | Closed-lock toggle only (no header badge since H-662); short tiles partial or darkened; the tile keeps **Locked · 2 cards short** | SHARE-033, SHARE-041 |
 | D9 | Empty deck (R = 0) | Summary **No cards to count**; every section "No cards in this zone"; Lock in disabled **Lock in needs at least one card** | OWN-050, SHARE-020 |
 | D10 | Ownership unavailable | L6 banner; tiles full color, no labels; Lock in disabled **Ownership unavailable**; Unlock still works; aside shows only the banner sentence | OWN-062, OWN-065, SHARE-053 |
 | D11 | Card data not loaded | Banner **Card data not loaded**; tiles are placeholders with stored names, full color, no labels | OWN-063 |
