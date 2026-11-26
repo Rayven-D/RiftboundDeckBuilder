@@ -653,7 +653,7 @@ describe('Deck detail (H-254)', () => {
   describe('states (OWN-119)', () => {
     it('OWN-119 (b) / D3: an unknown id shows "This deck isn\'t in your decks" with Back to Decks', async () => {
       const h = await setup('/decks/0b7c0000-0000-4000-8000-0000000000ff');
-      expect(text(q(h, 'app-empty-state h2'))).toBe("This deck isn't in your decks");
+      expect(text(q(h, 'app-empty-state h1'))).toBe("This deck isn't in your decks");
       expect(text(q(h, 'app-empty-state p'))).toBe('It may have been deleted on another device.');
       expect(q(h, 'app-empty-state a')!.getAttribute('href')).toBe('/decks');
     });
@@ -664,7 +664,7 @@ describe('Deck detail (H-254)', () => {
       dispatchEvent(new StorageEvent('storage', { key: `${STORAGE_KEYS.deckPrefix}${DETAIL_DECK_ID}` }));
       await new Promise((r) => setTimeout(r, 50));
       await settle(h);
-      expect(text(q(h, 'app-empty-state h2'))).toBe("This deck isn't in your decks");
+      expect(text(q(h, 'app-empty-state h1'))).toBe("This deck isn't in your decks");
       expect(text(q(h, 'p[role="status"].visually-hidden'))).toBe('This deck is no longer in your decks.');
     });
   });
@@ -908,7 +908,7 @@ describe('Deck detail (H-254)', () => {
       expect(text(back)).toBe('Decks');
       expect(back.querySelector('app-icon')).not.toBeNull();
       expect(q(h, '.page-eyebrow')).toBeNull();
-      expect(text(q(h, 'header.deck-header h1'))).toBe('Deck detail');
+      expect(q(h, 'header.deck-header h1')).toBeNull(); // H-482: the empty state carries the only H1
       const phone = cssRules((s) => targets(s, 'back')).filter((r) => r.media === '(max-width: 39.99rem)');
       expect(phone.map((r) => r.style.getPropertyValue('min-height'))).toContain('44px');
     });
@@ -948,6 +948,54 @@ describe('Deck detail (H-254)', () => {
       tile(h, 'main:fizz trickster').click();
       await settle(h);
       expect(text(status)).toBe('Showing Fizz, Trickster');
+    });
+
+    it('H-482 / OWN-110 / SPEC-005 AC 34: the section bar reads "Legend" and "Champion" when full; "Legend 0" / "Champion 0" (still muted) when empty', async () => {
+      const bar = (h: RouterTestingHarness) => qa(h, '.section-nav a').map(text);
+      const full = await setup(URL_);
+      expect(bar(full)).toEqual(['Legend', 'Champion', 'Main 6', 'Battlefields 1', 'Runes 12', 'Sideboard 2']);
+      TestBed.resetTestingModule();
+
+      const h = await setup(URL_, { decks: [{ ...detailDeck(), legend: null, champion: null, battlefields: [] }] });
+      expect(bar(h)).toEqual(['Legend 0', 'Champion 0', 'Main 6', 'Battlefields 0', 'Runes 12', 'Sideboard 2']);
+      expect(qa(h, '.section-nav a.empty').map(text)).toEqual(['Legend 0', 'Champion 0', 'Battlefields 0']);
+
+      // AC 34: the slot's card added in another tab → "Legend 0" becomes "Legend" without a reload.
+      await stores.raw.decks.put({ ...detailDeck(), champion: null, battlefields: [], updatedAt: '2026-11-26T12:00:00.000Z' });
+      dispatchEvent(new StorageEvent('storage', { key: `${STORAGE_KEYS.deckPrefix}${DETAIL_DECK_ID}` }));
+      await new Promise((r) => setTimeout(r, 50));
+      await settle(h);
+      expect(bar(h).slice(0, 2)).toEqual(['Legend', 'Champion 0']);
+    });
+
+    it('H-482 / OWN-119 (b) / SPEC-005 AC 35: not found has one H1 "This deck isn\'t in your decks", no "Deck detail" text, the message and Back to Decks', async () => {
+      const h = await setup('/decks/does-not-exist');
+      const h1s = qa(h, 'h1');
+      expect(h1s.map(text)).toEqual(["This deck isn't in your decks"]);
+      expect(text(root(h))).not.toContain('Deck detail');
+      expect(text(q(h, 'app-empty-state p'))).toBe('It may have been deleted on another device.');
+      const back = Array.from(root(h).querySelectorAll('app-empty-state a')).find((a) => text(a) === 'Back to Decks')!;
+      expect(back.getAttribute('href')).toBe('/decks');
+      // Open question 19: the document title stays as built.
+      expect(document.title).toBe('Deck detail · Rift Builder');
+    });
+
+    it('H-520: from 40rem the Lock in reason line is start-aligned and exactly the row\'s width (basis 100%, no grow, negative margin on the end side); phones unchanged', async () => {
+      await setup(URL_);
+      const reason = cssRules((s) => s.includes('in-row') && s.includes('.reason')).find((r) => r.media === '(min-width: 40rem)')!;
+      const st = reason.style;
+      expect(st.getPropertyValue('text-align')).toBe('start');
+      expect(st.getPropertyValue('justify-content')).toBe('flex-start');
+      expect(st.getPropertyValue('flex-grow')).toBe('0');
+      expect(st.getPropertyValue('flex-basis')).toBe('100%');
+      // jsdom keeps the shorthand: start 0, end minus the column gap.
+      expect(st.getPropertyValue('margin-inline').replace(/\s+/g, ' ').trim()).toBe('0 calc(-1 * var(--space-2))');
+      expect(st.getPropertyValue('contain')).toBe('inline-size');
+      // The header row starts its lines (the reason's line is the only one with free space), so it sits under Lock in.
+      const row = cssRules((s) => s.trim() === '.header-top > .actions').find((r) => r.media === '(min-width: 40rem)')!;
+      expect(row.style.getPropertyValue('justify-content')).toBe('flex-start');
+      // Phones: no in-row rule outside the 40rem query.
+      expect(cssRules((s) => s.includes('in-row') && s.includes('.reason')).filter((r) => r.media === null)).toHaveLength(0);
     });
 
     it('H-468 (10): below 64rem a press opens the dialog and sets no "Showing" status', async () => {

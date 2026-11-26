@@ -156,10 +156,14 @@ export function sectionCounts(section: ZoneSection, view: DeckOwnershipView): st
   return `· ${cards} · ${section.allocated} ${isLocked(view) ? 'locked in' : 'available'}`;
 }
 
-/** OWN-110: "Main 39"; the single-card zones (Legend, Champion) show no count. */
+/**
+ * OWN-110 (v0.11, H-482): "Main 39", "Battlefields 0" (always a count); the single slots (Legend, Champion) show no
+ * count when they hold their card and "Legend 0" / "Champion 0" only when empty (words, not colour alone).
+ */
 export function navLabel(section: ZoneSection): string {
   const label = NAV_LABEL[section.zone];
-  return section.zone === 'legend' || section.zone === 'champion' ? label : `${label} ${section.required}`;
+  const slot = section.zone === 'legend' || section.zone === 'champion';
+  return slot && section.required > 0 ? label : `${label} ${section.required}`;
 }
 
 // ---------------------------------------------------------------- cards (OWN-033, OWN-111…115)

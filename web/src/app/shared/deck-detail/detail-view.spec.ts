@@ -140,6 +140,13 @@ describe('Deck detail view (SPEC-005 section L, H-254)', () => {
       expect(sectionCounts(locked.sections[0], locked)).toBe('· 0 cards');
     });
 
+    it('H-482 / OWN-110 v0.11 / AC 34: empty Legend and Champion slots read "Legend 0" / "Champion 0"; other zones always count, 0 included', () => {
+      const v = detailView({ ...deck, legend: null, champion: null, battlefields: [] });
+      expect(v.sections.map(navLabel)).toEqual(['Legend 0', 'Champion 0', 'Main 6', 'Battlefields 0', 'Runes 12', 'Sideboard 2']);
+      const noChampion = detailView({ ...deck, champion: null });
+      expect(noChampion.sections.map(navLabel).slice(0, 2)).toEqual(['Legend', 'Champion 0']);
+    });
+
     it('OWN-110: the section bar reads Legend, Champion, Main 6, Battlefields 1, Runes 12, Sideboard 2', () => {
       expect(view.sections.map(navLabel)).toEqual(['Legend', 'Champion', 'Main 6', 'Battlefields 1', 'Runes 12', 'Sideboard 2']);
     });

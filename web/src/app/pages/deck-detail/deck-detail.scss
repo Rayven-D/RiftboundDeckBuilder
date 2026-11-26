@@ -96,9 +96,10 @@ p {
     min-width: 0;
   }
 
+  // H-520: flex-start, so the reason line (the only line with free space) starts under Lock in.
   .header-top > .actions {
     flex: 0 0 auto;
-    justify-content: flex-end;
+    justify-content: flex-start;
     max-width: 100%;
     margin-top: 0;
   }

@@ -23,12 +23,12 @@
   }
 
   @case ('not-found') {
-    <!-- OWN-119 (b) / D3, D17. H-467: the same back link and spacing as the populated header. -->
+    <!-- OWN-119 (b) / D3, D17. H-467: the same back link and spacing as the populated header. H-482 (OWN-119 (b) v0.11,
+         AC 35): no "Deck detail" heading; the empty state's heading is the page's only H1. -->
     <header class="deck-header">
       <a class="back" routerLink="/decks"><app-icon name="arrow_back" />Decks</a>
-      <h1 class="deck-name">Deck detail</h1>
     </header>
-    <app-empty-state [heading]="text.notFoundHeading" [message]="text.notFoundMessage">
+    <app-empty-state [heading]="text.notFoundHeading" [headingLevel]="1" [message]="text.notFoundMessage">
       <a class="button" routerLink="/decks">Back to Decks</a>
     </app-empty-state>
   }
