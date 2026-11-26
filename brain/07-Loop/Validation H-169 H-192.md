@@ -35,3 +35,15 @@ Expected: only what the FAQ says, for example "the first rotation (start of 2028
 the four 2026 sets); the second (start of 2029, Set 14) removes Sets 6-9; Standard then 'grows and shrinks' between 4 and 8
 sets". Say nothing on which year the remaining sets were released in.
 Minor, not filed: the [[Ban List]] Summary still says the wave "takes effect today, 2026-11-23".
+
+## Attempt 2 (2026-11-26)
+2026-11-26 · H-192 (attempt 2) · PASS · FAQ re-read by curl; Formats fact 8 vs FAQ; Ban List fact 5 and Summary; V-009 on the two notes · no failures
+
+| Check | Result |
+|---|---|
+| [[Formats]] fact 8 vs https://playriftbound.com/en-us/news/organizedplay/riftbound-organized-play/ (curl 2026-11-26) | PASS: "Start of 2028: Set 10 release, first rotation: Sets 1-5 removed"; "Start of 2029: Set 14 releases, second rotation: Sets 6-9 removed"; "growing and shrinking in size from 4-8 sets". No claim about release years of remaining sets. |
+| [[Ban List]] fact 5 has no "conflict below" wording | PASS (grep finds none) |
+| [[Ban List]] Summary dated wording | PASS ("took effect on 2026-11-23") |
+| V-009 (both notes; wikilinks resolve) | PASS |
+
+Follow-up: SPEC-002 LEGAL-C05 (Deck Legality.md line 156) mentions only the 2028 rotation. The FAQ supports the 2029 rotation, so H-652 (spec-writer, P3) is filed.
