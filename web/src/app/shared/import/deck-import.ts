@@ -5,14 +5,16 @@
  * (DECK-090…096). Pure: no Angular, no storage, no clock (the caller passes `today`);
  * `core/import/deck-import.ts` does the write.
  *
- * Resolution is the exact part of the spec, as in the Owned Cards Import (H-158): a name resolves when its `nameKey`
- * is a catalog `cardKey` (IMP-025), a printing code through `printingLookup` (CARD-036, IMP-067…069). Fuzzy
- * suggestions (IMP-026…030, DECK-043) and the leading "a" / "the" rule (CARD-034) are not built yet; such a line
- * "needs attention" and blocks Save until the user removes it or goes back and fixes the text (DECK-041).
+ * Resolution, as in the Owned Cards Import (H-158): a name through the SPEC-001 name lookup (DECK-040, IMP-025: exact
+ * `nameKey`, then the optional leading "a" / "the" of CARD-034), a printing code through `printingLookup` (CARD-036,
+ * IMP-067…069; the IMP-067 guard and IMP-068 compare names exactly, as those rows say). A name several cards share
+ * under CARD-034 is `AMBIGUOUS_NAME` with those cards to pick from. Fuzzy suggestions (IMP-026…030, DECK-043) are
+ * not built yet; such a line "needs attention" and blocks Save until the user removes it or goes back and fixes the
+ * text (DECK-041).
  *
  * Legality (DECK-050…056) is not shown: there is no SPEC-002 engine or ban data in `web/` yet (H-194).
  */
-import { nameKey } from '../../core/cards/name-key';
+import { type NameLookupResult, nameKey, nameLookup } from '../../core/cards/name-key';
 import type { CardCategory, CollectionCatalogView, PlayableCard } from '../../core/decks/types';
 import { LIMITS, type CardKey, type DeckCard, type DeckSourceFormat, type UserDeck } from '../storage/records';
 import { type ImportCommitter, printingLookup } from './collection-commit';
@@ -41,7 +43,12 @@ export type DeckIssueCode =
   | 'STORAGE_FULL';
 
 /** Why a line can't be saved yet (DECK-015, DECK-041). */
-export type AttentionCode = 'UNKNOWN_CARD' | 'UNKNOWN_PRINTING' | 'PRINTING_NAME_MISMATCH' | 'AMBIGUOUS_PRINTING';
+export type AttentionCode =
+  | 'UNKNOWN_CARD'
+  | 'AMBIGUOUS_NAME'
+  | 'UNKNOWN_PRINTING'
+  | 'PRINTING_NAME_MISMATCH'
+  | 'AMBIGUOUS_PRINTING';
 
 /** One parsed entry after name resolution (fixed for the review; the user's choices live in `DeckReviewState`). */
 export interface DeckImportLine {
@@ -58,7 +65,8 @@ export interface DeckImportLine {
   readonly card: PlayableCard | null;
   /** Set when the line needs attention (blocks Save, DECK-041). */
   readonly attention: { readonly code: AttentionCode; readonly message: string } | null;
-  /** Cards the user can pick for this line (DECK-015: the code's card or the named card). */
+  /** Cards the user can pick for this line (DECK-015: the code's card or the named card; DECK-040: the cards a name
+   * matches under CARD-034, by `cardKey`). */
   readonly choices: readonly PlayableCard[];
   /** A note on a resolved line that does not block Save (IMP-068 c, IMP-069 a). */
   readonly note: string | null;
@@ -196,6 +204,8 @@ export interface DeckReview {
 
 export const DECK_REVIEW_TEXT = {
   unknownCard: (name: string) => `No card named "${name}" in the card data.`,
+  /** DECK-040 / IMP-025 `AMBIGUOUS_NAME` (several cards share the name without its leading "a" / "the"). */
+  ambiguousName: (name: string) => `"${name}" matches more than one card. Pick one.`,
   unknownCode: (code: string) => `${code} isn't in the card data. Add the card name or fix the code.`,
   codeMismatch: (code: string, codeCard: string, named: string) => `${code} is ${codeCard}, but the line says ${named}.`,
   ambiguousCode: (code: string) => `${code} matches more than one card in the card data.`,
@@ -260,6 +270,7 @@ export function prepareDeckImport(
   catalog: CollectionCatalogView,
 ): PreparedDeck {
   const lookup = printingLookup(catalog);
+  const findName = nameLookup(Object.keys(catalog.cards));
   const exact = (name: string): PlayableCard | null => {
     const key = nameKey(name);
     return (key && catalog.cards[key]) || null;
@@ -275,7 +286,7 @@ export function prepareDeckImport(
     if (e.quantity <= 0) continue; // ZERO_QUANTITY adds nothing (IMP-008)
     const raw = (sourceLines[e.line - 1] ?? '').trim() || rawOf(e);
     const base = { id: lines.length, line: e.line, raw, qty: e.quantity, section: e.section };
-    lines.push({ ...base, ...resolveEntry(e, exact, lookup, catalog) });
+    lines.push({ ...base, ...resolveEntry(e, exact, findName, lookup, catalog) });
   }
   const cards = Object.values(catalog.cards);
   return {
@@ -300,6 +311,7 @@ type Resolution = Pick<DeckImportLine, 'card' | 'attention' | 'choices' | 'note'
 function resolveEntry(
   e: ParsedEntry,
   exact: (name: string) => PlayableCard | null,
+  findName: (name: string) => NameLookupResult,
   lookup: ReturnType<typeof printingLookup>,
   catalog: CollectionCatalogView,
 ): Resolution {
@@ -311,10 +323,16 @@ function resolveEntry(
     choices,
     note: null,
   });
-  if (!e.printing) {
-    const card = exact(e.name);
-    return card ? ok(card) : needs('UNKNOWN_CARD', T.unknownCard(e.name));
-  }
+  // DECK-040 / IMP-025 / CARD-034: exact name, then the optional leading article; several cards → AMBIGUOUS_NAME.
+  const resolveName = (name: string, note: string | null = null): Resolution => {
+    const r = findName(name);
+    if (r.status === 'found') return ok(catalog.cards[r.cardKey], note);
+    if (r.status === 'ambiguous') {
+      return needs('AMBIGUOUS_NAME', T.ambiguousName(name), r.cardKeys.map((k) => catalog.cards[k]));
+    }
+    return needs('UNKNOWN_CARD', T.unknownCard(name));
+  };
+  if (!e.printing) return resolveName(e.name);
   // IMP-067 exact-name guard: the card part as typed (name and code together) is itself a card name.
   if (e.name) {
     const whole = exact(`${e.name} ${e.printing.text}`) ?? exact(`${e.printing.text} ${e.name}`);
@@ -332,8 +350,7 @@ function resolveEntry(
   }
   if (found.status === 'ambiguous') return needs('AMBIGUOUS_PRINTING', T.ambiguousCode(code));
   if (!e.name) return needs('UNKNOWN_PRINTING', T.unknownCode(code)); // code-only, IMP-069 (b)
-  const card = exact(e.name);
-  return card ? ok(card, T.nameUsed(code)) : needs('UNKNOWN_CARD', T.unknownCard(e.name)); // IMP-069 (a)
+  return resolveName(e.name, T.nameUsed(code)); // IMP-069 (a)
 }
 
 /** DECK-032 / DECK-022: the zone the card data puts a card in (`null` = unknown, ask). Champion Units → `main`. */

@@ -3,12 +3,13 @@
  * result (IMP-047…050), the Replace confirmation text (IMP-050), the commit notice (IMP-073) and the Undo checks
  * (IMP-075, COLL-058). Pure: no Angular, no storage; `core/import/collection-import.ts` does the writes.
  *
- * Resolution here is the exact part of the spec only: a name resolves when its `nameKey` is a catalog `cardKey`
- * (IMP-025), a printing code through `lookupPrinting` (CARD-036, IMP-067…069). Anything that would need the fuzzy
- * review of IMP-026…030 (or the pick of IMP-068 b) is not imported and is listed as left out (IMP-027: needs-review
- * entries are not imported until the user picks).
+ * Resolution: a name through the SPEC-001 name lookup (IMP-025: exact `nameKey`, then the optional leading "a" /
+ * "the" of CARD-034), a printing code through `lookupPrinting` (CARD-036, IMP-067…069). Anything that would need the
+ * user's pick (a name several cards share under CARD-034; IMP-068 b) or the fuzzy review of IMP-026…030 is not
+ * imported and is listed as left out (IMP-027: needs-review entries are not imported until the user picks).
+ * The IMP-067 guard and IMP-068 compare names exactly, as those rows say.
  */
-import { nameKey } from '../../core/cards/name-key';
+import { nameKey, nameLookup } from '../../core/cards/name-key';
 import type { CollectionCatalogView, Printing } from '../../core/decks/types';
 import { countLine } from '../collection/collection-view';
 import { collectorKey, makePrintingComparator } from '../collection/printing-sort';
@@ -30,7 +31,7 @@ export interface ResolvedCollectionImport {
   readonly copies: number;
   /** Distinct `cardKey`s in the import (IMP-073 `<cards>`). */
   readonly cardCount: number;
-  /** Lines not imported (no exact match, code not found, code and name disagree). */
+  /** Lines not imported (no name match, a name several cards share, code not found, code and name disagree). */
   readonly leftOut: readonly ReviewLine[];
   /** Lines imported with a warning (IMP-068 c, IMP-069 a). */
   readonly notes: readonly ReviewLine[];
@@ -91,12 +92,13 @@ export function printingLookup(
 
 const quoted = (s: string) => `"${s}"`;
 
-/** IMP-025, IMP-067…069 (exact part) and IMP-047 / IMP-048 merge. */
+/** IMP-025 (exact and article, CARD-034), IMP-067…069 and IMP-047 / IMP-048 merge. */
 export function resolveCollectionImport(
   result: ParseResult,
   catalog: CollectionCatalogView,
 ): ResolvedCollectionImport {
   const lookup = printingLookup(catalog);
+  const byName = nameLookup(Object.keys(catalog.cards));
   const cards: Record<CardKey, { quantity: number; byPrinting: Record<PrintingId, number> }> = {};
   const leftOut: ReviewLine[] = [];
   const notes: ReviewLine[] = [];
@@ -112,14 +114,25 @@ export function resolveCollectionImport(
     return key && catalog.cards[key] ? key : null;
   };
 
+  /** IMP-025 / CARD-034: counts the named card, or lists the line as left out (several cards, or none). */
+  const addByName = (e: ParsedEntry, note: string | null = null): void => {
+    const found = byName(e.name);
+    if (found.status === 'found') {
+      if (note) notes.push({ line: e.line, message: note });
+      return add(found.cardKey, e.quantity, null);
+    }
+    leftOut.push({
+      line: e.line,
+      message:
+        found.status === 'ambiguous'
+          ? `${quoted(e.name)} matches more than one card: ${found.cardKeys.map(nameOf).join(', ')}.`
+          : `No card named ${quoted(e.name)} in the card data.`,
+    });
+  };
+
   const resolve = (e: ParsedEntry): void => {
     if (e.quantity <= 0) return; // ZERO_QUANTITY lines add nothing (IMP-008)
-    if (!e.printing) {
-      const key = exact(e.name);
-      if (key) add(key, e.quantity, null);
-      else leftOut.push({ line: e.line, message: `No card named ${quoted(e.name)} in the card data.` });
-      return;
-    }
+    if (!e.printing) return addByName(e);
     // IMP-067 exact-name guard: the card part as typed (name and code together) is itself a card name.
     if (e.name) {
       const whole = exact(`${e.name} ${e.printing.text}`) ?? exact(`${e.printing.text} ${e.name}`);
@@ -151,13 +164,7 @@ export function resolveCollectionImport(
       leftOut.push({ line: e.line, message: `${code} isn't in the card data. Add the card name or fix the code.` });
       return;
     }
-    const key = exact(e.name);
-    if (!key) {
-      leftOut.push({ line: e.line, message: `No card named ${quoted(e.name)} in the card data.` });
-      return;
-    }
-    notes.push({ line: e.line, message: `${code} isn't in the card data, so the card name was used.` });
-    add(key, e.quantity, null);
+    addByName(e, `${code} isn't in the card data, so the card name was used.`);
   };
 
   for (const e of result.entries) resolve(e);

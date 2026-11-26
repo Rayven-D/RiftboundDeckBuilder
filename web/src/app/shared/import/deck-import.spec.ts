@@ -485,6 +485,73 @@ describe('SPEC-006 Deck Import review (H-253)', () => {
       expect(r.canSave).toBe(false);
     });
 
+    describe('DECK-040: optional leading article (CARD-034, IMP-025, H-343)', () => {
+      /** The test catalog plus hypothetical names from SPEC-001 AC 6 and AC 21 and the real-name case. */
+      function articleCatalog(...names: string[]): CollectionCatalogView {
+        const c = makeTestCatalog();
+        for (const n of names) {
+          const e = card(n, 'spell');
+          c.cards[e.card.cardKey] = e.card;
+        }
+        return c;
+      }
+      const ARTICLES = articleCatalog('The Dreaming Tree', 'A Pit', 'The Pit', 'The Echo', 'Echo');
+      const deck = (main: string) => `Legend: 1 Kennen, Heart of the Tempest\nMain Deck:\n${main}`;
+
+      it('DECK-040 / CARD-034: Dreaming Tree resolves to The Dreaming Tree with no review, and Save is not blocked', () => {
+        const r = review(prep(deck('3 Dreaming Tree'), ARTICLES), { champion: 'empty' });
+        expect(r.attention).toEqual([]);
+        expect(r.notes).toEqual([]);
+        expect(r.draft.main).toEqual([{ cardKey: 'the dreaming tree', name: 'The Dreaming Tree', qty: 3 }]);
+        expect(r.canSave).toBe(true);
+      });
+
+      it('DECK-040 / CARD-034: The Dreaming Tree finds a card named Dreaming Tree', () => {
+        const r = review(prep(deck('2 The Dreaming Tree'), articleCatalog('Dreaming Tree')), { champion: 'empty' });
+        expect(r.attention).toEqual([]);
+        expect(r.draft.main).toEqual([{ cardKey: 'dreaming tree', name: 'Dreaming Tree', qty: 2 }]);
+      });
+
+      it('DECK-040 / CARD-034: Pit with A Pit and The Pit is AMBIGUOUS_NAME; picking one enables Save', () => {
+        const p = prep(deck('2 Pit'), ARTICLES);
+        const open = review(p, { champion: 'empty' });
+        expect(open.attention).toHaveLength(1);
+        expect(open.attention[0].attention).toEqual({
+          code: 'AMBIGUOUS_NAME',
+          message: '"Pit" matches more than one card. Pick one.',
+        });
+        expect(open.attention[0].choices.map((c) => c.name)).toEqual(['A Pit', 'The Pit']);
+        expect(open.canSave).toBe(false);
+        const r = review(p, { picks: new Map([[open.attention[0].id, 'the pit']]), champion: 'empty' });
+        expect(r.draft.main).toEqual([{ cardKey: 'the pit', name: 'The Pit', qty: 2 }]);
+        expect(r.canSave).toBe(true);
+      });
+
+      it('DECK-040 / CARD-034: an exact name wins over the article rule (Echo with The Echo and Echo)', () => {
+        const r = review(prep(deck('1 Echo\n2 The Echo\n1 A Pit'), ARTICLES), { champion: 'empty' });
+        expect(r.attention).toEqual([]);
+        expect(r.draft.main).toEqual([
+          { cardKey: 'echo', name: 'Echo', qty: 1 },
+          { cardKey: 'the echo', name: 'The Echo', qty: 2 },
+          { cardKey: 'a pit', name: 'A Pit', qty: 1 },
+        ]);
+      });
+
+      it('DECK-040 / CARD-034: a bare "The" is UNKNOWN_CARD', () => {
+        const r = review(prep(deck('1 The'), ARTICLES), { champion: 'empty' });
+        expect(r.attention.map((l) => l.attention)).toEqual([
+          { code: 'UNKNOWN_CARD', message: 'No card named "The" in the card data.' },
+        ]);
+      });
+
+      it('DECK-040 / IMP-069 (a): an unknown code falls back to the name through the article rule', () => {
+        const r = review(prep(deck('1 Dreaming Tree RAD 999\n1 Pit RAD 998'), ARTICLES), { champion: 'empty' });
+        expect(qtyOf(r.draft.main, 'the dreaming tree')).toBe(1);
+        expect(r.notes).toEqual([{ line: 3, message: "RAD 999 isn't in the card data, so the card name was used." }]);
+        expect(r.attention.map((l) => l.attention?.code)).toEqual(['AMBIGUOUS_NAME']);
+      });
+    });
+
     it('AC 16a / DECK-001: a line without a quantity is left out by the parser; the rest goes on', () => {
       const r = review(prep('Legend: 1 Kennen, Heart of the Tempest\nMain Deck:\nLightning Rush\n3 Hextech Ray'));
       expect(r.draft.main).toEqual([{ cardKey: 'hextech ray', name: 'Hextech Ray', qty: 3 }]);
