@@ -263,9 +263,16 @@ describe('SPEC-005 OWN-105 URL, count line and chips', () => {
 
   it('OWN-080 / OWN-084 200 decks: one pool and every tile in under 300 ms, all before display', () => {
     const decks = Array.from({ length: 200 }, (_, i) => makeDeck(`d${i}`, `Deck ${i}`, { main: [['Hextech Ray', 3], ['Gust', 3]] }));
+    // H-430: count work, not wall-clock time (load from other processes failed the 300 ms check): one
+    // deckOwnership per cardKey for all 200 tiles (each reads collection.cards once) means one pool.
+    let reads = 0;
+    const c = collection({ 'Hextech Ray': 3, Gust: 3 });
+    const cards = new Proxy(c.collection.cards, { get: (o, p, r) => (reads++, Reflect.get(o, p, r)) });
     const t0 = performance.now();
-    const m = build(decks, [lock('d0')], { 'Hextech Ray': 3, Gust: 3 });
-    expect(performance.now() - t0).toBeLessThan(300);
+    const m = build(decks, [lock('d0')], null, { collection: { ...c, collection: { ...c.collection, cards } } });
+    expect(reads).toBeLessThanOrEqual(2);
+    // Gross-regression guard only (3× the budget, Proxy included), so a busy machine can't fail it.
+    expect(performance.now() - t0).toBeLessThan(900);
     expect(m.entries).toHaveLength(200);
   });
 });

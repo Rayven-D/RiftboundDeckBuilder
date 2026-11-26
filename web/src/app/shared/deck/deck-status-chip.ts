@@ -15,13 +15,13 @@ export const OWNERSHIP_OPTION_ICON: Readonly<Record<'ready' | 'partial' | 'none'
   none: 'radio_button_unchecked',
 };
 
-type ChipKind = 'ready' | 'partial' | 'none' | 'locked' | 'short';
+type ChipKind = 'ready' | 'partial' | 'none';
 
 /**
- * SPEC-005 OWN-102 ownership chip of a deck tile ([[Decks Components]] §3), from `DeckTileSummary.ownershipFilter`
- * and `lockBadge`: a locked deck shows its lock badge ("Locked", or "Locked · 2 cards short" in the warning colour
- * with a warning icon); otherwise Ready to build / Partly available / None available. `unavailable` without a lock
- * renders nothing (OWN-065: no chip; a locked deck still shows "Locked"). Always icon + text, never colour alone.
+ * SPEC-005 OWN-102 ownership chip of a deck tile ([[Decks Components]] §3), from `DeckTileSummary.ownershipFilter`:
+ * Ready to build / Partly available / None available, always icon + text, never colour alone. Any other group
+ * renders nothing: `locked` (a locked complete deck) and `unavailable` (OWN-065). The lock is not part of this
+ * chip; it is the separate `app-lock-badge` next to it (RJ 2026-11-25, H-382 (2); H-400).
  */
 @Component({
   selector: 'app-deck-status-chip',
@@ -73,16 +73,6 @@ type ChipKind = 'ready' | 'partial' | 'none' | 'locked' | 'short';
     .chip--partial app-icon {
       color: var(--color-accent-text);
     }
-    .chip--locked app-icon {
-      color: var(--color-text);
-    }
-    .chip--short {
-      border-color: var(--color-warning);
-      color: var(--color-warning);
-    }
-    .chip--short app-icon {
-      color: var(--color-warning);
-    }
     @media (forced-colors: active) {
       .chip {
         border-color: CanvasText;
@@ -92,23 +82,14 @@ type ChipKind = 'ready' | 'partial' | 'none' | 'locked' | 'short';
 })
 export class DeckStatusChip {
   readonly filter = input.required<OwnershipFilter>();
-  readonly lockBadge = input<string | null>(null);
 
   protected readonly kind = computed((): ChipKind | null => {
-    const badge = this.lockBadge();
-    if (badge) return badge.includes('short') ? 'short' : 'locked';
     const f = this.filter();
     return f === 'ready' || f === 'partial' || f === 'none' ? f : null;
   });
-  protected readonly icon = computed((): IconName => {
-    const k = this.kind();
-    if (k === 'locked') return 'lock';
-    if (k === 'short') return 'warning';
-    return OWNERSHIP_OPTION_ICON[k ?? 'none'];
-  });
+  protected readonly icon = computed((): IconName => OWNERSHIP_OPTION_ICON[this.kind() ?? 'none']);
   protected readonly text = computed(() => {
     const k = this.kind();
-    if (k === 'locked' || k === 'short') return this.lockBadge() ?? '';
     return k ? OWNERSHIP_OPTION_LABEL[k] : '';
   });
 }

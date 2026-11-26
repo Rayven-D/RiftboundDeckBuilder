@@ -57,6 +57,7 @@ import {
   queryDecks,
 } from '../../shared/deck/deck-list';
 import { LOCK_TEXT } from '../../shared/deck/deck-locks';
+import { DeckListFocus } from '../../shared/deck/deck-list-focus';
 import { DeckLocks } from '../../shared/deck/deck-locks.service';
 import { OWNERSHIP_OPTION_ICON, OWNERSHIP_OPTION_LABEL } from '../../shared/deck/deck-status-chip';
 import { DeckTile } from '../../shared/deck/deck-tile';
@@ -151,6 +152,7 @@ export class DecksPage {
   private readonly stores = inject(AppStores).stores;
   private readonly cardData = inject(CardData);
   private readonly locks = inject(DeckLocks);
+  private readonly listFocus = inject(DeckListFocus);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -393,6 +395,8 @@ export class DecksPage {
     } finally {
       clearTimeout(timer);
       if (current()) this.showSkeleton.set(false);
+      // H-462: Deck detail's Delete / Undo asked for focus on a tile (or the empty state's Import deck).
+      if (current() && this.phase() !== 'loading') afterNextRender(() => this.listFocus.apply(this.doc), { injector: this.injector });
     }
   }
 
@@ -504,9 +508,13 @@ export class DecksPage {
     afterNextRender(() => this.searchInput()?.nativeElement.focus(), { injector: this.injector });
   }
 
-  /** OWN-105 (d) "Show locked decks": `lock=locked`, `own` cleared. */
+  /**
+   * OWN-105 (d) "Show locked decks" (under the count line, and in the no-match state, H-468 (9)): `lock=locked`, `own`
+   * cleared. The button goes away with the hint, so focus moves to the search field, as after Clear filters.
+   */
   protected showLocked(): void {
     this.patchQuery({ lock: 'locked', own: null });
+    afterNextRender(() => this.searchInput()?.nativeElement.focus(), { injector: this.injector });
   }
 
   /** OWN-105 (a) phone: the full-screen Filters dialog; Show applies and focus returns to the Filters button. */
@@ -516,6 +524,7 @@ export class DecksPage {
       query: this.query(),
       formatName: STANDARD.name,
       count: (q) => (m ? queryDecks(m.entries, q).length : 0),
+      ownCounts: (q) => (m ? ownershipCounts(m.entries, q) : { all: 0, ready: 0, partial: 0, none: 0 }),
       ownershipDisabled: this.ownershipDisabled(),
       lockDisabled: this.lockDisabled(),
     };

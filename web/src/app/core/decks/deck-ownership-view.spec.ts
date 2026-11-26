@@ -376,21 +376,43 @@ describe('SPEC-005 summarizeDeck', () => {
         },
       ],
     };
-    const run = () => {
-      const input = makeInput(cat, { owned }); // a fresh input each run: nothing cached (OWN-083)
+    const run = (input = makeInput(cat, { owned }), catalog = cat) => {
+      // a fresh input each run: nothing cached (OWN-083)
       const shared = computeSharedPool({ decks, locks, ownership: input });
       return decks.map((d) =>
         summarizeDeck(
           d,
-          computeDeckOwnership(d, { status: 'ok', input, shared }, cat, banData, TODAY),
+          computeDeckOwnership(d, { status: 'ok', input, shared }, catalog, banData, TODAY),
           null,
           null,
         ),
       );
     };
-    for (let i = 0; i < 3; i++) run(); // warm-up (JIT)
-    const start = performance.now();
-    expect(run()).toHaveLength(200);
-    expect(performance.now() - start).toBeLessThan(300);
-  });
+    // H-430: the hard check counts work, not wall-clock time (which fails when the machine is busy).
+    // One deckOwnership per distinct cardKey (each reads collection.cards once; OWN-083 cache shared by
+    // the pool and all 200 tiles), and catalog lookups linear in the 30,000 entries, not decks × cards.
+    let collectionReads = 0;
+    let catalogReads = 0;
+    const counting = <T extends object>(t: T, bump: () => void) =>
+      new Proxy(t, { get: (o, p, r) => (bump(), Reflect.get(o, p, r)) });
+    const countedCat = { ...cat, cards: counting(cat.cards, () => catalogReads++) };
+    const plain = makeInput(countedCat, { owned });
+    const counted = {
+      ...plain,
+      collection: { ...plain.collection, cards: counting(plain.collection.cards, () => collectionReads++) },
+    };
+    expect(run(counted, countedCat)).toHaveLength(200);
+    expect(collectionReads).toBeLessThanOrEqual(new Set(decks.flatMap((d) => d.main.map((e) => e.cardKey))).size);
+    expect(catalogReads).toBeLessThanOrEqual(4 * 200 * 150); // 62,400 today; 200 × 1,200 would be 240,000
+    // Gross-regression guard only: best of 3 runs against 3× the 300 ms laptop budget, so CPU load from
+    // other processes can't fail it while a real slowdown (e.g. quadratic work) still does.
+    run(); // warm-up (JIT)
+    let best = Infinity;
+    for (let i = 0; i < 3; i++) {
+      const start = performance.now();
+      expect(run()).toHaveLength(200);
+      best = Math.min(best, performance.now() - start);
+    }
+    expect(best).toBeLessThan(900);
+  }, 30_000);
 });

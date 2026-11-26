@@ -108,7 +108,7 @@ them from there; brief §14.10.)
   | name | `--font-size-md` 600, `--color-text`, 2-line clamp | `summary.name` |
   | Read-only tag | `--font-size-xs` muted, 1px `--color-border-strong`, `--radius-sm`, padding 0 `--space-1` | only `readOnly` |
   | source | `--font-size-xs` muted, 1 line, ellipsis (full text in `title`) | `summary.sourceLine` |
-  | ownership | chip (§3) + `ownershipLine` `--font-size-sm` `--color-text`, tabular-nums; wraps under the chip when narrow | §3 |
+  | ownership | chip (§3) + `ownershipLine` `--font-size-sm` `--color-text`, tabular-nums; wraps under the chip when narrow; on phones (≤ 40rem) always its own line under the chip / lock badge, in every state (H-468 (8), H-478) | §3 |
   | legality | `--font-size-sm` muted; `illegal`: `block` 14px `--color-danger`; `incomplete`: `help` muted; `legal`: no icon | `legalityLabel` verbatim |
   | bans | `--font-size-sm`; `banned` count: `block` + text in `--color-danger`; upcoming: `schedule` + text in `--color-warning` | `1 banned card` / `3 banned cards` · `1 card banned from Dec 15, 2026` / `2 cards banned from Dec 15, 2026`; both lines when both; hidden when 0 or null |
   | updated | `--font-size-xs` muted | `Updated ${formatIsoDate(updatedAt)}` |
@@ -155,8 +155,12 @@ border). Controls are 40px tall on desktop and 44px on phones; control edges use
 - **One row at 1440** (RJ 2026-11-25, H-382 (1)): search, Ownership chips, Lock, Filters and Sort
   share one row at 1440 (content 1152px). Desktop only: search `flex: 1 1 10rem` (max 20rem; the
   right padding for the clear button only while it has text), toolbar gap `--space-2`, Ownership
-  chip side padding `--space-2`, Lock select min 7.5rem, Sort select min 8.5rem. Narrower desktop
-  widths still wrap (Sort keeps `margin-left: auto`). Phone (≤ 40rem) unchanged.
+  chip side padding `--space-2`. Narrower desktop widths still wrap (Sort keeps `margin-left:
+  auto`). Phone (≤ 40rem) unchanged. **Worst case (H-463):** Lock and Sort are `flex: none` with
+  fixed select widths for their longest option at 14px (Lock 7.25rem for "Not locked", Sort 8rem
+  for "Last updated"; padding 12px left / 8px right, 8px gap before the arrow), values 14px
+  (`--mat-select-trigger-text-size: var(--font-size-sm)`), so only search gives way (165px at
+  1440 with a Filters badge, Lock "Not locked" and a search).
 - **Search:** as Collection's search field. Placeholder `Search decks`, `aria-label="Search decks
   by name"`, clear button `Clear search`. `/` focuses it.
 - **Ownership segmented chips** (desktop/tablet): `role="radiogroup" aria-label="Ownership"`, 4
@@ -170,13 +174,16 @@ border). Controls are 40px tall on desktop and 44px on phones; control edges use
 - **Filters** (`filter_list`, label `Filters`, a badge with the active count): a `mat-menu` with two
   radio groups, **Legality** (`Any`, `Legal in Standard`, `Not legal in Standard today`, `Not fully
   checked`) and **Source** (`Any`, `Imported`, `From Tournaments`). Format name from
-  `FormatDef.name`.
+  `FormatDef.name`. Each set is a `role="group"` named by its visible heading (`aria-labelledby`;
+  the heading is `aria-hidden` so it is heard once, H-465).
 - **Sort:** `mat-select` labeled `Sort by`: `Last updated` · `Name A–Z` · `Date added`.
 - **Phone:** row = search (flex 1) · `Filters` icon button (`filter_list`, `aria-label="Filters"`,
   with a count badge) · `Sort by` icon button (`sort`, menu of `menuitemradio`). Filters opens a
   full-screen `MatDialog` titled `Filters`, holding Ownership, Lock, Legality and Source as native
   radio fieldsets (44px rows), with `Clear filters` (text) and `Show 2 decks` (filled, live count) in
-  a sticky footer. Applying closes it and returns focus to the Filters button.
+  a sticky footer. Applying closes it and returns focus to the Filters button. The Ownership options
+  show their deck count like the desktop chips (muted, tabular-nums; heard as "Ready to build, 1
+  deck"), live for the draft (H-468 (7)).
 - **Active chips row** (only when a filter is on): one chip per filter, `<button>` with `close`
   icon, `aria-label="Remove filter: Ready to build"`, then text button `Clear filters`. Removing a
   chip moves focus to the next chip, or to the search field. Chips are 32px tall with a fine pointer on

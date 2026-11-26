@@ -121,20 +121,30 @@ let nextId = 0;
     }
     /* H-475 (class "in-row", Deck detail header from 40rem): the button joins the parent's flex row of actions and
        the reason line goes under the whole row, so Copy missing list sits right next to Lock in (H-392 (1)). The
-       reason adds no width of its own (contain: inline-size); it wraps to the row's width. The negative start margin
-       cancels the row's column gap (--space-2) that it would otherwise add to the row's width. */
+       reason adds no width of its own (contain: inline-size); it wraps to the row's width. The negative end margin
+       cancels the row's column gap (--space-2) that it would otherwise add to the row's width.
+       H-520 (Decks §6): start-aligned under Lock in, its box exactly the row's width (flex basis 100%, no grow, the
+       negative margin on the end side), so it never starts before the row or leaves the gutter when the row wraps. */
     @media (min-width: 40rem) {
       :host(.in-row) {
         display: contents;
       }
       :host(.in-row) .reason {
         order: 1;
-        flex: 1 0 100%;
+        flex: 0 0 100%;
         margin-top: 0;
-        margin-inline-start: calc(-1 * var(--space-2));
-        justify-content: flex-end;
+        margin-inline: 0 calc(-1 * var(--space-2));
+        justify-content: flex-start;
         contain: inline-size;
-        text-align: end;
+        text-align: start;
+      }
+    }
+    /* H-467: in the Deck detail header row the button has the height of Copy missing list and More: 40px with a
+       fine pointer from 40rem, 44px on phones and touch (the rule above). */
+    @media (min-width: 40rem) and (pointer: fine) {
+      :host(.in-row) button {
+        min-height: 40px;
+        height: 40px;
       }
     }
   `,

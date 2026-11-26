@@ -1,7 +1,20 @@
-import { Component, ElementRef, Injector, afterNextRender, computed, inject, input, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  Injector,
+  afterEveryRender,
+  afterNextRender,
+  computed,
+  inject,
+  input,
+  linkedSignal,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { MatButton } from '@angular/material/button';
-import { MatOptgroup, MatOption } from '@angular/material/core';
-import { MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
+import { type ErrorStateMatcher, MatOptgroup, MatOption } from '@angular/material/core';
+import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatSelect } from '@angular/material/select';
 import { Icon } from '../icon';
@@ -17,10 +30,14 @@ import {
   MAX_SOURCE_URL,
   type PreparedDeck,
   type ZoneQuestion,
+  deckSource,
   questionKey,
   reviewDeck,
 } from './deck-import';
 import { SECTION_LABELS } from './parse-card-list';
+
+/** H-451: the review's one status region; the dialog's Save button is described by it. */
+export const DECK_REVIEW_STATUS_ID = 'deck-review-status';
 
 /** Review-step strings for Deck Import (H-253). SPEC-006 words only the ones in `DECK_REVIEW_TEXT`. */
 export const DECK_REVIEW_WORDS = {
@@ -32,11 +49,22 @@ export const DECK_REVIEW_WORDS = {
   remove: 'Remove line',
   removeLine: (line: number) => `Remove line ${line}`,
   sectionFor: (name: string) => `Section for ${name}`,
+  /** H-451: a PICK_ZONE select names its card and line, so three questions never read as three "Section". */
+  sectionForLine: (name: string, line: number) => `Section for ${name} (line ${line})`,
+  /** H-451 (critique H-341 §4): an open question says so in text, not by its border colour only (WCAG 1.4.1). */
+  needsAnswer: 'Needs an answer',
+  /** H-451 (§4): the status line when nothing blocks Save. */
+  ready: 'Ready to save.',
+  /** H-451 (§4): heading of the warnings list (the Owned Cards review's "Check these:" without the colon). */
+  checks: 'Check these',
   use: (name: string) => `Use ${name}`,
   legendNone: 'This list has no Legend. Pick one, or leave it empty.',
   legendMany: 'Pick the deck\'s Legend. The other Legend lines are left out.',
   championAsk: 'Pick the deck\'s Chosen Champion.',
-  championMany: 'Pick the deck\'s Chosen Champion. The other Champion lines are left out.',
+  /** H-452 (§4): DECK-034 (b) puts the other cards in the Main Deck. */
+  championMany: 'Pick the deck\'s Chosen Champion. The other Champion cards go in the Main Deck.',
+  /** H-452 (§4): heading of the lines the champion slot sent to the Main Deck. */
+  alsoMain: 'Also in the Main Deck:',
   zoneAsk: (line: number, name: string) => `Line ${line}: ${name}. Its card type isn't known, so pick its section.`,
   allMain: 'Put all in Main Deck',
   legend: 'Legend',
@@ -45,10 +73,19 @@ export const DECK_REVIEW_WORDS = {
   leaveEmpty: 'Leave empty',
   fromList: 'From this list',
   otherCards: 'Other cards',
-  inferred: 'Placed by card type',
-  inferredNote: 'Change a section if it is wrong.',
+  /** H-452 (§4): the list also holds lines the user placed (critique finding 9). */
+  inferred: 'Lines without a section',
+  inferredNote:
+    'These lines had no section label, so they were placed by card type or by your answers. Change any that are wrong.',
+  /** H-452 (§4): the reason on a line the user placed. */
+  pickedSection: 'You picked this section',
   moveTo: (zone: string) => `Move to ${zone}`,
-  removed: (n: number) => `${n} ${n === 1 ? 'line is' : 'lines are'} left out of the deck and listed on it.`,
+  /** H-452 (§4): names the lines left out (critique finding 10). `list` = "line 2 (Sorrel, Tide Reader), …". */
+  removed: (n: number, list: string) =>
+    n === 1
+      ? `1 line is left out of the deck: ${list}. It will be listed on the deck's page.`
+      : `${n} lines are left out of the deck: ${list}. They will be listed on the deck's page.`,
+  removedItem: (line: number, name: string) => `line ${line} (${name})`,
   source: 'Source (optional)',
   sourceHint: 'Where the list comes from, e.g. a player or a site.',
   link: 'Link (optional)',
@@ -62,15 +99,24 @@ export const DECK_REVIEW_WORDS = {
  */
 @Component({
   selector: 'app-deck-review',
-  imports: [MatButton, MatFormField, MatLabel, MatHint, MatInput, MatSelect, MatOption, MatOptgroup, Icon],
+  imports: [NgTemplateOutlet, MatButton, MatFormField, MatLabel, MatHint, MatError, MatInput, MatSelect, MatOption, MatOptgroup, Icon],
   template: `
     @let v = view();
     <h3 class="step-heading review-heading" tabindex="-1">{{ words.check }}</h3>
     <mat-form-field appearance="outline" class="name-field" subscriptSizing="dynamic">
       <mat-label>{{ words.name }}</mat-label>
-      <input matInput class="deck-name" maxlength="80" [value]="v.name" (input)="onName($event)" />
+      <input
+        #nameInput
+        matInput
+        class="deck-name"
+        maxlength="80"
+        required
+        [errorStateMatcher]="nameErrorState"
+        [value]="v.name"
+        (input)="onName($event)"
+      />
       @if (v.nameError; as err) {
-        <mat-hint class="field-error">{{ err }}</mat-hint>
+        <mat-error class="field-error">{{ err }}</mat-error>
       }
     </mat-form-field>
 
@@ -82,16 +128,25 @@ export const DECK_REVIEW_WORDS = {
       }
     </p>
 
-    @if (v.blockers.unresolvedLines || v.blockers.openQuestions) {
-      <p class="blockers" role="status">
+    <!-- H-451 (WCAG 4.1.3): one status region, always in the DOM, so "Ready to save." is announced too. -->
+    <p class="blockers" role="status" [id]="statusId" [class.ready]="v.canSave">
+      @if (v.canSave) {
+        <span>{{ words.ready }}</span>
+      } @else {
         @if (v.blockers.unresolvedLines) {
           <span>{{ text.needAttention(v.blockers.unresolvedLines) }}</span>
         }
         @if (v.blockers.openQuestions) {
           <span>{{ text.questions(v.blockers.openQuestions) }}</span>
         }
-      </p>
-    }
+        @if (v.nameError; as err) {
+          <span>{{ err }}</span>
+        }
+        @if (v.sourceError; as err) {
+          <span>{{ err }}</span>
+        }
+      }
+    </p>
 
     @if (v.attention.length) {
       <h3 class="step-heading fix-heading" tabindex="-1">{{ words.fix }}</h3>
@@ -125,13 +180,28 @@ export const DECK_REVIEW_WORDS = {
     }
 
     @for (q of v.questions; track key(q)) {
-      <div class="question" [class.open]="q.answer === null" [attr.data-q]="key(q)">
+      <!-- H-451: each question is a group named by its prompt; an open one says so in text. -->
+      <div
+        class="question"
+        role="group"
+        [class.open]="q.answer === null"
+        [attr.data-q]="key(q)"
+        [attr.aria-labelledby]="promptId(q)"
+      >
+        @if (q.answer === null) {
+          <span class="needs-answer">{{ words.needsAnswer }}</span>
+        }
         @switch (q.kind) {
           @case ('PICK_LEGEND') {
-            <p>{{ q.candidates.length ? words.legendMany : words.legendNone }}</p>
+            <p [id]="promptId(q)">{{ legendPrompt(q) }}</p>
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>{{ words.legend }}</mat-label>
-              <mat-select class="pick-legend" [value]="q.answer" (selectionChange)="answerLegend($event.value)">
+              <mat-select
+                class="pick-legend"
+                [value]="q.answer"
+                [aria-describedby]="promptId(q)"
+                (selectionChange)="answerLegend($event.value)"
+              >
                 @for (c of q.candidates.length ? q.candidates : prepared().legends; track c.cardKey) {
                   <mat-option [value]="c.cardKey">{{ c.name }}</mat-option>
                 }
@@ -140,10 +210,15 @@ export const DECK_REVIEW_WORDS = {
             </mat-form-field>
           }
           @case ('PICK_CHAMPION') {
-            <p>{{ championPrompt(q) }}</p>
+            <p [id]="promptId(q)">{{ championPrompt(q) }}</p>
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>{{ words.champion }}</mat-label>
-              <mat-select class="pick-champion" [value]="q.answer" (selectionChange)="answerChampion($event.value)">
+              <mat-select
+                class="pick-champion"
+                [value]="q.answer"
+                [aria-describedby]="promptId(q)"
+                (selectionChange)="answerChampion($event.value)"
+              >
                 @if (q.candidates.length && withCatalog(q)) {
                   <mat-optgroup [label]="words.fromList">
                     @for (c of q.candidates; track c.cardKey) {
@@ -163,12 +238,21 @@ export const DECK_REVIEW_WORDS = {
                 <mat-option value="empty">{{ words.leaveEmpty }}</mat-option>
               </mat-select>
             </mat-form-field>
+            @if (q.answer !== null && !withCatalog(q) && movedToMain().length) {
+              <ng-container [ngTemplateOutlet]="alsoMain" />
+            }
           }
           @case ('PICK_ZONE') {
-            <p>{{ words.zoneAsk(lineNo(q.lineIds[0]), lineName(q.lineIds[0])) }}</p>
+            <p [id]="promptId(q)">{{ words.zoneAsk(lineNo(q.lineIds[0]), lineName(q.lineIds[0])) }}</p>
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>{{ words.section }}</mat-label>
-              <mat-select class="pick-zone" [value]="q.answer" (selectionChange)="answerZone(q, $event.value)">
+              <mat-select
+                class="pick-zone"
+                [value]="q.answer"
+                [aria-label]="words.sectionForLine(lineName(q.lineIds[0]), lineNo(q.lineIds[0]))"
+                [aria-describedby]="promptId(q)"
+                (selectionChange)="answerZone(q, $event.value)"
+              >
                 @for (z of zones; track z) {
                   <mat-option [value]="z">{{ label(z) }}</mat-option>
                 }
@@ -181,9 +265,25 @@ export const DECK_REVIEW_WORDS = {
     @if (openZoneQuestions()) {
       <button matButton="outlined" type="button" class="all-main" (click)="allMain()">{{ words.allMain }}</button>
     }
+    <!-- H-452: extra copies of a single Chosen Champion (DECK-027) have no question to sit under. -->
+    @if (movedToMain().length && !sectionChampionQuestion()) {
+      <div class="also-main-block"><ng-container [ngTemplateOutlet]="alsoMain" /></div>
+    }
+    <ng-template #alsoMain>
+      <p class="also-main-heading" [id]="alsoMainId">{{ words.alsoMain }}</p>
+      <ul class="moved" [attr.aria-labelledby]="alsoMainId">
+        @for (l of movedToMain(); track l.id) {
+          <li>
+            <span class="qty">{{ l.movedToMain }}</span> {{ l.name }}
+            <span class="reason">{{ l.zoneReason }}</span>
+          </li>
+        }
+      </ul>
+    </ng-template>
 
-    @if (mismatches().length || v.issues.length || v.notes.length) {
-      <ul class="issues">
+    @if (mismatches().length || otherIssues().length || v.notes.length) {
+      <h3 class="step-heading checks-heading">{{ words.checks }}</h3>
+      <ul class="issues checks">
         @for (l of mismatches(); track l.id) {
           <li class="warn">
             <app-icon name="warning" />
@@ -214,15 +314,33 @@ export const DECK_REVIEW_WORDS = {
             </span>
           </li>
         }
-        @for (n of v.notes; track $index) {
+        @for (n of v.notes; track n.id) {
           <li class="warn">
-            <app-icon name="warning" /><span><strong>Line {{ n.line }}:</strong> {{ n.message }}</span>
+            <app-icon name="warning" />
+            <span class="grow">
+              <strong>Line {{ n.line }}:</strong> {{ n.message }}
+              <!-- H-452: the code's card was used over the typed name; it can be left out like a line to fix. -->
+              @if (n.removable) {
+                <span class="line-actions">
+                  <button
+                    matButton
+                    type="button"
+                    class="remove remove-used"
+                    [attr.data-line]="n.id"
+                    [attr.aria-label]="words.removeLine(n.line)"
+                    (click)="removeUsed(n.id)"
+                  >
+                    {{ words.remove }}
+                  </button>
+                </span>
+              }
+            </span>
           </li>
         }
       </ul>
     }
-    @if (v.draft.importRemovedLines?.length; as n) {
-      <p class="note">{{ words.removed(n) }}</p>
+    @if (v.removedLines.length) {
+      <p class="note removed-note">{{ removedText() }}</p>
     }
 
     @if (inferred().length) {
@@ -233,7 +351,7 @@ export const DECK_REVIEW_WORDS = {
           <li>
             <span class="grow">
               <span class="qty">{{ l.qty }}</span> {{ l.name }}
-              <span class="reason">{{ l.zoneReason }}</span>
+              <span class="reason">{{ l.zoneMethod === 'user' ? words.pickedSection : l.zoneReason }}</span>
             </span>
             <mat-form-field appearance="outline" subscriptSizing="dynamic" class="zone-field">
               <mat-label>{{ words.section }}</mat-label>
@@ -255,17 +373,40 @@ export const DECK_REVIEW_WORDS = {
     <div class="source">
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>{{ words.source }}</mat-label>
-        <input matInput class="source-text" [attr.maxlength]="maxText" [value]="state().sourceText" (input)="onSource($event, 'sourceText')" />
+        <input
+          matInput
+          class="source-text"
+          [attr.maxlength]="maxText"
+          [value]="state().sourceText"
+          [aria-describedby]="v.sourceError ? sourceErrorId : ''"
+          (input)="onSource($event, 'sourceText')"
+        />
         <mat-hint>{{ words.sourceHint }}</mat-hint>
       </mat-form-field>
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>{{ words.link }}</mat-label>
-        <input matInput class="source-url" type="url" [attr.maxlength]="maxUrl" [value]="state().sourceUrl" (input)="onSource($event, 'sourceUrl')" />
-        <mat-hint>{{ words.linkHint }}</mat-hint>
-      </mat-form-field>
       @if (v.sourceError; as err) {
-        <p class="error" role="alert"><app-icon name="error" />{{ err }}</p>
+        <!-- Announced by the status line; linked to the Source field. -->
+        <p class="error" [id]="sourceErrorId"><app-icon name="error" />{{ err }}</p>
       }
+      <div>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="link-field">
+          <mat-label>{{ words.link }}</mat-label>
+          <input
+            matInput
+            class="source-url"
+            type="url"
+            [attr.maxlength]="maxUrl"
+            [value]="state().sourceUrl"
+            [aria-describedby]="linkWarning() ? linkWarningId : ''"
+            (input)="onSource($event, 'sourceUrl')"
+            (blur)="checkLink()"
+          />
+          <mat-hint>{{ words.linkHint }}</mat-hint>
+        </mat-form-field>
+        <!-- H-451 (WCAG 3.3.1): SOURCE_URL_INVALID under Link, checked on blur, not on every keystroke. -->
+        @if (linkWarning(); as warn) {
+          <p class="field-warn" [id]="linkWarningId"><app-icon name="warning" />{{ warn }}</p>
+        }
+      </div>
     </div>
   `,
   styleUrl: './import-dialog.scss',
@@ -274,6 +415,8 @@ export class DeckReview {
   readonly prepared = input.required<PreparedDeck>();
   /** The user's local date for the DECK-070 fallback name; a function so tests can pin it. */
   readonly today = input<() => Date>(() => new Date());
+  /** DECK-100: the answers kept from the review the user left with Back (`carryReviewAnswers`); empty the first time. */
+  readonly initialState = input<DeckReviewState>(EMPTY_REVIEW_STATE);
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
@@ -284,11 +427,31 @@ export class DeckReview {
   protected readonly maxText = MAX_SOURCE_TEXT;
   protected readonly maxUrl = MAX_SOURCE_URL;
 
-  protected readonly state = signal<DeckReviewState>(EMPTY_REVIEW_STATE);
+  protected readonly state = linkedSignal<DeckReviewState>(() => this.initialState());
   readonly view = computed<Review>(() => reviewDeck(this.prepared(), this.state(), this.today()()));
 
   protected readonly mismatches = computed(() => this.view().lines.filter((l) => l.mismatch));
-  protected readonly otherIssues = computed(() => this.view().issues.filter((i) => i.code !== 'ZONE_CATEGORY_MISMATCH'));
+  /** Mismatches have their own rows; SOURCE_URL_INVALID shows under the Link field (H-451). */
+  protected readonly otherIssues = computed(() =>
+    this.view().issues.filter((i) => i.code !== 'ZONE_CATEGORY_MISMATCH' && i.code !== 'SOURCE_URL_INVALID'),
+  );
+
+  /** H-451: ids the dialog's Save button and the fields point at (one review is open at a time). */
+  readonly statusId = DECK_REVIEW_STATUS_ID;
+  protected readonly sourceErrorId = 'deck-review-source-error';
+  protected readonly linkWarningId = 'deck-review-link-warning';
+  /** The Link value as of the last blur; the warning is only for that value (typing hides it until the next blur). */
+  private readonly checkedUrl = signal<string | null>(null);
+  protected readonly linkWarning = computed(() => {
+    const url = this.state().sourceUrl;
+    if (this.checkedUrl() !== url) return null;
+    return deckSource('', url).urlInvalid ? DECK_REVIEW_TEXT.sourceUrlInvalid : null;
+  });
+
+  /** H-451 (WCAG 3.3.1): the name field shows Material's error state while the name is empty. */
+  protected readonly nameErrorState: ErrorStateMatcher = { isErrorState: () => this.view().nameError !== null };
+  private readonly nameInput = viewChild<ElementRef<HTMLInputElement>>('nameInput');
+  private readonly nameMatInput = viewChild('nameInput', { read: MatInput });
   /** DECK-030: every line placed without a section label (by card type, or by the user's change), changeable. */
   protected readonly inferred = computed(() =>
     this.view().lines.filter(
@@ -299,8 +462,71 @@ export class DeckReview {
     () => this.view().questions.filter((q) => q.kind === 'PICK_ZONE' && q.answer === null).length,
   );
 
+  constructor() {
+    // H-451 (WCAG 3.3.1): Material leaves `aria-invalid` off an empty required field; the review's accept check wants
+    // the empty name announced as invalid, so it is set after each render (Material doesn't rewrite it while empty).
+    afterEveryRender({
+      write: () => {
+        const el = this.nameInput()?.nativeElement;
+        if (el && this.view().nameError && el.getAttribute('aria-invalid') !== 'true') el.setAttribute('aria-invalid', 'true');
+      },
+    });
+  }
+
+  /** H-452: lines the Chosen Champion slot sent to the Main Deck (DECK-027, DECK-034 b), with their reasons. */
+  protected readonly movedToMain = computed(() => this.view().lines.filter((l) => l.movedToMain > 0));
+  /** H-452: the `Champion:`-section PICK_CHAMPION, under whose select the moved lines are listed once answered. */
+  protected readonly sectionChampionQuestion = computed(() =>
+    this.view().questions.some((q) => q.kind === 'PICK_CHAMPION' && !this.withCatalog(q)),
+  );
+  protected readonly alsoMainId = 'deck-review-also-main';
+  /** H-452 (§4): the left-out note names its lines. */
+  protected readonly removedText = computed(() => {
+    const left = this.view().removedLines;
+    return this.words.removed(left.length, left.map((l) => this.words.removedItem(l.line, l.name)).join(', '));
+  });
+
+  /** DECK-033 / DECK-036. A Legend line in Lines to fix holds the question with no prompt of its own (DECK-104). */
+  protected legendPrompt(q: ZoneQuestion): string {
+    return q.kind !== 'PICK_ZONE' && q.candidates.length ? this.words.legendMany : this.words.legendNone;
+  }
+
+  /** H-452: Remove line on a code-used warning. Focus moves to the next such Remove line, else "Check the deck". */
+  protected removeUsed(id: number): void {
+    const ids = this.view().notes.filter((n) => n.removable).map((n) => n.id);
+    const next = ids.slice(ids.indexOf(id) + 1).map((n) => `button.remove-used[data-line="${n}"]`);
+    this.state.update((s) => ({ ...s, removed: new Set([...s.removed, id]) }));
+    this.focusFirst(next);
+  }
+
+  /** H-451: the prompt's id, which names the question's group and describes its select. */
+  protected promptId(q: ZoneQuestion): string {
+    return `deck-q-${q.kind}-${q.lineIds[0] ?? 'none'}`;
+  }
+
+  /** H-451 (WCAG 3.3.1): the Link warning is checked when the field loses focus, not per keystroke. */
+  protected checkLink(): void {
+    this.checkedUrl.set(this.state().sourceUrl);
+  }
+
+  /**
+   * H-451: Save pressed while blocked moves focus to the first open item: a line to fix, else an open question's
+   * select, else the name field, else the Source field.
+   */
+  focusFirstOpen(): void {
+    const v = this.view();
+    const targets: string[] = [];
+    if (v.attention.length) targets.push('ul.attention li button');
+    if (v.blockers.openQuestions) targets.push('.question.open mat-select');
+    if (v.nameError) targets.push('input.deck-name');
+    if (v.sourceError) targets.push('input.source-text');
+    this.focusFirst(targets);
+  }
+
+  /** H-453 (critique finding 16): the review calls the `champion` zone "Chosen Champion" (display only; the parser's
+   * section label stays "Champion"). */
   protected label(z: DeckZone): string {
-    return SECTION_LABELS[z];
+    return z === 'champion' ? this.words.champion : SECTION_LABELS[z];
   }
 
   protected lineNo(id: number): number {
@@ -330,6 +556,8 @@ export class DeckReview {
   protected onName(event: Event): void {
     const typedName = (event.target as HTMLInputElement).value;
     this.state.update((s) => ({ ...s, typedName }));
+    // No form control here, so Material doesn't re-check the error state by itself (H-451).
+    this.nameMatInput()?.updateErrorState();
   }
 
   protected onSource(event: Event, field: 'sourceText' | 'sourceUrl'): void {
@@ -381,6 +609,11 @@ export class DeckReview {
       zones: new Map([...s.zones, ...open.map((q) => [q.lineIds[0], 'main'] as const)]),
     }));
     this.focusFirst(after);
+  }
+
+  /** DECK-100: the user's answers as they stand, read by the dialog when the user presses Back. */
+  answers(): DeckReviewState {
+    return this.state();
   }
 
   /** H-450: the review's first heading, focused after Continue (and the last fallback of every focus move). */

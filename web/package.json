@@ -12,6 +12,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint",
+    "e2e": "playwright test",
     "test:rules": "firebase --config ../firebase.json emulators:exec --only firestore,auth --project demo-rift-builder \"npx vitest run --config rules-tests/vitest.config.mts\""
   },
   "private": true,
@@ -37,6 +38,7 @@
     "@angular/compiler-cli": "^22.3.0",
     "@eslint/js": "^10.0.1",
     "@firebase/rules-unit-testing": "^6.0.0",
+    "@playwright/test": "1.65.1",
     "angular-eslint": "22.8.0",
     "eslint": "^10.14.0",
     "jsdom": "^31.0.0",

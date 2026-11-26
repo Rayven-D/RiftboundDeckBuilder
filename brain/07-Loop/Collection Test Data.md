@@ -9,6 +9,8 @@ Use this for any review, validation or screenshot of `/collection` (and the deck
 real card data exists (H-020) and the Import page saves a collection. All sample data is
 invented. Built in H-086, fixes H-095, runes-as-cards H-098.
 
+> **Real-browser tests (H-431, H-440):** `cd web; npm run e2e` builds the Large set in Node and injects it, with no sign-in and Firebase blocked. How and why: [[Browser Tests]].
+
 > **On live (H-204, [[Test Data]] SPEC-013, build H-205):** signed-in testers get Small (150) and Large (5,000) generated sets from the Collection page, synced to their account and removable; the fixture sample stays dev-only (needs `/api`). The section below is the **dev-only** `/styleguide` tool.
 
 ## On live: Load test data (H-205)

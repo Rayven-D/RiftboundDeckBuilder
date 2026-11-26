@@ -20,7 +20,11 @@ export type EmptyStateMessageRole = 'status' | 'alert' | null;
     >
       <app-deck-mark class="mark" />
       @if (heading()) {
-        <h2>{{ heading() }}</h2>
+        @if (headingLevel() === 1) {
+          <h1>{{ heading() }}</h1>
+        } @else {
+          <h2>{{ heading() }}</h2>
+        }
       }
       @if (message()) {
         <p [class.primary]="!heading()" [attr.role]="messageRole()">{{ message() }}</p>
@@ -48,6 +52,7 @@ export type EmptyStateMessageRole = 'status' | 'alert' | null;
       margin-bottom: var(--space-3);
       opacity: 0.9;
     }
+    h1,
     h2 {
       margin: 0;
       font-size: var(--font-size-lg);
@@ -76,6 +81,8 @@ export type EmptyStateMessageRole = 'status' | 'alert' | null;
 export class EmptyState {
   readonly heading = input<string>('');
   readonly message = input<string>('');
+  /** The heading as the page's H1 when the empty state is the whole page (H-482, Deck detail not found). */
+  readonly headingLevel = input<1 | 2>(2);
   /** Role of the message line: `status` or `alert` when it changes in place, none when it is there on load. */
   readonly messageRole = input<EmptyStateMessageRole>(null);
   /** Gives the section `tabindex="-1"` so script can move focus to it (no visible ring: it isn't a control). */

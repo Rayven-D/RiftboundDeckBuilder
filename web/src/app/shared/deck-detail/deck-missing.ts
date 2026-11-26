@@ -3,7 +3,7 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import type { DeckOwnershipView } from '../../core/decks';
 import { Icon } from '../icon';
-import { DETAIL_TEXT, copiesLine, excludedLine, missingCopies, missingGroups } from './detail-view';
+import { DETAIL_TEXT, cardsLine, copiesLine, excludedLine, missingCopies, missingGroups } from './detail-view';
 
 /** OWN-052 / OWN-053: the two copy actions. */
 export type CopyMode = 'sections' | 'merged';
@@ -31,7 +31,7 @@ let nextId = 0;
             <p class="copies">{{ text.noCards }}</p>
           } @else {
             <p class="copies">{{ copies() }}</p>
-            <p>{{ v.summary.cardsFullyAvailable }} of {{ v.summary.cardsTotal }} cards fully available</p>
+            <p class="cards">{{ cards() }}</p>
             @if (excluded(); as x) {
               <p class="muted small">{{ x }}</p>
             }
@@ -39,10 +39,12 @@ let nextId = 0;
         </div>
       }
       @if (v.summary.copiesRequired > 0) {
-        <h2 class="missing-title">Missing <span class="muted">· {{ total() }} {{ total() === 1 ? 'copy' : 'copies' }}</span></h2>
         @if (v.missing.length === 0) {
+          <!-- H-466: nothing missing → a plain "Missing" heading, no "· 0 copies". -->
+          <h2 class="missing-title">Missing</h2>
           <p class="all"><app-icon name="check_circle" />{{ text.allAvailable }}</p>
         } @else {
+          <h2 class="missing-title">Missing <span class="muted">· {{ total() }} {{ total() === 1 ? 'copy' : 'copies' }}</span></h2>
           <div [id]="listId">
             @for (g of shownGroups(); track g.zone) {
               <h3>{{ g.label }}</h3>
@@ -202,6 +204,7 @@ export class DeckMissing {
   protected readonly listId = `missing-list-${++nextId}`;
   protected readonly expanded = signal(false);
   protected readonly copies = computed(() => copiesLine(this.view()));
+  protected readonly cards = computed(() => cardsLine(this.view()));
   protected readonly excluded = computed(() => excludedLine(this.view()));
   protected readonly total = computed(() => missingCopies(this.view()));
   protected readonly lineCount = computed(() => this.view().missing.length);

@@ -2,6 +2,33 @@
   display: block;
 }
 
+/* H-453 (critique findings 13, 15): the Import deck dialog. The review's first field sits below the content's top
+   edge, so its floating label is never clipped. At 40rem and below the dialog fills the screen (.import-deck-panel
+   in styles.scss) and the content scrolls between the title and the pinned actions. */
+:host(.deck-dialog) .mat-mdc-dialog-content.deck-content {
+  padding-top: var(--space-3);
+}
+
+@media (max-width: 40rem) {
+  :host(.deck-dialog) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+
+    .mat-mdc-dialog-content {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none;
+    }
+
+    .mat-mdc-dialog-actions {
+      padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+      border-top-color: var(--color-border);
+    }
+  }
+}
+
 .lede {
   margin: 0 0 var(--space-3);
   color: var(--color-text-muted);
@@ -155,6 +182,25 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-danger);
+
+  /* H-451: "Ready to save." is a plain status, not an error. */
+  &.ready {
+    font-weight: 400;
+    color: var(--color-text-muted);
+  }
+}
+
+/* H-451: the Link warning sits under its field (SOURCE_URL_INVALID). */
+.field-warn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-sm);
+
+  > app-icon {
+    color: var(--color-warning);
+  }
 }
 
 .step-heading {
@@ -166,6 +212,12 @@
 /* H-450: "Check the deck" opens the review step. */
 .review-heading {
   margin-top: 0;
+}
+
+/* H-469: the Owned Cards review opens with "Check the cards"; the top padding keeps its keyboard focus ring (2px,
+   offset 2px) inside the scroll area, as the deck review's (H-453). */
+:host .mat-mdc-dialog-content.cards-review-content {
+  padding-top: var(--space-3);
 }
 
 .grow {
@@ -190,6 +242,20 @@
     border-color: var(--color-warning);
   }
 
+  /* H-451 (WCAG 1.4.1): the open state in text. --color-warning on the dialog surface is text-safe in both themes
+     (#ef9f27 on #2d343c dark 5.79:1, #854f0b on white light 6.73:1). */
+  .needs-answer {
+    display: inline-block;
+    margin-bottom: var(--space-2);
+    padding: 0 var(--space-2);
+    border: 1px solid currentColor;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    line-height: 1.6;
+    color: var(--color-warning);
+  }
+
   p {
     margin: 0 0 var(--space-2);
     font-size: var(--font-size-sm);
@@ -200,15 +266,56 @@
   }
 }
 
+/* H-452: where the Chosen Champion slot's other copies went. */
+.also-main-heading {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.also-main-block {
+  margin: var(--space-3) 0;
+}
+
+.moved {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-sm);
+
+  li {
+    padding: var(--space-1) 0;
+  }
+
+  .qty {
+    display: inline-block;
+    min-width: 2.5ch;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-muted);
+  }
+
+  .reason {
+    display: block;
+    padding-left: calc(2.5ch + 0.25em);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+  }
+}
+
 .all-main {
   margin-bottom: var(--space-3);
 }
 
+/* H-453 (finding 14): the deck review lists grow with the dialog, so it has one scroll. */
+:host(app-deck-review) .issues {
+  max-height: none;
+  overflow-y: visible;
+}
+
 .inferred {
-  max-height: 16rem;
   margin: 0 0 var(--space-2);
   padding: 0;
-  overflow-y: auto;
   list-style: none;
   font-size: var(--font-size-sm);
 
@@ -238,10 +345,27 @@
   .zone-field {
     width: 11rem;
   }
+
+  /* H-453 (finding 15): below 40rem a row stacks: name and reason full width, the Section select under them. */
+  @media (max-width: 40rem) {
+    li {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .zone-field {
+      width: 100%;
+    }
+  }
 }
 
 .source {
   display: grid;
   gap: var(--space-3);
   margin-top: var(--space-4);
+}
+
+/* H-451: the Link field shares a wrapper with its warning line. */
+.link-field {
+  width: 100%;
 }

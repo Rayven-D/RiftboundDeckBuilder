@@ -83,6 +83,7 @@ import {
   sectionCounts,
   sourceParts,
 } from '../../shared/deck-detail/detail-view';
+import { DeckListFocus } from '../../shared/deck/deck-list-focus';
 import { DeckLocks } from '../../shared/deck/deck-locks.service';
 import { LockActions } from '../../shared/deck/lock-actions';
 import { LockBadge } from '../../shared/deck/lock-badge';
@@ -216,6 +217,7 @@ export class DeckDetail {
   private readonly device = inject(DEVICE_STORAGE);
   private readonly breakpoints = inject(BreakpointObserver);
   private readonly deckLocks = inject(DeckLocks);
+  private readonly listFocus = inject(DeckListFocus);
 
   protected readonly text = DETAIL_TEXT;
   protected readonly zoneLabel = ZONE_LABEL;
@@ -609,6 +611,8 @@ export class DeckDetail {
     if (this.isDesktop()) {
       this.picked.set(id);
       this.tab.set('card');
+      // H-468 (10): tell screen-reader users where the result went (the panel updates silently otherwise).
+      this.status.set(DETAIL_TEXT.showing(card.name));
       this.panelBody()?.nativeElement.scrollTo?.({ top: 0 });
       return;
     }
@@ -765,13 +769,25 @@ export class DeckDetail {
       },
     });
     ref.afterClosed().subscribe(() => {
-      if (!this.destroyed) afterNextRender(() => refocusAfterDialog(this.moreButton() ?? opener ?? undefined, this.doc), { injector: this.injector });
+      if (!this.destroyed) afterNextRender(() => this.focusMore(opener), { injector: this.injector });
     });
   }
 
-  private readonly moreButtonRef = viewChild<ElementRef<HTMLElement>>('moreButton');
+  // H-462: `read: ElementRef`; without it the ref is the MatIconButton instance, which has no nativeElement.
+  private readonly moreButtonRef = viewChild('moreButton', { read: ElementRef<HTMLElement> });
   private moreButton(): HTMLElement | undefined {
     return this.moreButtonRef()?.nativeElement;
+  }
+
+  /**
+   * H-462 (WCAG 2.4.3): after a dialog opened from the More menu closes, focus goes back to More actions (the menu
+   * item that opened it is gone). Always moved: the dialog's own restore leaves focus on `<main>`, not `<body>`, so
+   * `refocusAfterDialog` alone would keep it there.
+   */
+  private focusMore(fallback?: HTMLElement | null): void {
+    const more = this.moreButton();
+    if (more?.isConnected) more.focus();
+    else refocusAfterDialog(fallback?.isConnected ? fallback : undefined, this.doc);
   }
 
   /**
@@ -783,7 +799,7 @@ export class DeckDetail {
     if (!d || d.readOnly) return;
     const ok = await confirmDelete(this.dialog, { name: d.deck.name, locked: this.locked() });
     if (!ok) {
-      afterNextRender(() => refocusAfterDialog(this.moreButton(), this.doc), { injector: this.injector });
+      afterNextRender(() => this.focusMore(), { injector: this.injector });
       return;
     }
     let removed: UserDeck | null;
@@ -802,10 +818,13 @@ export class DeckDetail {
     await this.releaseLock(removed.id);
     const stores = this.stores;
     const saved = this.deckImport.saved;
+    const listFocus = this.listFocus;
+    listFocus.request({ kind: 'first' }); // H-462: the first tile, or the empty state's Import deck
     void this.router.navigate(['/decks']);
     const ref = this.snackBar.open(DETAIL_TEXT.deleted, DETAIL_TEXT.undo, { duration: DELETE_UNDO_MS, politeness: 'polite' });
     ref.onAction().subscribe(async () => {
       try {
+        listFocus.request({ kind: 'deck', deckId: removed.id }); // H-462: the restored deck's tile
         await stores.decks.create(removed); // SYNC-035: within the window this cancels the tombstone
         saved.next(removed); // the Decks page re-reads its list (DECK-098 seam)
       } catch (err) {
