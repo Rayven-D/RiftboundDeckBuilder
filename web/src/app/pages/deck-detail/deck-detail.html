@@ -291,7 +291,7 @@
             <div #panelBody class="tabpanel" id="deck-tabpanel" role="tabpanel" tabindex="0" [attr.aria-labelledby]="'deck-tab-' + tab()">
               @if (tab() === 'card') {
                 @if (selected(); as c) {
-                  <app-deck-card-content [card]="c" [locked]="locked()" [ownershipAvailable]="v.ownershipAvailable" [fullUrl]="fullUrl(c)" />
+                  <app-deck-card-content [card]="c" [locked]="locked()" [ownershipAvailable]="v.ownershipAvailable" [fullUrl]="fullUrl(c)" [lockContext]="lockContext()" />
                 } @else {
                   <p class="muted">{{ text.noDeckCards }}</p>
                 }

@@ -4,6 +4,7 @@ import type { OwnershipCard } from '../../core/decks';
 import { CardArt } from '../deck/card-art';
 import { Icon } from '../icon';
 import { StatusLabel, StatusVariant } from '../status-label';
+import { NameLockAction, NameLockContext } from './name-lock-action';
 import {
   DETAIL_TEXT,
   ZONE_LABEL,
@@ -22,11 +23,12 @@ import {
  * below 64rem (OWN-113), in this order: (a) art with its fill, (b) ban label, (c) zone and count label with the
  * per-zone allocation, (d) This deck (SHARE-043 word for word), (e) Your printings (OWN-041, rows link to Collection,
  * OWN-044), (f) Other decks using this card (each a link to that deck), (g) Card facts (OWN-014, OWN-060). It never
- * shows the completion percentage (OWN-101 (d)).
+ * shows the completion percentage (OWN-101 (d)). H-665: under "This deck", the per-name "Lock these copies" /
+ * "Unlock these copies" control (SHARE-094 (a), `app-name-lock-action`), the only place it appears.
  */
 @Component({
   selector: 'app-deck-card-content',
-  imports: [CardArt, StatusLabel, Icon, RouterLink],
+  imports: [CardArt, StatusLabel, Icon, RouterLink, NameLockAction],
   template: `
     @let c = card();
     @if (headingLevel() === 2) {
@@ -65,6 +67,10 @@ import {
                   <li>{{ line }}</li>
                 }
               </ul>
+              @if (lockContext(); as ctx) {
+                <!-- H-665 (SHARE-094 (a)): the per-name Lock / Unlock control lives here only. -->
+                <app-name-lock-action [card]="c" [context]="ctx" />
+              }
             </section>
             <section class="section">
               <h3>Your printings</h3>
@@ -241,7 +247,10 @@ import {
 })
 export class DeckCardContent {
   readonly card = input.required<OwnershipCard>();
+  /** Kept for the page's bindings; v0.6 the breakdown follows the card's own name lock (`card.nameLocked`). */
   readonly locked = input(false);
+  /** H-665: the deck and lock facts for the per-name control (SHARE-094 (a)); null = no control (e.g. previews). */
+  readonly lockContext = input<NameLockContext | null>(null);
   readonly ownershipAvailable = input(true);
   /** OWN-016: the full art of the default printing; the thumbnail shows until it has loaded. */
   readonly fullUrl = input<string | null>(null);
@@ -264,7 +273,7 @@ export class DeckCardContent {
     const zones = allocationLine(this.card());
     return [total, zones].filter(Boolean).join(' · ') || null;
   });
-  protected readonly breakdown = computed(() => breakdownLines(this.card(), this.locked()));
+  protected readonly breakdown = computed(() => breakdownLines(this.card()));
   protected readonly facts = computed(() => cardFacts(this.card()));
   /** OWN-015: the ban label in every case, "Ban status unknown" included. */
   protected readonly ban = computed((): { variant: StatusVariant; text: string } | null => {

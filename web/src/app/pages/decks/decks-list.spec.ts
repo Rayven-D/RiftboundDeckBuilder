@@ -44,7 +44,7 @@ function kennen(n: number, name = 'Kennen Tempo', extra: Partial<UserDeck> = {})
 interface Setup {
   decks?: UserDeck[];
   owned?: Record<string, number>;
-  locks?: ReturnType<typeof lock>[] | 'newer';
+  locks?: ReturnType<typeof lock> | 'newer';
   collection?: 'newer';
   catalog?: 'error';
   bans?: BanListFile | null;
@@ -74,8 +74,8 @@ async function setup(s: Setup = {}) {
     STORAGE_KEYS.collection,
     JSON.stringify({ schemaVersion: s.collection === 'newer' ? 9 : 1, updatedAt: '2026-11-23T00:00:00Z', catalogVersion: '0.3+test', cards }),
   );
-  if (s.locks === 'newer') backend.set(STORAGE_KEYS.locks, JSON.stringify({ schemaVersion: 2, updatedAt: 'x', locks: [] }));
-  else if (s.locks) backend.set(STORAGE_KEYS.locks, JSON.stringify({ schemaVersion: 1, updatedAt: 'x', locks: s.locks }));
+  if (s.locks === 'newer') backend.set(STORAGE_KEYS.locks, JSON.stringify({ schemaVersion: 3, updatedAt: 'x', locks: [] }));
+  else if (s.locks) backend.set(STORAGE_KEYS.locks, JSON.stringify({ schemaVersion: 2, updatedAt: 'x', locks: s.locks }));
   let failing = s.catalog === 'error';
   const result = (): CatalogResult => (failing ? { status: 'error' } : { status: 'ok', catalog: CATALOG });
   const cardData: Partial<CardData> = {
@@ -90,7 +90,7 @@ async function setup(s: Setup = {}) {
     providers: [
       provideRouter(routes, withComponentInputBinding()),
       provideOpenGate(),
-      { provide: AppStores, useValue: { stores } },
+      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
       { provide: CardData, useValue: cardData },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
     ],
@@ -212,7 +212,7 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', { timeout: 20
   });
 
   it('SPEC-005 AC 24 / AC 13 / L6 ownership unavailable: no %, full-colour Legend, "Ownership unavailable", banner, chips disabled', async () => {
-    const { el, tiles } = await setup({ collection: 'newer', locks: [lock(id(1))] });
+    const { el, tiles } = await setup({ collection: 'newer', locks: lock(id(1)) });
     const tile = tiles()[0];
     expect(tile.querySelector('.percent')).toBeNull();
     expect(tile.querySelector('app-card-art .art')!.className).toContain('art--full');
@@ -232,13 +232,13 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', { timeout: 20
     let tile = (await setup({ decks: [one], owned: { 'Lightning Rush': 1 } })).tiles()[0];
     expect(text(tile.querySelector('.copies'))).toBe('1 of 1 copy available');
     TestBed.resetTestingModule();
-    tile = (await setup({ decks: [one], owned: { 'Lightning Rush': 1 }, locks: [lock(id(7))] })).tiles()[0];
+    tile = (await setup({ decks: [one], owned: { 'Lightning Rush': 1 }, locks: lock(id(7)) })).tiles()[0];
     expect(text(tile.querySelector('.copies'))).toBe('1 of 1 copy locked in');
   });
 
-  it('SPEC-005 AC 25 / SHARE-041 locked complete deck of 54: "100%", "54 of 54 copies locked in", badge Locked; 4 short in 2 cards: "92%", badge "Locked · 2 cards short" next to the chip', async () => {
+  it('SPEC-005 AC 25 / SHARE-041 locked complete deck of 54: "100%", "54 of 54 copies locked in", badge Locked; v0.6 the same locks with 4 short in 2 cards: those names do not fit, so the deck is partly locked, "92%", no badge', async () => {
     const deck54 = { ...makeDeck(id(4), 'Locked 54', { legend: [[LEGEND, 1]], main: [['Lightning Rush', 3], ['Gust', 50]] }) };
-    const ok = await setup({ decks: [deck54], owned: { [LEGEND]: 1, 'Lightning Rush': 3, Gust: 50 }, locks: [lock(id(4))] });
+    const ok = await setup({ decks: [deck54], owned: { [LEGEND]: 1, 'Lightning Rush': 3, Gust: 50 }, locks: lock(id(4)) });
     let tile = ok.tiles()[0];
     expect(tile.querySelector('app-card-art .art')!.className).toContain('art--full');
     expect(text(tile.querySelector('.percent'))).toBe('100%');
@@ -250,14 +250,14 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', { timeout: 20
     // The tile badge has no "Locked in on <date>" (H-662: no lock date anywhere).
     expect(tile.querySelector('app-lock-badge')!.textContent).not.toContain('Locked in on');
     TestBed.resetTestingModule();
-    const short = await setup({ decks: [deck54], owned: { [LEGEND]: 1, 'Lightning Rush': 1, Gust: 48 }, locks: [lock(id(4))] });
+    const short = await setup({ decks: [deck54], owned: { [LEGEND]: 1, 'Lightning Rush': 1, Gust: 48 }, locks: lock(id(4)) });
     tile = short.tiles()[0];
     expect(Number(artFill(tile))).toBeCloseTo(50 / 54, 10);
     expect(text(tile.querySelector('.percent'))).toBe('92%');
-    expect(text(tile.querySelector('.copies'))).toBe('50 of 54 copies locked in');
+    expect(text(tile.querySelector('.copies'))).toBe('50 of 54 copies available');
     expect(text(tile.querySelector('app-deck-status-chip'))).toBe('Partly available');
-    expect(text(tile.querySelector('.ownership app-lock-badge'))).toBe('Locked · 2 cards short');
-    expect(tile.querySelector('app-lock-badge .badge--short')).not.toBeNull();
+    expect(text(tile.querySelector('.ownership app-lock-badge'))).toBe('');
+    expect(tile.textContent).not.toContain('cards short');
     // Chip first, then the badge (the badge sits next to the ownership chip).
     const own = Array.from(tile.querySelector('.ownership')!.children).map((c) => c.tagName.toLowerCase());
     expect(own.slice(0, 2)).toEqual(['app-deck-status-chip', 'app-lock-badge']);
@@ -419,7 +419,7 @@ describe('DecksPage toolbar and states (SPEC-005 OWN-005, OWN-006, OWN-084, OWN-
   });
 
   it('H-468 (8) / H-478: on phones the copies line is its own line in every state, so "66 of 66 copies locked in" never clips', async () => {
-    await setup({ decks: three(), locks: [lock(id(2))], owned: { 'Hextech Ray': 3 } });
+    await setup({ decks: three(), locks: lock(id(2)), owned: { 'Hextech Ray': 3 } });
     const phone = cssRules((s) => targets(s, 'copies')).filter((r) => r.media?.includes('max-width: 40rem'));
     expect(phone.map((r) => r.style.getPropertyValue('flex-basis'))).toContain('100%');
     const base = cssRules((s) => targets(s, 'copies')).find((r) => r.media === null)!.style;
@@ -439,7 +439,7 @@ describe('DecksPage toolbar and states (SPEC-005 OWN-005, OWN-006, OWN-084, OWN-
   });
 
   it('H-468 (9) / OWN-105 (d): "Ready to build" with no match and locked decks hidden offers Show locked decks inside the empty state too', async () => {
-    const { el, harness, tiles } = await setup({ decks: three(), owned: { 'Hextech Ray': 3 }, locks: [lock(id(2))], url: '/decks?own=ready' });
+    const { el, harness, tiles } = await setup({ decks: three(), owned: { 'Hextech Ray': 3 }, locks: lock(id(2)), url: '/decks?own=ready' });
     expect(tiles()).toHaveLength(0);
     expect(text(el.querySelector('app-empty-state h2'))).toBe('No decks match these filters');
     const buttons = Array.from(el.querySelectorAll<HTMLButtonElement>('app-empty-state button'));
@@ -521,7 +521,7 @@ describe('DecksPage toolbar and states (SPEC-005 OWN-005, OWN-006, OWN-084, OWN-
   });
 
   it('SPEC-008 AC 15 / OWN-105 (d) locked complete deck under Ready to build: the hint and "Show locked decks" (lock=locked, own cleared)', async () => {
-    const { el, harness, tiles } = await setup({ decks: three(), owned: { Gust: 2, 'Hextech Ray': 3 }, locks: [lock(id(2))], url: '/decks?own=ready' });
+    const { el, harness, tiles } = await setup({ decks: three(), owned: { Gust: 2, 'Hextech Ray': 3 }, locks: lock(id(2)), url: '/decks?own=ready' });
     expect(tiles().map((t) => text(t.querySelector('.name-text')))).toEqual(['Gust Deck']);
     expect(text(el.querySelector('.locked-hint span'))).toBe('Locked decks are under Locked.');
     (el.querySelector('.locked-hint button') as HTMLButtonElement).click();
@@ -540,7 +540,7 @@ describe('DecksPage toolbar and states (SPEC-005 OWN-005, OWN-006, OWN-084, OWN-
     expect(text(tileOf(el, 'Ray Deck').querySelector('.copies'))).toBe('3 of 3 copies available');
     expect(tiles().some((t) => text(t.querySelector('app-lock-badge')) !== '')).toBe(false);
     expect(el.querySelector('.lock-select')!.getAttribute('aria-disabled')).toBe('true');
-    expect(JSON.parse(backend.get(STORAGE_KEYS.locks)!).schemaVersion).toBe(2);
+    expect(JSON.parse(backend.get(STORAGE_KEYS.locks)!).schemaVersion).toBe(3);
   });
 
   it('L7 / OWN-063 card data not loaded: "Card data not loaded" with Try again; tiles "Ownership unavailable", deck mark', async () => {
@@ -557,13 +557,13 @@ describe('DecksPage toolbar and states (SPEC-005 OWN-005, OWN-006, OWN-084, OWN-
   });
 
   it('SPEC-005 AC 13 second Given / SPEC-008 AC 19 lock=locked lists the locked deck while ownership is unavailable', async () => {
-    const { tiles } = await setup({ decks: three(), collection: 'newer', locks: [lock(id(2))], url: '/decks?lock=locked' });
+    const { tiles } = await setup({ decks: three(), collection: 'newer', locks: lock(id(2)), url: '/decks?lock=locked' });
     expect(tiles().map((t) => text(t.querySelector('.name-text')))).toEqual(['Ray Deck']);
     // SHARE-053 (b): the badge reads "Locked", never "… cards short", and no ownership chip (OWN-065).
     expect(text(tiles()[0].querySelector('app-lock-badge'))).toBe('Locked');
     expect(text(tiles()[0].querySelector('app-deck-status-chip'))).toBe('');
     TestBed.resetTestingModule();
-    const none = await setup({ decks: three(), collection: 'newer', locks: [lock(id(2))], url: '/decks?own=none' });
+    const none = await setup({ decks: three(), collection: 'newer', locks: lock(id(2)), url: '/decks?own=none' });
     expect(none.tiles()).toHaveLength(0);
   });
 
@@ -724,7 +724,7 @@ describe('DecksPage loading and in-place recompute ([[Decks]] §10 L2, L11; SPEC
     const link = before[1].querySelector<HTMLAnchorElement>('a')!;
     link.focus();
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
-    backend.set(STORAGE_KEYS.locks, JSON.stringify({ schemaVersion: 1, updatedAt: 'x', locks: [lock(id(1), '2026-11-24T10:00:00Z')] }));
+    backend.set(STORAGE_KEYS.locks, JSON.stringify({ schemaVersion: 2, updatedAt: 'x', locks: lock(id(1), '2026-11-24T10:00:00Z') }));
     dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEYS.locks }));
     await vi.waitFor(async () => {
       await settle(harness);

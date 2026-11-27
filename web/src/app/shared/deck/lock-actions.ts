@@ -36,6 +36,10 @@ let nextId = 0;
  * for the Deck detail header (H-254) to drop in. It saves through `DeckLocks` and shows its own confirmation and
  * snack bars; the page recomputes on `DeckLocks.changed` (or the `changed` output).
  *
+ * SPEC-008 v0.6 (H-665): this is the **deck-level** control. Lock in creates a name lock on every counted name not
+ * locked yet (SHARE-084; a partly locked deck counts as not locked, so it shows Lock in and needs to be complete);
+ * Unlock removes only this deck's name locks. "Locked" = every name locked (SHARE-083).
+ *
  * - **Lock in** (unlocked deck): filled, `lock` icon. Enabled only when `canLock()` is ok. Otherwise it stays
  *   focusable (`aria-disabled`, `disabledInteractive`) and the SHARE-020 reason is visible text under the actions,
  *   tied with `aria-describedby` (OWN-116). Pressed: the SHARE-021 confirmation (focus on Lock in, Escape cancels);
@@ -279,13 +283,13 @@ export class LockActions {
     });
     const ok = (await firstValueFrom(ref.afterClosed())) === true;
     if (!ok) return;
-    await this.save(() => this.locks.lockIn(deck.id), lockedInNotice(deck.name));
+    await this.save(() => this.locks.lockDeck(deck), lockedInNotice(deck.name));
   }
 
   protected async unlock(): Promise<void> {
     if (this.saving() || this.locksUnreadable()) return;
     const deck = this.deck();
-    await this.save(() => this.locks.unlock(deck.id), unlockedNotice(deck.name));
+    await this.save(() => this.locks.unlockDeck(deck.id), unlockedNotice(deck.name));
   }
 
   private async save(run: () => Promise<void>, done: string): Promise<void> {

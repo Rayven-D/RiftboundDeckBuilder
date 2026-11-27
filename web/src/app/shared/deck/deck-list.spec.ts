@@ -4,7 +4,7 @@
  */
 import { lock, makeCatalog, makeDeck } from '../../core/decks/engine-fixtures';
 import { nameKey } from '../../core/cards/name-key';
-import type { DeckLock, UserDeck } from '../../core/decks';
+import type { NameLock, UserDeck } from '../../core/decks';
 import {
   DECK_SORTS,
   DEFAULT_DECK_QUERY,
@@ -39,7 +39,7 @@ function collection(owned: Record<string, number>): NonNullable<DeckListInput['c
   };
 }
 
-function build(decks: UserDeck[], locks: DeckLock[] | null, owned: Record<string, number> | null, extra: Partial<DeckListInput> = {}) {
+function build(decks: UserDeck[], locks: NameLock[] | null, owned: Record<string, number> | null, extra: Partial<DeckListInput> = {}) {
   return buildDeckList({
     decks,
     locks,
@@ -130,31 +130,32 @@ describe('SPEC-008 ownership groups on the list (SHARE-050, SHARE-051; AC 15)', 
   const runeTest = makeDeck('rt', 'Rune Test', { runes: [['Chaos Rune', 9], ['Order Rune', 3]] });
   const empty = makeDeck('ed', 'Empty Draft', {});
   const rayOnly = makeDeck('ro', 'Ray Only', { main: [['Hextech Ray', 3]] });
-  const model = build([deck1, runeTest, empty, rayOnly], [lock('d1', '2026-11-23T10:00:00Z'), lock('ro', '2026-11-23T11:00:00Z')], {
+  // v0.6: a lock on Ray Only would not fit (Deck 1, locked earlier, holds all 3), so the pool drops it (SHARE-090).
+  const model = build([deck1, runeTest, empty, rayOnly], [...lock('d1', '2026-11-23T10:00:00Z'), ...lock('ro', '2026-11-23T11:00:00Z')], {
     'Hextech Ray': 3,
   });
   const byName = (n: string) => model.entries.find((e) => e.deck.name === n)!;
 
-  it('SHARE-050 tile lines: "0 of 12 copies available", "No cards to count", "0 of 3 copies locked in"', () => {
+  it('SHARE-050 tile lines: "0 of 12 copies available", "No cards to count", Ray Only "0 of 3 copies available" with no badge (v0.6)', () => {
     expect(byName('Rune Test').summary.ownershipLine).toBe('0 of 12 copies available');
     expect(byName('Empty Draft').summary.ownershipLine).toBe('No cards to count');
-    expect(byName('Ray Only').summary.ownershipLine).toBe('0 of 3 copies locked in');
-    expect(byName('Ray Only').summary.lockBadge).toBe('Locked · 1 card short');
+    expect(byName('Ray Only').summary.ownershipLine).toBe('0 of 3 copies available');
+    expect(byName('Ray Only').summary.lockBadge).toBeNull();
     expect(byName('Kennen Tempo').summary.ownershipLine).toBe('3 of 3 copies locked in');
   });
 
-  it('SPEC-008 AC 15 / SHARE-051 own=none lists all three; partial and ready none; none+locked only Ray Only; Deck 1 only with lock=locked', () => {
+  it('SPEC-008 AC 15 / SHARE-051 own=none lists all three; partial and ready none; none+locked none; Deck 1 only with lock=locked', () => {
     expect(names(queryDecks(model.entries, q({ own: 'none', sort: 'name' })))).toEqual(['Empty Draft', 'Ray Only', 'Rune Test']);
     expect(queryDecks(model.entries, q({ own: 'partial' }))).toEqual([]);
     expect(queryDecks(model.entries, q({ own: 'ready' }))).toEqual([]);
-    expect(names(queryDecks(model.entries, q({ own: 'none', lock: 'locked' })))).toEqual(['Ray Only']);
-    expect(names(queryDecks(model.entries, q({ lock: 'locked', sort: 'name' })))).toEqual(['Kennen Tempo', 'Ray Only']);
-    expect(names(queryDecks(model.entries, q({ lock: 'unlocked', sort: 'name' })))).toEqual(['Empty Draft', 'Rune Test']);
+    expect(names(queryDecks(model.entries, q({ own: 'none', lock: 'locked' })))).toEqual([]);
+    expect(names(queryDecks(model.entries, q({ lock: 'locked', sort: 'name' })))).toEqual(['Kennen Tempo']);
+    expect(names(queryDecks(model.entries, q({ lock: 'unlocked', sort: 'name' })))).toEqual(['Empty Draft', 'Ray Only', 'Rune Test']);
   });
 
   it('OWN-102 / OWN-105 (a) chip counts are the user\'s own deck counts, with the other filters applied', () => {
     expect(ownershipCounts(model.entries, q())).toEqual({ all: 4, ready: 0, partial: 0, none: 3 });
-    expect(ownershipCounts(model.entries, q({ lock: 'locked', own: 'ready' }))).toEqual({ all: 2, ready: 0, partial: 0, none: 1 });
+    expect(ownershipCounts(model.entries, q({ lock: 'locked', own: 'ready' }))).toEqual({ all: 1, ready: 0, partial: 0, none: 0 });
   });
 
   it('OWN-105 (d) / brief choice 7: own=ready hiding a locked complete deck gives the "Locked decks are under Locked." count', () => {
@@ -165,7 +166,7 @@ describe('SPEC-008 ownership groups on the list (SHARE-050, SHARE-051; AC 15)', 
 
   it('SHARE-071 / OWN-073 every tile comes from the one pool the list built', () => {
     expect(model.pool).not.toBeNull();
-    expect(model.pool!.byDeck['ro'].short).toBe(true);
+    expect(model.pool!.byDeck['ro'].locked).toBe(false);
     expect(byName('Ray Only').view.lock).toEqual(model.pool!.byDeck['ro']);
   });
 });
@@ -175,11 +176,11 @@ describe('SPEC-005 list states (OWN-062, OWN-063, OWN-065; SPEC-008 SHARE-053, S
   const control = makeDeck('d2', 'Kennen Control', { main: [['Hextech Ray', 3]] });
 
   it('SPEC-008 AC 19 / SPEC-005 AC 13 collection unreadable: the stored lock is kept; lock=locked lists it; own=* none', () => {
-    const m = build([tempo, control], [lock('d1', '2026-11-23T10:00:00Z')], null);
+    const m = build([tempo, control], lock('d1', '2026-11-23T10:00:00Z'), null);
     expect(m.collectionUnreadable).toBe(true);
     expect(m.pool).toBeNull();
     const t = m.entries.find((e) => e.deck.id === 'd1')!;
-    expect(t.view.lock).toEqual({ deckId: 'd1', locked: true, lockedAt: '2026-11-23T10:00:00Z', complete: false, short: false, cardsShort: [] });
+    expect(t.view.lock).toEqual({ deckId: 'd1', locked: true, lockedAt: '2026-11-23T10:00:00Z', lockedNames: ['hextech ray'], complete: false });
     expect(t.summary).toMatchObject({ lockBadge: 'Locked', ownershipLine: 'Ownership unavailable', ownershipFilter: 'unavailable' });
     expect(names(queryDecks(m.entries, q({ lock: 'locked' })))).toEqual(['Kennen Tempo']);
     expect(names(queryDecks(m.entries, q({ lock: 'unlocked' })))).toEqual(['Kennen Control']);
@@ -189,7 +190,7 @@ describe('SPEC-005 list states (OWN-062, OWN-063, OWN-065; SPEC-008 SHARE-053, S
   });
 
   it('OWN-063 catalog not loaded: ownership unavailable for every deck, the lock still shown, no Legend', () => {
-    const m = build([tempo, control], [lock('d1')], { 'Hextech Ray': 3 }, { catalog: null });
+    const m = build([tempo, control], lock('d1'), { 'Hextech Ray': 3 }, { catalog: null });
     expect(m.catalogMissing).toBe(true);
     expect(m.entries.every((e) => e.summary.ownershipFilter === 'unavailable')).toBe(true);
     expect(m.entries.find((e) => e.deck.id === 'd1')!.summary.lockBadge).toBe('Locked');
@@ -203,7 +204,7 @@ describe('SPEC-005 list states (OWN-062, OWN-063, OWN-065; SPEC-008 SHARE-053, S
   });
 
   it('SPEC-005 AC 16 (OWN-020) copies locked by another deck: this deck reads 0 of 3 copies available', () => {
-    const m = build([tempo, control], [lock('d1')], { 'Hextech Ray': 3 });
+    const m = build([tempo, control], lock('d1'), { 'Hextech Ray': 3 });
     expect(m.entries.find((e) => e.deck.id === 'd2')!.summary.ownershipLine).toBe('0 of 3 copies available');
     expect(m.entries.find((e) => e.deck.id === 'd1')!.summary.ownershipLine).toBe('3 of 3 copies locked in');
   });
@@ -269,7 +270,7 @@ describe('SPEC-005 OWN-105 URL, count line and chips', () => {
     const c = collection({ 'Hextech Ray': 3, Gust: 3 });
     const cards = new Proxy(c.collection.cards, { get: (o, p, r) => (reads++, Reflect.get(o, p, r)) });
     const t0 = performance.now();
-    const m = build(decks, [lock('d0')], null, { collection: { ...c, collection: { ...c.collection, cards } } });
+    const m = build(decks, lock('d0'), null, { collection: { ...c, collection: { ...c.collection, cards } } });
     expect(reads).toBeLessThanOrEqual(2);
     // Gross-regression guard only (3× the budget, Proxy included), so a busy machine can't fail it.
     expect(performance.now() - t0).toBeLessThan(900);

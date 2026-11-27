@@ -11,7 +11,7 @@ import { of } from 'rxjs';
 import { routes } from '../../app.routes';
 import { CardData, CatalogResult } from '../../core/cards/card-data';
 import { lock, makeDeck, makeInput } from '../../core/decks/engine-fixtures';
-import type { TournamentDeckSource, UserDeck } from '../../core/decks';
+import type { NameLock, TournamentDeckSource, UserDeck } from '../../core/decks';
 import { NEW_DECK_ID } from '../../core/import/deck-import';
 import { AppStores } from '../../core/storage/app-stores';
 import { BrowserStores, createBrowserStores } from '../../core/storage/browser-stores';
@@ -28,6 +28,8 @@ interface Setup {
   decks?: UserDeck[];
   owned?: Record<string, number> | null;
   locks?: string[];
+  /** H-665: individual name locks, added to the deck locks. */
+  nameLocks?: NameLock[];
   width?: Width;
   corruptCollection?: boolean;
   catalogError?: boolean;
@@ -66,7 +68,8 @@ async function setup(url: string, s: Setup = {}) {
   stores = createBrowserStores(backend, { now: () => Date.now(), changed: () => undefined, readOnly: () => false });
   for (const d of s.decks ?? [detailDeck()]) await stores.raw.decks.put(d);
   if (s.owned !== null) await stores.raw.collection.save(makeInput(DETAIL_CATALOG, { owned: s.owned ?? DETAIL_OWNED }).collection);
-  if (s.locks) await stores.raw.locks.save({ schemaVersion: 1, updatedAt: '', locks: s.locks.map((id) => lock(id)) });
+  if (s.locks || s.nameLocks)
+    await stores.raw.locks.save({ schemaVersion: 2, updatedAt: '', locks: [...(s.locks ?? []).flatMap((id) => lock(id)), ...(s.nameLocks ?? [])] });
   if (s.corruptCollection) backend.set(STORAGE_KEYS.collection, '{not json');
   for (const [k, v] of Object.entries(s.raw ?? {})) backend.set(k, v);
   device = { ...(s.device ?? {}) };
@@ -85,7 +88,7 @@ async function setup(url: string, s: Setup = {}) {
     providers: [
       provideRouter(routes, withComponentInputBinding()),
       provideOpenGate(),
-      { provide: AppStores, useValue: { stores } },
+      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
       { provide: CardData, useValue: cardData },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       { provide: BreakpointObserver, useValue: breakpoints(s.width ?? 'desktop') },
@@ -387,7 +390,7 @@ describe('Deck detail (H-254)', () => {
 
     it('H-663: with other decks (one locked) using the cards, no tile or row shows other-deck information in Card or List view, nor in its name; the dialog still does', async () => {
       const deck2Id = '0b7c0000-0000-4000-8000-0000000000a2';
-      const h = await setup(URL_, { decks: [detailDeck(), detailDeck(deck2Id, 'Jinx Aggro')], owned: DETAIL_OWNED, locks: [deck2Id], width: 'phone' });
+      const h = await setup(URL_, { decks: [detailDeck(), detailDeck(deck2Id, 'Jinx Aggro')], owned: { ...DETAIL_OWNED, 'Lightning Rush': 3 }, locks: [deck2Id], width: 'phone' });
       const noOther = (els: HTMLElement[]) => {
         expect(els.length).toBeGreaterThan(0);
         for (const el of els) {
@@ -402,15 +405,15 @@ describe('Deck detail (H-254)', () => {
       expect(qa(h, 'app-deck-card-tile')).toHaveLength(0);
       noOther(qa(h, 'app-deck-card-row [data-card]'));
       // This deck's own counts stay on the row.
-      expect(text(tile(h, 'main:lightning rush').querySelector('app-ownership-chip'))).toBe('0 of 3 available');
+      expect(text(tile(h, 'main:lightning rush').querySelector('app-ownership-chip'))).toMatch(/^\d of 3 available$/);
       // The card dialog keeps "Other decks using this card" with Jinx Aggro and its lock, and the breakdown.
       tile(h, 'main:lightning rush').click();
       await settle(h);
       const d = text(dialogEl());
       expect(d).toContain('Other decks using this card');
       expect(d).toContain('Jinx Aggro');
-      expect(d).toContain('Jinx Aggro · needs 3 · Locked, holds 1');
-      expect(d).toContain('Locked by other decks: 1');
+      expect(d).toContain('Jinx Aggro · needs 3 · Locked, holds 3');
+      expect(d).toContain('Locked by other decks: 3');
     });
 
     it('OWN-114 / AC 30: List view rows "3× Lightning Rush" with the label; "1×" shown; Fizz in Main and Sideboard; remembered on this device', async () => {
@@ -612,7 +615,7 @@ describe('Deck detail (H-254)', () => {
       expect(stored).toMatchObject({ name: 'Kennen budget', notes: 'Budget list', schemaVersion: 1 });
       expect(JSON.stringify(stored.source)).toBe(JSON.stringify(TOURNAMENT));
       expect(stored.updatedAt > deck.updatedAt).toBe(true);
-      expect((await stores.locks.load())!.locks).toEqual([lock(DETAIL_DECK_ID)]);
+      expect((await stores.locks.load())!.locks).toEqual(lock(DETAIL_DECK_ID));
       expect(text(q(h, 'h1'))).toBe('Kennen budget');
       expect(text(q(h, '.description-text'))).toBe('Budget list');
       expect(text(q(h, '.copies'))).toBe('23 of 23 copies locked in · 100%, 100 percent');
@@ -646,7 +649,7 @@ describe('Deck detail (H-254)', () => {
       expect(text(snackAction())).toBe('Open');
       const copy = (await stores.decks.list()).find((d) => d.name === 'Kennen Tempo (copy)')!;
       expect(copy.duplicatedFrom).toBe(DETAIL_DECK_ID);
-      expect((await stores.locks.load())!.locks.map((l) => l.deckId)).toEqual([DETAIL_DECK_ID]);
+      expect([...new Set((await stores.locks.load())!.locks.map((l) => l.deckId))]).toEqual([DETAIL_DECK_ID]);
       snackAction()!.click();
       await settle(h);
       expect(TestBed.inject(Router).url).toBe(`/decks/${copy.id}`);
@@ -731,13 +734,13 @@ describe('Deck detail (H-254)', () => {
       expect(text(q(h, '.copies'))).toBe('23 of 23 copies locked in · 100%, 100 percent');
     });
 
-    it('H-662 / SHARE-033 / OWN-102: a locked deck that is short stays locked: "Unlock deck" toggle, no badge, the copies line shows the shortfall', async () => {
+    it('H-665 / OWN-121 (e) / SHARE-083 v0.6: stored locks on names that are not fully owned do not hold: the deck is partly locked, "Lock deck", no badge, never "cards short"', async () => {
       const h = await setup(URL_, { locks: [DETAIL_DECK_ID] });
       expect(q(h, 'header.deck-header app-lock-badge')).toBeNull();
       expect(headerText(h)).not.toContain('Locked in on');
-      expect(text(q(h, '.copies'))).toBe('12 of 23 copies locked in · 52%, 52 percent');
-      expect(label(lockButton(h))).toBe('Unlock deck');
-      expect(lockButton(h).getAttribute('aria-pressed')).toBe('true');
+      expect(text(q(h, '.copies'))).toBe('12 of 23 copies available · 52%, 52 percent');
+      expect(label(lockButton(h))).toBe('Lock deck');
+      expect(lockButton(h).getAttribute('aria-pressed')).toBe('false');
     });
 
     it('H-662: an unlocked deck shows the open-lock toggle "Lock deck", not pressed, 44 x 44', async () => {
@@ -758,7 +761,7 @@ describe('Deck detail (H-254)', () => {
       await settle(h);
       expect(text(dialogEl()?.querySelector('h2'))).toBe("Lock in 'Kennen Tempo'?");
       await confirmLock(h);
-      expect((await stores.locks.load())!.locks.map((l) => l.deckId)).toEqual([DETAIL_DECK_ID]);
+      expect([...new Set((await stores.locks.load())!.locks.map((l) => l.deckId))]).toEqual([DETAIL_DECK_ID]);
       expect(snack()).toBe('Kennen Tempo is locked in.');
       expect(snackAction()).toBeNull();
       expect(lockButton(h).getAttribute('aria-pressed')).toBe('true');
@@ -829,7 +832,7 @@ describe('Deck detail (H-254)', () => {
       desc.dispatchEvent(new Event('input'));
       Array.from(dialogEl()!.querySelectorAll('button')).find((b) => text(b) === 'Save')!.click();
       await settle(h, 10);
-      expect((await stores.locks.load())!.locks).toEqual([lock(DETAIL_DECK_ID)]);
+      expect((await stores.locks.load())!.locks).toEqual(lock(DETAIL_DECK_ID));
       expect(lockButton(h).getAttribute('aria-pressed')).toBe('true');
       expect(headerText(h)).not.toContain('Locked in on');
 
@@ -1077,6 +1080,121 @@ describe('Deck detail (H-254)', () => {
       await settle(h);
       expect(dialogEl()).not.toBeNull();
       expect(text(q(h, 'p[role="status"].visually-hidden'))).toBe('');
+    });
+  });
+
+  describe('H-665 card-name locks on Deck detail (SPEC-008 SHARE-080…094, ACs 25 to 35; SPEC-005 OWN-121, AC 41)', () => {
+    // Tempo needs Lightning Rush ×3 and Gust ×2, both fully owned (SPEC-005 AC 41's Hextech Ray / Gust example).
+    const tempo = () =>
+      makeDeck(DETAIL_DECK_ID, 'Kennen Tempo', {
+        main: [
+          ['Lightning Rush', 3],
+          ['The Empyrean', 2],
+        ],
+      });
+    const owned = { 'Lightning Rush': 3, 'The Empyrean': 2 };
+    const ray = (at = '2026-11-26T10:00:00Z') => ({ deckId: DETAIL_DECK_ID, cardKey: 'lightning rush', lockedAt: at });
+    const toggle = (h: RouterTestingHarness) => root(h).querySelector<HTMLButtonElement>('.title-row app-lock-actions button.lock-toggle')!;
+    const nameButton = () => document.querySelector<HTMLButtonElement>('mat-dialog-container app-name-lock-action button')
+      ?? document.querySelector<HTMLButtonElement>('app-name-lock-action button');
+    const open = async (h: RouterTestingHarness, id: string) => {
+      tile(h, id).click();
+      await settle(h);
+    };
+
+    it('SPEC-005 AC 41 / SPEC-008 AC 35 (SHARE-094, OWN-121): a locked name\'s tile and row show only a small lock icon and "3 of 3 locked in"; no Lock button on them; the accessible name adds "Locked in this deck"', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned, nameLocks: [ray()], width: 'phone' });
+      const lr = tile(h, 'main:lightning rush');
+      expect(lr.querySelector('[data-name-lock]')).not.toBeNull();
+      expect(text(lr.querySelector('app-ownership-chip'))).toBe('3 of 3 locked in');
+      expect(lr.getAttribute('aria-label')).toBe('Lightning Rush, Main Deck, 3 of 3 locked in, Locked in this deck, ban status unknown');
+      expect(lr.querySelector('button, app-name-lock-action')).toBeNull();
+      expect(text(lr)).not.toMatch(/Locked in this deck|Lock these|Unlock these/);
+      const emp = tile(h, 'main:the empyrean');
+      expect(emp.querySelector('[data-name-lock]')).toBeNull();
+      expect(text(emp.querySelector('app-ownership-chip'))).toBe('2 of 2 available');
+      // The deck is not locked: the header toggle is open, no badge, never "cards short".
+      expect(toggle(h).getAttribute('aria-label')).toBe('Lock deck');
+      expect(q(h, 'app-lock-badge')).toBeNull();
+      expect(root(h).textContent).not.toContain('cards short');
+      expect(qa(h, 'app-name-lock-action')).toHaveLength(0); // the control is only in the dialog / panel
+      // List view: the same icon, no other lock text.
+      qa(h, '.view-toggle button')[1].click();
+      await settle(h);
+      expect(tile(h, 'main:lightning rush').querySelector('[data-name-lock]')).not.toBeNull();
+      expect(tile(h, 'main:the empyrean').querySelector('[data-name-lock]')).toBeNull();
+    });
+
+    it('SPEC-008 AC 25 / SHARE-082: "Lock these copies" in the card dialog stores one NameLock with no confirmation and no snack bar; the control then reads "Unlock these copies"', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned, width: 'phone' });
+      const major = vi.spyOn(TestBed.inject(AppStores), 'majorAction');
+      await open(h, 'main:lightning rush');
+      expect(text(nameButton())).toBe('Lock these copies');
+      nameButton()!.click();
+      await settle(h, 10);
+      expect((await stores.locks.load())!.locks).toEqual([{ deckId: DETAIL_DECK_ID, cardKey: 'lightning rush', lockedAt: expect.any(String) }]);
+      expect(document.querySelectorAll('mat-dialog-container')).toHaveLength(1); // no confirmation on top
+      expect(snack()).toBeNull();
+      expect(text(nameButton())).toBe('Unlock these copies');
+      expect(major).toHaveBeenCalledTimes(1); // SYNC-126 (a) 6
+      expect(text(dialogEl())).toContain('Locked in by this deck: 3');
+    });
+
+    it('SPEC-008 AC 27 / SHARE-083 / SHARE-029 (a): locking the last open name locks the deck: closed toggle, "Kennen Tempo is locked in."', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned, nameLocks: [ray()], width: 'phone' });
+      await open(h, 'main:the empyrean');
+      nameButton()!.click();
+      await settle(h, 10);
+      expect(snack()).toBe('Kennen Tempo is locked in.');
+      expect(toggle(h).getAttribute('aria-label')).toBe('Unlock deck');
+      expect(toggle(h).getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('SPEC-008 AC 29 / SHARE-085: unlocking one name of a locked deck: "Kennen Tempo is no longer fully locked.", the deck opens, the other name keeps its lock', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned, locks: [DETAIL_DECK_ID], width: 'phone' });
+      expect(toggle(h).getAttribute('aria-label')).toBe('Unlock deck');
+      await open(h, 'main:the empyrean');
+      expect(text(nameButton())).toBe('Unlock these copies');
+      nameButton()!.click();
+      await settle(h, 10);
+      expect(snack()).toBe('Kennen Tempo is no longer fully locked.');
+      expect((await stores.locks.load())!.locks.map((l) => l.cardKey)).toEqual(['lightning rush']);
+      expect(toggle(h).getAttribute('aria-label')).toBe('Lock deck');
+      expect(tile(h, 'main:lightning rush').querySelector('[data-name-lock]')).not.toBeNull();
+      expect(tile(h, 'main:the empyrean').querySelector('[data-name-lock]')).toBeNull();
+    });
+
+    it('SPEC-008 AC 28 / SHARE-084: the deck toggle on a locked deck removes only that deck\'s name locks; another deck keeps its own', async () => {
+      const other = makeDeck('0b7c0000-0000-4000-8000-0000000000a2', 'Kennen Aggro', { main: [['Lightning Rush', 2]] });
+      const h = await setup(URL_, {
+        decks: [tempo(), other],
+        owned: { ...owned, 'Lightning Rush': 5 },
+        locks: [DETAIL_DECK_ID],
+        nameLocks: [{ deckId: other.id, cardKey: 'lightning rush', lockedAt: '2026-11-26T09:00:00Z' }],
+        width: 'phone',
+      });
+      toggle(h).click();
+      await settle(h, 10);
+      expect(snack()).toBe('Kennen Tempo is unlocked. Its cards count toward your other decks again.');
+      expect((await stores.locks.load())!.locks).toEqual([{ deckId: other.id, cardKey: 'lightning rush', lockedAt: '2026-11-26T09:00:00Z' }]);
+    });
+
+    it('SPEC-008 AC 26 / SHARE-081: a name that is not fully available cannot be locked; the reason is visible text tied to the control', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned: { 'Lightning Rush': 2, 'The Empyrean': 2 }, width: 'phone' });
+      await open(h, 'main:lightning rush');
+      const b = nameButton()!;
+      expect(b.getAttribute('aria-disabled')).toBe('true');
+      const reason = document.getElementById(b.getAttribute('aria-describedby')!);
+      expect(text(reason)).toBe('Lock needs every copy available: 2 of 3');
+      b.click();
+      await settle(h, 6);
+      expect((await stores.locks.load())?.locks ?? []).toEqual([]);
+    });
+
+    it('SHARE-094 (a) desktop: the per-name control is in the Card tab of the panel too, and only there', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned });
+      expect(qa(h, '.tabpanel app-name-lock-action')).toHaveLength(1);
+      expect(qa(h, 'app-deck-card-tile app-name-lock-action, app-deck-card-row app-name-lock-action')).toHaveLength(0);
     });
   });
 });

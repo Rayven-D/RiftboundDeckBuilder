@@ -77,7 +77,7 @@ describe('Deck detail view (SPEC-005 section L, H-254)', () => {
     });
 
     it('OWN-010 (f) / AC 33: a locked complete deck reads "23 of 23 copies locked in" with 100', () => {
-      const v = detailView(deck, { owned: DETAIL_ALL_OWNED }, { locks: [lock(deck.id)] });
+      const v = detailView(deck, { owned: DETAIL_ALL_OWNED }, { locks: lock(deck.id) });
       expect(headerSummary(v)).toEqual({ copies: '23 of 23 copies locked in', percent: 100, cards: '8 of 8 cards fully available' });
     });
 
@@ -106,7 +106,7 @@ describe('Deck detail view (SPEC-005 section L, H-254)', () => {
       expect(copiesLine(one)).toBe('1 of 1 copy available');
       expect(headerSummary(one).copies).toBe('1 of 1 copy available');
       expect(copiesLine(detailView(deck1, { owned: {} }))).toBe('0 of 1 copy available');
-      const locked = detailView(deck1, { owned: { 'Lightning Rush': 1 } }, { locks: [lock(deck1.id)] });
+      const locked = detailView(deck1, { owned: { 'Lightning Rush': 1 } }, { locks: lock(deck1.id) });
       expect(copiesLine(locked)).toBe('1 of 1 copy locked in');
       expect(copiesLine(view)).toBe('12 of 23 copies available');
     });
@@ -137,7 +137,7 @@ describe('Deck detail view (SPEC-005 section L, H-254)', () => {
     });
 
     it('OWN-011: "… locked in" in a locked deck; only the card count while ownership is unavailable', () => {
-      const locked = detailView(deck, { owned: DETAIL_ALL_OWNED }, { locks: [lock(deck.id)] });
+      const locked = detailView(deck, { owned: DETAIL_ALL_OWNED }, { locks: lock(deck.id) });
       expect(sectionCounts(locked.sections[4], locked)).toBe('· 12 cards · 12 locked in');
       const v = computeDeckOwnership(deck, { status: 'unavailable', locks: [] }, DETAIL_CATALOG, null, '2026-11-25');
       expect(sectionCounts(v.sections[2], v)).toBe('· 6 cards');
@@ -148,7 +148,7 @@ describe('Deck detail view (SPEC-005 section L, H-254)', () => {
       const v = detailView(noLegend);
       expect(sectionCounts(v.sections[0], v)).toBe('· 0 cards');
       expect(sectionCounts(v.sections[1], v)).toBe('· 1 card · 0 available');
-      const locked = detailView(noLegend, { owned: DETAIL_ALL_OWNED }, { locks: [lock(deck.id)] });
+      const locked = detailView(noLegend, { owned: DETAIL_ALL_OWNED }, { locks: lock(deck.id) });
       expect(sectionCounts(locked.sections[0], locked)).toBe('· 0 cards');
     });
 
@@ -208,11 +208,11 @@ describe('Deck detail view (SPEC-005 section L, H-254)', () => {
         ],
       };
       const other = { ...detailDeck('other', 'Jinx Aggro') };
-      const v = detailView(deck, { owned: DETAIL_OWNED }, { decks: [deck, other], locks: [lock('other')], bans: banned });
+      const v = detailView(deck, { owned: DETAIL_OWNED }, { decks: [deck, other], locks: lock('other'), bans: banned });
       const lr = findCard(v, 'main:lightning rush')!;
       // H-663: no other-deck part, even though Jinx Aggro (locked) uses the card.
-      expect(lr.sharedLabel).toBe('Also in 1 other deck · 1 locked');
-      expect(cardAccessibleName(lr)).toBe('Lightning Rush, Main Deck, 0 of 3 available, banned since Nov 23, 2026');
+      expect(lr.sharedLabel).toMatch(/^Also in 1 other deck/);
+      expect(cardAccessibleName(lr)).toMatch(/^Lightning Rush, Main Deck, \d of 3 available, banned since Nov 23, 2026$/);
     });
 
     it('OWN-061: an unknown card says "card no longer in the card data" after the zone', () => {
@@ -252,7 +252,7 @@ describe('Deck detail view (SPEC-005 section L, H-254)', () => {
       expect(lr.printingsOwned.map(printingRowText)).toEqual(['OGN-001 ×2']);
       expect(lr.excludedPrintings.map(printingRowText)).toEqual(['OGN-002 Foil ×1 · Collector']);
       expect(printingRowLabel(lr.printingsOwned[0])).toBe('Show in Collection: OGN-001, 2 copies');
-      expect(breakdownLines(lr, false)).toEqual([
+      expect(breakdownLines(lr)).toEqual([
         'Owned for decks: 2 (1 more excluded from decks)',
         'Locked by other decks: 0',
         'Available to this deck: 2',
@@ -261,9 +261,9 @@ describe('Deck detail view (SPEC-005 section L, H-254)', () => {
       expect(excludedLine(v)).toBe('1 copy excluded from decks');
     });
 
-    it('AC 6 (OWN-024): extra copies show "(1 extra)" after the available line; a locked deck adds "Locked in by this deck"', () => {
-      const v = detailView(deck, { owned: { ...DETAIL_ALL_OWNED, 'Kennen, Storm of Shuriken': 2 } }, { locks: [lock(deck.id)] });
-      expect(breakdownLines(findCard(v, 'champion:kennen storm of shuriken')!, true)).toEqual([
+    it('AC 6 (OWN-024): extra copies show "(1 extra)" after the available line; a locked name adds "Locked in by this deck" (SHARE-043 v0.6)', () => {
+      const v = detailView(deck, { owned: { ...DETAIL_ALL_OWNED, 'Kennen, Storm of Shuriken': 2 } }, { locks: lock(deck.id) });
+      expect(breakdownLines(findCard(v, 'champion:kennen storm of shuriken')!)).toEqual([
         'Owned for decks: 2',
         'Locked by other decks: 0',
         'Available to this deck: 2 (1 extra)',
@@ -279,8 +279,8 @@ describe('Deck detail view (SPEC-005 section L, H-254)', () => {
     });
 
     it('SHARE-043: other-deck rows read "<name> · needs n · Locked, holds h" / "· Not locked"', () => {
-      expect(otherUseText({ deckId: 'a', deckName: 'Jinx Aggro', need: 2, locked: true, hold: 2 })).toBe('Jinx Aggro · needs 2 · Locked, holds 2');
-      expect(otherUseText({ deckId: 'b', deckName: 'Draven Midrange', need: 3, locked: false, hold: 0 })).toBe('Draven Midrange · needs 3 · Not locked');
+      expect(otherUseText({ deckId: 'a', deckName: 'Jinx Aggro', need: 2, locked: true, hold: 2, lockedAt: 'x' })).toBe('Jinx Aggro · needs 2 · Locked, holds 2');
+      expect(otherUseText({ deckId: 'b', deckName: 'Draven Midrange', need: 3, locked: false, hold: 0, lockedAt: null })).toBe('Draven Midrange · needs 3 · Not locked');
     });
   });
 

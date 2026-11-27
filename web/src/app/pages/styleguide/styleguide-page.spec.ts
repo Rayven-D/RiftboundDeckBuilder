@@ -51,7 +51,7 @@ async function render(): Promise<{ fixture: ComponentFixture<StyleguidePage>; st
     providers: [
       provideRouter([]),
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
-      { provide: AppStores, useValue: { stores } },
+      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
       { provide: CardData, useValue: cardData },
     ],
   });
@@ -139,7 +139,7 @@ describe('StyleguidePage Decks section (H-391)', { timeout: PAGE_TIMEOUT }, () =
     expect(text.some((t) => t.includes('Ready to build'))).toBe(true);
     expect(text.some((t) => t.includes('Partly available') && t.includes('1 banned card'))).toBe(true);
     expect(text.some((t) => t.includes('None available'))).toBe(true);
-    expect(text.some((t) => /Locked · \d+ cards? short/.test(t))).toBe(true);
+    expect(text.some((t) => /cards? short/.test(t))).toBe(false); // H-665: no "Locked · n cards short" any more
     expect(text.some((t) => t.includes('No cards to count'))).toBe(true);
     expect(text.some((t) => t.includes('Read-only'))).toBe(true);
     expect(text.filter((t) => t.includes('Ownership unavailable')).length).toBe(2);

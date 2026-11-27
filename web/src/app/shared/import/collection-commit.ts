@@ -266,7 +266,6 @@ export const UNDO_TEXT = {
   confirmTitle: 'Undo the import?',
   /** COLL-058: quantities changed after the import (manual edit, another tab or device). */
   changedSince: 'Your collection changed after this import. Undoing it also loses those changes.',
-  lockedOnly: 'Undoing this import lowers what a locked deck holds.',
   confirm: 'Undo import',
 } as const;
 

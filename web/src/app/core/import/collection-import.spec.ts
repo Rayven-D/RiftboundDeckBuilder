@@ -39,7 +39,7 @@ function setup(catalogError = false): CollectionImport {
   TestBed.configureTestingModule({
     providers: [
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
-      { provide: AppStores, useValue: { stores } },
+      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
       { provide: CardData, useValue: cardData },
     ],
   });
@@ -222,22 +222,54 @@ describe('CollectionImport commit and Undo (SPEC-003 IMP-049…052, IMP-072…07
     expect(snackText()).toBe('Import undone.');
   });
 
-  it('AC 45 / IMP-050a (b) / COLL-088: an Undo that leaves a locked deck short asks with the warning, then notifies', async () => {
+  it('AC 45 / IMP-050a (b) / SPEC-008 AC 31: an Undo that would take locked copies asks first ("Unlock cards in your decks?"), then drops the lock; the notice is just "Import undone."', async () => {
     const importer = setup();
     await store({ 'lightning rush': 2 });
     await stores.raw.decks.put(makeDeck('d1', 'Kennen Tempo', { main: [['Lightning Rush', 3]] }));
-    await stores.raw.locks.save({ schemaVersion: 1, updatedAt: '', locks: [lock('d1')] });
     await commitWith(importer, await prepared(importer, '1 Lightning Rush'), 'add');
     expect(await quantities()).toEqual({ 'lightning rush': 3 });
+    await stores.locks.save({ schemaVersion: 2, updatedAt: '', locks: lock('d1') }); // locked after the import
 
     snackAction()!.click();
     await flush();
-    expect(dialog()?.textContent).toContain("'Kennen Tempo' (locked) will be 1 card short. It stays locked.");
-    dialogButton('Undo import').click();
+    const text = dialog()?.textContent ?? '';
+    expect(text).toContain('Unlock cards in your decks?');
+    expect(text).toContain('Some of the cards you are removing are locked in your decks. Going on unlocks them:');
+    expect(text).toContain("'Kennen Tempo': 3 Lightning Rush");
+    expect(text).toContain("'Kennen Tempo' will no longer be locked.");
+    dialogButton('Unlock and continue').click();
     await flush();
     await flush();
     expect(await quantities()).toEqual({ 'lightning rush': 2 });
-    expect(snackText()).toBe("Import undone. 'Kennen Tempo' (locked) is now 1 card short.");
+    expect((await stores.locks.load())!.locks).toEqual([]);
+    expect(snackText()).toBe('Import undone.');
+  });
+
+  it('SPEC-008 AC 30 (SHARE-087): an Undo that only takes free copies runs at once, with no dialog, and the lock stays', async () => {
+    const importer = setup();
+    await store({ 'lightning rush': 3 });
+    await stores.raw.decks.put(makeDeck('d1', 'Kennen Tempo', { main: [['Lightning Rush', 3]] }));
+    await stores.locks.save({ schemaVersion: 2, updatedAt: '', locks: lock('d1') });
+    await commitWith(importer, await prepared(importer, '2 Lightning Rush'), 'add');
+    snackAction()!.click();
+    await flush();
+    await flush();
+    expect(dialog()).toBeNull();
+    expect(await quantities()).toEqual({ 'lightning rush': 3 });
+    expect((await stores.locks.load())!.locks).toHaveLength(1);
+    expect(snackText()).toBe('Import undone.');
+  });
+
+  it('SYNC-126 (a) 2 and 3: an import commit and its Undo each start one immediate sync (a major action)', async () => {
+    const importer = setup();
+    const major = vi.spyOn(TestBed.inject(AppStores), 'majorAction');
+    await store({ gust: 1 });
+    await commitWith(importer, await prepared(importer, '2 Gust'), 'add');
+    expect(major).toHaveBeenCalledTimes(1);
+    snackAction()!.click();
+    await flush();
+    await flush();
+    expect(major).toHaveBeenCalledTimes(2);
   });
 
   describe('SPEC-013 TEST-033 / AC 12: Replace import over test data (H-233)', () => {
@@ -246,7 +278,7 @@ describe('CollectionImport commit and Undo (SPEC-003 IMP-049…052, IMP-072…07
       // An own locked deck next to the test decks: it must stay (TEST-050 scope).
       await stores.decks.create(makeDeck('00000000-0000-4000-8000-0000000000aa', 'Own Deck', { main: [['Gust', 1]] }));
       const locks = (await stores.locks.load())!;
-      await stores.locks.save({ ...locks, locks: [...locks.locks, lock('00000000-0000-4000-8000-0000000000aa')] });
+      await stores.locks.save({ ...locks, locks: [...locks.locks, ...lock('00000000-0000-4000-8000-0000000000aa')] });
       expect(isTestCollection(await stores.collection.load())).toBe(true);
     }
 
@@ -275,7 +307,7 @@ describe('CollectionImport commit and Undo (SPEC-003 IMP-049…052, IMP-072…07
       await withTestData();
       const out = importer.commit(await prepared(importer, '1 Gust'), 'replace');
       await flush();
-      expect(dialog()?.textContent).not.toContain('(locked) will be');
+      expect(dialog()?.textContent).not.toContain('Going on unlocks them');
       dialogButton('Cancel').click();
       expect(await out).toEqual({ status: 'cancelled' });
       // Cancel writes nothing: test data, decks and locks all stay.
@@ -292,17 +324,43 @@ describe('CollectionImport commit and Undo (SPEC-003 IMP-049…052, IMP-072…07
     });
   });
 
-  it('IMP-050a (a): the Replace confirmation carries the locked-deck warning', async () => {
+  it('IMP-050a (a) / SPEC-008 AC 31: the Replace confirmation lists the name lock it unlocks; Cancel changes nothing; Replace drops exactly that lock', async () => {
     const importer = setup();
-    await store({ 'lightning rush': 3 });
-    await stores.raw.decks.put(makeDeck('d1', 'Kennen Tempo', { main: [['Lightning Rush', 3]] }));
-    await stores.raw.locks.save({ schemaVersion: 1, updatedAt: '', locks: [lock('d1')] });
-    const out = importer.commit(await prepared(importer, '2 Lightning Rush'), 'replace');
+    await store({ 'lightning rush': 3, gust: 2 });
+    await stores.raw.decks.put(makeDeck('d1', 'Kennen Tempo', { main: [['Lightning Rush', 3], ['Gust', 2]] }));
+    await stores.raw.locks.save({ schemaVersion: 2, updatedAt: '', locks: lock('d1') });
+    const out = importer.commit(await prepared(importer, '2 Lightning Rush\n2 Gust'), 'replace');
     await flush();
-    expect(dialog()?.textContent).toContain('1 changed (Lightning Rush 3 → 2).');
-    expect(dialog()?.textContent).toContain("'Kennen Tempo' (locked) will be 1 card short. It stays locked.");
+    const text = dialog()?.textContent ?? '';
+    expect(text).toContain('1 changed (Lightning Rush 3 → 2).');
+    expect(text).toContain('Some of the cards you are removing are locked in your decks. Going on unlocks them:');
+    expect(text).toContain("'Kennen Tempo': 3 Lightning Rush");
+    expect(text).toContain("'Kennen Tempo' will no longer be locked.");
+    expect(text).not.toContain('Gust');
     dialogButton('Cancel').click();
     expect(await out).toEqual({ status: 'cancelled' });
+    expect(await quantities()).toEqual({ 'lightning rush': 3, gust: 2 });
+    expect((await stores.locks.load())!.locks).toHaveLength(2);
+
+    const out2 = importer.commit(await prepared(importer, '2 Lightning Rush\n2 Gust'), 'replace');
+    await flush();
+    dialogButton('Replace').click();
+    expect(await out2).toEqual({ status: 'written' });
+    expect(await quantities()).toEqual({ 'lightning rush': 2, gust: 2 });
+    expect((await stores.locks.load())!.locks.map((l) => l.cardKey)).toEqual(['gust']);
+  });
+
+  it('SPEC-008 AC 30 / IMP-050a: a Replace that free copies cover shows no lock lines and keeps the lock', async () => {
+    const importer = setup();
+    await store({ 'lightning rush': 5 });
+    await stores.raw.decks.put(makeDeck('d1', 'Kennen Tempo', { main: [['Lightning Rush', 3]] }));
+    await stores.raw.locks.save({ schemaVersion: 2, updatedAt: '', locks: lock('d1') });
+    const out = importer.commit(await prepared(importer, '3 Lightning Rush'), 'replace');
+    await flush();
+    expect(dialog()?.textContent).not.toContain('Going on unlocks them');
+    dialogButton('Replace').click();
+    expect(await out).toEqual({ status: 'written' });
+    expect((await stores.locks.load())!.locks).toHaveLength(1);
   });
 
   it('IMP-075 (b): a failed snapshot clear after a written restore still reports "Import undone." and spends the Undo', async () => {

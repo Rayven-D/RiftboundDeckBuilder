@@ -1,13 +1,13 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import type { DeckLockState } from '../../core/decks';
 import { Icon } from '../icon';
 
 /**
- * SPEC-008 SHARE-041 lock badge ([[Decks Components]] §6), on the deck tile: `lock` icon + "Locked". Short
- * (SHARE-033): `warning` icon + "Locked · 2 cards short" in the warning colour. H-662 (RJ 2026-11-26): the lock date
- * ("Locked in on <date>") is no longer shown anywhere, and the Deck detail header shows the lock as the title-row icon
- * toggle (`app-lock-actions variant="icon"`) instead of this badge. While ownership is unavailable the engine's
- * label is "Locked", never "… cards short" (SHARE-053 (b)). Plain text, read in order (SHARE-044). Renders nothing when the deck is not locked.
+ * SPEC-008 SHARE-041 lock badge ([[Decks Components]] §6), on the deck tile: `lock` icon + "Locked". v0.6 (H-665): only
+ * a fully locked deck has one (every counted name locked, SHARE-083); a partly locked deck has none, and a locked deck
+ * is never short, so there is no "cards short" variant any more. H-662 (RJ 2026-11-26): no lock date anywhere, and the
+ * Deck detail header shows the lock as the title-row icon toggle (`app-lock-actions variant="icon"`) instead of this
+ * badge. Plain text, read in order (SHARE-044). Renders nothing when the deck is not locked.
  *
  * Inputs: `lock` = `DeckOwnershipView.lock` (optional, default null); `label` = `DeckTileSummary.lockBadge`, non-null
  * exactly when the deck is locked. It renders when `label` is set, unless `lock` says the deck is not locked. The deck
@@ -19,8 +19,8 @@ import { Icon } from '../icon';
   imports: [Icon],
   template: `
     @if (label() && lock()?.locked !== false) {
-      <span class="badge" [class.badge--short]="short()">
-        <app-icon [name]="short() ? 'warning' : 'lock'" />
+      <span class="badge">
+        <app-icon name="lock" />
         <span class="label">{{ label() }}</span>
       </span>
     }
@@ -47,10 +47,6 @@ import { Icon } from '../icon';
       color: var(--color-text);
       font-weight: 600;
     }
-    .badge--short {
-      border-color: var(--color-warning);
-      color: var(--color-warning);
-    }
     app-icon {
       font-size: var(--lock-badge-icon-size, 16px);
     }
@@ -64,5 +60,4 @@ import { Icon } from '../icon';
 export class LockBadge {
   readonly lock = input<DeckLockState | null>(null);
   readonly label = input.required<string | null>();
-  protected readonly short = computed(() => (this.label() ?? '').includes('short'));
 }

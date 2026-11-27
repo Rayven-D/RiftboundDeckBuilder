@@ -5,7 +5,7 @@
  */
 import { makeCatalog, makeDeck, makeInput, type OwnedSpec } from '../../core/decks/engine-fixtures';
 import { computeDeckOwnership, computeSharedPool } from '../../core/decks';
-import type { BanListFile, DeckLock, DeckOwnershipView, UserDeck } from '../../core/decks';
+import type { BanListFile, NameLock, DeckOwnershipView, UserDeck } from '../../core/decks';
 
 export const DETAIL_CATALOG = makeCatalog([
   { name: 'Kennen, Heart of the Tempest', category: 'legend' },
@@ -68,7 +68,7 @@ export const DETAIL_ALL_OWNED: Record<string, number> = {
 export function detailView(
   deck: UserDeck,
   owned: OwnedSpec = { owned: DETAIL_OWNED },
-  opts: { decks?: UserDeck[]; locks?: DeckLock[]; bans?: BanListFile | null } = {},
+  opts: { decks?: UserDeck[]; locks?: NameLock[]; bans?: BanListFile | null } = {},
 ): DeckOwnershipView {
   const input = makeInput(DETAIL_CATALOG, owned);
   const shared = computeSharedPool({ decks: opts.decks ?? [deck], locks: opts.locks ?? [], ownership: input });

@@ -138,12 +138,7 @@ export const CARD_DIALOG_TITLE_ID = 'card-dialog-title';
                     <span class="deck"
                       ><app-icon name="lock" class="lock" />{{ row.deckName }}</span
                     >
-                    <span class="end"
-                      >{{ row.copies }}
-                      @if (row.short) {
-                        <span class="muted"> · short</span>
-                      }
-                    </span>
+                    <span class="end">{{ row.copies }}</span>
                   </li>
                 }
               </ul>

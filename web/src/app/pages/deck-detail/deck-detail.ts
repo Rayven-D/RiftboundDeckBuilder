@@ -31,7 +31,7 @@ import {
   summarizeDeck,
   type CollectionCatalogView,
   type CollectionOwnership,
-  type DeckLock,
+  type NameLock,
   type DeckOwnershipInput,
   type DeckOwnershipView,
   type DeckTileSummary,
@@ -57,6 +57,7 @@ import {
   DeckCardDialogResult,
 } from '../../shared/deck-detail/deck-card-dialog';
 import { DeckCardRow } from '../../shared/deck-detail/deck-card-row';
+import type { NameLockContext } from '../../shared/deck-detail/name-lock-action';
 import { DeckCardTile } from '../../shared/deck-detail/deck-card-tile';
 import { confirmDelete, openRenameDialog, openRuleCheck } from '../../shared/deck-detail/deck-dialogs';
 import { CopyMode, DeckMissing } from '../../shared/deck-detail/deck-missing';
@@ -199,7 +200,8 @@ export class DeckDetail {
   /** The deck id from the route. Another deck's link (an "Other decks" row) changes it in place. */
   readonly deckId = input.required<string>();
 
-  private readonly stores = inject(AppStores).stores;
+  private readonly app = inject(AppStores);
+  private readonly stores = this.app.stores;
   private readonly cardData = inject(CardData);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
@@ -242,6 +244,11 @@ export class DeckDetail {
     return d ? sourceParts(d.deck) : { pilot: null, sourceUrl: null };
   });
   protected readonly locked = computed(() => this.view()?.lock?.locked ?? false);
+  /** H-665 (SHARE-094 (a)): what the card dialog / panel's per-name Lock / Unlock reads. */
+  protected readonly lockContext = computed((): NameLockContext | null => {
+    const d = this.loaded();
+    return d ? { deck: d.deck, pool: d.pool, readOnly: d.readOnly, locksUnreadable: d.locksUnreadable } : null;
+  });
   /** OWN-116: Copy missing list is hidden when nothing is missing or ownership is unavailable. */
   protected readonly canCopyMissing = computed(() => {
     const v = this.view();
@@ -419,7 +426,7 @@ export class DeckDetail {
     const [decks, locks, collection, tags, printingCodes] = await Promise.all([
       s.decks.list().catch((): UserDeck[] => []),
       s.locks.load().then(
-        (l): readonly DeckLock[] => l?.locks ?? [],
+        (l): readonly NameLock[] => l?.locks ?? [],
         () => null, // SHARE-061: unreadable → locks ignored
       ),
       s.collection.load().catch(() => {
@@ -658,6 +665,7 @@ export class DeckDetail {
       },
       locked: () => this.locked(),
       ownershipAvailable: () => this.view()?.ownershipAvailable ?? false,
+      lockContext: () => this.lockContext(),
     };
     const ref = this.dialog.open<DeckCardDialog, DeckCardDialogData, DeckCardDialogResult>(DeckCardDialog, {
       data,
@@ -740,6 +748,7 @@ export class DeckDetail {
       return;
     }
     this.scheduleReload(); // the shared lines of this deck change too
+    this.app.majorAction(); // SYNC-126 (a) 5: Duplicate
     const ref = this.snackBar.open(DETAIL_TEXT.duplicated, DETAIL_TEXT.open, noticeOptions('success'));
     ref.onAction().subscribe(() => void this.router.navigate(['/decks', copy.id]));
   }
@@ -831,12 +840,15 @@ export class DeckDetail {
     });
   }
 
-  /** SHARE-024: deleting a locked deck removes its lock too, through DeckLocks (the store also drops orphans, SHARE-062). */
+  /**
+   * SHARE-024: deleting a deck removes all its name locks too, through DeckLocks (the store also drops orphans,
+   * SHARE-062). Not a major action of its own: the deletion syncs when its Undo window ends (SYNC-126 (a) 4).
+   */
   private async releaseLock(deckId: string): Promise<void> {
     const locks = await this.deckLocks.load().catch(() => null);
     if (!locks?.some((l) => l.deckId === deckId)) return; // none, or unreadable: never overwritten (SHARE-061)
     try {
-      await this.deckLocks.unlock(deckId);
+      await this.deckLocks.unlockDeck(deckId, { sync: false });
     } catch {
       // the orphan lock is ignored and dropped on the next lock save (SHARE-062)
     }

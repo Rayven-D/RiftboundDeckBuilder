@@ -28,7 +28,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { map, take } from 'rxjs';
 import { CardData } from '../../core/cards/card-data';
-import type { DeckLock, DeckOwnershipInput, StoredTags } from '../../core/decks';
+import type { DeckOwnershipInput, NameLock, StoredTags } from '../../core/decks';
 import { AppStores } from '../../core/storage/app-stores';
 import { refocusAfterDialog } from '../../core/sync/sync.service';
 import { KEY_PREFIX } from '../../core/storage/kv-backend';
@@ -382,7 +382,7 @@ export class CollectionPage {
         this.stores.printingCodes.load().catch(() => null),
         this.stores.decks.list().catch(() => null), // flagged: Could fit in isn't shown
         this.stores.locks.load().then(
-          (l): readonly DeckLock[] => l?.locks ?? [],
+          (l): readonly NameLock[] => l?.locks ?? [],
           () => null, // SHARE-061: unreadable → locks ignored
         ),
       ]);
