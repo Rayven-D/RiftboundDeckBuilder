@@ -556,7 +556,9 @@ describe('Deck detail (H-254)', () => {
             observe() {
               observers.push(this.cb);
             }
-            disconnect() {}
+            disconnect() {
+              observers = [];
+            }
           },
         );
         vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (this: HTMLElement) {
