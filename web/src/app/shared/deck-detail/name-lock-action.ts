@@ -4,7 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { deckNeeds, nameLockCheckMessage, type OwnershipCard, type SharedPool, type UserDeck } from '../../core/decks';
 import { Icon } from '../icon';
 import { noticeOptions } from '../sync/notice';
-import { LOCK_TEXT, cantLockNameNotice, lockedInNotice, nameLockCheck, noLongerFullyLockedNotice } from '../deck/deck-locks';
+import { LOCK_TEXT, cantLockNameNotice, cantLockReasonNotice, lockedInNotice, nameLockCheck, noLongerFullyLockedNotice } from '../deck/deck-locks';
 import { DeckLocks } from '../deck/deck-locks.service';
 
 /** What the per-name control needs besides the card: the deck and its lock facts (from the Deck detail page). */
@@ -109,17 +109,24 @@ export class NameLockAction {
     if (this.locked() || c.ok || c.reason !== 'not-full') return null;
     return Math.max(0, (c.need ?? 0) - (c.available ?? 0));
   });
-  /** Disabled (aria-disabled, focusable) for every reason but "not fully available", which answers with a notice (H-670). */
+  /** Disabled (aria-disabled, focusable) while saving, for Unlock on a read-only deck and for every reason but "not
+   *  fully available" (H-670 operable). H-675: a press on a blocked Lock still shows "Can't lock. <reason>." */
   protected readonly disabled = computed(
     () => this.saving() || (this.locked() ? this.context().readOnly : !this.check().ok && this.missingCopies() === null),
   );
 
   protected async toggle(): Promise<void> {
-    if (this.disabled()) return;
+    if (this.saving() || (this.locked() && this.context().readOnly)) return;
     const missing = this.missingCopies();
     if (missing !== null) {
       // H-670: "Can't lock. Missing n copies." (info); nothing is stored.
       this.snackBar.open(cantLockNameNotice(missing), undefined, noticeOptions('info'));
+      return;
+    }
+    if (!this.locked() && !this.check().ok) {
+      // H-675: read-only, locks unreadable, ownership unavailable: "Can't lock. " + the reason; nothing is stored.
+      const reason = this.reason();
+      if (reason) this.snackBar.open(cantLockReasonNotice(reason), undefined, noticeOptions('info'));
       return;
     }
     const { deck, pool } = this.context();

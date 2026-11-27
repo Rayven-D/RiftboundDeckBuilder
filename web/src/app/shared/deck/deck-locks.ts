@@ -53,6 +53,8 @@ export const unlockedNotice = (deckName: string): string =>
  * missing copies, the copies its missing list counts).
  */
 export const cantLockDeckNotice = (n: number): string => `Can't lock. Missing ${n} ${n === 1 ? 'card' : 'cards'}.`;
+/** SHARE-097 (H-675, RJ 2026-11-26): every other blocked reason: "Can't lock. " + that reason's existing sentence + ".". */
+export const cantLockReasonNotice = (reason: string): string => `Can't lock. ${reason}.`;
 /** H-670: the card dialog's "Lock these copies" on a name not fully available: "Can't lock. Missing 1 copy." */
 export const cantLockNameNotice = (n: number): string => `Can't lock. Missing ${n} ${n === 1 ? 'copy' : 'copies'}.`;
 

@@ -953,12 +953,16 @@ describe('Deck detail (H-254)', () => {
       expect(label(lockButton(h))).toBe('Lock deck');
     });
 
-    it('DECK-091 / SHARE-020: a read-only deck cannot be locked (aria-disabled with its reason)', async () => {
+    it('DECK-091 / SHARE-020 / H-675 AC 40 / OWN AC 46: a read-only deck cannot be locked (operable toggle, reason as description, notice on press)', async () => {
       const raw = { [`${STORAGE_KEYS.deckPrefix}${DETAIL_DECK_ID}`]: JSON.stringify({ ...detailDeck(), schemaVersion: 2 }) };
       const h = await setup(URL_, { decks: [], raw, owned: DETAIL_ALL_OWNED });
-      expect(lockButton(h).getAttribute('aria-disabled')).toBe('true');
+      expect(lockButton(h).getAttribute('aria-disabled')).toBe('true'); // SHARE-097 (c): aria-disabled and focusable, the press shows the notice
       // H-670: the reason is not shown under the title any more; it stays the toggle's description.
       expect(text(document.getElementById(lockButton(h).getAttribute('aria-describedby')!))).toBe('This deck is read-only');
+      lockButton(h).click();
+      await settle(h);
+      expect(snack()).toBe("Can't lock. This deck is read-only.");
+      expect(await stores.locks.load()).toBeNull();
     });
 
     it('SPEC-008 AC 22 / SHARE-025: renaming locked Deck 1 keeps its lock, lockedAt and holds; Deck 2 still reads "0 of 3 available" and its other-deck row names "Kennen budget"', async () => {
@@ -1352,6 +1356,49 @@ describe('Deck detail (H-254)', () => {
       await settle(h, 6);
       expect(snack()).toBe("Can't lock. Missing 3 copies.");
       expect(await stores.locks.load()).toBeNull();
+    });
+
+    describe('H-675 AC 40 / AC 41: the card dialog Lock control answers a blocked reason with "Cannot lock. <reason>."', () => {
+      const press = async (h: RouterTestingHarness, expected: string) => {
+        await open(h, 'main:lightning rush');
+        const b = nameButton()!;
+        expect(b.getAttribute('aria-disabled')).toBe('true');
+        expect(text(document.getElementById(b.getAttribute('aria-describedby')!))).toBe(expected);
+        b.click();
+        await settle(h, 6);
+      };
+
+      it('H-675 read-only deck: notice "Can’t lock. This deck is read-only", nothing locked', async () => {
+        const raw = { [`${STORAGE_KEYS.deckPrefix}${DETAIL_DECK_ID}`]: JSON.stringify({ ...tempo(), schemaVersion: 2 }) };
+        const h = await setup(URL_, { decks: [], raw, owned, width: 'phone' });
+        await press(h, 'This deck is read-only');
+        expect(snack()).toBe("Can't lock. This deck is read-only.");
+        expect(await stores.locks.load()).toBeNull();
+      });
+
+      it('H-675 AC 40 locks unreadable: notice "Can’t lock. Locked decks could not be read", the record is unchanged', async () => {
+        const raw = { [STORAGE_KEYS.locks]: JSON.stringify({ schemaVersion: 3, updatedAt: 'x', locks: [] }) };
+        const h = await setup(URL_, { decks: [tempo()], owned, raw, width: 'phone' });
+        await press(h, 'Locked decks could not be read');
+        expect(snack()).toBe("Can't lock. Locked decks could not be read.");
+        expect(JSON.parse(backend.get(STORAGE_KEYS.locks)!).schemaVersion).toBe(3);
+      });
+
+      it('H-675 AC 41 saving: the control is aria-disabled and a press shows no notice', async () => {
+        const h = await setup(URL_, { decks: [tempo()], owned, width: 'phone' });
+        await open(h, 'main:lightning rush');
+        let release!: () => void;
+        vi.spyOn(stores.locks, 'save').mockImplementation(() => new Promise<void>((r) => (release = r)));
+        nameButton()!.click();
+        await settle(h, 3);
+        expect(nameButton()!.getAttribute('aria-disabled')).toBe('true');
+        document.querySelectorAll('mat-snack-bar-container').forEach((n) => n.remove());
+        nameButton()!.click();
+        await settle(h, 3);
+        expect(snack()).toBeNull();
+        release();
+        await settle(h, 3);
+      });
     });
 
     it('SHARE-094 (a) desktop: the per-name control is in the Card tab of the panel too, and only there', async () => {

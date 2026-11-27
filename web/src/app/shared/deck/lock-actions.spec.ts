@@ -30,6 +30,7 @@ const OTHER_ID = '00000000-0000-4000-9000-0000000000a2';
         [pool]="model()!.pool"
         [readOnly]="e.summary.readOnly"
         [locksUnreadable]="model()!.locksUnreadable"
+        [variant]="variant()"
       />
     }
   `,
@@ -37,6 +38,7 @@ const OTHER_ID = '00000000-0000-4000-9000-0000000000a2';
 class Host {
   readonly model = signal<DeckListModel | null>(null);
   readonly entry = signal<DeckListEntry | null>(null);
+  readonly variant = signal<'button' | 'icon'>('button');
 }
 
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -46,7 +48,7 @@ const dialog = () => document.querySelector('mat-dialog-container');
 let backend: MemoryBackend;
 let stores: BrowserStores;
 
-async function setup(opts: { owned: number; locks?: NameLock[] | 'newer'; collection?: 'unreadable'; tempo?: Partial<UserDeck> }) {
+async function setup(opts: { owned: number; locks?: NameLock[] | 'newer'; collection?: 'unreadable'; tempo?: Partial<UserDeck>; variant?: 'icon' }) {
   backend = new MemoryBackend();
   stores = createBrowserStores(backend, { now: () => Date.now(), changed: () => undefined, readOnly: () => false });
   const tempo = { ...makeDeck(TEMPO_ID, 'Kennen Tempo', { main: [['Hextech Ray', 3]] }), ...opts.tempo } as UserDeck;
@@ -63,6 +65,7 @@ async function setup(opts: { owned: number; locks?: NameLock[] | 'newer'; collec
     ],
   });
   const fixture = TestBed.createComponent(Host);
+  if (opts.variant) fixture.componentInstance.variant.set(opts.variant);
   const locks = TestBed.inject(DeckLocks);
   const refresh = async () => {
     const stored = await locks.load();
@@ -220,5 +223,74 @@ describe('SPEC-008 app-lock-actions (SHARE-020…023, SHARE-029; SPEC-005 OWN-11
     TestBed.resetTestingModule();
     const ro = await setup({ owned: 3, tempo: { schemaVersion: 2 as unknown as 1 } });
     expect(text(ro.el.querySelector('.reason'))).toBe('This deck is read-only');
+  });
+
+  describe('H-675: the icon toggle answers every blocked reason with "Cannot lock. <reason>"', () => {
+    const toggle = (el: HTMLElement) => el.querySelector<HTMLButtonElement>('button.lock-toggle')!;
+    const press = async (fixture: { whenStable(): Promise<unknown>; detectChanges(): void }, el: HTMLElement) => {
+      toggle(el).click();
+      await settle(fixture);
+    };
+
+    it('H-675 AC 40 read-only deck: notice "Cannot lock. This deck is read-only.", nothing locked', async () => {
+      const { el, fixture } = await setup({ owned: 3, variant: 'icon', tempo: { schemaVersion: 2 as unknown as 1 } });
+      expect(toggle(el).getAttribute('aria-disabled')).toBe('true'); // SHARE-097 (c): stays aria-disabled and focusable
+      await press(fixture, el);
+      expect(snack()).toBe("Can't lock. This deck is read-only.");
+      expect(dialog()).toBeNull();
+      expect(toggle(el).getAttribute('aria-pressed')).toBe('false');
+      expect(backend.get(STORAGE_KEYS.locks)).toBeNull();
+    });
+
+    it('H-675 AC 40 ownership unavailable: notice "Cannot lock. Ownership unavailable", nothing locked', async () => {
+      const { el, fixture } = await setup({ owned: 3, variant: 'icon', collection: 'unreadable' });
+      expect(toggle(el).getAttribute('aria-disabled')).toBe('true'); // SHARE-097 (c): stays aria-disabled and focusable
+      await press(fixture, el);
+      expect(snack()).toBe("Can't lock. Ownership unavailable.");
+      expect(dialog()).toBeNull();
+      expect(backend.get(STORAGE_KEYS.locks)).toBeNull();
+    });
+
+    it('H-675 AC 40 locks unreadable: notice "Cannot lock. Locked decks could not be read", the record is unchanged', async () => {
+      const { el, fixture } = await setup({ owned: 3, variant: 'icon', locks: 'newer' });
+      expect(toggle(el).getAttribute('aria-disabled')).toBe('true'); // SHARE-097 (c): stays aria-disabled and focusable
+      await press(fixture, el);
+      expect(snack()).toBe("Can't lock. Locked decks could not be read.");
+      expect(dialog()).toBeNull();
+      expect(JSON.parse(backend.get(STORAGE_KEYS.locks)!).schemaVersion).toBe(3);
+    });
+
+    it('H-675 AC 40 no cards: notice "Cannot lock. Lock in needs at least one card", nothing locked', async () => {
+      const { el, fixture } = await setup({ owned: 3, variant: 'icon', tempo: { main: [] } });
+      expect(toggle(el).getAttribute('aria-disabled')).toBe('true'); // SHARE-097 (c): stays aria-disabled and focusable
+      await press(fixture, el);
+      expect(snack()).toBe("Can't lock. Lock in needs at least one card.");
+      expect(dialog()).toBeNull();
+      expect(backend.get(STORAGE_KEYS.locks)).toBeNull();
+    });
+
+    it('H-675 AC 40 missing cards keeps H-670: "Cannot lock. Missing 3 cards."', async () => {
+      const { el, fixture } = await setup({ owned: 0, variant: 'icon' });
+      await press(fixture, el);
+      expect(snack()).toBe("Can't lock. Missing 3 cards.");
+    });
+
+    it('H-675 AC 41 saving: aria-disabled and a press shows no notice and does nothing', async () => {
+      const { el, fixture } = await setup({ owned: 3, variant: 'icon' });
+      toggle(el).click();
+      await settle(fixture);
+      const confirm = dialog()!.querySelector<HTMLButtonElement>('button.confirm')!;
+      let release!: () => void;
+      vi.spyOn(TestBed.inject(DeckLocks), 'lockDeck').mockImplementation(() => new Promise<void>((r) => (release = r)));
+      confirm.click();
+      await settle(fixture);
+      expect(toggle(el).getAttribute('aria-disabled')).toBe('true');
+      document.querySelectorAll('mat-snack-bar-container').forEach((n) => n.remove());
+      toggle(el).click();
+      await settle(fixture);
+      expect(snack()).toBe('');
+      release();
+      await settle(fixture);
+    });
   });
 });
