@@ -20,6 +20,7 @@ specs: ["[[Your Decks Ownership View]]", "[[Shared Cards and Lock-in]]", "[[Deck
 > note wins on behavior.
 
 ## Summary
+- **v0.6 (H-664, RJ 2026-11-26): locks are per card name.** The per-name Lock / Unlock control is in the card dialog only; tiles and rows show a small lock icon for a locked name; a deck is locked when every name is; the "Locked · n cards short" state and its warnings are gone; removals that hit a lock show a confirmation. See §9 "Card-name locks" and §8; the older sections below are corrected where marked.
 - **Decks (`/decks`)** becomes a grid of **deck tiles**: Legend art on the left (*superseded, H-321:* RJ
   picked choice 1 (c), the art **filled left to right by the deck's copies, A of R**, with the user's own
   **completion %** next to it; SPEC-005 0.11.1 OWN-100, OWN-101 (d)), then name, source line, an **ownership chip** (Ready to build /
@@ -27,16 +28,16 @@ specs: ["[[Your Decks Ownership View]]", "[[Shared Cards and Lock-in]]", "[[Deck
   separate **lock badge** next to it (no date; RJ 2026-11-25, H-382 (2)), the copies line ("34 of 66 copies
   available"), legality and ban flags, and "Updated Nov 22, 2026". A sticky toolbar holds search,
   ownership and lock filters (SHARE-051) and sort (OWN-006). The Import deck FAB stays as built (OWN-094).
-- **Deck detail (`/decks/:id`)** = header (name, source, legality, lock badge, summary, **Lock in /
-  Unlock**, Copy missing list, ⋯ menu) and the six sections in Riot order (OWN-011) as card-tile
+- **Deck detail (`/decks/:id`)** = header (name with the **icon-only lock toggle** right after it, source, legality, summary,
+  Copy missing list, ⋯ menu; H-662, RJ 2026-11-26) and the six sections in Riot order (OWN-011) as card-tile
   grids with the full / darkened / left-to-right fill (OWN-030…036). On desktop a **sticky aside**
   holds the summary and the missing list. On phones the missing list sits under the summary and
   is collapsed when it has more than 10 lines (OWN-051).
 - **Card details open in a dialog** (as on Collection), not an inline expand (choice 8). It holds the
   card info, the SHARE-043 breakdown, the owned printings (OWN-041) and the other decks.
 - Locked decks: "Locked" badge with a lock icon, labels "… locked in", and "Locked · n cards
-  short" in the warning color when short (SHARE-041). On the **tile** the badge has no date; "Locked
-  in on <date>" is only in the Deck detail header.
+  short" in the warning color when short (SHARE-041) on the **tile**, with no date. **Deck detail shows only the
+  lock icon toggle after the name, no badge and no date** (RJ 2026-11-26, H-662).
 - Every state is covered (§9, §10): gate, loading, empty, no filter match, ownership unavailable,
   locks unreadable, card data not loaded, ban data not loaded, read-only, deck not found, empty
   deck, unknown card, preview card.
@@ -52,7 +53,7 @@ that the user wants to own ([[ADR-0006 Two Imports - Collection and Decks]]).
 | "Which of my decks can I build today?" | Deck list: ownership chip + Ready to build filter (SHARE-051) |
 | "How close is this deck?" | Deck tile copies line; deck header summary (OWN-050) |
 | "What exactly am I missing?" | Deck detail missing list + Copy missing list (OWN-051…053) |
-| "Which cards are contested between my decks?" | Shared line on each card tile, Other decks in the card dialog (SHARE-042/043) |
+| "Which cards are contested between my decks?" | Other decks in the card dialog or panel only (SHARE-043); no line on the tile or row (SHARE-042, v0.5, H-663) |
 | "I've built this one, stop counting its cards elsewhere" | Lock in / Unlock (SHARE-020…023) |
 | "Is this deck legal, is anything banned?" | Legality label and ban flags on the tile; ban label per card (OWN-004/015) |
 
@@ -174,7 +175,7 @@ Decks
 | `none` (unlocked, R > 0) | neutral outline, `radio_button_unchecked`, **None available** | none | "0 of 66 copies available" |
 | `none` with R = 0 | neutral outline, **None available** | none (or **Locked** if locked) | "No cards to count" |
 | `locked` (locked, complete) | **no chip** | `lock`, **Locked** | "54 of 54 copies locked in" |
-| locked + short (`partial`/`none`) | its group chip, **Partly available** or **None available** | warning outline, `warning`, **Locked · 2 cards short** | "50 of 54 copies locked in" |
+| ~~locked + short~~ (**removed in v0.6, H-664**: a locked deck is never short; a deck with only some names locked is an unlocked row above, no badge) | | | |
 | `unavailable` (after H-155) | no chip | **Locked** if the deck is locked, else none | "Ownership unavailable" |
 
   The chip text for `ready` / `partial` / `none` uses the SHARE-051 filter option names, so the tile
@@ -223,9 +224,9 @@ Decks
 Desktop 1440 (content 1152px), unlocked deck, 3 cards short
 ← Decks
 ┌ .header-main (flex 1 1 20rem) ────────────────┐      ┌ .actions (content width, top = name top) ─────────┐
-│ Kennen Tempo                   (H1, Archivo xl)│      │ [🔒 Lock in] [⧉ Copy missing list|▾] [⋮]          │
-│ 1st, Regional Championship: Europe · Nov 6 –   │      │ ⓘ Lock in needs every card available: 3 cards short│
-│ Nov 8, 2026 · ASC Evansrhim · Source ↗         │      └ reason starts under Lock in, wraps in the row ────┘
+│ Kennen Tempo [🔓]     (H1, Archivo xl; icon 44px)│      │ [⧉ Copy missing list|▾] [⋮]                       │
+│ 1st, Regional Championship: Europe · Nov 6 –   │      └───────────────────────────────────────────────────┘
+│ Nov 8, 2026 · ASC Evansrhim · Source ↗         │        [🔓] = Lock deck (aria-label); reason line placement: SPEC-005 Open question 21
 │ ⛔ Not legal in Standard today   Rule check     │        ⋮ = Copy deck list, Download .txt, Duplicate,
 │ 34 of 66 copies available · 51%                │            Rename, divider, Delete
 │ 18 of 32 cards fully available                 │
@@ -246,20 +247,22 @@ Main Deck · 39 cards · 12 available                    │ [⧉ Copy missing l
 └────┘└────┘└────┘└────┘└────┘
 Lightning…  Hextech…
 [◐ 1 of 3 available]
-⧉ Also in 2 other decks · 1 locked
 ⛔ Banned since Nov 23, 2026
+(H-663: no "Also in 2 other decks · 1 locked" line on a tile or row; that is in the card dialog or panel only)
 
-Locked deck: the badge joins the meta row; Unlock replaces Lock in; no reason line
-│ [🔒 Locked · Locked in on Nov 23, 2026]  ⛔ Not legal …  Rule check │      [🔓 Unlock] [⋮]
+Locked deck (H-662): the toggle after the name is a closed lock [🔒] = Unlock deck; no badge, no date, no reason line
+│ Kennen Tempo [🔒]                                                    │      [⋮]
 ```
 - **Header from 40rem (H-475, RJ 2026-11-25):** a wrapping flex row (`.header-top`). Left, `.header-main`: name,
-  description (if any), source line, meta row, summary lines. Right, `.actions`: Lock in / Unlock · Copy missing
-  list + chevron · More, top-aligned with the name and flush with the content's end edge. The **lock badge sits in
-  the meta row** with the legality label and Rule check, never with the actions. When both sides can't fit (a
+  description (if any), source line, meta row, summary lines. Right, `.actions`: Copy missing
+  list + chevron · More, top-aligned with the name and flush with the content's end edge. **Since H-662 (RJ
+  2026-11-26) the lock is the icon toggle right after the name, not a badge in the meta row and not in the actions.** When both sides can't fit (a
   long name or a narrow tablet, about 768 and below) the actions **wrap under the summary lines**, starting at the
-  page gutter, never overlapping. The actions follow the summary in the DOM, so focus goes Rule check → Lock in →
+  page gutter, never overlapping. The actions follow the summary in the DOM, so focus goes the lock toggle (after the name) → Rule check →
   Copy missing list → More copy options → More actions.
-- **Reason line (decision, H-477, 2026-11-26): start-aligned under Lock in, at every width from 40rem.** Its box
+- **Reason line (decision, H-477, 2026-11-26): start-aligned under Lock in, at every width from 40rem.** *Superseded in
+  part by H-662 (2026-11-26): Lock in is now the toggle by the name, so "under Lock in" no longer applies; where the line
+  sits is SPEC-005 Open question 21 (not decided).* Its box
   spans exactly the actions row (left edge = Lock in's left edge, right edge = More's right edge); the text starts
   at the left and wraps inside the row; it adds no width to the row. Reasoning:
   1. **Proximity to its owner.** The line says why *Lock in* is disabled (`aria-describedby` ties it to that
@@ -286,14 +289,13 @@ Locked deck: the badge joins the meta row; Unlock replaces Lock in; no reason li
 - **Phone < 40rem:**
 ```
 ← Decks
-Kennen Tempo
+Kennen Tempo [🔓]                         lock toggle 44×44 (🔒 closed when locked)
 1st, Regional Championship: Europe · Nov 6 – 8, 2026 (wraps)
-[🔒 Locked · Locked in on Nov 23, 2026]   (locked deck only)
 ⛔ Not legal in Standard today · Rule check
 34 of 66 copies available · 51%
 18 of 32 cards fully available
-[        🔒 Lock in        ] [⋮]          full-width primary 44px + More 44×44
-ⓘ Lock in needs every card available: 3 cards short   (only while disabled)
+[⋮]                                      More 44×44 (no full-width Lock in / Unlock button)
+ⓘ Lock in needs every card available: 3 cards short   (only while disabled; placement: SPEC-005 Open question 21)
 (notices)
 ┌ Missing cards ───────────────────┐
 │ ▸ Missing: 14 lines, 32 copies   │   collapsed > 10 lines
@@ -334,7 +336,7 @@ Lightning Rush               name, sm 600, 2 lines max
 Spell · Unit?                type verbatim (OWN-014); "Card no longer in the card data" for unknown
 [◐ 1 of 3 available]          chip: tile label first part (OWN-033, SHARE-040)
 2 of 3 in this deck          split suffix on its own muted line (only when split)
-⧉ Also in 2 other decks · 1 locked     shared line (SHARE-042), xs muted + icon
+                             (H-663: no shared line; SHARE-042 MUST NOT. Remove `.shared` and its `stacks` icon)
 ⛔ Banned since Nov 23, 2026  ban label (OWN-015), app-status-label
 [Preview]                    OWN-017 flag chip, when isPreview
 ```
@@ -346,7 +348,7 @@ Spell · Unit?                type verbatim (OWN-014); "Card no longer in the ca
   - **Battlefields:** the same 63:88 box with `landscape` set from `card.category ===
     'battlefield'`, so the art is letterboxed, never cropped (OWN-081 BLOCKED on H-020; the
     `app-card-art` landscape input exists).
-  - **Ownership unavailable** (OWN-062/063): full color, no chip, no split line, no shared line,
+  - **Ownership unavailable** (OWN-062/063): full color, no chip, no split line,
     nothing darkened (`label === ''`).
 - **Never** a darkened ban: a banned card you own in full is full color with the ban label (design
   decision 3).
@@ -370,7 +372,8 @@ tiles on desktop). The opener is the tile button with `aria-haspopup="dialog"`, 
 │   Nov 23, 2026  Locked by other decks: 1                          │
 │                 Available to this deck: 1                          │
 │                 This deck needs: 3                                 │
-│                 Locked in by this deck: 3        (locked deck only)│
+│                 Locked in by this deck: 3   (v0.6: when this name is locked) │
+│                 [🔒 Lock these copies]   ← v0.6, H-664: the ONLY place of the Lock / Unlock control │
 │                 Available … (1 extra)            (when extra > 0) │
 │                                                                    │
 │                 Your printings                                     │
@@ -411,8 +414,7 @@ tiles on desktop). The opener is the tile button with `aria-haspopup="dialog"`, 
 ## 9. Header actions and lock flow (SHARE-020…026, DECK-080…085)
 | Action | Look | Rules |
 |---|---|---|
-| **Lock in** | filled primary, `lock` icon | `canLock()`. Disabled = `aria-disabled="true"` with focus kept, plus the visible reason line from `lockCheckMessage()` under the actions (choice 22), tied with `aria-describedby` |
-| **Unlock** | outlined, `lock_open` icon | Only on a locked deck. No confirmation (SHARE-023). Works while ownership is unavailable (SHARE-053c). Disabled only when locks are unreadable (SHARE-061) |
+| **Lock toggle** (H-662, RJ 2026-11-26; replaces the Lock in and Unlock buttons) | icon-only, right after the deck name: `lock` (closed) when locked, `lock_open` when not; 44 px target; accessible name **"Lock deck"** / **"Unlock deck"**, `aria-pressed`, tooltip with the same text (the names are the builder's, SPEC-005 Open question 21) | Unlocked: `canLock()`; disabled = `aria-disabled="true"` with focus kept, plus the visible reason line from `lockCheckMessage()` tied with `aria-describedby` (placement: SPEC-005 Open question 21). Locked: unlocks at once, no confirmation (SHARE-023); works while ownership is unavailable (SHARE-053c); disabled only when locks are unreadable (SHARE-061) |
 | **Copy missing list** | outlined split button: main = copy (OWN-052); ▾ menu = "Copy as one list" (OWN-053, choice 19) | Hidden when nothing is missing or ownership is unavailable. "Missing list copied" snack |
 | **⋯ More** (`more_vert`, "More actions") | menu | **Export deck**: "Copy deck list" and "Download .txt" (DECK-085) · **Duplicate** (DECK-084) · **Rename** (name, source, notes; DECK-081; choice 14) · divider · **Delete** (danger) |
 
@@ -422,17 +424,16 @@ tiles on desktop). The opener is the tile button with `aria-haspopup="dialog"`, 
 - When other decks share cards: **2 other decks use some of these cards: Jinx Aggro, Draven
   Midrange** (3 names max, then "and 2 more").
 - Buttons: **Cancel** (text) · **Lock in** (filled). Focus starts on Lock in. Escape = Cancel.
-- After saving: the header badge appears, tiles switch to "… locked in", and a success snack bar
-  says **"Kennen Tempo is locked in."** (choice 16). While saving: the button reads "Locking in…" and
-  stays `aria-disabled`. A failed save shows the error notice **"Couldn't save the lock. Try
+- After saving: the toggle shows the closed lock, tiles switch to "… locked in", and a success snack bar
+  says **"Kennen Tempo is locked in."** (choice 16). While saving: the toggle stays `aria-disabled` (no
+  "Locking in…" text on an icon-only button). A failed save shows the error notice **"Couldn't save the lock. Try
   again."** (SHARE-063) and nothing changes.
 - **Unlock:** done at once, with the snack bar **"Kennen Tempo is unlocked. Its cards count toward
   your other decks again."** No Undo (re-locking needs `canLock` and a new `lockedAt`).
 
-**Lock badge** in the header (SHARE-041): `lock` icon + **Locked** + muted "Locked in on Nov 23,
-2026". Short: `warning` icon + **Locked · 2 cards short** in `--color-warning` on a warning outline;
-the short tiles are partial or darkened by their holds. An unparseable `lockedAt` shows the badge
-without the date (SHARE-030).
+**Lock status in the header (SHARE-041; changed 2026-11-26, H-662, RJ: "No need to show the date locked,
+just lock/unlocked status"):** only the closed-lock toggle after the name. There is **no "Locked" badge, no
+"Locked in on <date>" and no "Locked · 2 cards short" badge in the header** (v0.6: that badge no longer exists at all, a locked deck is never short). `lockedAt` stays in the data and is not shown. The **tile** badge (Decks list) is **Locked** only (v0.6: the "Locked · 2 cards short" variant in `--color-warning` is removed), no date.
 
 **Delete confirmation** (DECK-082, SHARE-024; copy depends on choice 15): title **Delete 'Kennen
 Tempo'?**, body for a locked deck adds **Its locked cards will count toward your other decks
@@ -446,12 +447,14 @@ and stays on the page.
 **Card edits while locked** (SHARE-025): if RJ keeps card editing in scope (choice 14), the editor's
 card controls are disabled with **"Unlock this deck to change its cards"**. Rename stays enabled.
 
-**Shortfall warnings** (SHARE-034) live in Collection's confirmations, not on Decks: the Replace
-import (IMP-050a) and the Undo confirmation (H-158 / H-060). They use one shared block,
-`app-shortfall-warning` ([[Decks Components]] §10): a warning icon, one line per deck **"'Kennen
-Tempo' (locked) will be 2 cards short. It stays locked."**, and after a confirmed Undo the notice
-**"'Kennen Tempo' (locked) is now 2 cards short."** Note: `shortfallWarning()` returns the line
-without " It stays locked." The block appends it, or H-060 fixes the helper.
+**Card-name locks (v0.6, H-664, RJ 2026-11-26; SPEC-008 section I, SPEC-005 OWN-121).** 
+- **Where the control is:** the per-name **Lock / Unlock** button lives **only in the card dialog or panel** (§8), in the SHARE-043 breakdown, under "Available to this deck". Label **"Lock these copies"** / **"Unlock these copies"** (proposal, not RJ's). Disabled (`aria-disabled`, focusable) with the visible reason below it when the name is not fully available: **"Lock needs every copy available: 2 of 3"** (proposal). No confirmation for one name.
+- **On the tile and the row (Card view and List view):** a **small lock icon** (`lock`, 16 px, `--color-text-muted`, never colour alone: it has the accessible name "Locked in this deck", part of the tile's own accessible name) next to the count label, and **no other lock text**; no Lock button, no other-deck line (H-663). The count label of a locked name reads "3 of 3 locked in" (SPEC-008 Open question 10).
+- **The deck toggle** (§9) is closed only when **every** name is locked; a deck with some names locked shows the open toggle ("Lock deck") and no list badge. Pressing it on a partly locked deck locks the names still open (same confirmation). Unlocking a locked deck removes only that deck's name locks.
+- **Snack bars:** locking the last open name shows "Kennen Tempo is locked in."; unlocking one name of a locked deck shows "Kennen Tempo is no longer fully locked." (proposal); locking or unlocking one name otherwise gives none.
+- **Removal confirmation (replaces the shortfall warnings, SHARE-087…089):** appears **inside** the Collection Replace import confirmation (IMP-050) and the Undo confirmation, **only when** the change would take copies a name lock holds (free copies are taken first, so most removals show nothing). Block `app-lock-removal-notice` ([[Decks Components]] §10): a `lock_open` icon, the sentence **"Some of the cards you are removing are locked in your decks. Going on unlocks them:"** (proposal), one line per deck **"'Kennen Tempo': 3 Hextech Ray, 2 Gust"** and, for a locked deck, **"'Kennen Tempo' will no longer be locked."**. A standalone confirmation (a future edit path) is titled **"Unlock cards in your decks?"** with **Cancel** and **Unlock and continue**. Confirm applies; Cancel changes nothing, no notice.
+- **Sync notice (no dialog):** after a pull from another device unlocked names, one notice **"Locks removed after a change on another device."** with one line per deck (proposal; SPEC-010 SYNC-074).
+- **No "cards short" anywhere:** the old "will be 2 cards short. It stays locked." and "is now 2 cards short." strings and the helper `shortfallWarning()` are retired.
 
 ## 10. Screen states
 ### Decks list
@@ -480,8 +483,8 @@ without " It stays locked." The block appends it, or H-060 fixes the helper.
 | D4 | Populated | §6–§8 | OWN-010…055 |
 | D5 | Complete, unlocked | Lock in enabled; missing list reads **All cards available**; Copy missing list hidden | SHARE-020, OWN-051 |
 | D6 | Incomplete | Lock in disabled + reason **Lock in needs every card available: 3 cards short** | SHARE-020 |
-| D7 | Locked | Badge, "… locked in" labels, Unlock. Card-edit controls disabled if editing exists | SHARE-041, SHARE-025 |
-| D8 | Locked and short | Warning badge **Locked · 2 cards short**; short tiles partial or darkened | SHARE-033, SHARE-041 |
+| D7 | Locked | Closed-lock toggle after the name ("Unlock deck"), no badge, no date; "… locked in" labels. Card-edit controls disabled if editing exists (H-662) | SHARE-041, SHARE-025 |
+| D8 | ~~Locked and short~~ (removed in v0.6, H-664) / **Partly locked** | Open toggle ("Lock deck"); locked names show the lock icon; no list badge | SHARE-083, SHARE-094 |
 | D9 | Empty deck (R = 0) | Summary **No cards to count**; every section "No cards in this zone"; Lock in disabled **Lock in needs at least one card** | OWN-050, SHARE-020 |
 | D10 | Ownership unavailable | L6 banner; tiles full color, no labels; Lock in disabled **Ownership unavailable**; Unlock still works; aside shows only the banner sentence | OWN-062, OWN-065, SHARE-053 |
 | D11 | Card data not loaded | Banner **Card data not loaded**; tiles are placeholders with stored names, full color, no labels | OWN-063 |
@@ -506,8 +509,8 @@ without " It stays locked." The block appends it, or H-060 fixes the helper.
 
 ## 12. Accessibility (WCAG 2.1 AA + 44px)
 1. Ownership, lock, ban and legality are each text + icon, never color alone (OWN-033, SHARE-041).
-2. Card tile button name (OWN-033, SHARE-044): "Lightning Rush, Main Deck, 1 of 3 available, also
-   in 2 other decks, 1 locked, banned since Nov 23, 2026". Split cards include the full label.
+2. Card tile button name (OWN-033, SHARE-044): "Lightning Rush, Main Deck, 1 of 3 available,
+   banned since Nov 23, 2026" (H-663: no "also in 2 other decks, 1 locked"). Split cards include the full label.
    Unknown: "Zaun Warrens, Battlefields, card no longer in the card data, 0 of 1 available".
 3. Text on or beside tiles ≥ 4.5:1 in every state. Icons, the fill divider and control edges ≥ 3:1
    (OWN-034). The none-state chip edge moves from `--color-border` (1.29:1, fails) to
@@ -566,10 +569,11 @@ recommendations".
    (a) inline expand inside the grid; (b) a dialog like Collection's. **Recommended: (b).**
    Expanding a 150px tile in a 5-column grid reflows the whole section; the dialog has room, matches
    Collection and is already built. Needs an OWN-038/041 wording change.
-9. **What's on the card tile face.** (a) the spec face: art, name, type, chip, shared line, ban
+9. **What's on the card tile face.** (a) the spec face: art, name, type, chip, ban
    label; (b) image only like Collection, everything else in the dialog. **Recommended: (a).**
-   OWN-014 and SHARE-042 require them on the face, and in a deck the text is the point (what's
-   missing), unlike Collection.
+   OWN-014 requires them on the face, and in a deck the text is the point (what's
+   missing), unlike Collection. *Updated (H-663, RJ 2026-11-26):* the shared line is no longer on the
+   face (SHARE-042 MUST NOT); the other decks are in the dialog or panel only.
 10. **Quantity badge ×N on deck tiles.** (a) hide at 1, as Collection does; (b) always show.
     **Recommended: (a).** The chip already says "1 of 1"; ×1 on every Legend and Champion is noise.
 11. **"Ban status unknown" when the ban list didn't load.** OWN-015 puts it on every card. Today
@@ -704,7 +708,7 @@ the styleguide samples.
 3. **A3** The deck detail shows six sections in Riot order with "N cards · M available"
    headings and "No cards in this zone" for empty ones.
 4. **A4** Tiles show full / partial (divider at exactly `fill` of the width) / none art, and the
-   chip, shared line and ban label match the engine's `label`, `sharedLabel`, `banStatus`. The
+   chip and ban label match the engine's `label` and `banStatus` (H-663: no shared line, `sharedLabel` is not rendered). The
    accessible name follows §12.2.
 5. **A5** The card dialog shows the SHARE-043 lines verbatim, the printing groups, other decks
    with links, and the card info. Unknown and unavailable variants per §8.
@@ -718,7 +722,7 @@ the styleguide samples.
    printed name is legible at 100%. Targets ≥ 44px on phones. Keyboard per §11. Reduced motion
    rests.
 10. **A10** FAB as built (OWN-094 AC 22 still passes). No console errors. `/styleguide` shows the
-    deck tile (each chip row of the §4 table), the card tile (full, partial, none, split, shared,
+    deck tile (each chip row of the §4 table), the card tile (full, partial, none, split, shared (H-663: no shared line; keep the fixture as a split-free "used by another deck" tile showing no extra line),
     banned, unknown, preview, placeholder, battlefield) and the dialog.
 
 ## What I looked at (2026-11-25)
