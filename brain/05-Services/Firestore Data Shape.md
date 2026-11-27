@@ -151,6 +151,27 @@ SPEC-007 `StoredTags`, with `tags` stored as a **map by id** (not an array), so 
 SPEC-008 `StoredDeckLocks` (draft): `schemaVersion`, `updatedAt`, `syncedAt`, `locks`: map `deckId` →
 `lockedAt` (timestamp). One document so that the lock order stays in one consistent place. Orphans are dropped on save (SHARE-062).
 
+**v0.18 (SPEC-010 SYNC-017, SPEC-008 0.6 card-name locks; built in H-665, 2026-11-26):** one entry per (deck, card
+name): `locks`: map `<deckId>|<cardKey>` → `{ lockedAt: timestamp | null, updatedAt: timestamp }` (null = unlock
+tombstone), written with one `FieldPath` per entry; a whole-deck lock or unlock is one `update()`. An old per-deck key is
+converted by the first device on this build that loads it and removed with `deleteField` in the same `update()`. The
+document's own `schemaVersion` stays 1. Rules cap on the map: **6000** entries (was 400, SYNC-112; emulator test
+"SYNC-112 v0.18 (H-665) locks map cap").
+
+**Measured size (H-665, `web/src/app/shared/sync/locks-size.spec.ts`, storage-size rules of this note, 28-character
+uid, 36-character deck ids, card names 11 to 28 characters, as the push writes the document):**
+
+| Case | Entries | Document size |
+|---|---|---|
+| 100 fully locked decks × 40 names (SYNC-017's estimate) | 4,000 | **475,790 B** (≈ 465 KiB; ≈ 119 B per entry) |
+| 100 fully locked decks × 60 names (the 6,000-entry cap) | 6,000 | **715,290 B** (≈ 699 KiB) |
+| SPEC-013 Large test data (two locked test decks) | 62 | **7,658 B** |
+
+Both are under the 1 MiB document limit. The 40-name case is under SYNC-123's 700 KB warning level; the 6,000-entry cap
+is just above it (SYNC-123 is worded for the collection document; the locks document has no warning of its own). A
+deck rarely has more than about 30 distinct names (Legend, Champion, ~18 main, 3 battlefields, 2 runes, ~5 sideboard),
+so 100 fully locked real decks land near 3,000 entries ≈ 357 KB.
+
 ### `users/{uid}/decks/{deckId}`
 SPEC-006 `UserDeck` as it is (`id` is the document ID and is not repeated), plus:
 | Field | Type | Notes |
@@ -196,7 +217,8 @@ counted as up to 1 read per created document (billing of `existsAfter()` is unve
 | **Open on a second device** (empty cache) | 1 + 3 + N | 0 | realistic 14, heavy 104 |
 | **Import 300 cards** (Add or Replace) | 0 | **1** | one `update()` / `set()` on `state/collection` |
 | **Edit a deck** | 0 | 1 per save | saves are batched with a ≥ 2 s debounce (also keeps under the 1 write/s guideline) |
-| Lock / unlock a deck | 0 | 1 | `state/locks` |
+| Lock / unlock a deck | 0 (+ the major-action pull, below) | 1 | `state/locks`; v0.18: one `update()` carrying every name of the deck; one name = 1 write |
+| **Major action** (SYNC-126, H-667): deck import saved, collection import committed or undone, deck added / duplicated, deck delete after its 10 s Undo window, any lock or unlock | 2 (3 on the first pull after start-up or sign-in) + 1 per returned document | 1 per changed document | an immediate pull, then the push, with no 2 s debounce and no 60 s pull skip; a burst of actions while a pass runs adds exactly one more pass (at most two in total). Offline or signed out: nothing, the change stays pending |
 | +/− on collection entries | 0 | 1 per debounce window | |
 | Delete account and data | N + 4 | N + 4 deletes | well inside 20,000 deletes/day |
 
@@ -223,19 +245,20 @@ Riot id format is unknown until H-020), `deckId` UUID 36, tag id 8. Nested maps 
 - Deck card `{cardKey, name, qty}`: 32 + 27 + 24 + 12 = **95 B**. A legal deck (66 cards ≈ 30 entries: 1 + 1 + ~18 main + 2 runes +
   3 battlefields + ~5 sideboard) with a tournament source (≈ 450 B) ≈ **3.7 KB**. The largest allowed deck (150 entries, 4,000-character
   notes, 2 KB of removed lines) ≈ **21 KB**.
-- Lock: 37 + 8 = 45 B. Account doc ≈ 210 B.
+- Lock: 37 + 8 = 45 B (v0.5, one per deck). **v0.18 name lock: ≈ 119 B measured** (key `<deckId>|<cardKey>` ≈ 53 B + map
+  with `lockedAt` and `updatedAt` timestamps). Account doc ≈ 210 B.
 - Index (after the exemptions): ≈ 400 B per document for `syncedAt` (2 entries × ≈ 200 B).
 
 ### Per user
 | Profile | collection | tags | decks | locks | index + account | **Total** |
 |---|---|---|---|---|---|---|
-| Realistic | 350×105 + 500×17 ≈ 45.5 KB | 7.3 KB | 10 × 3.7 = 37 KB | 0.3 KB | ≈ 5 KB | **≈ 95 KB** |
-| Heavy | 1,200×105 + 3,000×17 ≈ 177 KB | 46 KB | 100 × 3.7 = 372 KB | 1.1 KB | ≈ 40 KB | **≈ 640 KB** |
-| Worst case | ≈ 485 KB | ≈ 616 KB | 200 × 3.7 = 745 KB | 9 KB | ≈ 80 KB | **≈ 1.9 MB** |
+| Realistic | 350×105 + 500×17 ≈ 45.5 KB | 7.3 KB | 10 × 3.7 = 37 KB | 2 decks × 30 names × 119 B ≈ 7 KB (v0.18; was 0.3 KB) | ≈ 5 KB | **≈ 102 KB** |
+| Heavy | 1,200×105 + 3,000×17 ≈ 177 KB | 46 KB | 100 × 3.7 = 372 KB | 20 × 30 × 119 B ≈ 71 KB (was 1.1 KB) | ≈ 40 KB | **≈ 710 KB** |
+| Worst case | ≈ 485 KB | ≈ 616 KB | 200 × 3.7 = 745 KB | 715 KB at the 6,000-entry cap (measured; was 9 KB) | ≈ 80 KB | **≈ 2.6 MB** |
 
-The largest single document is the worst-case tags document at ≈ 616 KB, under the 1 MiB limit (only with short tag ids). A heavy collection document is ≈ 177 KB.
+The largest single document is now the worst-case `state/locks` at the 6,000-entry cap, 715,290 B measured (v0.18), then the worst-case tags document at ≈ 616 KB; both under the 1 MiB limit. A heavy collection document is ≈ 177 KB.
 
-**Accounts per 1 GiB** (2^30 B): realistic 2^30 / 95 KB ≈ **11,000**, heavy ≈ **1,700**, mix of 90 % realistic and 10 % heavy (0.9×95 + 0.1×640 ≈ 150 KB) ≈ **7,000**.
+**Accounts per 1 GiB** (2^30 B): realistic 2^30 / 102 KB ≈ **10,500**, heavy ≈ **1,500**, mix of 90 % realistic and 10 % heavy (0.9×102 + 0.1×710 ≈ 163 KB) ≈ **6,600** (v0.18 card-name locks; before: 11,000 / 1,700 / 7,000).
 
 ### Per day
 Daily active user (DAU) means a signed-in user who opens the app that day. Users who never sign in cost nothing.

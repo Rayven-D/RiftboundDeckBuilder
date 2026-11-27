@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.36
+version: 1.38
 ---
 # API Contracts
 
@@ -169,7 +169,7 @@ cards: counted, shared and locked like any card, SHARE-006 / OWN-028), plus the 
 
 | Group | Types |
 |---|---|
-| SPEC-008 | `DeckLock`, `StoredDeckLocks`, `DeckLockStore`, `SharedPoolInput`, `SharedPool`, `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck` (`LockFailure`), `LockedShortfall` |
+| SPEC-008 (0.6, H-665) | `NameLock`, `StoredDeckLocks` (schema 2), `DeckLockV1` / `StoredDeckLocksV1` (read only to migrate), `DeckLockStore`, `SharedPoolInput`, `SharedPool`, `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck` (`LockFailure`), `NameLockCheck` (`NameLockFailure`), `LockLoss` |
 | SPEC-005 | `CollectionOwnership`, `DeckOwnershipView`, `ZoneSection`, `OwnershipCard`, `OwnedPrintingRow`, `MissingLine`, `CardBan`, `DeckTileSummary` (`OwnershipFilter`) |
 | Read from other specs | SPEC-006 `UserDeck`, `DeckCard`, `DeckZone`, `DeckSource`; SPEC-007 `DeckOwnershipInput`, `DeckOwnership`, `CollectionCatalogView`, `StoredTags`, `Tag`, `StoredPrintingCodes`; SPEC-003 `StoredCollection`; SPEC-002 `BanListFile`, `BanStatus`; SPEC-001 0.4.1 `PlayableCard`, `Printing`, `CardSet` (`Printing` is a subset: no `collector` / `extra`; `PlayableCard` and `CardSet` are the full shapes) |
 
@@ -177,18 +177,25 @@ cards: counted, shared and locked like any card, SHARE-006 / OWN-028), plus the 
 computeSharedPool(input: SharedPoolInput): SharedPool                              // SHARE-070
 availability(pool: SharedPool, deckId: string, cardKey: CardKey): CardAvailability // SHARE-010/011/015
 canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boolean, isLocked: boolean): LockCheck // SHARE-020; null = ownership unavailable; isLocked from the lock store; no-cards = no entry at all
-storedLockState(locks: readonly DeckLock[] | null, deckId: string): DeckLockState | null // SHARE-053 (a): lock state without a pool
+canLockName(pool, deck, cardKey, readOnly, isNameLocked): NameLockCheck              // SHARE-081 (H-665)
+storedLockState(locks: readonly NameLock[] | null, deck: UserDeck): DeckLockState | null // SHARE-053 (a): locked when every name has a stored lock
+storedLockedNames(locks, deck): CardKey[]                                          // OWN-121 (a) icons while ownership is unavailable
 countedEntries(deck: UserDeck): { zone; entry }[]                                  // every entry of COUNTED_ZONES (= ZONE_ORDER, runes included)
-lockedShortfalls(before: SharedPool, after: SharedPool): LockedShortfall[]         // SHARE-034 v0.4.2: per cardKey hold drop
+lockLosses(before: SharedPool, after: SharedPool): LockLoss[]                      // SHARE-087…091: name locks a change drops, latest first
+settleLocks(locks: NameLock[], ownedForDecks: (k) => number, decks): NameLock[]   // SHARE-090: the locks to keep (lock order)
+migrateLocksV1(v1: DeckLockV1[], decks, ownership: { collection; tags } | null, now): StoredDeckLocks // SHARE-092
+ownedForDecksOf({ collection, tags }): (cardKey) => number                         // COLL-081 without a catalog (merge, migration)
+deckNeeds(deck): Map<CardKey, number>; compareLockOrder(a, b)                      // need(D, k); SHARE-030 (+ cardKey)
 computeDeckOwnership(deck, ownership: CollectionOwnership, catalog | null, banData | null, today): DeckOwnershipView // OWN-025
 summarizeDeck(deck, view, legality: { verdict; asOf } | null, format: { id; name } | null): DeckTileSummary
 completionPercent(a: number, r: number): number | null                          // OWN-101 (b); null when r = 0
-// text helpers: lockCheckMessage(), cardsShortText(), sharedIndicator(), shortfallWarning(), shortfallNotice()
+// text helpers: lockCheckMessage(), nameLockCheckMessage() ("Lock needs every copy available: a of q"), cardsShortText(), sharedIndicator()
+// v1.37 removed: lockedShortfalls(), shortfallWarning(), shortfallNotice(), LockedShortfall, DeckLock (now NameLock)
 // minimal stand-ins until SPEC-007 / SPEC-002 are built in web/: deckOwnership(input, cardKey) (COLL-081),
 //   cachedDeckOwnership() (OWN-083, per input object), banStatus(data, cardKey, format, region, asOf) (LEGAL-B10)
 ```
 Notes for the UI:
-- Stored-record shapes (`UserDeck`, `StoredCollection`, `StoredTags` schema 3, `DeckLock`, …) are defined once,
+- Stored-record shapes (`UserDeck`, `StoredCollection`, `StoredTags` schema 3, `NameLock`, …) are defined once,
   in `web/src/app/shared/storage/records.ts`; `core/decks/types.ts` re-exports them. In code `TagTarget` is
   `string` (the spec's `p:` / `u:` pattern is not enforced by type) and `FormatId` is `'standard'`.
 - Treat every input as an immutable snapshot. **H-060 must create a new `DeckOwnershipInput` object
@@ -203,21 +210,28 @@ Notes for the UI:
   like any entry. `OwnershipCard` has no rune flag. Deck entries must be DECK-096-valid (`qty` 1..999).
 - Compute one `SharedPool` per input change and pass it to every deck view and tile (SHARE-071).
 - Lock order (SHARE-030) is a total order: parsed `lockedAt` ascending with unparseable values
-  after every parseable one, then the raw `lockedAt` string, then `deckId`.
-- `canLock(pool, deck, readOnly, isLocked)` (SHARE-020 v0.4.2): `isLocked` = the deck has a `DeckLock` in a
+  after every parseable one, then the raw `lockedAt` string, then `deckId`, then (v0.6) `cardKey`.
+- **Card-name locks (v1.37, SPEC-008 0.6):** `computeSharedPool` first keeps only valid name locks (deck in the store,
+  name counted in it, one per (deck, name)) and settles them (SHARE-090: per name, in lock order, a lock that no
+  longer fits is dropped whole, and every later one on that name too); the dropped ones count as not locked. A kept
+  lock holds its deck's whole need (SHARE-031), so a locked name is never short. `DeckLockState` = `{ deckId, locked
+  (every counted name locked, SHARE-083), lockedAt (latest name lock of a locked deck, else null), lockedNames,
+  complete }`; `short` and `cardsShort` are gone. `CardPool` adds `cardName` and `free`; `CardUse` adds `lockedAt`;
+  `CardAvailability` and `OwnershipCard` add `nameLocked`; `heldByThisDeck` is set when the name is locked. A tile
+  of a locked name reads "q of q locked in" in any deck.
+- `canLock(pool, deck, readOnly, isLocked)` (SHARE-020 v0.4.2; v0.6 the deck-level toggle): `isLocked` = every counted name has a name lock in a
   **readable** lock store (pass `false` when the store is unreadable, SHARE-061). `already-locked` is checked first,
   so it is returned also with a `null` pool (ownership unavailable) and on a read-only deck; the engine no longer
   reads the lock from the pool for this check. Show Unlock (no reason line) for `already-locked`.
-- `lockedShortfalls(before, after)` (SHARE-034 v0.4.2): a deck locked in both pools is listed when, for **any**
-  `cardKey`, its hold in `after` is lower than in `before` (a Σ that stays equal does not hide it); `cardsShort` =
-  the deck's number of short cardKeys in `after`; order = `after`'s lock order. `shortfallWarning(s)` already ends
-  with " It stays locked." (v1.26; callers no longer append it); render both through `app-shortfall-warning`.
+- `lockLosses(before, after)` (SHARE-087…091, v1.37): every name lock that is locked in `before` and not in `after`
+  for a deck still in `after`, latest lock first, as `{ deckId, deckName, cardKey, cardName, copies (= need),
+  deckUnlocks }`; empty when free copies cover the change. Render with `app-lock-removal-notice`.
 - Ownership unavailable (OWN-062/063, SHARE-053, OWN-065): `CollectionOwnership` `{ status: 'unavailable', locks? }`
-  carries the stored locks (`readonly DeckLock[]`; `null` = lock store unreadable; omitted = no lock known, treated
+  carries the stored locks (`readonly NameLock[]`; `null` = lock store unreadable; omitted = no lock known, treated
   like `null`). **The page must pass the stored locks** so locked decks keep their badge. Then:
   `OwnershipCard.label` is `''` (no count labels); `DeckOwnershipView.lock` is
-  `{ deckId, locked: true, lockedAt, complete: false, short: false, cardsShort: [] }` for a deck with a stored lock
-  (earliest in lock order, SHARE-022), else `null` (`storedLockState`). With `status: 'ok'` and `catalog === null`
+  `{ deckId, locked: true, lockedAt, lockedNames, complete: false }` when every counted name has a stored name lock
+  (lockedAt = the latest), else `null` (`storedLockState`); tiles still carry `nameLocked` from the stored locks. With `status: 'ok'` and `catalog === null`
   (OWN-063) the same state is built from the pool's lock facts (none when `locksIgnored`), holds discarded.
   `DeckTileSummary`: `ownershipLine` "Ownership unavailable", `ownershipFilter` `'unavailable'` (SHARE-051 rule 0,
   for every deck), `lockBadge` "Locked" for a locked deck, never "… cards short"; `null` otherwise.
@@ -238,6 +252,34 @@ Notes for the UI:
   `{ 0, 0, null }`, which shows nothing either way); `pilot: string | null` (`source.pilot` for a tournament deck,
   OWN-104); `readOnly: boolean` (`schemaVersion` above 1, DECK-091). `UserDeck`, Firestore rules and every
   `schemaVersion` are unchanged; the description is the deck's existing `notes`.
+
+## Card-name locks and major-action sync (SPEC-008 0.6.1, SPEC-010 0.18.1; H-665, H-667)
+- **Stored record** `StoredDeckLocks` `{ schemaVersion: 2, updatedAt, locks: NameLock[] }`, `NameLock { deckId, cardKey,
+  lockedAt }`, at most one per (deck, name). `LocalDeckLockStore(backend, deckCards, migrate)` reads schema 1 and 2,
+  never overwrites a newer or corrupt record, and on save drops name locks whose deck or name is missing (SHARE-062).
+  A **v1 record is migrated on load** (SHARE-092) by `migrateLocksV1` (decks, collection and tags read raw) and written
+  back as v2 (raw, so the next reconcile stamps the new entries and syncs them); v1 is never written again.
+- **Cloud** `users/{uid}/state/locks`: `locks` map keyed `<deckId>|<cardKey>` → `{ lockedAt: timestamp | null,
+  updatedAt: timestamp }` (SYNC-017), written with one `FieldPath` per entry. `parseNameLockKey(key)` splits at the
+  first `|`; a key without `|` is the old per-deck shape. Migration: a pulled old **live** entry becomes one lock per
+  counted name the old rule held in full (same `lockedAt`, stamped now, pending); every old key becomes a pending
+  tombstone that the next push removes with `deleteField` (`planPush` purges legacy keys instead of writing a
+  tombstone), in the same `update()` as the new entries. `MAP_CAPS.locks` = 6000 (SYNC-112); the rules cap matches.
+- **Merge** (`mergePulled`): per-key LWW (SYNC-073); SYNC-071 deleted decks drop their name locks; SYNC-072 /
+  SHARE-093 a locked name whose need changed elsewhere (or that left the deck) drops (pending), the notice "'<deck>'
+  changed on another device while it was locked." shows when the deck had a lock before the merge; then SHARE-090 /
+  SHARE-091: the locks the pull left short drop with one `lockDropNotice` (see "Browser stores and sync").
+- **SyncEngine.majorAction()** (SYNC-126): signed in, not stopped / deleting, `isOnline()` and gate `open` → cancels
+  the pending debounce and runs one full pass (`pullAndMerge` always, then `pushPending`); if any pass is running
+  (`guard` counts them) it sets one follow-up flag and exactly one more pass runs when the last one ends. Offline,
+  signed out or gate closed: nothing (stays pending). Deck deletions: `scheduleChange` arms no debounce when the only
+  pending items are deletions inside their 10 s window; a separate Undo-window timer calls `majorAction()` when a
+  deletion's window has ended and it is still pending (an Undo cancels it, so nothing runs).
+- **AppStores.majorAction()** (`core/storage/app-stores.ts`): the app-level hook features call after a local save;
+  `SyncService` connects it to the engine (`connect(changed, readOnly, major)`). Callers: `DeckImport.commit`,
+  `CollectionImport.commit` / Undo, Deck detail Duplicate, every `DeckLocks` change (not the Delete lock release).
+  "Add to your decks" / "Add another copy" (DECK-060 / DECK-064) are not built yet; they must call it when they are.
+  Test stubs of `AppStores` must provide `majorAction`.
 
 ## Deck legality engine (SPEC-002 0.5, H-194)
 **Not an endpoint.** Browser only, pure (LEGAL-R01): `web/src/app/core/legality/` (barrel `index.ts`, shapes in
@@ -411,11 +453,14 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
     fallback only if the Router refuses and the code is still in the URL.
   - `MESSAGES.signedIn` = "You're signed in.", notified as `success` in `SyncEngine.signIn()` (email link and
     Google) right after the uid arrives, before `openSession()`; `start()` (restore) never sends it.
-  - **Locked decks left short by a merge (SYNC-074, H-148):** `EngineDeps.shortfalls?(before, after)` (SPEC-008
-    `lockedShortfalls`; still unwired in the app, H-075) is read once after each merge, and the engine sends **one**
-    `info` notice for all of them: `lockedShortfallNotice(list): string | null` (exported from `sync-engine.ts`)
-    joins one "'<deck name>' (locked) is now <n> cards short." sentence per deck ("1 card short" for one) with a
-    space, in the hook's order; `null` (no notice) for an empty list.
+  - **Name locks a pull leaves short (SYNC-068, SYNC-074 v0.18, H-665; supersedes H-148's text):** the merge itself
+    drops them (SHARE-090 with `settleLocks` over the merged collection and tags via `ownedForDecksOf`, no catalog),
+    stamps the drops as pending unlock tombstones and adds **one** `info` notice: `lockDropNotice(lines)` (exported
+    from `merge.ts`) = "Locks removed after a change on another device." + one sentence per deck, "'<deck>' is no
+    longer locked: <names> unlocked." (deck was locked) or "'<deck>': <names> unlocked." (partly locked), joined by
+    spaces (H-148's single-notice form). Only locks the pull caused are dropped: one that fitted before the merge, or
+    one that arrived with it. `EngineDeps.shortfalls` and `lockedShortfallNotice` are removed.
+  - **Major action (SYNC-126, H-667):** `SyncEngine.majorAction()`; see "Card-name locks and major-action sync".
   - **Firebase continue URL with a query (verified on the Auth emulator, firebase-tools 15.37.0, 2026-11-24;
     `web/rules-tests/email-link-return.test.ts`):** the emailed link is
     `http://127.0.0.1:9099/emulator/action?mode=signIn&lang=en&oobCode=…&apiKey=…&continueUrl=<encoded continue URL>`.
@@ -582,8 +627,10 @@ Not an endpoint. Writes go through the **tracked** `stores.collection` only.
   `written: Subject<void>` (fires after a commit or Undo this tab wrote; Collection
   reloads in place, COLL-091). Notice: `MatSnackBar` `(message, 'Undo', { duration: COMMIT_NOTICE_MS = 10_000,
   politeness: 'polite' })`. Undo: Nothing to undo unless the stored snapshot's `updatedAt` equals the one this commit
-  kept; COLL-058 confirmation when the stored record's `updatedAt` differs from the commit's; IMP-050a warnings from
-  `lockedShortfalls` over `computeSharedPool`; restore = `save({ ...snapshot, updatedAt: next }, { replace: true })`
+  kept; COLL-058 confirmation when the stored record's `updatedAt` differs from the commit's; IMP-050a lock lines from
+  `lockLosses` over `computeSharedPool` (v1.37: a lock-only Undo asks with "Unlock cards in your decks?" / "Unlock and
+  continue"; Confirm then `DeckLocks.dropLosses(losses, { sync: false })`); a written commit or Undo calls
+  `AppStores.majorAction()`; restore = `save({ ...snapshot, updatedAt: next }, { replace: true })`
   then `clearPrevious()`. Error strings: `COMMIT_TEXT`.
 
 ## Deck Import save (SPEC-006 DECK-001…098; H-253)
@@ -679,13 +726,18 @@ Deck detail header (H-254) uses the same ones. Writes: only `stores.locks` (thro
   `legalityOptions(formatName)`.
 - **Pure lock logic** (`shared/deck/deck-locks.ts`): `deckLockCheck({ pool, deck, readOnly, lock, locksUnreadable })`
   wraps `canLock` (`isLocked` = `view.lock` unless the store is unreadable; `ownership-unavailable` becomes
-  `locks-unreadable` when it is); `readLocks(store)` → `DeckLock[]` (`[]` when none) or `null` (unreadable, never
-  overwritten); `withLock`, `withoutLock`, `saveLock(store, deckId, now)`, `saveUnlock`; `otherDecksLine(view)`
+  `locks-unreadable` when it is); `nameLockCheck({ pool, deck, cardKey, readOnly, nameLocked, locksUnreadable })` the
+  same for one name; `readLocks(store)` → `NameLock[]` (`[]` when none) or `null` (unreadable, never overwritten);
+  record edits `withDeckLocked(stored, deck, now)`, `withDeckUnlocked`, `withNameLocked`, `withNameUnlocked`,
+  `withoutLosses`, `saveLocks(store, change)`; `lockRemovalLines(losses)`, `LOCK_REMOVAL_TEXT`,
+  `noLongerFullyLockedNotice`, `cantLockDeckNotice(n)`, `cantLockNameNotice(n)` (H-670); `otherDecksLine(view)`
   (SHARE-021, at most 3 names then "and r more"); texts `LOCK_TEXT`, `lockInTitle`, `lockedInNotice`,
   `unlockedNotice`.
-- **Service** `DeckLocks` (`shared/deck/deck-locks.service.ts`, root): `load(): Promise<DeckLock[] | null>`,
-  `lockIn(deckId)`, `unlock(deckId)` (reject on a failed or refused save, nothing changed), `changed: Subject<void>`
-  after each save this tab wrote. Uses `AppStores.stores.locks`.
+- **Service** `DeckLocks` (`shared/deck/deck-locks.service.ts`, root): `load(): Promise<NameLock[] | null>`,
+  `lockDeck(deck)`, `unlockDeck(deckId, { sync? })`, `lockName(deckId, cardKey)`, `unlockName(deckId, cardKey)`,
+  `dropLosses(losses, { sync? })` (reject on a failed or refused save, nothing changed), `changed: Subject<void>`
+  after each save this tab wrote; each change then calls `AppStores.majorAction()` unless `sync: false`. Uses
+  `AppStores.stores.locks`.
 - **Components** (standalone; all text from the helpers above):
 
 | Selector | Inputs | Outputs | Needs |
@@ -694,12 +746,13 @@ Deck detail header (H-254) uses the same ones. Writes: only `stores.locks` (thro
 | `app-deck-status-chip` | `filter: OwnershipFilter` (required), `lockBadge: string \| null` | none | `lockBadge` wins (warning style when it says "short"); `unavailable` or `locked` without a badge shows nothing. Unchanged in v1.27; the deck tile no longer passes `lockBadge` |
 | `app-lock-badge` | `lock: DeckLockState \| null` (optional since v1.27, default `null`), `label: string \| null` (required, = `summary.lockBadge`), `showDate` (default true) | none | "Locked · Locked in on <MMM D, YYYY>" (date left out when `lockedAt` doesn't parse or `lock` is null). Renders when `label` is set unless `lock.locked` is false (v1.27; before, it also needed `lock`). Size through `--lock-badge-font-size` (default `--font-size-sm`) and `--lock-badge-icon-size` (default 16px) |
 | `app-lock-actions` | `deck: UserDeck` (required), `view: DeckOwnershipView` (required), `pool: SharedPool \| null`, `readOnly: boolean`, `locksUnreadable: boolean` | `changed: void` | `DeckLocks`, `MatDialog`, `MatSnackBar`. Lock in (`aria-disabled` + reason line as `aria-describedby`, SHARE-020) → `LockInDialog` confirmation (SHARE-021) → "Locking in…" → snack "<name> is locked in."; Unlock at once (SHARE-023); failure snack "Couldn't save the lock. Try again." (SHARE-063). The host re-reads on `DeckLocks.changed` and passes the new `view` |
-| `app-shortfall-warning` | `items: readonly LockedShortfall[]` (required), `mode: 'before' \| 'after'` | none | `shortfallWarning` (before a change) or `shortfallNotice` (after) lines, no `role="alert"` (the host dialog or snack announces) |
+| `app-lock-removal-notice` (v1.37, replaces `app-shortfall-warning`) | `losses: readonly LockLoss[]` (required) | none | SHARE-088 block inside a confirmation: intro "Some of the cards you are removing are locked in your decks. Going on unlocks them:" then `lockRemovalLines(losses)`; nothing without losses; no `role="alert"` |
+| `app-name-lock-action` (v1.37) | `card: OwnershipCard` (required), `context: NameLockContext { deck, pool, readOnly, locksUnreadable }` (required) | none | `DeckLocks`, `MatSnackBar`. "Lock these copies" / "Unlock these copies" (SHARE-094 (a)), reason line as `aria-describedby`; a not-full name answers with "Can't lock. Missing n copies." (H-670); the last name → "<deck> is locked in."; unlocking a name of a locked deck → "<deck> is no longer fully locked." |
 
 - `CardArt` gains `animateChange` (fill transition `var(--dur-fill, 180ms)`, OWN-035). Global tokens
   `--deck-tile-min: 22rem`, `--dur-fill: 180ms`.
-- `ImportConfirmData.shortfalls: readonly LockedShortfall[]` replaces `warnings: string[]` (the dialog renders
-  `app-shortfall-warning`).
+- `ImportConfirmData.losses: readonly LockLoss[]` (v1.37; was `shortfalls`) renders `app-lock-removal-notice`; an
+  empty `text` renders no paragraph.
 - **Not built:** legality verdicts (the SPEC-002 engine exists since H-194, but the list does not pass `legality`
   yet: every deck reads "Not fully checked" and the Legality filter only matches that); the format name in filter
   labels is the constant "Standard".
@@ -731,7 +784,7 @@ Not an endpoint. `/decks/:id` reads and writes through the **tracked** stores on
   replaceable in tests.
 - **Writes:** Rename → `stores.decks.update(deck, basedOnUpdatedAt)` (`'conflict'` → `DETAIL_TEXT.saveConflict`, the
   dialog stays open); Duplicate → `stores.decks.create(copy)`, snack "Deck duplicated." / Open; Delete →
-  `stores.decks.delete(id)`, then the deck's lock is removed (`DeckLocks.unlock`), navigate to `/decks`, snack "Deck
+  `stores.decks.delete(id)`, then the deck's name locks are removed (`DeckLocks.unlockDeck(id, { sync: false })`), navigate to `/decks`, snack "Deck
   deleted." / Undo for 10 s; Undo → `stores.decks.create(removed)` (unlocked, SHARE-024) then
   `DeckImport.saved.next(removed)` so an open list re-reads. Read-only decks: Rename, Duplicate and Delete disabled.
 - **Lock pieces (H-060):** the header uses `app-lock-badge [lock]="view.lock" [label]="tile.lockBadge"` and
@@ -739,9 +792,11 @@ Not an endpoint. `/decks/:id` reads and writes through the **tracked** stores on
   SHARE-029 snack bars). `Loaded` carries `pool` (the `SharedPool`, null while ownership is unavailable) and
   `locksUnreadable`. The page re-reads on `DeckLocks.changed` and on the component's `(changed)` (coalesced), so
   a lock written in this tab updates the badge, copies line and tiles without a storage event. Delete removes the
-  deck's lock through `DeckLocks.unlock` (only when one is stored; an unreadable lock store is never overwritten).
-  No `app-shortfall-warning` on this page: SHARE-034 warnings live in Collection's confirmations ([[Decks]] §9);
-  a short locked deck shows the warning badge "Locked · n cards short" (SHARE-033, D8).
+  deck's name locks through `DeckLocks.unlockDeck` (only when one is stored; an unreadable lock store is never
+  overwritten). v1.37: no "cards short" state anywhere; the card content gets `[lockContext]` (`NameLockContext`)
+  for `app-name-lock-action`, and the card dialog data has `lockContext()`. Duplicate calls `AppStores.majorAction()`.
+  v1.38 (H-668…H-670): the title row is name (two-line clamp, expandable) + `app-lock-actions variant="icon"` + More;
+  no header actions row; Copy missing list is in `app-deck-missing` (`copyPlacement="heading"` in the desktop panel).
 - **Not built here:** the legality verdict (the SPEC-002 engine exists since H-194 but this page does not run it yet:
   always "Not fully checked"). Ban data is real since H-344 (`loadBans()` returns `data/banlist.json`).
 
@@ -899,6 +954,20 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   every locked deck a merge left short, `lockedShortfallNotice()` in `sync-engine.ts`. TEST-033: `CardData.loadApiCatalog()`;
   `CollectionImport.prepare` uses it; `CollectionImport.commit` calls `removeTestDecks` on every Replace, and the
   Replace confirmation's IMP-050a warnings leave the test decks out (they go in the same commit).
+- v1.37 (2026-11-26, H-665, H-667): SPEC-008 0.6.1 card-name locks: `NameLock`, `StoredDeckLocks` schema 2 with the
+  v1 migration, `canLockName`, `lockLosses`, `settleLocks`, `migrateLocksV1`, `ownedForDecksOf`, `storedLockState(locks,
+  deck)`, `DeckLockState` without `short` / `cardsShort`, `nameLocked` on `CardAvailability` / `OwnershipCard`;
+  removed `lockedShortfalls`, `shortfallWarning`, `shortfallNotice`, `LockedShortfall`, `app-shortfall-warning`,
+  `EngineDeps.shortfalls`, `lockedShortfallNotice`; new `app-lock-removal-notice`, `app-name-lock-action`,
+  `DeckLocks` per-name methods, `lockDropNotice`. SPEC-010 0.18.1: `state/locks` keyed `<deckId>|<cardKey>` with the
+  cloud migration, `MAP_CAPS.locks` / rules cap 6000, `SyncEngine.majorAction()` and `AppStores.majorAction()`
+  (SYNC-126). Section "Card-name locks and major-action sync" new.
+- v1.38 (2026-11-26, H-668 to H-671): Deck detail title row = name (two-line clamp, expandable) + lock toggle + More;
+  no header actions row; `app-deck-missing` gains `copyPlacement: 'heading' | 'end'`; the lock toggle answers a
+  missing-cards press with "Can't lock. Missing n cards." and keeps its reason only as visually hidden
+  `aria-describedby` text; `app-name-lock-action` answers a not-full press with "Can't lock. Missing n copies.";
+  `NOTICE_POSITION` (top, centre) in `shared/sync/notice.ts`, carried by `noticeOptions()` and spread into the four
+  calls with their own options.
 - v1.35 (2026-11-26, H-194, H-344, SPEC-002 0.5, SPEC-006 0.16 DECK-050…056): no endpoint change and no stored-shape
   change. New section "Deck legality engine": `data/banlist.json` (Standard + `2v2` `unverified` list) and
   `data/formats.json`, `web/src/app/core/legality/` (`evaluateLegality`, rules, data check), `CardData.loadLegalityData()`
