@@ -35,6 +35,8 @@ import {
 } from '../decks';
 import { StorageFullError } from '../storage/kv-backend';
 import { AppStores } from '../storage/app-stores';
+import { removeTestDecks } from '../test-data/test-data-ops';
+import { isTestDeck } from '../../shared/collection/test-data';
 
 /** IMP-074 (RJ confirmed 2026-11-25): the commit notice and its Undo stay 10 s. */
 export const COMMIT_NOTICE_MS = 10_000;
@@ -73,9 +75,13 @@ export class CollectionImport implements ImportCommitter {
 
   private last: LastCommit | null = null;
 
-  /** Resolves the parsed list against the catalog (IMP-025, IMP-067…069); saves nothing (IMP-002). */
+  /**
+   * Resolves the parsed list against the catalog (IMP-025, IMP-067…069); saves nothing (IMP-002). Always the real
+   * `/api` catalog, never the generated test catalog, so a Replace over test data writes the real `catalogVersion`
+   * (SPEC-013 TEST-033, AC 12).
+   */
   async prepare(result: ParseResult): Promise<PreparedImport> {
-    const c = await this.cardData.loadCatalog();
+    const c = await this.cardData.loadApiCatalog();
     if (c.status === 'error') {
       void this.cardData.reload(); // the next Continue tries again
       return { status: 'error', message: COMMIT_TEXT.catalogError };
@@ -100,7 +106,8 @@ export class CollectionImport implements ImportCommitter {
 
     if (mode === 'replace') {
       const nameOf = (k: string) => prepared.catalog.cards[k]?.name ?? k;
-      const shortfalls = await this.shortfalls(before, after, prepared.catalog);
+      // TEST-033: the test decks go in this commit, so they are left out of the IMP-050a warnings.
+      const shortfalls = await this.shortfalls(before, after, prepared.catalog, { withoutTestDecks: true });
       const ok = await confirmImport(this.dialog, {
         title: COMMIT_TEXT.replaceTitle,
         text: replaceConfirmText(replaceChanges(before, after, nameOf)),
@@ -111,10 +118,20 @@ export class CollectionImport implements ImportCommitter {
     }
 
     try {
-      // TEST-033 (H-233): a Replace over test data also calls `removeTestDecks(stores, now)` here, in this commit.
       await this.stores.collection.save(after, { snapshotPrevious: true, replace: mode === 'replace' });
     } catch (err) {
       return { status: 'error', message: writeError(err) };
+    }
+    if (mode === 'replace') {
+      // SPEC-013 TEST-033 / TEST-034 (H-233): the new collection's real `catalogVersion` ends the test state (and the
+      // banner, with Remove), so the same commit removes the three test decks and their locks (a no-op when there
+      // are none). After the collection write, so a failed write leaves everything as it was. If this part fails the
+      // import still stands; a stray test deck is removed by the next Replace or Remove (TEST-034).
+      try {
+        await removeTestDecks(this.stores, () => Date.now());
+      } catch {
+        // see above
+      }
     }
     this.last = {
       message: commitNotice(mode, prepared.resolved, after),
@@ -204,15 +221,17 @@ export class CollectionImport implements ImportCommitter {
     before: StoredCollection | null,
     after: StoredCollection,
     catalog: CollectionCatalogView,
+    opts: { withoutTestDecks?: boolean } = {},
   ): Promise<LockedShortfall[]> {
     try {
-      const [decks, locks, tags, printingCodes] = await Promise.all([
+      const [allDecks, locks, tags, printingCodes] = await Promise.all([
         this.stores.decks.list(),
         this.stores.locks.load(),
         this.stores.tags.load(),
         this.stores.printingCodes.load(),
       ]);
       if (!locks?.locks.length) return [];
+      const decks = opts.withoutTestDecks ? allDecks.filter((d) => !isTestDeck(d)) : allDecks;
       const pool = (collection: StoredCollection) =>
         computeSharedPool({
           decks,

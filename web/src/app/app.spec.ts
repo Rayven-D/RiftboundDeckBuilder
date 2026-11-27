@@ -6,12 +6,54 @@ import { DeferBlockBehavior, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { App } from './app';
 import { routes } from './app.routes';
+import { SYNC_ADAPTERS } from './core/sync/sync.service';
+import { FakeAuth, FakeFirestore, FakeRemote } from './shared/sync/testing/fakes';
+import { STORAGE_KEYS } from './core/storage/local-stores';
+import { emptySyncLog } from './shared/sync/sync-log';
+
+/**
+ * H-486: the App renders the deferred account control, whose SyncService starts the sync engine. The Angular
+ * unit-test builder runs spec files without isolation (one shared jsdom per worker), so a sync log with
+ * `sessionExpected: true` left in localStorage by another spec file (written by an engine after that file's
+ * clean-up) made the engine load the REAL Firebase adapters here, and `initializeAuth` failed in jsdom with
+ * unhandled rejections, depending on which files shared the worker. These specs start from empty storage and
+ * never load Firebase.
+ */
+let fakeAdapterLoads = 0;
+const NO_FIREBASE = {
+  provide: SYNC_ADAPTERS,
+  useValue: async () => {
+    fakeAdapterLoads++;
+    return { auth: new FakeAuth(), remote: new FakeRemote(new FakeFirestore()) };
+  },
+};
+beforeEach(() => {
+  localStorage.clear();
+  fakeAdapterLoads = 0;
+});
+
+describe('H-486 App specs never load the real Firebase adapters', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [App], providers: [provideRouter(routes), NO_FIREBASE] }).compileComponents();
+  });
+
+  it('H-486 a leaked sync log with sessionExpected starts the engine on the stub adapters, not on Firebase', async () => {
+    localStorage.setItem(STORAGE_KEYS.syncLog, JSON.stringify({ ...emptySyncLog(), uid: 'uA', sessionExpected: true }));
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    for (let i = 0; i < 5 && fakeAdapterLoads === 0; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+      await fixture.whenStable();
+    }
+    expect(fakeAdapterLoads).toBe(1);
+  });
+});
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter(routes)],
+      providers: [provideRouter(routes), NO_FIREBASE],
     }).compileComponents();
   });
 
@@ -160,7 +202,7 @@ describe('App phone tab bar', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter(routes)],
+      providers: [provideRouter(routes), NO_FIREBASE],
     }).compileComponents();
   });
 
@@ -194,7 +236,7 @@ describe('App phone tab bar', () => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter(routes)],
+      providers: [provideRouter(routes), NO_FIREBASE],
       deferBlockBehavior: DeferBlockBehavior.Manual, // the deferred account menu hasn't loaded yet
     });
     const fixture = TestBed.createComponent(App);
@@ -232,6 +274,7 @@ describe('App skip link', () => {
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
+        NO_FIREBASE,
         provideRouter([
           { path: '', component: StubPage },
           { path: 'tournaments', component: StubPage },

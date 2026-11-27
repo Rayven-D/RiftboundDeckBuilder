@@ -7,6 +7,11 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-26: builder H-148, H-233, H-486 (one branch `loop/H-148-H-233-H-486`)
+- H-148 (SYNC-074): `SyncEngine.afterMerge` sends one `info` notice for all short locked decks (`lockedShortfallNotice`); combined wording = spec sentence per deck joined by a space (RJ to confirm). Takes effect once H-075 wires the hook.
+- H-233 (TEST-033 / AC 12): a Replace import calls `removeTestDecks` in the same commit; imports now resolve against `CardData.loadApiCatalog()` so a Replace over test data writes the real `catalogVersion` (gap found: it would have written `'generated'`).
+- H-486: flaky `app.spec.ts` cause = non-isolated Vitest + a leaked `sessionExpected` sync log made the real Firebase adapter load; stubbed `SYNC_ADAPTERS` and cleared storage in `app.spec.ts`. Notes: [[Build H-148 H-233 H-486]].
+
 
 ## 2026-11-26 (night): H-662 + H-663, Deck detail lock icon and no other-deck info on tiles (builder)
 - Branch `loop/H-662-deck-lock-icon` from `origin/dev` @ `33a1411`, not pushed, one commit per item. H-662: the lock is an icon-only toggle after the deck name (same lock logic), no badge or lock date, no Lock in / Unlock button. H-663: card tiles and rows (Card and List view) show no "Also in N other decks"; the card dialog keeps it.

@@ -59,6 +59,19 @@ export function isSpentLinkError(e: unknown): boolean {
   return typeof code === 'string' && SPENT_LINK_CODES.includes(code);
 }
 
+/**
+ * SYNC-074 (H-148): ONE notice for every locked deck a sync left short, each in the spec's sentence
+ * "'<deck name>' (locked) is now <n> cards short.", joined by a space (as the import Undo notice joins its
+ * sentences, SHARE-034). Material shows one snack bar at a time, so one notice per deck would hide all but
+ * the last. `null` when no deck is short.
+ */
+export function lockedShortfallNotice(shortfalls: readonly { deckName: string; cardsShort: number }[]): string | null {
+  if (shortfalls.length === 0) return null;
+  return shortfalls
+    .map((s) => `'${s.deckName}' (locked) is now ${s.cardsShort} ${s.cardsShort === 1 ? 'card' : 'cards'} short.`)
+    .join(' ');
+}
+
 /** SYNC-121 */
 export const PUSH_DEBOUNCE_MS = 2000;
 /** SYNC-043 */
@@ -927,9 +940,9 @@ export class SyncEngine {
     if (this.deps.shortfalls) {
       void this.deps.queue.run(async () => {
         const after = (await this.snapshot()).local;
-        for (const s of this.deps.shortfalls!(before, after)) {
-          this.deps.notify(`'${s.deckName}' (locked) is now ${s.cardsShort} ${s.cardsShort === 1 ? 'card' : 'cards'} short.`, 'info');
-        }
+        // SYNC-074 / H-148: one notice listing every short locked deck.
+        const notice = lockedShortfallNotice(this.deps.shortfalls!(before, after));
+        if (notice) this.deps.notify(notice, 'info');
       });
     }
     this.emit();
