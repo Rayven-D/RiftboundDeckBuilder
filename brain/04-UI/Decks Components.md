@@ -360,13 +360,13 @@ copies, `deckUnlocks`). **Rendered only when `losses` is not empty** (free copie
 removal that touches no lock shows nothing and adds no dialog).
 - Box: 1px `--color-warning`, `--radius-md`, padding `--space-3`, `--color-surface`; `lock_open` icon
   16px; inside the dialog content so it is read with the dialog; no `role="alert"`.
-- Sentence (proposal, not RJ's): **"Some of the cards you are removing are locked in your decks. Going on unlocks them:"**
+- Sentence (RJ-approved as built, 2026-11-26): **"Some of the cards you are removing are locked in your decks. Going on unlocks them:"**
 - One `<p>` per deck, `--font-size-sm`: **"'Kennen Tempo': 3 Hextech Ray, 2 Gust"** (card names in
   lock order; copies first, `<n> <card name>`). A deck that stops being locked gets a second line
   **"'Kennen Tempo' will no longer be locked."**
 - A standalone confirmation (future edit paths, SPEC-008 SHARE-089): title **"Unlock cards in your decks?"**,
   actions **Cancel** (text, default focus) · **Unlock and continue** (filled). **Cancel** changes nothing.
-- **Sync notice** (no dialog; SPEC-010 SYNC-074): one notice, info kind, stays until OK, **"Locks removed after a change on another device."** with one line per deck, built by the same helper from the same `LockLoss[]` (proposal wording).
+- **Sync notice** (no dialog; SPEC-010 SYNC-074): one notice, info kind, stays until OK, **"Locks removed after a change on another device."** with one line per deck, built by the same helper from the same `LockLoss[]` (RJ-approved as built, 2026-11-26).
 
 ## 11. Summary and missing list, `app-deck-summary`
 **Inputs:** `view: DeckOwnershipView`, `locked: boolean`. **Output:** `copy(mode)`.
@@ -415,8 +415,8 @@ order, for `[` / `]`).
      name is locked in this deck `Locked in by this deck: 3` (v0.6: per name, not only in a locked deck).
      **Lock control (v0.6, H-664, RJ 2026-11-26: "the card dialog (full card info) only"):** directly
      below these lines, one outlined button, 44 px target, `lock` icon + **`Lock these copies`**, or
-     `lock_open` + **`Unlock these copies`** when `CardAvailability.nameLocked` (labels are proposals,
-     SPEC-008 Open question 9). Disabled with `aria-disabled="true"` (focusable) and `aria-describedby`
+     `lock_open` + **`Unlock these copies`** when `CardAvailability.nameLocked` (labels RJ-approved as built, 2026-11-26;
+     SPEC-008 Open question 9). Pressing it while locking is blocked shows the "Can't lock. ..." notice (SPEC-008 SHARE-096, SHARE-097). Disabled with `aria-disabled="true"` (focusable) and `aria-describedby`
      a visible muted line, using the SPEC-008 SHARE-081 text of `canLockName()`: **`Lock needs every
      copy available: 2 of 3`** / `This deck is read-only` / `Locked decks could not be read` /
      `Ownership unavailable`; hidden for an unknown card. Press: the name lock is saved at once, no
@@ -443,7 +443,7 @@ order, for `[` / `]`).
 **Input:** the deck's `LegalityResult` (SPEC-002), the banned cards (`card.name`, zone, `banStatus`).
 Title `Rule check`. First line = the legality label (icon as §2). Then `Rules not met` with one
 `<li>` per failed rule (LEGAL-R07 message, LEGAL-R08 rendering), `Not checked` with
-`notEvaluatedReason`s (DECK-052), and `Banned cards` lines `Nocturne, Horrifying, banned since Nov
+`notEvaluatedReason`s (DECK-052; **v0.18, RJ 2026-11-26: a reason that lists cards is one count line, "Missing champion data for 31 cards", with a "Show cards" / "Hide cards" button that reveals the names, collapsed on open; DECK-107, LEGAL-R09; button text and phrasing are builder defaults**), and `Banned cards` lines `Nocturne, Horrifying, banned since Nov
 23, 2026` / upcoming `… will be banned from Dec 15, 2026` (DECK-051/053 wording). Legal with nothing
 to list: `Every rule checked passes as of Nov 25, 2026.` (proposed). Close button only.
 

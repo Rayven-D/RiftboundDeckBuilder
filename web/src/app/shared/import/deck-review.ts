@@ -36,6 +36,7 @@ import {
 } from './deck-import';
 import { SECTION_LABELS } from './parse-card-list';
 import { RULE_CHECK_WORDS } from '../deck-detail/detail-view';
+import { NotCheckedList } from '../deck-detail/not-checked-list';
 
 /** H-451: the review's one status region; the dialog's Save button is described by it. */
 export const DECK_REVIEW_STATUS_ID = 'deck-review-status';
@@ -100,7 +101,7 @@ export const DECK_REVIEW_WORDS = {
  */
 @Component({
   selector: 'app-deck-review',
-  imports: [NgTemplateOutlet, MatButton, MatFormField, MatLabel, MatHint, MatError, MatInput, MatSelect, MatOption, MatOptgroup, Icon],
+  imports: [NgTemplateOutlet, MatButton, MatFormField, MatLabel, MatHint, MatError, MatInput, MatSelect, MatOption, MatOptgroup, Icon, NotCheckedList],
   template: `
     @let v = view();
     <h3 class="step-heading review-heading" tabindex="-1">{{ words.check }}</h3>
@@ -364,11 +365,7 @@ export const DECK_REVIEW_WORDS = {
         }
         @if (lg.notChecked.length) {
           <h4 class="legality-sub">{{ ruleWords.notChecked }}</h4>
-          <ul class="legality-list not-checked">
-            @for (n of lg.notChecked; track $index) {
-              <li>{{ n }}</li>
-            }
-          </ul>
+          <app-not-checked-list listClass="legality-list not-checked" [items]="lg.notCheckedItems" />
         }
         @if (lg.banned.length) {
           <h4 class="legality-sub">{{ ruleWords.banned }}</h4>

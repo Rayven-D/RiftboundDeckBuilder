@@ -25,7 +25,7 @@ import {
 } from '../../core/decks';
 import { Icon } from '../icon';
 import { noticeOptions } from '../sync/notice';
-import { LOCK_TEXT, cantLockDeckNotice, deckLockCheck, lockedInNotice, otherDecksLine, unlockedNotice } from './deck-locks';
+import { LOCK_TEXT, cantLockDeckNotice, cantLockReasonNotice, deckLockCheck, lockedInNotice, otherDecksLine, unlockedNotice } from './deck-locks';
 import { DeckLocks } from './deck-locks.service';
 import { LockInDialog, LockInDialogData } from './lock-in-dialog';
 
@@ -78,7 +78,7 @@ let nextId = 0;
         [matTooltip]="iconLabel()"
         matTooltipPosition="below"
         [matTooltipShowDelay]="300"
-        (click)="locked() ? unlock() : missingCards() !== null ? cantLock() : lockIn()"
+        (click)="locked() ? unlock() : reason() ? cantLock() : lockIn()"
       >
         @switch (locked()) {
           @case (true) {
@@ -271,9 +271,10 @@ export class LockActions {
     if (this.locked() || c.ok || c.reason !== 'incomplete') return null;
     return this.view().missing.reduce((n, m) => n + m.missing, 0);
   });
-  /** H-662: the same disabled state as the text buttons (Unlock: never while locked() holds, as `locked()` is false
-   *  while the lock store is unreadable; Lock in: whenever there is a reason), and while saving. H-670: not for the
-   *  missing-cards case, which is operable and answers with a notice. */
+  /** H-662: the same disabled state as the text buttons (Lock in: whenever there is a reason; Unlock never, as
+   *  `locked()` is false while the lock store is unreadable), and while saving. H-670: not for the missing-cards case,
+   *  which is operable and answers with a notice. H-675: it stays `aria-disabled` and focusable for the other reasons,
+   *  and the press still reaches `cantLock()` (SHARE-097 (c)). */
   protected readonly iconDisabled = computed(
     () => this.saving() || (!this.locked() && !!this.reason() && this.missingCards() === null),
   );
@@ -307,10 +308,16 @@ export class LockActions {
     await this.save(() => this.locks.lockDeck(deck), lockedInNotice(deck.name));
   }
 
-  /** H-670: the toggle on a deck missing cards: an info notice, nothing is locked; aria-pressed stays false. */
+  /**
+   * H-670 / H-675 (SHARE-097): the toggle on a deck that can't be locked: an info notice, nothing is locked;
+   * aria-pressed stays false. Missing cards: "Can't lock. Missing n cards."; any other reason: "Can't lock. " + the
+   * first failing reason's sentence + ".". Saving: no notice, the press does nothing.
+   */
   protected cantLock(): void {
     if (this.saving()) return;
-    this.snackBar.open(cantLockDeckNotice(this.missingCards() ?? 0), undefined, noticeOptions('info'));
+    const missing = this.missingCards();
+    const message = missing !== null ? cantLockDeckNotice(missing) : cantLockReasonNotice(this.reason() ?? '');
+    this.snackBar.open(message, undefined, noticeOptions('info'));
   }
 
   protected async unlock(): Promise<void> {

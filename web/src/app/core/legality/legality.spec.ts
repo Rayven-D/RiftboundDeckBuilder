@@ -181,6 +181,29 @@ describe('SPEC-002 Deck Legality engine (H-194)', () => {
       ]);
     });
 
+    it('AC 28 LEGAL-R09 / H-676: not-checked reasons are structured; notEvaluatedReason is unchanged', () => {
+      const names = ['Gust', 'Fizz, Trickster', 'Lightning Rush'];
+      const r = run(KENNEN_1, '2026-11-08', catalogWith(...names.map((n) => card(n, { domains: null }))));
+      const r2 = rule(r, 'LEGAL-002');
+      expect(r2.notEvaluatedReason).toBe('Missing domain data for: Fizz, Trickster, Gust, Lightning Rush'); // engine order, unchanged
+      expect(r2.notEvaluatedItems).toHaveLength(1);
+      expect(r2.notEvaluatedItems![0].label).toBe('Missing domain data for');
+      expect(r2.notEvaluatedItems![0].text).toBe(r2.notEvaluatedReason);
+      expect(r2.notEvaluatedItems![0].cardNames).toEqual(['Fizz, Trickster', 'Gust', 'Lightning Rush']); // the comma name is one name, copies are not counted
+      expect(r2.notEvaluatedItems![0].cardNames).toHaveLength(3);
+    });
+
+    it('AC 28 LEGAL-R09: a reason with no card list has no cardNames, and a passing rule has no items', () => {
+      const r = run(KENNEN_1, '2026-11-08', catalogWith(card('Gust', { domains: null })));
+      for (const x of r.rules) {
+        if (x.status === 'not_evaluated') expect(x.notEvaluatedItems!.map((i) => i.text).join(' ')).toBe(x.notEvaluatedReason);
+        else expect(x.notEvaluatedItems).toBeUndefined();
+      }
+      const noLegend = { ...KENNEN_1, legend: 'Not A Legend' };
+      const items = run(noLegend, '2026-11-08').rules.flatMap((x) => x.notEvaluatedItems ?? []);
+      expect(items.filter((i) => i.cardNames === undefined && i.label === undefined).length).toBeGreaterThan(0);
+    });
+
     it('AC 14 LEGAL-002 / LEGAL-R04: a card with domains null is not evaluated, named, and the verdict is incomplete', () => {
       const r = run(KENNEN_1, '2026-11-08', catalogWith(card('Gust', { domains: null })));
       expect(rule(r, 'LEGAL-002').status).toBe('not_evaluated');

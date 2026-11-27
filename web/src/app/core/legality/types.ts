@@ -103,7 +103,18 @@ export interface RuleResult {
   summary: string;
   violations: Violation[];
   notEvaluatedReason?: string;
+  /** LEGAL-R09: the same reasons, structured, in the order of `notEvaluatedReason`; present when not_evaluated. */
+  notEvaluatedItems?: NotEvaluatedItem[];
   source: string;
+}
+
+/** LEGAL-R09: one not-checked reason. `text` is the full single-line reason as in `notEvaluatedReason`. */
+export interface NotEvaluatedItem {
+  text: string;
+  /** The text before the colon ("Missing champion data for"); only with `cardNames`. */
+  label?: string;
+  /** Distinct card names in engine order; absent for a reason with no list. */
+  cardNames?: string[];
 }
 
 export interface UpcomingBan {

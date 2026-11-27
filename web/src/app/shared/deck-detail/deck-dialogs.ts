@@ -15,6 +15,7 @@ import { sourceLine } from '../../core/decks';
 import { deckSource } from '../import/deck-import';
 import { LIMITS } from '../storage/records';
 import { Icon } from '../icon';
+import { NotCheckedList } from './not-checked-list';
 import { RULE_CHECK_WORDS, RenameForm, RenameResult, RuleCheckContent, applyRename } from './detail-view';
 
 // ---------------------------------------------------------------- Rename (OWN-118, DECK-081)
@@ -255,7 +256,7 @@ export async function confirmDelete(dialog: MatDialog, data: DeleteDialogData): 
  */
 @Component({
   selector: 'app-rule-check-dialog',
-  imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, Icon],
+  imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, Icon, NotCheckedList],
   template: `
     <h2 mat-dialog-title>{{ words.title }}</h2>
     <mat-dialog-content>
@@ -270,13 +271,9 @@ export async function confirmDelete(dialog: MatDialog, data: DeleteDialogData): 
           }
         </ul>
       }
-      @if (data.notChecked.length) {
+      @if (data.notCheckedItems.length) {
         <h3>{{ words.notChecked }}</h3>
-        <ul>
-          @for (n of data.notChecked; track $index) {
-            <li>{{ n }}</li>
-          }
-        </ul>
+        <app-not-checked-list [items]="data.notCheckedItems" />
       }
       @if (data.banned.length) {
         <h3>{{ words.banned }}</h3>

@@ -320,6 +320,16 @@ checkBanList(file, catalog?): DataIssue[]                        // dates, B06 s
 - `upcomingBans` lists only the deck's cards (ban: not banned now; unban: banned now) from waves with
   `announced <= asOf < effective`.
 - `notEvaluatedReason` texts: `NOT_EVALUATED_TEXT` in `rules.ts` (not worded by the spec).
+- **H-676 (SPEC-002 0.7, LEGAL-R09):** `RuleResult.notEvaluatedItems?: NotEvaluatedItem[]` next to the unchanged
+  `notEvaluatedReason`. `NotEvaluatedItem { text, label?, cardNames? }`: one per reason, in the order of
+  `notEvaluatedReason` (the reasons joined by a space); `text` is the full reason line; `label` (the text before the
+  colon) and `cardNames` (distinct names, engine order) only on a reason that lists cards (Missing domain / card
+  type / champion / Signature data, Set status unknown, Printing type unknown, Unknown cards not checked). Present
+  only when `status = 'not_evaluated'`. Types: `web/src/app/core/legality/types.ts`. The `NOT_EVALUATED_TEXT`
+  list builders register their label and names under the reason text and `result()` reads them back.
+  UI: `ReviewLegality.notCheckedItems` (Deck Import review) and `RuleCheckContent.notCheckedItems` (Deck detail
+  Rule check) feed `app-not-checked-list`: "<label> {n} cards" ("1 card"), "{n} unknown cards not checked", names
+  behind "Show cards" / "Hide cards". `notChecked: string[]` stays as the plain-text form.
 
 ## Browser stores and sync (SPEC-010, H-062)
 Not an HTTP API: the browser talks to Firestore directly ([[ADR-0007 Firebase Accounts and Firestore]]).
