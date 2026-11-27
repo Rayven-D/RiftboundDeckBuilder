@@ -351,10 +351,13 @@ export function mergePulled(input: MergeInput): MergeResult {
       }
     }
 
-    // SYNC-071: deletion wins over a lock; the drop is written as a pending unlock tombstone.
+    // SYNC-071: deletion wins over a lock; the drop is written as a pending unlock tombstone. A deck this device deleted
+    // whose 10 s Undo window is still open keeps its name locks untouched (SYNC-035, AC 87): they go out with the deck
+    // tombstone once the window ends (this merge, run by that window-end sync, drops them), and an Undo keeps them.
     for (const key of [...locks.keys()]) {
       const deckId = parseNameLockKey(key).deckId;
       if (localDecks.has(deckId) || !(deletedNow.has(deckId) || log.deckTombstones[deckId])) continue;
+      if ((log.deckTombstones[deckId]?.pushAfter ?? 0) > now) continue;
       dropLock(key);
     }
 

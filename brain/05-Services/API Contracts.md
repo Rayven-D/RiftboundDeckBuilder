@@ -784,7 +784,8 @@ Not an endpoint. `/decks/:id` reads and writes through the **tracked** stores on
   replaceable in tests.
 - **Writes:** Rename → `stores.decks.update(deck, basedOnUpdatedAt)` (`'conflict'` → `DETAIL_TEXT.saveConflict`, the
   dialog stays open); Duplicate → `stores.decks.create(copy)`, snack "Deck duplicated." / Open; Delete →
-  `stores.decks.delete(id)`, then the deck's name locks are removed (`DeckLocks.unlockDeck(id, { sync: false })`), navigate to `/decks`, snack "Deck
+  `stores.decks.delete(id)` (v1.37: the deck's name locks stay stored and leave with the deck tombstone after the Undo
+  window; an Undo keeps them, SYNC-035 / AC 87), navigate to `/decks`, snack "Deck
   deleted." / Undo for 10 s; Undo → `stores.decks.create(removed)` (unlocked, SHARE-024) then
   `DeckImport.saved.next(removed)` so an open list re-reads. Read-only decks: Rename, Duplicate and Delete disabled.
 - **Lock pieces (H-060):** the header uses `app-lock-badge [lock]="view.lock" [label]="tile.lockBadge"` and

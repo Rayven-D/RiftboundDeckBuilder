@@ -29,7 +29,13 @@ migrates a v1 record on load. Sync log entries and cloud map keys are `<deckId>|
 deck" to the accessible name (SHARE-094 (b), OWN-121). The deck toggle locks every open name with one `lockedAt` (one
 `update()`), and unlocking clears only that deck's names (SHARE-084). Only a fully locked deck shows the "Locked" badge
 and matches `lock=locked`; a partly locked deck counts as not locked (SHARE-051). The Collection "Locked in" rows have
-no "· short". Delete removes the deck's name locks without a major sync (the deletion syncs when its Undo window ends).
+no "· short". **Delete (gap 8 fix, coordinator 2026-11-26):** the deck's name locks stay stored, ignored while the deck
+is gone (SHARE-062), and are neither dropped nor stamped while its 10 s Undo window is open (the lock store and the merge's
+SYNC-071 step hold them). Undo restores the deck with its locks, identical timestamps, and nothing is pushed. Without
+Undo, the window-end major sync's merge drops them and the one push carries the deck tombstone and the lock removals.
+**Conflicts with SPEC-008 SHARE-024 / AC 5 ("Undo restores the deck unlocked") and design decision 6** (restoring an old
+`lockedAt` can outrank a lock made during the window; the pool settles it, earliest wins). Built as the coordinator
+asked; spec-writer / RJ to align SHARE-024.
 
 **Removal paths (SHARE-089):** the Replace import and the import Undo compute `lockLosses` before writing. Free
 copies go first. When a lock is hit, `app-lock-removal-notice` goes inside the Replace confirmation or the COLL-058
@@ -182,6 +188,6 @@ copy" (DECK-060 / DECK-064), so there is no call site for them yet.
 | H-671 | `web/src/tooling/notice-position.spec.ts` (replaces `snackbar-offset.spec.ts`); `sync-engine-notice-kinds.spec.ts` |
 
 ## Results (2026-11-26, Node 22.23.5)
-`npm run lint`: all files pass. `npm run build`: OK, initial total 461.6 kB. Unit tests: 1527 passed (96 files).
+`npm run lint`: all files pass. `npm run build`: OK, initial total 461.6 kB. Unit tests: 1528 passed (96 files, after the gap 8 fix).
 `npm run test:rules` (JDK 21): 90 passed (7 files; run after the H-665 rules change, before H-668 to H-671, which
 touch no rules). `npm run e2e`: 5 / 5 passed. Every dev server and emulator was stopped.

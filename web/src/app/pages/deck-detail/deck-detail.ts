@@ -839,7 +839,8 @@ export class DeckDetail {
       this.leaving = false;
       return;
     }
-    await this.releaseLock(removed.id);
+    // SHARE-024 / SYNC-035 / AC 87: the deck's name locks stay stored, ignored while the deck is gone (SHARE-062), and
+    // leave with the deck tombstone when the 10 s Undo window ends; an Undo keeps them as they were.
     const stores = this.stores;
     const saved = this.deckImport.saved;
     const listFocus = this.listFocus;
@@ -855,20 +856,6 @@ export class DeckDetail {
         this.snackBar.open(saveErrorText(err), 'OK', noticeOptions('error'));
       }
     });
-  }
-
-  /**
-   * SHARE-024: deleting a deck removes all its name locks too, through DeckLocks (the store also drops orphans,
-   * SHARE-062). Not a major action of its own: the deletion syncs when its Undo window ends (SYNC-126 (a) 4).
-   */
-  private async releaseLock(deckId: string): Promise<void> {
-    const locks = await this.deckLocks.load().catch(() => null);
-    if (!locks?.some((l) => l.deckId === deckId)) return; // none, or unreadable: never overwritten (SHARE-061)
-    try {
-      await this.deckLocks.unlockDeck(deckId, { sync: false });
-    } catch {
-      // the orphan lock is ignored and dropped on the next lock save (SHARE-062)
-    }
   }
 
   /** `app-lock-actions` saved a change: recompute (DeckLocks.changed does the same; the reload is coalesced). */

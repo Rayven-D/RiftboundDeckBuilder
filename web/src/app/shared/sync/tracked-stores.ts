@@ -150,7 +150,7 @@ export class TrackedDeckLockStore implements DeckLockStore {
   constructor(
     private readonly inner: DeckLockStore,
     private readonly ctx: TrackingContext,
-    private readonly deckCards: () => Promise<ReadonlyMap<string, ReadonlySet<string>>>,
+    private readonly deckCards: () => Promise<ReadonlyMap<string, ReadonlySet<string> | null>>,
   ) {}
 
   load(): Promise<StoredDeckLocks | null> {
@@ -167,7 +167,7 @@ export class TrackedDeckLockStore implements DeckLockStore {
       withLog(this.ctx, async (log) => {
         // Stamp what is actually stored: the store drops orphan name locks (SHARE-062).
         const names = await this.deckCards();
-        const stored = { ...l, locks: l.locks.filter((x) => names.get(x.deckId)?.has(x.cardKey)) };
+        const stored = { ...l, locks: l.locks.filter((x) => { const n = names.get(x.deckId); return n === null || (n?.has(x.cardKey) ?? false); }) };
         const next = stampLocks(log, stored, this.ctx.now());
         await this.inner.save(l);
         return next;

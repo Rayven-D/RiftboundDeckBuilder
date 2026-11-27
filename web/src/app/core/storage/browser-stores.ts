@@ -77,8 +77,27 @@ export function createBrowserStores(backend: KeyValueBackend, opts: BrowserStore
   // SHARE-062: a name lock is an orphan when its deck is not in the store or the name is not in that deck; a read-only
   // (newer) deck still is in the store (DECK-091).
   const allDecks = async (): Promise<UserDeck[]> => [...(await rawDecks.list()), ...(await rawDecks.newerDecks())];
-  const deckCardKeys = async () =>
-    new Map((await allDecks()).map((d) => [d.id, new Set(deckEntries(d).map((c) => c.cardKey))] as const));
+  // SYNC-035 / AC 87: a deck deleted on this device whose 10 s Undo window is still open keeps every name lock (null =
+  // keep all names): nothing is dropped or stamped for it until the window ends, and an Undo restores it as it was.
+  const heldDeletions = (): string[] => {
+    try {
+      const raw = backend.get(STORAGE_KEYS.syncLog);
+      const log = raw ? (JSON.parse(raw) as StoredSyncLog) : null;
+      const now = opts.now();
+      return Object.entries(log?.deckTombstones ?? {})
+        .filter(([id, t]) => t.pushAfter > now && log!.pending.decks.includes(id))
+        .map(([id]) => id);
+    } catch {
+      return [];
+    }
+  };
+  const deckCardKeys = async () => {
+    const m = new Map<string, ReadonlySet<string> | null>(
+      (await allDecks()).map((d) => [d.id, new Set(deckEntries(d).map((c) => c.cardKey))] as const),
+    );
+    for (const id of heldDeletions()) if (!m.has(id)) m.set(id, null);
+    return m;
+  };
   const takenTagIds = () => {
     // Short ids must not reuse a tag tombstone's id (SYNC-016).
     try {

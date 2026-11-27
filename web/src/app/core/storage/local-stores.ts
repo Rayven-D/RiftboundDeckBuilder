@@ -340,8 +340,17 @@ export class LocalDeckStore implements DeckStore {
 
 const locksShape = (v: Record<string, unknown>) => typeof v['updatedAt'] === 'string' && Array.isArray(v['locks']);
 
-/** Each stored deck's counted card names (SHARE-062: a name lock is an orphan when its deck or name is missing). */
-export type DeckCardKeys = () => Promise<ReadonlyMap<string, ReadonlySet<CardKey>>>;
+/**
+ * Each stored deck's counted card names (SHARE-062: a name lock is an orphan when its deck or name is missing); `null`
+ * = keep every name lock of that deck (a deletion still inside its Undo window, SYNC-035).
+ */
+export type DeckCardKeys = () => Promise<ReadonlyMap<string, ReadonlySet<CardKey> | null>>;
+
+/** Whether a name lock is kept on save (SHARE-062, SYNC-035). */
+export const keepsNameLock = (names: ReadonlyMap<string, ReadonlySet<CardKey> | null>, deckId: string, cardKey: CardKey): boolean => {
+  const n = names.get(deckId);
+  return n === null || (n?.has(cardKey) ?? false);
+};
 
 /**
  * SPEC-008 v0.6 `DeckLockStore` (`schemaVersion: 2`, one `NameLock` per deck and card name). A save drops name locks
@@ -374,7 +383,7 @@ export class LocalDeckLockStore implements DeckLockStore {
     const seen = new Set<string>();
     const locks = l.locks.filter((x) => {
       const key = `${x.deckId}|${x.cardKey}`;
-      if (!names.get(x.deckId)?.has(x.cardKey) || seen.has(key)) return false;
+      if (!keepsNameLock(names, x.deckId, x.cardKey) || seen.has(key)) return false;
       seen.add(key);
       return true;
     });

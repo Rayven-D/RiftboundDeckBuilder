@@ -206,6 +206,47 @@ describe('SPEC-010 SYNC-126 sync on a major action (H-667)', () => {
     expect(calls).toEqual([]);
   });
 
+  it('SYNC-126 (a) 4 / SYNC-035 / SHARE-024 AC 87 a locked deck deleted: nothing pushed within 10 s; Undo keeps its name locks with identical timestamps and pushes nothing; without Undo the deck tombstone and the lock removals go in one push after the window', async () => {
+    const deck = await d.createDeck('Kennen Tempo', [card('hextech ray', 3), card('gust', 2)]);
+    await d.lock(deck.id);
+    d.engine.majorAction();
+    await d.settle();
+    const lockedBefore = (await d.stores.locks.load())!.locks;
+    const cloudBefore = structuredClone(db.get('users/uA/state/locks').locks);
+    expect(lockedBefore).toHaveLength(2);
+    db.resetCounts();
+    const calls = spyRemote(d);
+
+    // Undo inside the window: the locks are kept exactly, nothing is pulled or pushed.
+    const removed = (await d.stores.decks.delete(deck.id))!;
+    await d.advance(4_000);
+    expect(calls).toEqual([]);
+    expect((await d.stores.locks.load())!.locks).toEqual(lockedBefore); // stored, ignored while the deck is gone
+    await d.stores.decks.create(removed);
+    await d.advance(20_000);
+    expect(calls).toEqual([]);
+    expect(db.writes).toBe(0);
+    expect((await d.stores.locks.load())!.locks).toEqual(lockedBefore);
+    expect((await d.log()).pending.locks).toEqual([]);
+    expect(db.get('users/uA/state/locks').locks).toEqual(cloudBefore);
+
+    // No Undo: nothing for 10 s, then one pull and ONE push carrying the deck tombstone and both lock removals.
+    await d.stores.decks.delete(deck.id);
+    await d.advance(9_000);
+    expect(calls).toEqual([]);
+    expect(db.writes).toBe(0);
+    await d.advance(2_000);
+    expect(calls).toEqual(['pull', 'push']);
+    expect(db.pushLog).toHaveLength(1);
+    expect(db.pushLog[0].decks![deck.id]).toMatchObject({ deletedAt: expect.any(Number) });
+    expect(Object.entries(db.pushLog[0].locks!.locks).map(([k, v]) => [k, v.lockedAt]).sort()).toEqual([
+      [`${deck.id}|gust`, null],
+      [`${deck.id}|hextech ray`, null],
+    ]);
+    expect(await d.lockKeys()).toEqual([]);
+    expect(d.engine.pendingCount()).toBe(0);
+  });
+
   it('SYNC-126 (a) 5 / SYNC-121 AC 87 Duplicate syncs at once; a rename keeps the 2 s debounce with no immediate pull', async () => {
     const deck = await d.createDeck('Kennen Tempo', [card('hextech ray', 3)]);
     d.engine.majorAction();

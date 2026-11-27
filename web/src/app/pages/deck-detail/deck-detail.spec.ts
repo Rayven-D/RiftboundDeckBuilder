@@ -774,8 +774,9 @@ describe('Deck detail (H-254)', () => {
       expect(text(q(h, 'h1'))).toBe('Kennen Tempo (copy)');
     });
 
-    it('DECK-082 / DECK-083 / SHARE-024 / SPEC-006 AC 29: Delete asks without "can\'t be undone", removes deck and lock, goes to Decks, Undo restores it unlocked', async () => {
+    it('DECK-082 / DECK-083 / SHARE-024 / SPEC-006 AC 29: Delete asks without "can\'t be undone", removes the deck, goes to Decks; AC 87 (H-665 gap 8): its name locks stay stored (ignored while the deck is gone) and Undo restores it with them, identical', async () => {
       const h = await setup(URL_, { owned: DETAIL_ALL_OWNED, locks: [DETAIL_DECK_ID] });
+      const before = (await stores.locks.load())!.locks;
       await openMore(h);
       menuItem('Delete').click();
       await settle(h);
@@ -787,13 +788,13 @@ describe('Deck detail (H-254)', () => {
       await settle(h, 10);
       expect(TestBed.inject(Router).url).toBe('/decks');
       expect(await stores.decks.get(DETAIL_DECK_ID)).toBeNull();
-      expect((await stores.locks.load())!.locks).toEqual([]);
+      expect((await stores.locks.load())!.locks).toEqual(before);
       expect(snack()).toBe('Deck deleted.');
       expect(text(snackAction())).toBe('Undo');
       snackAction()!.click();
       await settle(h, 10);
       expect((await stores.decks.get(DETAIL_DECK_ID))!.name).toBe('Kennen Tempo');
-      expect((await stores.locks.load())!.locks).toEqual([]);
+      expect((await stores.locks.load())!.locks).toEqual(before);
     });
 
     it('OWN-117: Rule check opens a dialog listing what was not checked', async () => {
@@ -976,14 +977,17 @@ describe('Deck detail (H-254)', () => {
       expect(text(q(h, '.tabpanel'))).toContain('Kennen budget · needs 3 · Locked, holds 3');
     });
 
-    it('SHARE-024: deleting a locked deck removes its lock through DeckLocks and the page leaves for /decks', async () => {
+    it('SHARE-024 / AC 87: deleting a locked deck writes no lock change (the locks leave with the deck tombstone after the Undo window) and the page leaves for /decks', async () => {
       const h = await setup(URL_, { owned: DETAIL_ALL_OWNED, locks: [DETAIL_DECK_ID] });
+      const save = vi.spyOn(stores.locks, 'save');
+      const before = (await stores.locks.load())!.locks;
       await openMore(h);
       menuItem('Delete').click();
       await settle(h);
       Array.from(dialogEl()!.querySelectorAll('button')).find((b) => text(b) === 'Delete')!.click();
       await settle(h, 10);
-      expect((await stores.locks.load())!.locks).toEqual([]);
+      expect(save).not.toHaveBeenCalled();
+      expect((await stores.locks.load())!.locks).toEqual(before);
       expect(TestBed.inject(Router).url).toBe('/decks');
       expect(root(h).querySelector('app-deck-detail')).toBeNull();
     });
