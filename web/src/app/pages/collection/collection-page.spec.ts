@@ -1,3 +1,4 @@
+import { provideTestStores } from '../../core/storage/testing/test-stores';
 import { TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { Location } from '@angular/common';
@@ -6,13 +7,12 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../../app.routes';
 import { CardData, CatalogResult } from '../../core/cards/card-data';
 import type { BanListFile } from '../../core/decks';
-import { AppStores } from '../../core/storage/app-stores';
 import { BrowserStores, createBrowserStores } from '../../core/storage/browser-stores';
 import { MemoryBackend } from '../../core/storage/kv-backend';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
 import { provideOpenGate } from '../../core/sync/testing/open-gate';
 import { BreakpointObserver } from '@angular/cdk/layout';
-import { of } from 'rxjs';
+import { Subject, of } from 'rxjs';
 import { generateLargeSample, sampleDeck } from '../../shared/collection/sample-data';
 import type { SampleData } from '../../shared/collection/sample-data';
 import { makeCatalog } from '../../core/decks/engine-fixtures';
@@ -54,6 +54,7 @@ async function setup(url: string, s: Setup = {}) {
   if (s.decksError) vi.spyOn(stores.decks, 'list').mockRejectedValue(new Error('unreadable'));
   const catalog = sample?.catalog ?? generateLargeSample(30).catalog;
   const cardData: Partial<CardData> = {
+    sourceChanged: new Subject<void>(), // H-679
     loadCatalog: async (): Promise<CatalogResult> =>
       s.catalogError ? { status: 'error' } : { status: 'ok', catalog },
     // H-233: the Owned Cards Import resolves against the /api catalog (the same one here).
@@ -66,7 +67,7 @@ async function setup(url: string, s: Setup = {}) {
     providers: [
       provideRouter(routes, withComponentInputBinding()),
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
-      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
+      provideTestStores(stores),
       { provide: CardData, useValue: cardData },
       // Signed in and synced: the gate is open (SPEC-010 SYNC-009). The gate is covered in pages/gated-pages.spec.ts.
       provideOpenGate(),

@@ -1,4 +1,5 @@
 import { Injectable, inject, isDevMode } from '@angular/core';
+import { Subject } from 'rxjs';
 import { API_BASE_URL } from '../api-base-url';
 import type { BanListFile, CardSet, CollectionCatalogView, PlayableCard, Printing } from '../decks';
 import type { FormatsFile, LegalityData } from '../legality/types';
@@ -20,6 +21,9 @@ interface SetsResponse {
 }
 
 export type CatalogResult = { status: 'ok'; catalog: CollectionCatalogView } | { status: 'error' };
+
+/** Where the catalog comes from: the `/api` card data, or the generated test catalog for `n` entries (TEST-024). */
+type CatalogSource = 'api' | number;
 
 /** Dev only: set to `large` by the /styleguide sample loader to use a generated 5,000-entry catalog. */
 export const DEV_SAMPLE_KEY = 'rift.dev.sample';
@@ -45,6 +49,22 @@ export class CardData {
   private legality: Promise<LegalityData | null> | null = null;
   /** The test set's entry count `catalog` was generated for (SPEC-013 TEST-024). */
   private source: number | null = null;
+  /** The `/api` fetch failed; dropped on the next source change so it is fetched again (H-679). */
+  private apiFailed = false;
+  /** The source the catalog last resolved to (pages read that one); `api` until anything else is known. */
+  private known: CatalogSource = 'api';
+  private checkSeq = 0;
+
+  /**
+   * H-679: emits when the catalog source changed (the stored collection's test marker appeared, changed or went: a
+   * first sync or pull, a test load or remove, guest mode on or off, a sign-out). Pages that show the catalog (or its
+   * error, or an empty collection) read it again then, so no reload is needed.
+   */
+  readonly sourceChanged = new Subject<void>();
+
+  constructor() {
+    this.app.written.subscribe(() => void this.checkSource());
+  }
 
   /**
    * SPEC-013 TEST-024: while the stored collection carries the test marker (`test-data-<n>`, with cards), the
@@ -53,6 +73,7 @@ export class CardData {
    */
   async loadCatalog(): Promise<CatalogResult> {
     const source = (await this.testSource()) ?? 'api';
+    this.known = source;
     if (source === 'api') return this.loadApiCatalog();
     if (this.catalog === null || this.source !== source) {
       this.source = source;
@@ -66,14 +87,34 @@ export class CardData {
    * Replace import over test data writes the real `catalogVersion` and ends the test state (SPEC-013 TEST-033, AC 12).
    */
   loadApiCatalog(): Promise<CatalogResult> {
-    this.apiCatalog ??= this.fetchCatalog().catch((): CatalogResult => ({ status: 'error' }));
+    this.apiCatalog ??= this.fetchCatalog().catch((): CatalogResult => {
+      this.apiFailed = true;
+      return { status: 'error' };
+    });
     return this.apiCatalog;
   }
 
   reload(): Promise<CatalogResult> {
     this.catalog = null;
     this.apiCatalog = null;
+    this.apiFailed = false;
     return this.loadCatalog();
+  }
+
+  /**
+   * H-679: re-resolves the source from the stored collection; when it differs from the one pages last got, a failed
+   * `/api` result is forgotten (never cached for good) and `sourceChanged` emits. Overlapping checks: the last wins.
+   */
+  async checkSource(): Promise<void> {
+    const seq = ++this.checkSeq;
+    const source = (await this.testSource()) ?? 'api';
+    if (seq !== this.checkSeq || source === this.known) return;
+    this.known = source;
+    if (this.apiFailed) {
+      this.apiCatalog = null;
+      this.apiFailed = false;
+    }
+    this.sourceChanged.next();
   }
 
   private async testSource(): Promise<number | null> {

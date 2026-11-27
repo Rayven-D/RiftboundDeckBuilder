@@ -1,3 +1,4 @@
+import { injectNotices } from '../../shared/notice/notice-snack-bar';
 import {
   Component,
   DestroyRef,
@@ -13,7 +14,6 @@ import {
 import { MatButton } from '@angular/material/button';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatDivider } from '@angular/material/divider';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -329,7 +329,7 @@ let accountMenuSeq = 0;
 export class AccountMenu {
   protected readonly sync = inject(SyncService);
   private readonly dialog = inject(MatDialog);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly snackBar = injectNotices();
   private readonly injector = inject(Injector);
   protected readonly offline = MESSAGES.offline;
   /** A deletion or Cancel deletion is running (SYNC-096): its menu actions are disabled meanwhile. */

@@ -34,6 +34,10 @@
   }
 
   @case ('ready') {
+    @if (guest()) {
+      <!-- H-679: signed-out guest test data, in the TEST-010 banner style. -->
+      <app-guest-banner />
+    }
     @if (loaded(); as d) {
       @let v = d.view;
       @let h = header()!;

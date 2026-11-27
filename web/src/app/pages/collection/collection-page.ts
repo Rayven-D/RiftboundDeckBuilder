@@ -1,3 +1,4 @@
+import { injectNotices } from '../../shared/notice/notice-snack-bar';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { Location } from '@angular/common';
 import {
@@ -24,9 +25,9 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatOption, MatSelect } from '@angular/material/select';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
-import { map, take } from 'rxjs';
+import { map, merge, take } from 'rxjs';
+import { GuestBanner } from './guest-banner';
 import { CardData } from '../../core/cards/card-data';
 import type { DeckOwnershipInput, NameLock, StoredTags } from '../../core/decks';
 import { AppStores } from '../../core/storage/app-stores';
@@ -73,6 +74,7 @@ import type { StoredPrintingCodes } from '../../shared/storage/records';
 import { NOTICE_POSITION, noticeOptions } from '../../shared/sync/notice';
 import { TEST_TEXT, TestSetId, isTestCollection } from '../../shared/collection/test-data';
 import { TEST_DATA_ENABLED } from '../../core/test-data/test-data-flag';
+import { GuestTestData } from '../../core/test-data/guest-test-data';
 import { loadTestData, removeTestData } from '../../core/test-data/test-data-ops';
 import { TestLoadDialog, TestLoadDialogData, TestLoadOutcome, confirmTestData } from './test-data-dialogs';
 
@@ -130,6 +132,7 @@ interface Loaded {
 @Component({
   selector: 'app-collection-page',
   imports: [
+    GuestBanner,
     EmptyState,
     Icon,
     PageFab,
@@ -155,7 +158,7 @@ export class CollectionPage {
   private readonly stores = inject(AppStores).stores;
   private readonly cardData = inject(CardData);
   private readonly dialog = inject(MatDialog);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly snackBar = injectNotices();
   private readonly location = inject(Location);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
@@ -198,6 +201,9 @@ export class CollectionPage {
   protected readonly testDataEnabled = inject(TEST_DATA_ENABLED);
   /** TEST-030: the stored collection has cards and the `test-data-` marker. */
   protected readonly testData = signal(false);
+  /** H-679: signed-out guest test data (memory only): the guest banner (TEST-063), no imports (TEST-062). */
+  protected readonly guest = inject(AppStores).guest;
+  private readonly guestData = inject(GuestTestData);
   protected readonly testText = TEST_TEXT;
   private readonly emptyLoad = viewChild<ElementRef<HTMLButtonElement>>('emptyLoad');
 
@@ -281,7 +287,7 @@ export class CollectionPage {
     effect(() => {
       const phase = this.phase();
       if (this.addHandled) return;
-      const page = phase === 'ready' || phase === 'empty' ? 'ready' : phase === 'loading' ? 'waiting' : 'cannot';
+      const page = this.guest() ? 'cannot' : phase === 'ready' || phase === 'empty' ? 'ready' : phase === 'loading' ? 'waiting' : 'cannot';
       const decision = launchDecision(this.addParam, page);
       if (decision === 'none' || decision === 'wait') return;
       this.addHandled = true;
@@ -330,6 +336,11 @@ export class CollectionPage {
     addEventListener('storage', onStorage);
     // COLL-091: a commit or an Undo written in this tab (from any screen) refreshes the list in place.
     this.importer.written.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.scheduleReload());
+    // H-679 TEST-070: the catalog source changed (a first sync or pull brought test data) or a guest Change set
+    // wrote: read again, so a "Card data couldn't load" or an empty state shown before it never needs a reload.
+    merge(this.cardData.sourceChanged, this.guestData.changed)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.scheduleReload());
     this.destroyRef.onDestroy(() => {
       this.destroyed = true;
       removeEventListener('storage', onStorage);
@@ -649,6 +660,7 @@ export class CollectionPage {
    * closes (H-189: a `?add=1` launch may open before the floating button exists).
    */
   protected openImport(file?: File): void {
+    if (this.guest()) return; // H-679: imports stay sign-in only
     if (this.testData()) {
       void this.blockedImport(file);
       return;

@@ -38,7 +38,8 @@
 
 <!-- COLL-094 (a), (b), (f): only with the list shown (not loading, empty or on a banner); right after the header, so
      Tab reaches it before the toolbar. -->
-@if (phase() === 'ready') {
+@if (phase() === 'ready' && !guest()) {
+  <!-- H-679: imports stay sign-in only, so no floating button with guest test data. -->
   <app-page-fab label="Add to your collection" icon="add" (pressed)="openImport()" />
 }
 
@@ -68,9 +69,11 @@
 @if (phase() === 'empty') {
   <!-- COLL-094 (g): the empty state's own button replaces the floating button. -->
   <app-empty-state [heading]="emptyText.heading" [message]="emptyText.message">
-    <button #emptyAdd type="button" class="button" aria-haspopup="dialog" (click)="openImport()">
-      Add to your collection
-    </button>
+    @if (!guest()) {
+      <button #emptyAdd type="button" class="button" aria-haspopup="dialog" (click)="openImport()">
+        Add to your collection
+      </button>
+    }
     @if (testDataEnabled) {
       <!-- SPEC-013 TEST-002: under the Add button, only on an empty collection and only while the flag is on. -->
       <div class="test-load">
@@ -82,7 +85,10 @@
   </app-empty-state>
 }
 
-@if (testData() && phase() === 'ready') {
+@if (guest()) {
+  <!-- SPEC-013 v0.2 TEST-063: guest test data (memory only) has its own banner, with Change set and Remove. -->
+  <app-guest-banner />
+} @else if (testData() && phase() === 'ready') {
   <!-- SPEC-013 TEST-010: always visible while test data is present (not dismissible), also with no search results,
        and with the flag off (TEST-041; Change set only while the flag is on). -->
   <div class="banner banner--warning banner--test" role="status">
@@ -303,6 +309,6 @@
 <!-- COLL-094 (i) SHOULD: drop a file to add it (gate open, list or empty state shown). -->
 <app-file-drop
   text="Drop to add to your collection"
-  [enabled]="phase() === 'ready' || phase() === 'empty'"
+  [enabled]="!guest() && (phase() === 'ready' || phase() === 'empty')"
   (dropped)="openImport($event)"
 />

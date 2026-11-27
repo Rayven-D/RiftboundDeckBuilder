@@ -2,13 +2,14 @@
  * SPEC-006 Deck Import save (H-253): `DeckImport`, the `ImportCommitter` of "Import deck" (H-158 seam, H-273).
  * Real tracked browser stores over a memory backend, so the sync log stamps are the ones the app writes.
  */
+import { Subject } from 'rxjs';
+import { provideTestStores } from '../../core/storage/testing/test-stores';
 import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { Router } from '@angular/router';
 import { CardData, CatalogResult } from '../cards/card-data';
 import { makeCatalog, makeDeck } from '../decks/engine-fixtures';
-import { AppStores } from '../storage/app-stores';
 import { BrowserStores, createBrowserStores } from '../storage/browser-stores';
 import { MemoryBackend } from '../storage/kv-backend';
 import { SignInGate } from '../sync/sign-in-gate';
@@ -41,6 +42,7 @@ function setup(opts: { catalogError?: boolean } = {}): DeckImport {
   ids = 0;
   stores = createBrowserStores(backend, { now: () => clock, changed: () => undefined, readOnly: () => false });
   const cardData: Partial<CardData> = {
+    sourceChanged: new Subject<void>(), // H-679
     loadCatalog: async (): Promise<CatalogResult> =>
       opts.catalogError ? { status: 'error' } : { status: 'ok', catalog: CATALOG },
     reload: async (): Promise<CatalogResult> => ({ status: 'error' }),
@@ -49,7 +51,7 @@ function setup(opts: { catalogError?: boolean } = {}): DeckImport {
   TestBed.configureTestingModule({
     providers: [
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
-      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
+      provideTestStores(stores),
       { provide: CardData, useValue: cardData },
       { provide: Router, useValue: { navigate } },
       { provide: NEW_DECK_ID, useValue: () => `00000000-0000-4000-8000-${String(++ids).padStart(12, '0')}` },

@@ -7,6 +7,11 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-26 (night): builder H-679 + H-680 (branch `loop/H-679-guest-test-data`, not pushed)
+- H-679 (SPEC-013 0.2): signed-out **Load test data** on the sign-in panel (Collection, Decks, deck URL) fills fresh memory-only stores; `AppStores.stores` became a facade over the account cache or the guest stores, the sync engine keeps `AppStores.account`. Guest banner with Change set / Remove; imports stay sign-in only; sign-in discards guest data first. TEST-070 bug fix: `CardData.sourceChanged` re-resolves the catalog when the test marker changes (first sync, pull, load, remove, guest on/off) and forgets a failed `/api` result. [[Build H-679]].
+- H-680 (SPEC-010 0.20.1 SYNC-162): one notice component for every snack bar: OK on plain notices, only the action on action notices, 44 px, swipe left / right to dismiss on touch (never runs the action). [[Build H-680]].
+- Checks: lint, build (initial 461.58 kB), `ng test`, `npm run e2e` (Playwright from another worktree's `node_modules`: the junctioned one has no `@playwright/test`).
+
 ## 2026-11-26 (late): builder H-665 + H-667, then H-668 to H-671 (one branch `loop/H-665-H-667-name-locks-sync`)
 - H-665: SPEC-008 0.6.1 card-name locks (engine, StoredDeckLocks v2 with the local and cloud v1 migration, per-name Lock / Unlock in the card dialog, lock icon on tiles and rows, removal confirmation in Replace and Undo, sync drop with one notice replacing H-148's text, rules cap 6000, Test Data name locks). state/locks measured: 4,000 entries 475,790 B; 6,000 entries 715,290 B.
 - H-667: SYNC-126 immediate pull-then-push on six major actions, one queued follow-up, deletions after their Undo window. Then RJ's chat items H-668 (⋮ on the title row, two-line expandable name), H-669 (Copy missing list in the Missing panel), H-670 ("Can't lock. Missing n cards / copies.", reason line removed), H-671 (all notices at the top).

@@ -1,3 +1,4 @@
+import { injectNotices } from '../../shared/notice/notice-snack-bar';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { DOCUMENT } from '@angular/common';
 import {
@@ -20,7 +21,6 @@ import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDivider } from '@angular/material/divider';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
 import { Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
@@ -46,6 +46,8 @@ import { gridMove } from '../../shared/collection/collection-view';
 import { CollectionImport } from '../../core/import/collection-import';
 import { DECK_SAVE_TEXT, DeckImport, NEW_DECK_ID } from '../../core/import/deck-import';
 import { AppStores } from '../../core/storage/app-stores';
+import { GuestTestData } from '../../core/test-data/guest-test-data';
+import { GuestBanner } from '../collection/guest-banner';
 import { KEY_PREFIX } from '../../core/storage/kv-backend';
 import { DeckStoreError, STORAGE_KEYS } from '../../core/storage/local-stores';
 import { refocusAfterDialog } from '../../core/sync/sync.service';
@@ -173,6 +175,7 @@ function localToday(): string {
   selector: 'app-deck-detail',
   imports: [
     RouterLink,
+    GuestBanner,
     EmptyState,
     Icon,
     DeckCardTile,
@@ -200,10 +203,12 @@ export class DeckDetail {
   readonly deckId = input.required<string>();
 
   private readonly app = inject(AppStores);
+  /** H-679: signed-out guest test data (memory only): the guest banner shows (TEST-063). */
+  protected readonly guest = this.app.guest;
   private readonly stores = this.app.stores;
   private readonly cardData = inject(CardData);
   private readonly dialog = inject(MatDialog);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly snackBar = injectNotices();
   private readonly router = inject(Router);
   private readonly title = inject(Title);
   private readonly doc = inject(DOCUMENT);
@@ -365,6 +370,9 @@ export class DeckDetail {
     addEventListener('storage', onStorage);
     this.deckImport.saved.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
     this.collectionImport.written.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
+    // H-679: the catalog source changed (a pull brought test data): read again, so "Card data not loaded" clears.
+    this.cardData.sourceChanged.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
+    inject(GuestTestData).changed.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
     // SHARE-029 / SHARE-064: a lock change this tab wrote raises no storage event; recompute in place.
     this.deckLocks.changed.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
     this.destroyRef.onDestroy(() => {
@@ -828,8 +836,10 @@ export class DeckDetail {
     }
     let removed: UserDeck | null;
     this.leaving = true;
+    // H-681: the Undo writes back into the same stores instance, and only while the mode is unchanged.
+    const pin = this.app.pin();
     try {
-      removed = await this.stores.decks.delete(d.deck.id);
+      removed = await pin.stores.decks.delete(d.deck.id);
     } catch (err) {
       this.leaving = false;
       this.snackBar.open(err instanceof ReadOnlyAreaError ? err.message : DETAIL_TEXT.saveFailed, 'OK', noticeOptions('error'));
@@ -841,13 +851,17 @@ export class DeckDetail {
     }
     // SHARE-024 / SYNC-035 / AC 87: the deck's name locks stay stored, ignored while the deck is gone (SHARE-062), and
     // leave with the deck tombstone when the 10 s Undo window ends; an Undo keeps them as they were.
-    const stores = this.stores;
+    const stores = pin.stores;
     const saved = this.deckImport.saved;
     const listFocus = this.listFocus;
     listFocus.request({ kind: 'first' }); // H-462: the first tile, or the empty state's Import deck
     void this.router.navigate(['/decks']);
     const ref = this.snackBar.open(DETAIL_TEXT.deleted, DETAIL_TEXT.undo, { duration: DELETE_UNDO_MS, politeness: 'polite', ...NOTICE_POSITION });
+    // H-681: a sign-in, sign-out or guest switch inside the window ends the Undo and closes its notice.
+    const ended = pin.ended.subscribe(() => ref.dismiss());
+    ref.afterDismissed().subscribe(() => ended.unsubscribe());
     ref.onAction().subscribe(async () => {
+      if (!pin.valid()) return;
       try {
         listFocus.request({ kind: 'deck', deckId: removed.id }); // H-462: the restored deck's tile
         await stores.decks.create(removed); // SYNC-035: within the window this cancels the tombstone
