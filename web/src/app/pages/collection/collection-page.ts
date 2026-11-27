@@ -1,3 +1,4 @@
+import { injectNotices } from '../../shared/notice/notice-snack-bar';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { Location } from '@angular/common';
 import {
@@ -24,7 +25,6 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatOption, MatSelect } from '@angular/material/select';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { map, merge, take } from 'rxjs';
 import { GuestBanner } from './guest-banner';
@@ -158,7 +158,7 @@ export class CollectionPage {
   private readonly stores = inject(AppStores).stores;
   private readonly cardData = inject(CardData);
   private readonly dialog = inject(MatDialog);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly snackBar = injectNotices();
   private readonly location = inject(Location);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);

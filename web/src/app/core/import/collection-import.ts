@@ -1,6 +1,6 @@
+import { injectNotices } from '../../shared/notice/notice-snack-bar';
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject } from 'rxjs';
 import {
   CommitMode,
@@ -64,7 +64,7 @@ export class CollectionImport implements ImportCommitter {
   private readonly stores = inject(AppStores).stores;
   private readonly cardData = inject(CardData);
   private readonly dialog = inject(MatDialog);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly snackBar = injectNotices();
   private readonly app = inject(AppStores);
   private readonly deckLocks = inject(DeckLocks);
 

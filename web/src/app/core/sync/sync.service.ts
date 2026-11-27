@@ -1,6 +1,6 @@
+import { injectNotices } from '../../shared/notice/notice-snack-bar';
 import { DestroyRef, Injectable, InjectionToken, Injector, afterNextRender, computed, inject, signal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -70,7 +70,7 @@ export function isEmailLinkUrl(href: string): boolean {
 @Injectable({ providedIn: 'root' })
 export class SyncService {
   private readonly dialog = inject(MatDialog);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly snackBar = injectNotices();
   private readonly app = inject(AppStores);
   private readonly loadAdapters = inject(SYNC_ADAPTERS);
   private readonly gate = inject(SignInGate);

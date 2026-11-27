@@ -203,6 +203,20 @@ describe('Collection page: SPEC-013 test data (H-205)', () => {
     expect(fetchSpy).not.toHaveBeenCalled(); // TEST-024: no /api for the generated catalog
   });
 
+  it('H-680 the Test data loaded notice has no action, so it shows OK (44 px class) and OK closes it', async () => {
+    const h = await setup();
+    findButton(page(h), TEST_TEXT.loadButton)!.click();
+    await settle(h);
+    await pick(h, 'small');
+    findButton(topDialog(), 'Load')!.click();
+    await until(h, () => dialogs().length === 0 && snack().includes(TEST_TEXT.loaded));
+    const ok = document.querySelector<HTMLButtonElement>('mat-snack-bar-container button')!;
+    expect(clean(ok.textContent)).toBe('OK');
+    expect(ok.classList).toContain('notice-button');
+    ok.click();
+    await until(h, () => !document.querySelector('app-notice'));
+  });
+
   it('TEST-010 the banner stays when a search has no results (not dismissible)', async () => {
     const h = await setup({ preload: 'small' });
     const input = page(h).querySelector<HTMLInputElement>('input[type="search"]')!;

@@ -42,7 +42,8 @@ class Host {
 }
 
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
-const snack = () => text(document.querySelector('mat-snack-bar-container'));
+// H-680: the label only (a notice without an action also shows OK).
+const snack = () => text(document.querySelector('mat-snack-bar-container .mat-mdc-simple-snack-bar > :first-child'));
 const dialog = () => document.querySelector('mat-dialog-container');
 
 let backend: MemoryBackend;

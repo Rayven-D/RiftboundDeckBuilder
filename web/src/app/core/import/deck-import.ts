@@ -1,5 +1,5 @@
+import { injectNotices } from '../../shared/notice/notice-snack-bar';
 import { Injectable, InjectionToken, inject } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import type { CommitOutcome } from '../../shared/import/collection-commit';
@@ -53,7 +53,7 @@ export class DeckImport implements DeckImportCommitter {
   private readonly stores = this.app.stores;
   private readonly cardData = inject(CardData);
   private readonly gate = inject(SignInGate);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly snackBar = injectNotices();
   private readonly router = inject(Router);
   private readonly newId = inject(NEW_DECK_ID);
 

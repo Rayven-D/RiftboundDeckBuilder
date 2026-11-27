@@ -1,3 +1,4 @@
+import { injectNotices } from '../../shared/notice/notice-snack-bar';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { DOCUMENT } from '@angular/common';
 import {
@@ -20,7 +21,6 @@ import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDivider } from '@angular/material/divider';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { Title } from '@angular/platform-browser';
 import { Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
@@ -208,7 +208,7 @@ export class DeckDetail {
   private readonly stores = this.app.stores;
   private readonly cardData = inject(CardData);
   private readonly dialog = inject(MatDialog);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly snackBar = injectNotices();
   private readonly router = inject(Router);
   private readonly title = inject(Title);
   private readonly doc = inject(DOCUMENT);

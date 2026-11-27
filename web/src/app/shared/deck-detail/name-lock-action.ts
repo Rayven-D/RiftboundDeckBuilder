@@ -1,6 +1,6 @@
+import { injectNotices } from '../../shared/notice/notice-snack-bar';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { deckNeeds, nameLockCheckMessage, type OwnershipCard, type SharedPool, type UserDeck } from '../../core/decks';
 import { Icon } from '../icon';
 import { noticeOptions } from '../sync/notice';
@@ -80,7 +80,7 @@ export class NameLockAction {
   readonly context = input.required<NameLockContext>();
 
   private readonly locks = inject(DeckLocks);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly snackBar = injectNotices();
 
   protected readonly text = LOCK_TEXT;
   protected readonly reasonId = `name-lock-reason-${++nextId}`;

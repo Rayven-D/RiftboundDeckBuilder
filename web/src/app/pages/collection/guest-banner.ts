@@ -1,7 +1,7 @@
+import { injectNotices } from '../../shared/notice/notice-snack-bar';
 import { ApplicationRef, Component, afterNextRender, inject } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { refocusAfterDialog } from '../../core/sync/sync.service';
 import { GuestTestData } from '../../core/test-data/guest-test-data';
 import { TEST_DATA_ENABLED } from '../../core/test-data/test-data-flag';
@@ -64,7 +64,7 @@ export class GuestBanner {
   protected readonly enabled = inject(TEST_DATA_ENABLED);
   private readonly guest = inject(GuestTestData);
   private readonly dialog = inject(MatDialog);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly snackBar = injectNotices();
   /** Root: the dialog may close after this component is gone (the page content replaced the panel). */
   private readonly appRef = inject(ApplicationRef);
   private get injector() {

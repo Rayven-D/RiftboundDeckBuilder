@@ -178,7 +178,7 @@ describe('CollectionImport commit and Undo (SPEC-003 IMP-049…052, IMP-072…07
     expect(await quantities()).toEqual({ 'lightning rush': 3, gust: 2 });
     expect(backend.get(STORAGE_KEYS.tags)).toBe(tagsBefore);
     expect(snackText()).toBe('Import undone.');
-    expect(snackAction()).toBeNull();
+    expect(snackAction()?.textContent?.trim()).toBe('OK'); // H-680: no Undo, so only OK
     expect(await stores.collection.loadPrevious()).toBeNull(); // spent
 
     await importer.undo();

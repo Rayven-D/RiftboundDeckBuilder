@@ -776,6 +776,38 @@ describe('Deck detail (H-254)', () => {
       expect(text(q(h, 'h1'))).toBe('Kennen Tempo (copy)');
     });
 
+    it('H-680 the Deck deleted notice shows only Undo (no OK); a swipe closes it and the deck stays deleted', async () => {
+      const h = await setup(URL_, { owned: DETAIL_ALL_OWNED });
+      await openMore(h);
+      menuItem('Delete').click();
+      await settle(h);
+      Array.from(dialogEl()!.querySelectorAll('button')).find((b) => text(b) === 'Delete')!.click();
+      await settle(h, 10);
+      const buttons = Array.from(document.querySelectorAll('mat-snack-bar-container button')).map((b) => text(b));
+      expect(buttons).toEqual(['Undo']);
+      const el = document.querySelector<HTMLElement>('app-notice')!;
+      vi.spyOn(document.querySelector('mat-snack-bar-container')!, 'getBoundingClientRect').mockReturnValue({ width: 300 } as DOMRect);
+      const ev = (type: string, x: number) => new PointerEvent(type, { bubbles: true, clientX: x, pointerId: 3, pointerType: 'touch' });
+      el.dispatchEvent(ev('pointerdown', 10));
+      el.dispatchEvent(ev('pointermove', 60));
+      el.dispatchEvent(ev('pointermove', 200));
+      el.dispatchEvent(ev('pointerup', 200));
+      await vi.waitFor(() => expect(document.querySelector('app-notice')).toBeNull());
+      await settle(h, 10);
+      expect(await stores.decks.get(DETAIL_DECK_ID)).toBeNull();
+    });
+
+    it('H-680 the Missing list copied notice (no action) shows OK, which closes it', async () => {
+      const h = await setup(URL_);
+      await openMissing(h);
+      q(h, '.tabpanel .copy-main')!.click();
+      await settle(h);
+      expect(snack()).toBe('Missing list copied');
+      expect(Array.from(document.querySelectorAll('mat-snack-bar-container button')).map((b) => text(b))).toEqual(['OK']);
+      snackAction()!.click();
+      await vi.waitFor(() => expect(document.querySelector('app-notice')).toBeNull());
+    });
+
     it('DECK-082 / DECK-083 / SHARE-024 / SPEC-006 AC 29: Delete asks without "can\'t be undone", removes the deck, goes to Decks; AC 87 (H-665 gap 8): its name locks stay stored (ignored while the deck is gone) and Undo restores it with them, identical', async () => {
       const h = await setup(URL_, { owned: DETAIL_ALL_OWNED, locks: [DETAIL_DECK_ID] });
       const before = (await stores.locks.load())!.locks;
@@ -884,7 +916,7 @@ describe('Deck detail (H-254)', () => {
       await confirmLock(h);
       expect([...new Set((await stores.locks.load())!.locks.map((l) => l.deckId))]).toEqual([DETAIL_DECK_ID]);
       expect(snack()).toBe('Kennen Tempo is locked in.');
-      expect(snackAction()).toBeNull();
+      expect(text(snackAction())).toBe('OK'); // H-680: no Undo, so only OK
       expect(lockButton(h).getAttribute('aria-pressed')).toBe('true');
       expect(text(q(h, '.copies'))).toBe('23 of 23 copies locked in · 100%, 100 percent');
       expect(text(q(h, '#zone-main'))).toBe('Main Deck · 6 cards · 6 locked in');
@@ -900,7 +932,7 @@ describe('Deck detail (H-254)', () => {
       expect(dialogEl()).toBeNull();
       expect((await stores.locks.load())!.locks).toEqual([]);
       expect(snack()).toBe('Kennen Tempo is unlocked. Its cards count toward your other decks again.');
-      expect(snackAction()).toBeNull();
+      expect(text(snackAction())).toBe('OK'); // H-680: no Undo, so only OK
       expect(lockButton(h).getAttribute('aria-pressed')).toBe('false');
       expect(text(q(h, '.copies'))).toBe('23 of 23 copies available · 100%, 100 percent');
       expect(label(lockButton(h))).toBe('Lock deck');
