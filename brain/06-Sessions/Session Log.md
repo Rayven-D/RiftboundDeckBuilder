@@ -8,6 +8,10 @@ Newest first. One short entry per working session.
 Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
 
+## 2026-11-26 (night): H-662 + H-663, Deck detail lock icon and no other-deck info on tiles (builder)
+- Branch `loop/H-662-deck-lock-icon` from `origin/dev` @ `33a1411`, not pushed, one commit per item. H-662: the lock is an icon-only toggle after the deck name (same lock logic), no badge or lock date, no Lock in / Unlock button. H-663: card tiles and rows (Card and List view) show no "Also in N other decks"; the card dialog keeps it.
+- Web: lint clean, build OK, 1472 unit tests pass (93 files), e2e 5 / 5. Choices and questions for RJ: [[Build H-662 H-663 Deck Detail]].
+
 ## 2026-11-26 (evening): H-194 + H-344, SPEC-002 engine and legality in the Deck Import review (builder)
 - One branch `loop/H-194-H-344-legality` from `origin/dev` @ `cb1235b`, not pushed. Built `data/banlist.json` (Standard + 2v2 `unverified` snapshot), `data/formats.json`, the pure engine in `web/src/app/core/legality/` (LEGAL-001…019, set legality, SAMPLE stub, data check) and the review's "Rule check" block (DECK-050…056); `loadBans()` now returns real data.
 - Web: lint clean, build OK, 1470 unit tests pass (93 files). Notes, choices and chosen wording: [[Legality Build H-194 H-344]]; contracts v1.35.

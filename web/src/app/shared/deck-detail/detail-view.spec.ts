@@ -210,7 +210,9 @@ describe('Deck detail view (SPEC-005 section L, H-254)', () => {
       const other = { ...detailDeck('other', 'Jinx Aggro') };
       const v = detailView(deck, { owned: DETAIL_OWNED }, { decks: [deck, other], locks: [lock('other')], bans: banned });
       const lr = findCard(v, 'main:lightning rush')!;
-      expect(cardAccessibleName(lr)).toBe('Lightning Rush, Main Deck, 0 of 3 available, also in 1 other deck, 1 locked, banned since Nov 23, 2026');
+      // H-663: no other-deck part, even though Jinx Aggro (locked) uses the card.
+      expect(lr.sharedLabel).toBe('Also in 1 other deck · 1 locked');
+      expect(cardAccessibleName(lr)).toBe('Lightning Rush, Main Deck, 0 of 3 available, banned since Nov 23, 2026');
     });
 
     it('OWN-061: an unknown card says "card no longer in the card data" after the zone', () => {

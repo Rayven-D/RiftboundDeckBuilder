@@ -294,6 +294,11 @@ scrolled into view. Clicking scrolls smoothly (instant under reduced motion), wi
   section). Items get `content-visibility: auto` with an intrinsic size of one tile.
 
 ### `app-deck-card-tile` (replaces `app-card-tile`)
+> **H-663 (RJ 2026-11-26):** card tiles (Card view) and rows (List view) show **no other-deck
+> information**: no `shared` line and no `sharedLabel` part in the accessible name. Only this
+> deck's counts stay on the face. "Other decks using this card" and the "Locked by other decks"
+> breakdown stay in the card dialog / panel. The `shared` rows below are superseded.
+
 **Input:** `card: OwnershipCard`, `zoneLabel: string`, `eager: boolean`. **Output:** `open`.
 ```
 <li>

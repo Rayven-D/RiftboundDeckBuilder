@@ -3,19 +3,19 @@ import type { OwnershipCard } from '../../core/decks';
 import { CountBadge } from '../collection/count-badge';
 import { CardArt } from '../deck/card-art';
 import { OwnershipChip } from '../deck/ownership-chip';
-import { Icon } from '../icon';
 import { StatusLabel } from '../status-label';
 import { DETAIL_TEXT, banText, cardAccessibleName, cardId, labelParts } from './detail-view';
 
 /**
  * One card of a deck section in Card view (SPEC-005 OWN-115; Decks Components §9 `app-deck-card-tile`): art with the
  * ownership fill (OWN-030…036), `×N` from 2 (OWN-040), name, type, the count chip and its deck-total line (OWN-033),
- * the shared line (SHARE-042), the ban label (OWN-015) and the Preview flag (OWN-017). The whole tile is one button
+ * the ban label (OWN-015) and the Preview flag (OWN-017). H-663 (RJ 2026-11-26): no other-deck information (the
+ * SHARE-042 "Also in N other decks" line); that stays in the card dialog / panel. The whole tile is one button
  * (OWN-038) that selects the card in the panel (desktop) or opens the card dialog (below 64rem).
  */
 @Component({
   selector: 'app-deck-card-tile',
-  imports: [CardArt, CountBadge, OwnershipChip, StatusLabel, Icon],
+  imports: [CardArt, CountBadge, OwnershipChip, StatusLabel],
   template: `
     <button
       type="button"
@@ -51,9 +51,6 @@ import { DETAIL_TEXT, banText, cardAccessibleName, cardId, labelParts } from './
         <span class="labels"><app-ownership-chip [state]="card().state" [label]="p.count" /></span>
         @if (p.total) {
           <span class="split">{{ p.total }}</span>
-        }
-        @if (card().sharedLabel; as shared) {
-          <span class="shared"><app-icon name="stacks" />{{ shared }}</span>
         }
       }
       @if (ban(); as b) {
@@ -127,18 +124,9 @@ import { DETAIL_TEXT, banText, cardAccessibleName, cardId, labelParts } from './
     .labels app-ownership-chip {
       white-space: normal;
     }
-    .split,
-    .shared {
+    .split {
       font-size: var(--font-size-xs);
       color: var(--color-text-muted);
-    }
-    .shared {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-1);
-    }
-    .shared app-icon {
-      font-size: 12px;
     }
     .flag {
       padding: 0 var(--space-1);
@@ -170,7 +158,7 @@ export class DeckCardTile {
   protected readonly unknown = computed(() => this.card().flags.includes('unknown-card'));
   protected readonly preview = computed(() => this.card().flags.includes('preview'));
   protected readonly landscape = computed(() => (this.card().card?.category === 'battlefield' ? true : null));
-  /** OWN-115: no chip, split or shared line while ownership is unavailable (label ''). */
+  /** OWN-115: no chip or split line while ownership is unavailable (label ''). */
   protected readonly parts = computed(() => (this.card().label ? labelParts(this.card().label) : null));
   /** OWN-015 (v0.9): unknown ban status has no label on the face; the page notice covers it. */
   protected readonly ban = computed(() => {

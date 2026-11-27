@@ -371,7 +371,7 @@ describe('Deck detail (H-254)', () => {
       expect(qa(h, '#section-main [data-card]').map((b) => b.tabIndex)).toEqual([-1, 0, -1]);
     });
 
-    it('OWN-115 / OWN-040: the tile face has ×N from 2, the count chip, the deck-total line for a split card and the shared line', async () => {
+    it('OWN-115 / OWN-040 / H-663: the tile face has ×N from 2, the count chip and the deck-total line for a split card; no shared line', async () => {
       const other = detailDeck('0b7c0000-0000-4000-8000-0000000000a2', 'Jinx Aggro');
       const h = await setup(URL_, { decks: [detailDeck(), other] });
       const lr = tile(h, 'main:lightning rush');
@@ -381,7 +381,36 @@ describe('Deck detail (H-254)', () => {
       const emp = tile(h, 'sideboard:the empyrean');
       expect(text(emp.querySelector('app-ownership-chip'))).toBe('0 of 1 available');
       expect(text(emp.querySelector('.split'))).toBe('2 of 3 in this deck');
-      expect(text(lr.querySelector('.shared'))).toBe('Also in 1 other deck');
+      expect(lr.querySelector('.shared')).toBeNull();
+      expect(text(lr)).not.toContain('other deck');
+    });
+
+    it('H-663: with other decks (one locked) using the cards, no tile or row shows other-deck information in Card or List view, nor in its name; the dialog still does', async () => {
+      const deck2Id = '0b7c0000-0000-4000-8000-0000000000a2';
+      const h = await setup(URL_, { decks: [detailDeck(), detailDeck(deck2Id, 'Jinx Aggro')], owned: DETAIL_OWNED, locks: [deck2Id], width: 'phone' });
+      const noOther = (els: HTMLElement[]) => {
+        expect(els.length).toBeGreaterThan(0);
+        for (const el of els) {
+          expect(text(el)).not.toMatch(/other deck|Also in|locked/i);
+          expect(el.getAttribute('aria-label') ?? '').not.toMatch(/other deck|also in|locked/i);
+        }
+      };
+      noOther(qa(h, 'app-deck-card-tile [data-card]'));
+      const view = qa(h, '.view-toggle button');
+      view[1].click();
+      await settle(h);
+      expect(qa(h, 'app-deck-card-tile')).toHaveLength(0);
+      noOther(qa(h, 'app-deck-card-row [data-card]'));
+      // This deck's own counts stay on the row.
+      expect(text(tile(h, 'main:lightning rush').querySelector('app-ownership-chip'))).toBe('0 of 3 available');
+      // The card dialog keeps "Other decks using this card" with Jinx Aggro and its lock, and the breakdown.
+      tile(h, 'main:lightning rush').click();
+      await settle(h);
+      const d = text(dialogEl());
+      expect(d).toContain('Other decks using this card');
+      expect(d).toContain('Jinx Aggro');
+      expect(d).toContain('Jinx Aggro · needs 3 · Locked, holds 1');
+      expect(d).toContain('Locked by other decks: 1');
     });
 
     it('OWN-114 / AC 30: List view rows "3× Lightning Rush" with the label; "1×" shown; Fizz in Main and Sideboard; remembered on this device', async () => {
