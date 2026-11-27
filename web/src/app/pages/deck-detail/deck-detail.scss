@@ -96,7 +96,6 @@ p {
     min-width: 0;
   }
 
-  // H-520: flex-start, so the reason line (the only line with free space) starts under Lock in.
   .header-top > .actions {
     flex: 0 0 auto;
     justify-content: flex-start;
@@ -105,7 +104,17 @@ p {
   }
 }
 
+// H-662: the deck name and its lock toggle on one wrapping row; the Lock in reason line (OWN-116) wraps under it.
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+}
+
 .deck-name {
+  flex: 0 1 auto;
+  min-width: 0;
   margin: 0;
   font-size: var(--font-size-xl);
   line-height: 1.15;
@@ -157,16 +166,6 @@ p {
   font-size: var(--font-size-sm);
 }
 
-app-lock-actions {
-  flex: 0 1 auto;
-  max-width: 100%;
-
-  // Phones: the lock button takes the row, More stays beside it.
-  @media (max-width: 39.99rem) {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-}
 
 
 .legality {
@@ -211,9 +210,15 @@ app-lock-actions {
 .actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start; // the Lock in reason line (OWN-116) sits under its button
+  align-items: flex-start;
   gap: var(--space-2);
   margin-top: var(--space-1);
+
+  // H-662: on phones only More is left in the row (Copy missing list sits under the Missing list); it keeps the
+  // right edge, where it was beside the old full-width Lock in / Unlock button.
+  @media (max-width: 39.99rem) {
+    justify-content: flex-end;
+  }
 }
 
 .split {

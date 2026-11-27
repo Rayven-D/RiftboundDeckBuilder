@@ -44,7 +44,22 @@
              actions stay after the title and status in the DOM, so the focus order is unchanged. -->
         <div class="header-top">
           <div class="header-main">
-            <h1 class="deck-name">{{ d.deck.name }}</h1>
+            <!-- H-662 (RJ 2026-11-26): the lock state is an icon-only toggle right after the name (closed lock = locked,
+                 open lock = not). OWN-116 / SHARE-020…023, SHARE-029: the same Lock in / Unlock logic, confirmation,
+                 snack bars and disabled states; the SHARE-020 reason line wraps under the title row. It saves through
+                 DeckLocks; the page re-reads on DeckLocks.changed and passes the new view back in. -->
+            <div class="title-row">
+              <h1 class="deck-name">{{ d.deck.name }}</h1>
+              <app-lock-actions
+                variant="icon"
+                [deck]="d.deck"
+                [view]="v"
+                [pool]="d.pool"
+                [readOnly]="d.readOnly"
+                [locksUnreadable]="d.locksUnreadable"
+                (changed)="lockChanged()"
+              />
+            </div>
             @if (d.deck.notes) {
               <div class="description">
                 <p #desc id="deck-description" class="description-text" [class.clamped]="!descExpanded()">{{ d.deck.notes }}</p>
@@ -73,8 +88,7 @@
               }
             </p>
             <div class="meta">
-              <!-- SHARE-041 / SHARE-033: "Locked · Locked in on <date>" or "Locked · n cards short" (nothing when unlocked). -->
-              <app-lock-badge [lock]="v.lock" [label]="d.tile.lockBadge" />
+              <!-- H-662: no lock badge or "Locked in on <date>" here any more; the title-row icon shows the lock state. -->
               <span class="legality" [class]="'legality legality--' + d.tile.legalityVerdict">
                 <app-icon [name]="d.tile.legalityVerdict === 'legal' ? 'check_circle' : d.tile.legalityVerdict === 'illegal' ? 'block' : 'help'" />{{
                   d.tile.legalityLabel
@@ -97,17 +111,7 @@
             </div>
           </div>
           <div class="actions">
-            <!-- OWN-116 / SHARE-020…023, SHARE-029: Lock in / Unlock with its own reason line and snack bars. It saves
-                 through DeckLocks; the page re-reads on DeckLocks.changed and passes the new view back in. -->
-            <app-lock-actions
-              class="in-row"
-              [deck]="d.deck"
-              [view]="v"
-              [pool]="d.pool"
-              [readOnly]="d.readOnly"
-              [locksUnreadable]="d.locksUnreadable"
-              (changed)="lockChanged()"
-            />
+            <!-- H-662: Lock in / Unlock moved to the title row as an icon toggle. -->
             @if (canCopyMissing() && !isPhone()) {
               <div class="split">
                 <button matButton="outlined" type="button" class="split-main" (click)="copyMissing('sections')">

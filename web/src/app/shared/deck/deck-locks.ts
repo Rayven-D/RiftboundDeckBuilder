@@ -22,6 +22,9 @@ export const LOCK_TEXT = {
   lockingIn: 'Locking in…',
   unlock: 'Unlock',
   unlocking: 'Unlocking…',
+  /** H-662: name and tooltip of the Deck detail title-row lock toggle (icon only). */
+  lockDeck: 'Lock deck',
+  unlockDeck: 'Unlock deck',
   cancel: 'Cancel',
   confirmBody: "Its cards won't count toward your other decks until you unlock or delete it.",
   saveFailed: "Couldn't save the lock. Try again.",

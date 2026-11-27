@@ -1,25 +1,17 @@
 import { Component, computed, input } from '@angular/core';
 import type { DeckLockState } from '../../core/decks';
 import { Icon } from '../icon';
-import { localDateText } from './local-date';
-
-/** SHARE-041: "Locked in on Nov 23, 2026"; null when `lockedAt` doesn't parse (SHARE-030: badge without a date). */
-function lockedOn(lockedAt: string | null): string | null {
-  const d = localDateText(lockedAt);
-  return d ? `Locked in on ${d}` : null;
-}
 
 /**
- * SPEC-008 SHARE-041 lock badge ([[Decks Components]] §6), for the Deck detail header (H-254) and anywhere a deck's
- * lock is shown in full: `lock` icon + "Locked" + muted "· Locked in on Nov 23, 2026" (`lockedAt` as a local date,
- * OWN-090; omitted when it doesn't parse, SHARE-030). Short (SHARE-033): `warning` icon + "Locked · 2 cards short"
- * in the warning colour. While ownership is unavailable the engine's label is "Locked", never "… cards short"
- * (SHARE-053 (b)). Plain text, read in order (SHARE-044). Renders nothing when the deck is not locked.
+ * SPEC-008 SHARE-041 lock badge ([[Decks Components]] §6), on the deck tile: `lock` icon + "Locked". Short
+ * (SHARE-033): `warning` icon + "Locked · 2 cards short" in the warning colour. H-662 (RJ 2026-11-26): the lock date
+ * ("Locked in on <date>") is no longer shown anywhere, and the Deck detail header shows the lock as the title-row icon
+ * toggle (`app-lock-actions variant="icon"`) instead of this badge. While ownership is unavailable the engine's
+ * label is "Locked", never "… cards short" (SHARE-053 (b)). Plain text, read in order (SHARE-044). Renders nothing when the deck is not locked.
  *
- * Inputs: `lock` = `DeckOwnershipView.lock` (optional, default null: only the date comes from it); `label` =
- * `DeckTileSummary.lockBadge`, non-null exactly when the deck is locked; `showDate` (default true). It renders when
- * `label` is set, unless `lock` says the deck is not locked. The deck tile uses `label` alone with `showDate` false
- * (H-060 RJ 2026-11-25: the badge sits next to the ownership chip; the date is the header's, SHARE-041).
+ * Inputs: `lock` = `DeckOwnershipView.lock` (optional, default null); `label` = `DeckTileSummary.lockBadge`, non-null
+ * exactly when the deck is locked. It renders when `label` is set, unless `lock` says the deck is not locked. The deck
+ * tile uses `label` alone (H-060 RJ 2026-11-25: the badge sits next to the ownership chip).
  * Size: `--lock-badge-font-size` (default `--font-size-sm`) and `--lock-badge-icon-size` (default 16px).
  */
 @Component({
@@ -31,9 +23,6 @@ function lockedOn(lockedAt: string | null): string | null {
         <app-icon [name]="short() ? 'warning' : 'lock'" />
         <span class="label">{{ label() }}</span>
       </span>
-      @if (showDate() && date(); as d) {
-        <span class="date"> · {{ d }}</span>
-      }
     }
   `,
   styles: `
@@ -65,9 +54,6 @@ function lockedOn(lockedAt: string | null): string | null {
     app-icon {
       font-size: var(--lock-badge-icon-size, 16px);
     }
-    .date {
-      color: var(--color-text-muted);
-    }
     @media (forced-colors: active) {
       .badge {
         border-color: CanvasText;
@@ -78,7 +64,5 @@ function lockedOn(lockedAt: string | null): string | null {
 export class LockBadge {
   readonly lock = input<DeckLockState | null>(null);
   readonly label = input.required<string | null>();
-  readonly showDate = input(true);
   protected readonly short = computed(() => (this.label() ?? '').includes('short'));
-  protected readonly date = computed(() => lockedOn(this.lock()?.lockedAt ?? null));
 }

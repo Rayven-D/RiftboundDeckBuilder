@@ -228,6 +228,10 @@ after the status in the DOM, so focus goes Rule check → Lock in → Copy missi
 Notices stay under the header. Phones (< 40rem) keep the one-column layout above.
 
 ## 6. Lock badge, `app-lock-badge`
+> **H-662 (RJ 2026-11-26):** the badge is on the deck **tile** only, and no lock date is shown
+> anywhere (the `· Locked in on <date>` part below is gone). Deck detail shows the lock as the
+> title-row icon toggle in §7.
+
 **Inputs:** `lock: DeckLockState | null`, `label: string | null` (`summary.lockBadge`). It renders
 nothing when not locked.
 - Not short: `lock` icon + `Locked` (600) + muted ` · Locked in on Nov 23, 2026`
@@ -238,6 +242,14 @@ nothing when not locked.
 - It's plain text (no role); screen readers read it in order (SHARE-044).
 
 ## 7. Lock actions, `app-lock-actions` + Lock in dialog
+> **H-662 (RJ 2026-11-26), Deck detail:** `variant="icon"`, one icon-only native button right after
+> the deck name (`.title-row`): closed `lock` (accent colour) when locked, open `lock_open` (muted)
+> when not; `aria-label` and tooltip `Lock deck` / `Unlock deck`; `aria-pressed` = locked; 44 x 44
+> on every width; the global focus ring. Same logic, confirmation, snack bars and (interactive)
+> disabled states as the text buttons below; the reason line wraps under the title row. The
+> actions row no longer has Lock in / Unlock. The text buttons stay in the component (and the
+> styleguide) but no page uses them now.
+
 - **Lock in:** Material filled button, `lock` icon, label `Lock in`. When `lockCheck.ok` is false
   and the reason isn't `already-locked`: `disabledInteractive` (`aria-disabled="true"`, focusable),
   `aria-describedby="lock-reason"`. While saving: label `Locking in…`, `aria-disabled`, min-width

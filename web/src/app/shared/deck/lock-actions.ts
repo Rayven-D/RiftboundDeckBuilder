@@ -15,6 +15,7 @@ import {
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltip } from '@angular/material/tooltip';
 import { firstValueFrom } from 'rxjs';
 import {
   type DeckOwnershipView,
@@ -46,42 +47,76 @@ let nextId = 0;
  *
  * Inputs: `deck` (the `UserDeck`), `view` (its `DeckOwnershipView`: lock state and the other decks for the
  * confirmation), `pool` (the `SharedPool`, null while ownership is unavailable), `readOnly` (DECK-091),
- * `locksUnreadable` (the lock store couldn't be read, SHARE-061). Output: `changed` after a saved lock change.
+ * `locksUnreadable` (the lock store couldn't be read, SHARE-061), `variant`. Output: `changed` after a saved lock change.
+ *
+ * H-662 (RJ 2026-11-26), `variant="icon"`: the Deck detail title row's toggle. One native button with only an icon
+ * (`lock` when locked, `lock_open` when not), `aria-label` and tooltip "Lock deck" / "Unlock deck", `aria-pressed`
+ * = locked, 44 x 44. It calls the same lockIn() / unlock() with the same guards, confirmation and snack bars; it is
+ * `aria-disabled` (focusable) exactly when the text button would be disabled, and the reason line still shows.
  */
 @Component({
   selector: 'app-lock-actions',
-  imports: [MatButton, Icon],
+  imports: [MatButton, MatTooltip, Icon],
+  host: { '[class.variant-icon]': "variant() === 'icon'" },
   template: `
-    <div class="actions">
-      @if (locked()) {
-        <button
-          #action
-          matButton="outlined"
-          type="button"
-          class="unlock"
-          [disabled]="locksUnreadable() || saving()"
-          [disabledInteractive]="true"
-          [attr.aria-describedby]="locksUnreadable() ? reasonId : null"
-          (click)="unlock()"
-        >
-          <app-icon name="lock_open" />{{ saving() ? text.unlocking : text.unlock }}
-        </button>
-      } @else {
-        <button
-          #action
-          matButton="filled"
-          type="button"
-          class="lock-in"
-          [disabled]="!!reason() || saving()"
-          [disabledInteractive]="true"
-          [attr.aria-describedby]="reason() ? reasonId : null"
-          aria-haspopup="dialog"
-          (click)="lockIn()"
-        >
-          <app-icon name="lock" />{{ saving() ? text.lockingIn : text.lockIn }}
-        </button>
-      }
-    </div>
+    @if (variant() === 'icon') {
+      <!-- H-662 (RJ 2026-11-26): one icon-only toggle; the same element in both states, so focus stays on it. -->
+      <button
+        #action
+        type="button"
+        class="lock-toggle"
+        [class.lock-toggle--locked]="locked()"
+        [attr.aria-label]="iconLabel()"
+        [attr.aria-pressed]="locked()"
+        [attr.aria-disabled]="iconDisabled() ? 'true' : null"
+        [attr.aria-describedby]="reason() ? reasonId : null"
+        [attr.aria-haspopup]="locked() ? null : 'dialog'"
+        [matTooltip]="iconLabel()"
+        matTooltipPosition="below"
+        [matTooltipShowDelay]="300"
+        (click)="locked() ? unlock() : lockIn()"
+      >
+        @switch (locked()) {
+          @case (true) {
+            <app-icon name="lock" />
+          }
+          @default {
+            <app-icon name="lock_open" />
+          }
+        }
+      </button>
+    } @else {
+      <div class="actions">
+        @if (locked()) {
+          <button
+            #action
+            matButton="outlined"
+            type="button"
+            class="unlock"
+            [disabled]="locksUnreadable() || saving()"
+            [disabledInteractive]="true"
+            [attr.aria-describedby]="locksUnreadable() ? reasonId : null"
+            (click)="unlock()"
+          >
+            <app-icon name="lock_open" />{{ saving() ? text.unlocking : text.unlock }}
+          </button>
+        } @else {
+          <button
+            #action
+            matButton="filled"
+            type="button"
+            class="lock-in"
+            [disabled]="!!reason() || saving()"
+            [disabledInteractive]="true"
+            [attr.aria-describedby]="reason() ? reasonId : null"
+            aria-haspopup="dialog"
+            (click)="lockIn()"
+          >
+            <app-icon name="lock" />{{ saving() ? text.lockingIn : text.lockIn }}
+          </button>
+        }
+      </div>
+    }
     @if (reason(); as r) {
       <p class="reason" [id]="reasonId"><app-icon name="help" /><span>{{ r }}</span></p>
     }
@@ -119,32 +154,62 @@ let nextId = 0;
         flex: 1 1 auto;
       }
     }
-    /* H-475 (class "in-row", Deck detail header from 40rem): the button joins the parent's flex row of actions and
-       the reason line goes under the whole row, so Copy missing list sits right next to Lock in (H-392 (1)). The
-       reason adds no width of its own (contain: inline-size); it wraps to the row's width. The negative end margin
-       cancels the row's column gap (--space-2) that it would otherwise add to the row's width.
-       H-520 (Decks §6): start-aligned under Lock in, its box exactly the row's width (flex basis 100%, no grow, the
-       negative margin on the end side), so it never starts before the row or leaves the gutter when the row wraps. */
-    @media (min-width: 40rem) {
-      :host(.in-row) {
-        display: contents;
-      }
-      :host(.in-row) .reason {
-        order: 1;
-        flex: 0 0 100%;
-        margin-top: 0;
-        margin-inline: 0 calc(-1 * var(--space-2));
-        justify-content: flex-start;
-        contain: inline-size;
-        text-align: start;
-      }
+    /* H-662 (variant "icon", the Deck detail title row): the host joins the parent's wrapping flex row, so the toggle
+       sits right after the deck name and the SHARE-020 reason line goes under the whole row. 44 x 44 hit area on
+       every width, icon centred, no border (the theme toggle's pattern, H-246). The state is the icon's shape
+       (closed vs open lock, not colour alone); locked also takes the accent colour. aria-disabled is dimmed but
+       stays focusable (OWN-116). The global :focus-visible ring applies (native button). */
+    :host(.variant-icon) {
+      display: contents;
     }
-    /* H-467: in the Deck detail header row the button has the height of Copy missing list and More: 40px with a
-       fine pointer from 40rem, 44px on phones and touch (the rule above). */
-    @media (min-width: 40rem) and (pointer: fine) {
-      :host(.in-row) button {
-        min-height: 40px;
-        height: 40px;
+    :host(.variant-icon) .reason {
+      order: 1;
+      flex: 0 0 100%;
+      margin-top: 0;
+    }
+    .lock-toggle {
+      display: inline-grid;
+      flex: none;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 0;
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--color-text-muted);
+      font-size: 24px;
+      cursor: pointer;
+      transition:
+        color var(--dur-fast) var(--ease-out),
+        background-color var(--dur-fast) var(--ease-out);
+    }
+    .lock-toggle app-icon {
+      margin: 0;
+      font-size: 24px;
+    }
+    .lock-toggle--locked {
+      color: var(--color-accent-text);
+    }
+    .lock-toggle:hover {
+      background: var(--color-surface-raised);
+    }
+    .lock-toggle:not(.lock-toggle--locked):hover {
+      color: var(--color-text);
+    }
+    .lock-toggle[aria-disabled='true'] {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .lock-toggle[aria-disabled='true']:hover {
+      background: transparent;
+    }
+    @media (forced-colors: active) {
+      .lock-toggle {
+        color: ButtonText;
+      }
+      .lock-toggle[aria-disabled='true'] {
+        color: GrayText;
       }
     }
   `,
@@ -155,6 +220,8 @@ export class LockActions {
   readonly pool = input<SharedPool | null>(null);
   readonly readOnly = input(false);
   readonly locksUnreadable = input(false);
+  /** 'button' (default): Lock in / Unlock with text. 'icon' (H-662, Deck detail title row): one icon-only toggle. */
+  readonly variant = input<'button' | 'icon'>('button');
   readonly changed = output<void>();
 
   private readonly locks = inject(DeckLocks);
@@ -180,6 +247,11 @@ export class LockActions {
       locksUnreadable: this.locksUnreadable(),
     }),
   );
+  /** H-662: the icon toggle's name and tooltip ("Lock deck" / "Unlock deck"). */
+  protected readonly iconLabel = computed(() => (this.locked() ? LOCK_TEXT.unlockDeck : LOCK_TEXT.lockDeck));
+  /** H-662: the same disabled state as the text buttons (Unlock: never while locked() holds, as `locked()` is false
+   *  while the lock store is unreadable; Lock in: whenever there is a reason), and while saving. */
+  protected readonly iconDisabled = computed(() => this.saving() || (!this.locked() && !!this.reason()));
   /** Visible reason line: SHARE-020 for Lock in; SHARE-061 for Unlock while the lock store is unreadable. */
   protected readonly reason = computed(() => {
     if (this.locked()) return null;
