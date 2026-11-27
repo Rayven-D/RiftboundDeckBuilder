@@ -63,6 +63,11 @@ describe('SPEC-013 test data through sync (H-205)', () => {
     console.log(`H-205 measured: Large state/collection = ${bytes} bytes; Load writes = ${db.writeLog.length}, reads = ${db.reads}`);
     expect(bytes).toBeLessThanOrEqual(262_144);
     expect(laptop.engine.pendingCount()).toBe(0);
+    // H-665 (SPEC-013 TEST-021 v0.1.5): the two locked test decks lock every name, one entry per (deck, name).
+    const locks = db.get(LOCKS);
+    const lockBytes = documentSize(LOCKS, locks);
+    console.log(`H-665 measured: Large state/locks (test data) = ${Object.keys(locks.locks).length} entries, ${lockBytes} bytes`);
+    expect(Object.keys(locks.locks).every((k) => k.includes("|"))).toBe(true);
   });
 
   it('TEST-025 / AC 18 the three full-shape test decks reach the account with all six zones; their documents are measured against the "Size and quota" table (≈ 11,200 B)', async () => {
@@ -157,7 +162,7 @@ describe('SPEC-013 test data through sync (H-205)', () => {
     expect((await laptop.stores.collection.load())?.catalogVersion).not.toMatch(/^test-data-/);
   });
 
-  it('TEST-050 / TEST-051 / AC 9 / AC 10 / AC 10a Remove: collection and locks at once, the 3 deck tombstones after the 10 s Undo window: 5 writes, 0 reads; own deck and lock kept', async () => {
+  it('TEST-050 / TEST-051 / AC 9 / AC 10 / AC 10a Remove: collection and locks at once, the 3 deck tombstones after the 10 s Undo window: 5 writes, and (SYNC-126 (a) 4, H-667) the one pull when the window ends, 2 reads; own deck and lock kept', async () => {
     const laptop = await signedIn(db);
     const own = await laptop.createDeck('My Deck', [card('ashen warden 1', 1)], deckId(79));
     await laptop.lock(own.id);
@@ -172,7 +177,9 @@ describe('SPEC-013 test data through sync (H-205)', () => {
     await laptop.advance(DECK_UNDO_MS);
     expect(writes(db).slice(2).sort()).toEqual(TEST_DECK_IDS.map((id) => `set ${deckPath(id)}`).sort());
     expect(db.writeLog.length).toBe(5);
-    expect(db.reads).toBe(0);
+    // SYNC-126 (a) 4 (H-667): the one pull when the Undo window ends (its 2 queries, plus this device's own writes
+    // since its cursor that they return); it was 0 before the immediate pull.
+    expect(db.reads).toBe(7);
     console.log(`H-205 measured: Remove writes = ${db.writeLog.length} (2 at once, 3 after the Undo window), reads = ${db.reads}`);
 
     // AC 10a: catalogVersion "" and no live cards, locally and in the cloud
@@ -189,7 +196,7 @@ describe('SPEC-013 test data through sync (H-205)', () => {
     // own data kept
     expect(await laptop.deckNames()).toEqual(['My Deck']);
     expect(await laptop.lockedIds()).toEqual([own.id]);
-    expect(db.get(LOCKS).locks[own.id].lockedAt).not.toBeNull();
+    expect(db.get(LOCKS).locks[`${own.id}|ashen warden 1`].lockedAt).not.toBeNull();
     expect((await laptop.tags()).tags.map((t) => t.id)).toEqual(['t_keep01']);
   });
 
@@ -231,7 +238,7 @@ describe('SPEC-013 test data through sync (H-205)', () => {
 
   it('TEST-033 / TEST-034 removeTestDecks (the Replace-import part) removes the test decks and their locks, keeps the collection and own decks', async () => {
     const laptop = await signedIn(db);
-    const own = await laptop.createDeck('My Deck', [], deckId(80));
+    const own = await laptop.createDeck('My Deck', [card('hextech ray', 1)], deckId(80));
     await laptop.lock(own.id);
     await load(laptop, 'small');
     await laptop.replaceCollection({ 'hextech ray': { quantity: 1, byPrinting: {} } });

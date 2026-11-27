@@ -1,7 +1,7 @@
 import { completionPercent, computeDeckOwnership, summarizeDeck } from './deck-ownership-view';
 import { lock, makeCatalog, makeDeck, makeInput, printingIdOf } from './engine-fixtures';
 import { computeSharedPool } from './shared-pool';
-import type { BanListFile, BanWave, DeckLock, TournamentDeckSource, UserDeck } from './types';
+import type { BanListFile, BanWave, NameLock, TournamentDeckSource, UserDeck } from './types';
 
 // SPEC-005 v0.10.2 (H-311): the completion fields of `view.summary` (OWN-101) and the v0.9 deck
 // tile fields of `DeckTileSummary` (OWN-100…104), computed from the same view (OWN-073).
@@ -35,7 +35,7 @@ function ownedFor(entries: [string, number][], a: number): Record<string, number
 function view(
   deck: UserDeck,
   owned: Record<string, number>,
-  opts: { decks?: UserDeck[]; locks?: DeckLock[]; ban?: BanListFile | null } = {},
+  opts: { decks?: UserDeck[]; locks?: NameLock[]; ban?: BanListFile | null } = {},
 ) {
   const input = makeInput(catalog, { owned });
   const shared = computeSharedPool({
@@ -214,7 +214,7 @@ describe('SPEC-005 AC 25 locked decks and the percentage (OWN-100 (c), OWN-101 (
   const all = ownedFor(main, 54);
 
   it('SPEC-005 AC 25 locked complete deck of 54: 100, "54 of 54 copies locked in", Locked', () => {
-    const tile = summarizeDeck(deck, view(deck, all, { locks: [lock('l')] }), null, null);
+    const tile = summarizeDeck(deck, view(deck, all, { locks: lock('l') }), null, null);
     expect(tile).toMatchObject({
       completionFill: 1,
       completionPercent: 100,
@@ -224,23 +224,23 @@ describe('SPEC-005 AC 25 locked decks and the percentage (OWN-100 (c), OWN-101 (
     });
   });
 
-  it('SPEC-005 AC 25 4 copies short in 2 cards after a Replace import: fill 50/54, 92, still locked', () => {
+  it('SPEC-005 AC 25 / OWN-121 (e) v0.6 4 copies short in 2 cards: those two name locks no longer fit, so the deck is partly locked: fill 50/54, 92, no badge, never "cards short"', () => {
     const fewer = { ...all, 'Card 0': 1, 'Card 1': 1 };
-    const v = view(deck, fewer, { locks: [lock('l')] });
+    const v = view(deck, fewer, { locks: lock('l') });
     const tile = summarizeDeck(deck, v, null, null);
-    expect(v.lock?.locked).toBe(true);
+    expect(v.lock?.locked).toBe(false);
     expect(tile).toMatchObject({
       completionFill: 50 / 54,
       completionPercent: 92,
-      ownershipLine: '50 of 54 copies locked in',
-      lockBadge: 'Locked · 2 cards short',
+      ownershipLine: '50 of 54 copies available',
+      lockBadge: null,
     });
   });
 
   it('SPEC-005 AC 25 an unlocked second deck counts only the copies the locked deck does not hold', () => {
     const other = makeDeck('o', 'Other', { main });
     const owned = { ...all, 'Card 0': 5 }; // 2 copies of Card 0 beyond the locked deck's 3
-    const v = view(other, owned, { decks: [deck, other], locks: [lock('l')] });
+    const v = view(other, owned, { decks: [deck, other], locks: lock('l') });
     expect(v.summary.copiesAvailable).toBe(2);
     expect(summarizeDeck(other, v, null, null).completionPercent).toBe(3); // floor(200 / 54)
   });
@@ -248,7 +248,7 @@ describe('SPEC-005 AC 25 locked decks and the percentage (OWN-100 (c), OWN-101 (
   it('OWN-065 / SHARE-053 (e) locked deck while ownership is unavailable: "Locked", no percentage', () => {
     const v = computeDeckOwnership(
       deck,
-      { status: 'unavailable', locks: [lock('l')] },
+      { status: 'unavailable', locks: lock('l') },
       catalog,
       null,
       TODAY,

@@ -129,7 +129,7 @@ describe('SPEC-005 computeDeckOwnership', () => {
   describe('AC 13 second Given (OWN-065; SPEC-008 AC 19): stored locks while the collection is unreadable', () => {
     const tempo = makeDeck('d1', 'Kennen Tempo', { main: [['Hextech Ray', 3]] });
     const control = makeDeck('d2', 'Kennen Control', { main: [['Hextech Ray', 3]] });
-    const locks = [lock('d1', '2026-11-23T10:00:00Z')];
+    const locks = lock('d1', '2026-11-23T10:00:00Z');
     const unavailable = { status: 'unavailable' as const, locks };
 
     it('OWN-065 (a)-(d) Kennen Tempo keeps its lock: badge "Locked", line and group unavailable', () => {
@@ -139,9 +139,8 @@ describe('SPEC-005 computeDeckOwnership', () => {
         deckId: 'd1',
         locked: true,
         lockedAt: '2026-11-23T10:00:00Z',
+        lockedNames: ['hextech ray'],
         complete: false,
-        short: false,
-        cardsShort: [],
       });
       const s = summarizeDeck(tempo, v, null, null);
       expect(s).toMatchObject({
@@ -172,20 +171,19 @@ describe('SPEC-005 computeDeckOwnership', () => {
       }
     });
 
-    it('OWN-063 / SHARE-053 catalog not loaded: the pool gives the lock facts only, never short', () => {
-      const input = makeInput(catalog, { owned: { 'Hextech Ray': 1 } });
+    it('OWN-063 / SHARE-053 catalog not loaded: the pool gives the lock facts only', () => {
+      const input = makeInput(catalog, { owned: { 'Hextech Ray': 3 } });
       const shared = computeSharedPool({ decks: [tempo], locks, ownership: input });
-      expect(shared.byDeck['d1'].short).toBe(true); // short with the catalog …
+      expect(shared.byDeck['d1'].locked).toBe(true);
       const v = computeDeckOwnership(tempo, { status: 'ok', input, shared }, null, null, TODAY);
       expect(v.ownershipAvailable).toBe(false);
       expect(v.lock).toEqual({
         deckId: 'd1',
         locked: true,
         lockedAt: '2026-11-23T10:00:00Z',
+        lockedNames: ['hextech ray'],
         complete: false,
-        short: false,
-        cardsShort: [],
-      }); // … but holds are not computed without it (SHARE-053 (f))
+      }); // holds are not computed without the catalog (SHARE-053 (f))
       expect(summarizeDeck(tempo, v, null, null)).toMatchObject({
         lockBadge: 'Locked',
         ownershipFilter: 'unavailable',
@@ -221,7 +219,7 @@ describe('SPEC-005 computeDeckOwnership', () => {
     const a = makeDeck('a', 'Other', { main: [['Hextech Ray', 3]] });
     const b = makeDeck('b', 'This', { main: [['Hextech Ray', 3]] });
     const input = makeInput(catalog, { owned: { 'Hextech Ray': 3 } });
-    const shared = computeSharedPool({ decks: [a, b], locks: [lock('a')], ownership: input });
+    const shared = computeSharedPool({ decks: [a, b], locks: lock('a'), ownership: input });
     const vb = computeDeckOwnership(b, { status: 'ok', input, shared }, catalog, null, TODAY);
     const va = computeDeckOwnership(a, { status: 'ok', input, shared }, catalog, null, TODAY);
     expect(vb.sections[2].cards[0]).toMatchObject({
@@ -341,7 +339,7 @@ describe('SPEC-005 summarizeDeck', () => {
       }),
     );
     const owned = Object.fromEntries(names.map((n, i) => [n, i % 5]));
-    const locks = decks.slice(0, 100).map((d) => lock(d.id));
+    const locks = decks.slice(0, 100).flatMap((d) => lock(d));
     // A realistic ban list (LEGAL-B09 scale): 4 waves, 22 names, one remove, one upcoming wave.
     const wave = (
       i: number,
@@ -420,7 +418,7 @@ describe('SPEC-005 summarizeDeck', () => {
 describe('H-521 summarizeDeck copies line: singular "copy" when the required total is 1', () => {
   function withLocks(deck: UserDeck, owned: Record<string, number>, locked: boolean) {
     const input = makeInput(catalog, { owned });
-    const locks = locked ? [lock(deck.id)] : [];
+    const locks = locked ? lock(deck.id) : [];
     const shared = computeSharedPool({ decks: [deck], locks, ownership: input });
     return computeDeckOwnership(deck, { status: 'ok', input, shared }, catalog, null, TODAY);
   }

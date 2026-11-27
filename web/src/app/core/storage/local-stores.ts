@@ -1,4 +1,5 @@
 import {
+  CardKey,
   CollectionStore,
   CollectionViewStateStore,
   DeckLockStore,
@@ -9,6 +10,7 @@ import {
   PrintingCodeStore,
   StoredCollection,
   StoredDeckLocks,
+  StoredDeckLocksV1,
   StoredPrintingCodes,
   StoredTags,
   StoredViewState,
@@ -338,23 +340,45 @@ export class LocalDeckStore implements DeckStore {
 
 const locksShape = (v: Record<string, unknown>) => typeof v['updatedAt'] === 'string' && Array.isArray(v['locks']);
 
-/** SPEC-008 `DeckLockStore`. A save drops locks whose deck is not in the deck store (SHARE-062). */
+/** Each stored deck's counted card names (SHARE-062: a name lock is an orphan when its deck or name is missing). */
+export type DeckCardKeys = () => Promise<ReadonlyMap<string, ReadonlySet<CardKey>>>;
+
+/**
+ * SPEC-008 v0.6 `DeckLockStore` (`schemaVersion: 2`, one `NameLock` per deck and card name). A save drops name locks
+ * whose deck is not in the deck store or whose name is not in that deck (SHARE-062), and keeps one per (deck, name)
+ * (SHARE-022). A v1 record (one lock per deck) is converted once on load by `migrate` (SHARE-092) and written back as
+ * v2 (raw, so the sync log sees the new record on its next reconcile and syncs it); v1 is never written again.
+ */
 export class LocalDeckLockStore implements DeckLockStore {
   constructor(
     private readonly backend: KeyValueBackend,
-    private readonly deckIds: () => Promise<ReadonlySet<string>>,
+    private readonly deckCards: DeckCardKeys,
+    private readonly migrate: (v1: StoredDeckLocksV1) => Promise<StoredDeckLocks> = async (v1) => ({
+      schemaVersion: 2,
+      updatedAt: v1.updatedAt,
+      locks: [],
+    }),
   ) {}
 
   async load(): Promise<StoredDeckLocks | null> {
-    return readVersioned<StoredDeckLocks>(this.backend, STORAGE_KEYS.locks, [1], locksShape);
+    const rec = readVersioned<StoredDeckLocks | StoredDeckLocksV1>(this.backend, STORAGE_KEYS.locks, [1, 2], locksShape);
+    if (rec?.schemaVersion !== 1) return rec;
+    const v2 = await this.migrate(rec);
+    this.backend.set(STORAGE_KEYS.locks, JSON.stringify(v2));
+    return v2;
   }
 
   async save(l: StoredDeckLocks): Promise<void> {
-    assertOverwritable(() => readVersioned(this.backend, STORAGE_KEYS.locks, [1], locksShape));
-    const ids = await this.deckIds();
+    assertOverwritable(() => readVersioned(this.backend, STORAGE_KEYS.locks, [1, 2], locksShape));
+    const names = await this.deckCards();
     const seen = new Set<string>();
-    const locks = l.locks.filter((x) => ids.has(x.deckId) && !seen.has(x.deckId) && seen.add(x.deckId));
-    this.backend.set(STORAGE_KEYS.locks, JSON.stringify({ ...l, locks }));
+    const locks = l.locks.filter((x) => {
+      const key = `${x.deckId}|${x.cardKey}`;
+      if (!names.get(x.deckId)?.has(x.cardKey) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    this.backend.set(STORAGE_KEYS.locks, JSON.stringify({ ...l, schemaVersion: 2, locks }));
   }
 }
 

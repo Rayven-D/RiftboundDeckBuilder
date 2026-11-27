@@ -1,5 +1,5 @@
 /**
- * Browser-side shapes for the deck ownership engine (SPEC-005 v0.5, SPEC-008 v0.4)
+ * Browser-side shapes for the deck ownership engine (SPEC-005 v0.16, SPEC-008 v0.6)
  * and the parts of SPEC-001/002 it reads. Shapes only; copied from the specs' data contracts
  * because `web/` can't import from `services/`. Keep in sync with the specs and with
  * brain/05-Services/API Contracts.md ("Browser-side shared types").
@@ -11,10 +11,10 @@
 
 import type {
   CardKey,
-  DeckLock,
   FormatId,
   IsoDate,
   IsoDateTime,
+  NameLock,
   PrintingCode,
   PrintingId,
   StoredCollection,
@@ -30,17 +30,19 @@ export type {
   CardKey,
   CollectionCard,
   DeckCard,
-  DeckLock,
   DeckLockStore,
+  DeckLockV1,
   DeckSource,
   DeckSourceFormat,
   FormatId,
   IsoDate,
   IsoDateTime,
+  NameLock,
   PrintingCode,
   PrintingId,
   StoredCollection,
   StoredDeckLocks,
+  StoredDeckLocksV1,
   StoredPrintingCodes,
   StoredTags,
   Tag,
@@ -180,41 +182,48 @@ export interface DeckOwnership {
 // ---- SPEC-006 (zones) ----
 export type DeckZone = 'legend' | 'champion' | 'main' | 'sideboard' | 'runes' | 'battlefields';
 
-// ---- SPEC-008 v0.4 ----
+// ---- SPEC-008 v0.6 (card-name locks, SHARE-080…095) ----
 export interface SharedPoolInput {
   /** Every deck in the DeckStore (SHARE-005). */
   decks: readonly UserDeck[];
   /** null = lock store unreadable → all locks ignored (SHARE-061). */
-  locks: readonly DeckLock[] | null;
+  locks: readonly NameLock[] | null;
   ownership: DeckOwnershipInput;
 }
 export interface CardUse {
   deckId: string;
   deckName: string;
   need: number;
+  /** v0.6: this deck has a name lock on the card (not the deck lock). */
   locked: boolean;
-  /** 0 when not locked. */
+  /** need when locked, else 0 (SHARE-031). */
   hold: number;
+  /** The name lock's `lockedAt` (lock order, SHARE-030; never shown); null when not locked. Not in the spec's shape. */
+  lockedAt: IsoDateTime | null;
 }
 export interface CardPool {
   cardKey: CardKey;
+  /** The card's name as the first deck using it stores it (for the SHARE-088 lines). Not in the spec's shape. */
+  cardName: string;
   ownedForDecks: number;
   ownedExcluded: number;
-  /** Σ hold over locked decks; ≤ ownedForDecks. */
+  /** Σ hold over name locks; ≤ ownedForDecks (SHARE-031). */
   heldTotal: number;
+  /** ownedForDecks − heldTotal: the copies no lock holds (SHARE-087). */
+  free: number;
   /** Every user of the card, SHARE-015 order. */
   uses: CardUse[];
 }
 export interface DeckLockState {
   deckId: string;
+  /** Every counted cardKey has a name lock (SHARE-083). */
   locked: boolean;
+  /** The latest name `lockedAt` of a locked deck, else null; internal, never shown. */
   lockedAt: IsoDateTime | null;
-  /** SHARE-014 (for a locked deck: not short). */
+  /** Counted cardKeys with a name lock, deck order (partly locked: some, not all). */
+  lockedNames: CardKey[];
+  /** SHARE-014. */
   complete: boolean;
-  /** Locked and some hold < need (SHARE-033). */
-  short: boolean;
-  /** Counted cardKeys with allocated < need, deck order of first appearance. */
-  cardsShort: CardKey[];
 }
 export interface SharedPool {
   locksIgnored: boolean;
@@ -229,8 +238,10 @@ export interface CardAvailability {
   lockedByOthers: number;
   available: number;
   need: number;
-  /** H for a locked deck, null otherwise. */
+  /** H when this deck has a name lock on the card, null otherwise. */
   heldByThisDeck: number | null;
+  /** This deck has a name lock on the card (drives the lock icon, SHARE-094). */
+  nameLocked: boolean;
   /** SHARE-015 order, without this deck. */
   otherUses: CardUse[];
 }
@@ -242,10 +253,27 @@ export type LockFailure =
   | 'locks-unreadable'
   | 'read-only';
 export type LockCheck = { ok: true } | { ok: false; reason: LockFailure; cardsShort?: number };
-export interface LockedShortfall {
+export type NameLockFailure =
+  | 'already-locked'
+  | 'read-only'
+  | 'locks-unreadable'
+  | 'ownership-unavailable'
+  | 'not-in-deck'
+  | 'not-full';
+/** SHARE-081: first failing check wins; `available` (capped at need) and `need` only with `not-full`. */
+export type NameLockCheck =
+  | { ok: true }
+  | { ok: false; reason: NameLockFailure; available?: number; need?: number };
+/** One name lock SHARE-090 drops (SHARE-087…091). */
+export interface LockLoss {
   deckId: string;
   deckName: string;
-  cardsShort: number;
+  cardKey: CardKey;
+  cardName: string;
+  /** hold(D, k) lost = the deck's need of that name. */
+  copies: number;
+  /** The deck was locked and stops being so (SHARE-083). */
+  deckUnlocks: boolean;
 }
 
 // ---- SPEC-005 v0.5 ----
@@ -257,7 +285,7 @@ export type CollectionOwnership =
        * The stored locks (SHARE-053, OWN-065): a deck with a lock here keeps its lock state while
        * ownership is unavailable. null = lock store unreadable (SHARE-061); omitted = no lock known.
        */
-      locks?: readonly DeckLock[] | null;
+      locks?: readonly NameLock[] | null;
     };
 
 export type CardBan = BanStatus | { status: 'unknown' };
@@ -289,6 +317,8 @@ export interface OwnershipCard {
   lockedByOthers: number;
   available: number;
   heldByThisDeck: number | null;
+  /** SHARE-094 / OWN-121: this deck has a name lock on the card (the tile and row lock icon). */
+  nameLocked: boolean;
   otherUses: CardUse[];
   extra: number;
   allocationByZone: Partial<Record<DeckZone, { allocated: number; required: number }>>;
@@ -322,7 +352,7 @@ export interface DeckOwnershipView {
   locksIgnored: boolean;
   /**
    * SPEC-008 state; null = no lock or lock store unreadable. With ownership unavailable a stored
-   * lock still gives the SHARE-053 state (OWN-065 (a)): locked, never complete or short.
+   * lock still gives the SHARE-053 state (OWN-065 (a)): locked when every counted name has a stored name lock.
    */
   lock: DeckLockState | null;
   sections: ZoneSection[];

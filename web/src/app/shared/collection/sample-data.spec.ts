@@ -100,7 +100,7 @@ describe('SPEC-013 full-shape test decks (H-310)', () => {
         const [a, b, open] = s.decks;
         for (const d of [a, b]) {
           expect(p.byDeck[d.id], d.name).toEqual(
-            expect.objectContaining({ locked: true, complete: true, short: false, cardsShort: [] }),
+            expect.objectContaining({ locked: true, complete: true }),
           );
         }
         expect(p.byDeck[open.id].locked).toBe(false);

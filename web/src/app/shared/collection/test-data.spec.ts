@@ -47,11 +47,11 @@ describe('SPEC-013 test data rules (H-205)', () => {
   it('TEST-020 / TEST-021 the Load plan marks the collection and decks test-data-<n> and adds the two test locks to the own locks', () => {
     const sample = generateLargeSample(150);
     const own: StoredDeckLocks = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       updatedAt: NOW,
       locks: [
-        { deckId: 'aaaaaaaa-0000-4000-8000-000000000001', lockedAt: NOW },
-        { deckId: TEST_DECK_IDS[2], lockedAt: NOW }, // a stale lock on a test id is replaced
+        { deckId: 'aaaaaaaa-0000-4000-8000-000000000001', cardKey: 'gust', lockedAt: NOW },
+        { deckId: TEST_DECK_IDS[2], cardKey: 'gust', lockedAt: NOW }, // a stale lock on a test id is replaced
       ],
     };
     const plan = planTestLoad(sample, 150, own, NOW);
@@ -63,11 +63,20 @@ describe('SPEC-013 test data rules (H-205)', () => {
       [TEST_DECK_IDS[1], 'Generated Locked B', 'test-data-150'],
       [TEST_DECK_IDS[2], 'Generated Open', 'test-data-150'],
     ]);
-    expect(plan.locks.locks.map((l) => l.deckId)).toEqual([
+    // TEST-021 v0.1.5: one NameLock per counted name of each locked test deck, one lockedAt per deck, schemaVersion 2.
+    expect(plan.locks.schemaVersion).toBe(2);
+    expect([...new Set(plan.locks.locks.map((l) => l.deckId))]).toEqual([
       'aaaaaaaa-0000-4000-8000-000000000001',
       TEST_DECK_IDS[0],
       TEST_DECK_IDS[1],
     ]);
+    for (const d of plan.decks.slice(0, 2)) {
+      const names = new Set([d.legend, d.champion, ...d.main, ...d.battlefields, ...d.runes, ...d.sideboard].filter((c) => c).map((c) => c!.cardKey));
+      const locked = plan.locks.locks.filter((l) => l.deckId === d.id);
+      expect(new Set(locked.map((l) => l.cardKey))).toEqual(names);
+      expect(new Set(locked.map((l) => l.lockedAt)).size).toBe(1);
+    }
+    expect(plan.locks.locks.some((l) => l.deckId === TEST_DECK_IDS[2])).toBe(false);
     // the generator itself is untouched (the dev tool keeps its values)
     expect(sample.collection.catalogVersion).toBe('generated');
     expect(sample.decks[0].catalogVersion).toBe('sample');
@@ -81,12 +90,12 @@ describe('SPEC-013 test data rules (H-205)', () => {
     const devDeck = sampleDeck(3, 'Dev sample', []); // reserved id, no marker: not ours to remove
     const locks: StoredDeckLocks = {
       ...plan.locks,
-      locks: [...plan.locks.locks, { deckId: own.id, lockedAt: NOW }],
+      locks: [...plan.locks.locks, { deckId: own.id, cardKey: 'gust', lockedAt: NOW }],
     };
     const r = planTestRemove(plan.collection, [...plan.decks.slice(0, 2), own, devDeck], locks, NOW);
     expect(r.collection).toEqual({ ...plan.collection, catalogVersion: '', cards: {} });
     expect(r.deckIds).toEqual([TEST_DECK_IDS[0], TEST_DECK_IDS[1]]);
-    expect(r.locks?.locks.map((l) => l.deckId)).toEqual([own.id]);
+    expect([...new Set(r.locks?.locks.map((l) => l.deckId))]).toEqual([own.id]);
   });
 
   it('TEST-033 / TEST-034 the Replace-import plan leaves the collection alone; a stray test deck under real cards is removed', () => {
