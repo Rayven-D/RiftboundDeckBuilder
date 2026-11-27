@@ -83,22 +83,27 @@ describe('SPEC-012 ChangelogPage', () => {
     expect(text(el.querySelector('h2'))).toBe('<b>Bold</b>');
   });
 
-  it('LOG-050 / LOG-052 / AC 6 with the shipped (released) file the only entry is Version 0.0.1, November 25, 2026, Accounts are here, 5 bullets', async () => {
+  it('LOG-050 / LOG-020 / AC 6 with the shipped (released) file the entries are 0.0.2 Decks are here (November 26, 2026) then 0.0.1 Accounts are here (November 25, 2026), 5 bullets each', async () => {
     const el = await render();
     const items = el.querySelectorAll('ol.entries > li');
-    expect(items).toHaveLength(1);
-    expect(text(items[0].querySelector('h2'))).toBe('Accounts are here');
-    const meta = items[0].querySelector('.meta');
+    expect(items).toHaveLength(2);
+    expect(text(items[0].querySelector('h2'))).toBe('Decks are here');
+    expect(text(items[0].querySelector('.meta'))).toContain('Version 0.0.2');
+    expect(items[0].querySelector('time')!.getAttribute('datetime')).toBe('2026-11-26');
+    expect(text(items[0].querySelector('time'))).toBe('November 26, 2026');
+    expect(items[0].querySelectorAll('ul > li')).toHaveLength(5);
+    expect(text(items[1].querySelector('h2'))).toBe('Accounts are here');
+    const meta = items[1].querySelector('.meta');
     expect(text(meta)).toContain('Version 0.0.1');
     expect(text(meta)).not.toContain('Coming soon');
-    const time = items[0].querySelector('time')!;
+    const time = items[1].querySelector('time')!;
     expect(time.getAttribute('datetime')).toBe('2026-11-25');
     expect(text(time)).toBe('November 25, 2026');
-    expect(items[0].querySelectorAll('ul > li')).toHaveLength(5);
+    expect(items[1].querySelectorAll('ul > li')).toHaveLength(5);
   });
 
   it('LOG-052 / AC 6 before release (the shipped 0.0.1 with a null date) the same entry shows "Coming soon" and no <time>', async () => {
-    const el = await render([{ ...CHANGELOG_JSON[0], date: null }]);
+    const el = await render([{ ...CHANGELOG_JSON[1], date: null }]);
     const items = el.querySelectorAll('ol.entries > li');
     expect(items).toHaveLength(1);
     expect(text(items[0].querySelector('h2'))).toBe('Accounts are here');

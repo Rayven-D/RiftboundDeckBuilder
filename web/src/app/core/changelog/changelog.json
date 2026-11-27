@@ -1,5 +1,17 @@
 [
   {
+    "version": "0.0.2",
+    "date": "2026-11-26",
+    "title": "Decks are here",
+    "bullets": [
+      "Import a deck list and check it before you save: fix lines, answer a few questions and see a rule check.",
+      "Each deck shows how many of its cards you own, and can copy the list of cards you're missing.",
+      "Lock a card's copies to one deck so your other decks don't count them. A deck locks itself once every card is locked.",
+      "Removing cards from your collection asks first if it would unlock any of your decks.",
+      "Your changes now sync right away when you import, add, lock or unlock, and notices now appear at the top of the screen."
+    ]
+  },
+  {
     "version": "0.0.1",
     "date": "2026-11-25",
     "title": "Accounts are here",

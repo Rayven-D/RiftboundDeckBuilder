@@ -24,7 +24,7 @@ describe('SPEC-012 check:changelog-release (LOG-053)', () => {
   });
 
   it('LOG-053 / AC 8 passes on the shipped file now that the sign-in release dated 0.0.1', () => {
-    expect((changelog as { date: string | null }[])[0].date).toBe('2026-11-25');
+    expect((changelog as { date: string | null }[])[1].date).toBe('2026-11-25');
     expect(checkChangelogRelease(JSON.stringify(changelog))).toEqual({ ok: true });
   });
 
