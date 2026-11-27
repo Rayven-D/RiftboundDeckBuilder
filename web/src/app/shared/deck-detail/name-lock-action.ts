@@ -4,7 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { deckNeeds, nameLockCheckMessage, type OwnershipCard, type SharedPool, type UserDeck } from '../../core/decks';
 import { Icon } from '../icon';
 import { noticeOptions } from '../sync/notice';
-import { LOCK_TEXT, lockedInNotice, nameLockCheck, noLongerFullyLockedNotice } from '../deck/deck-locks';
+import { LOCK_TEXT, cantLockNameNotice, lockedInNotice, nameLockCheck, noLongerFullyLockedNotice } from '../deck/deck-locks';
 import { DeckLocks } from '../deck/deck-locks.service';
 
 /** What the per-name control needs besides the card: the deck and its lock facts (from the Deck detail page). */
@@ -103,10 +103,25 @@ export class NameLockAction {
     if (this.locked()) return this.context().readOnly ? nameLockCheckMessage({ ok: false, reason: 'read-only' }) : null;
     return nameLockCheckMessage(this.check());
   });
-  protected readonly disabled = computed(() => this.saving() || (this.locked() ? this.context().readOnly : !this.check().ok));
+  /** H-670: the name's missing copies when it can't be locked only because it is not fully available; else null. */
+  protected readonly missingCopies = computed(() => {
+    const c = this.check();
+    if (this.locked() || c.ok || c.reason !== 'not-full') return null;
+    return Math.max(0, (c.need ?? 0) - (c.available ?? 0));
+  });
+  /** Disabled (aria-disabled, focusable) for every reason but "not fully available", which answers with a notice (H-670). */
+  protected readonly disabled = computed(
+    () => this.saving() || (this.locked() ? this.context().readOnly : !this.check().ok && this.missingCopies() === null),
+  );
 
   protected async toggle(): Promise<void> {
     if (this.disabled()) return;
+    const missing = this.missingCopies();
+    if (missing !== null) {
+      // H-670: "Can't lock. Missing n copies." (info); nothing is stored.
+      this.snackBar.open(cantLockNameNotice(missing), undefined, noticeOptions('info'));
+      return;
+    }
     const { deck, pool } = this.context();
     const cardKey = this.card().cardKey;
     const lockedNames = pool?.byDeck[deck.id]?.lockedNames ?? [];

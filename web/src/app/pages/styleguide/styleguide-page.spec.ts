@@ -170,7 +170,8 @@ describe('StyleguidePage Decks section (H-391)', { timeout: PAGE_TIMEOUT }, () =
     const toggles = [...el.querySelectorAll<HTMLButtonElement>('app-lock-actions.variant-icon button.lock-toggle')];
     expect(toggles.map((b) => b.getAttribute('aria-label'))).toEqual(['Lock deck', 'Lock deck', 'Unlock deck']);
     expect(toggles.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'true']);
-    expect(toggles.map((b) => b.getAttribute('aria-disabled'))).toEqual([null, 'true', null]);
+    // H-670: the incomplete deck's toggle is operable (it answers with "Can't lock. Missing n cards.").
+    expect(toggles.map((b) => b.getAttribute('aria-disabled'))).toEqual([null, null, null]);
     // Closed lock (Material `lock`) when locked, open lock (`lock_open`) when not: the shape, not colour alone.
     const kind = (b: HTMLButtonElement) => (/^M240-80q/.test(b.querySelector('path')!.getAttribute('d')!) ? 'lock' : /^M240-640h360/.test(b.querySelector('path')!.getAttribute('d')!) ? 'lock_open' : '?');
     expect(toggles.map(kind)).toEqual(['lock_open', 'lock_open', 'lock']);

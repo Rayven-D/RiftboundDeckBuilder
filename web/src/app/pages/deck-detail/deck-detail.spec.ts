@@ -786,17 +786,29 @@ describe('Deck detail (H-254)', () => {
       expect(document.activeElement).toBe(lockButton(h)); // focus stays on the toggle
     });
 
-    it('SPEC-008 AC 23 / SHARE-020 / OWN-116: an incomplete deck: Lock in is aria-disabled, focusable, and the reason line is visible and its aria-describedby', async () => {
+    it('H-670 / SHARE-020 / OWN-116: an incomplete deck: the toggle is operable; pressing it shows "Can\'t lock. Missing 11 cards." (info), no dialog, nothing locked; no visible reason line, the reason stays its aria-describedby', async () => {
       const h = await setup(URL_);
       const btn = lockButton(h);
-      expect(btn.getAttribute('aria-disabled')).toBe('true');
-      expect(btn.disabled).toBe(false);
-      const reason = q(h, 'app-lock-actions .reason')!;
+      expect(btn.getAttribute('aria-disabled')).toBeNull();
+      expect(btn.getAttribute('aria-pressed')).toBe('false');
+      expect(q(h, 'app-lock-actions .reason')).toBeNull(); // RJ: "Remove it to save space"
+      const reason = document.getElementById(btn.getAttribute('aria-describedby')!)!;
+      expect(reason.classList).toContain('visually-hidden');
       expect(text(reason)).toBe('Lock in needs every card available: 6 cards short');
-      expect(btn.getAttribute('aria-describedby')).toBe(reason.id);
       btn.click();
       await settle(h);
       expect(dialogEl()).toBeNull();
+      expect(snack()).toBe("Can't lock. Missing 11 cards.");
+      expect(await stores.locks.load()).toBeNull();
+      expect(btn.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('H-670 singular: a deck missing one copy reads "Can\'t lock. Missing 1 card."', async () => {
+      const h = await setup(URL_, { owned: { ...DETAIL_ALL_OWNED, 'Order Rune': 2 } });
+      lockButton(h).click();
+      await settle(h);
+      expect(snack()).toBe("Can't lock. Missing 1 card.");
+      expect(await stores.locks.load()).toBeNull();
     });
 
     it("SPEC-008 AC 23 / SHARE-063: a failed lock save shows \"Couldn't save the lock. Try again.\" and nothing changes", async () => {
@@ -815,7 +827,8 @@ describe('Deck detail (H-254)', () => {
       const raw = { [`${STORAGE_KEYS.deckPrefix}${DETAIL_DECK_ID}`]: JSON.stringify({ ...detailDeck(), schemaVersion: 2 }) };
       const h = await setup(URL_, { decks: [], raw, owned: DETAIL_ALL_OWNED });
       expect(lockButton(h).getAttribute('aria-disabled')).toBe('true');
-      expect(text(q(h, 'app-lock-actions .reason'))).not.toBe('');
+      // H-670: the reason is not shown under the title any more; it stays the toggle's description.
+      expect(text(document.getElementById(lockButton(h).getAttribute('aria-describedby')!))).toBe('This deck is read-only');
     });
 
     it('SPEC-008 AC 22 / SHARE-025: renaming locked Deck 1 keeps its lock, lockedAt and holds; Deck 2 still reads "0 of 3 available" and its other-deck row names "Kennen budget"', async () => {
@@ -1179,16 +1192,27 @@ describe('Deck detail (H-254)', () => {
       expect((await stores.locks.load())!.locks).toEqual([{ deckId: other.id, cardKey: 'lightning rush', lockedAt: '2026-11-26T09:00:00Z' }]);
     });
 
-    it('SPEC-008 AC 26 / SHARE-081: a name that is not fully available cannot be locked; the reason is visible text tied to the control', async () => {
+    it('SPEC-008 AC 26 / SHARE-081 / H-670: a name that is not fully available is not locked: the reason is visible text tied to the control, and a press shows "Can\'t lock. Missing 1 copy."', async () => {
       const h = await setup(URL_, { decks: [tempo()], owned: { 'Lightning Rush': 2, 'The Empyrean': 2 }, width: 'phone' });
       await open(h, 'main:lightning rush');
       const b = nameButton()!;
-      expect(b.getAttribute('aria-disabled')).toBe('true');
+      expect(b.getAttribute('aria-disabled')).toBeNull(); // H-670: operable, the notice is the feedback
       const reason = document.getElementById(b.getAttribute('aria-describedby')!);
       expect(text(reason)).toBe('Lock needs every copy available: 2 of 3');
       b.click();
       await settle(h, 6);
+      expect(snack()).toBe("Can't lock. Missing 1 copy.");
       expect((await stores.locks.load())?.locks ?? []).toEqual([]);
+      expect(text(nameButton())).toBe('Lock these copies');
+    });
+
+    it('H-670 plural: a name missing 3 copies reads "Can\'t lock. Missing 3 copies."', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned: { 'The Empyrean': 2 }, width: 'phone' });
+      await open(h, 'main:lightning rush');
+      nameButton()!.click();
+      await settle(h, 6);
+      expect(snack()).toBe("Can't lock. Missing 3 copies.");
+      expect(await stores.locks.load()).toBeNull();
     });
 
     it('SHARE-094 (a) desktop: the per-name control is in the Card tab of the panel too, and only there', async () => {

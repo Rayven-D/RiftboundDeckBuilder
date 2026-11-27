@@ -47,6 +47,15 @@ export const lockedInNotice = (deckName: string): string => `${deckName} is lock
 /** SHARE-029 (b): "Kennen Tempo is unlocked. Its cards count toward your other decks again." (deck toggle only). */
 export const unlockedNotice = (deckName: string): string =>
   `${deckName} is unlocked. Its cards count toward your other decks again.`;
+/**
+ * H-670 (RJ 2026-11-26, his words with the apostrophe and the house period): the notice when the deck toggle is pressed
+ * on a deck that is missing cards: "Can't lock. Missing 3 cards." / "Can't lock. Missing 1 card." (n = the deck's
+ * missing copies, the copies its missing list counts).
+ */
+export const cantLockDeckNotice = (n: number): string => `Can't lock. Missing ${n} ${n === 1 ? 'card' : 'cards'}.`;
+/** H-670: the card dialog's "Lock these copies" on a name not fully available: "Can't lock. Missing 1 copy." */
+export const cantLockNameNotice = (n: number): string => `Can't lock. Missing ${n} ${n === 1 ? 'copy' : 'copies'}.`;
+
 /** SHARE-029 (b) v0.6 / SHARE-085, proposal wording: one name unlocked in a locked deck. */
 export const noLongerFullyLockedNotice = (deckName: string): string => `${deckName} is no longer fully locked.`;
 
