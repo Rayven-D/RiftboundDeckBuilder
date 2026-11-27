@@ -1,12 +1,12 @@
 ---
 tags: [spec]
 id: SPEC-013
-version: 0.1.6
+version: 0.1.7
 status: review
 depends_on: ["SPEC-007", "SPEC-003", "SPEC-008", "SPEC-010"]
 research: ["[[Firestore Data Shape]]", "[[Collection Test Data]]"]
 decisions: ["[[ADR-0007 Firebase Accounts and Firestore]]", "[[ADR-0004 Hosting (Deferred)]]"]
-board: H-204, H-205, H-252, H-664, H-667
+board: H-204, H-205, H-252, H-664, H-667, H-672
 as_of: 2026-11-26
 sources:
   - url: https://firebase.google.com/docs/firestore/quotas
@@ -130,7 +130,7 @@ Give testers real, synced, clearly fake data on the live site until real card da
 | Action | Writes | Reads | Deletes | Why |
 |---|---|---|---|---|
 | **Load** (Small or Large) | **5** (6 on the first push after a build change) | 0 | 0 | 1 collection `set()` + 3 deck `set()` + 1 locks write = 5. The account `update()` (`updatedAt`, `lastClientVersion`, SYNC-012) is added **only when the app build changed** since the last push (`sync-engine.ts`, `planPush` `opts.account`), so a normal Load is 5. A write is one write however many cards it carries. |
-| **Remove** | **5** (6 on the first push after a build change) | 0 | 0 | 1 collection write (tombstones) + 1 locks write immediately, plus 3 deck soft-delete writes that are pushed only **after the 10 s Undo window** ([[Accounts and Sync]] SYNC-035, `DECK_UNDO_MS`; the push plan skips a deck tombstone until `pushAfter`), so the last 3 writes land about 10 s after the click (a later sync pass picks them up). A later clean-up hard-deletes the 3 decks after 30 days: **3 deletes**. |
+| **Remove** | **5** (6 on the first push after a build change) | **≈ 7** (the window-end pull, SYNC-126 (a) 4; AC 10) | 0 | 1 collection write (tombstones) + 1 locks write immediately, plus 3 deck soft-delete writes that are pushed only **after the 10 s Undo window** ([[Accounts and Sync]] SYNC-035, `DECK_UNDO_MS`; the push plan skips a deck tombstone until `pushAfter`), so the last 3 writes land about 10 s after the click (a later sync pass picks them up). A later clean-up hard-deletes the 3 decks after 30 days: **3 deletes**. |
 | Another device pulling it | 0 | 5 (the changed docs) + 2 (the `state` and `decks` delta queries) = **≈ 7** | 0 | cold pull of the collection document downloads ≈ 254 KB |
 | Replace one set by another | 5 (6 after a build change) | 0 | 0 | same as Load |
 
@@ -138,7 +138,7 @@ Give testers real, synced, clearly fake data on the live site until real card da
 
 ### Free-tier headroom ("Spark", numbers as of 2026-11-25)
 - **Loads per day:** 20,000 writes / 5 = **4,000 loads (or Remove actions) a day** if nothing else wrote (3,333 at the 6-write worst case); ≈ **416 to 500 Load + Remove cycles** (12 or 10 writes each) at a 25 % share (5,000 writes) of the daily budget, which leaves 75 % for normal sync. Ten testers who load, remove and reload five times each use at most 10 × 5 × 12 = 600 writes (3 % of the day).
-- **Reads:** 0 for Load or Remove; a second device ≈ 7 reads. 50,000 / 7 ≈ 7,000 cold pulls a day.
+- **Reads:** **Remove ≈ 7** (measured in H-667: the window-end sync of [[Accounts and Sync]] SYNC-126 (a) 4 adds one pull when the 3 deck tombstones are pushed, AC 10). **Load: 0 as specified, not re-measured**: Load is not one of the six SYNC-126 actions, so SYNC-126 adds no pull to it (any other sync trigger, SYNC-040, costs what it always did). A second device ≈ 7 reads. 50,000 / 7 ≈ 7,000 cold pulls a day (or Remove actions).
 - **Outbound data:** 10 GiB / 30 ≈ 358 MB a day ÷ 254 KB ≈ **≈ 1,400 cold pulls of the Large document a day** across all testers (≈ 1,300 counting the decks); a reopen on the same device downloads 0 (delta cursor). Uploads count as free ingress.
 - **Deletes:** 3 per Remove, 20,000 / 3 ≫ any use.
 - **Verdict:** all within the free tier; **no RJ decision on quota or plan is needed**. The only limit a heavy tester could hit first is the day's outbound data at ≈ 1,400 cold Large pulls, i.e. not with friends-and-testers numbers.
@@ -200,6 +200,7 @@ Nothing blocks the build. Defaults below stand unless RJ answers (the spec-write
 - 0.1.1 (2026-11-25, H-204 attempt 2): H-230: after Remove the collection's `catalogVersion` is `""`, a collection with no cards is never test data (TEST-030, TEST-050, TEST-051), new AC 10a. H-231: write counts corrected to 5 per Load or Remove (6 on the first push after a build change, the account update), Remove's three deck writes are pushed after the 10 s Undo window (SYNC-035); quota numbers and ACs 4 and 10 updated to ranges.
 - 0.1.2 (2026-11-25, H-204 merge into `dev`): renumbered SPEC-012 → SPEC-013 (H-201 [[Changelog]] took SPEC-012 first); depends-on pin [[Accounts and Sync]] 0.14.1 → 0.15.0 (H-206 changed only usernames, SYNC-112/153/156; SYNC-035, 095, 142, 151 used here are unchanged). No requirement changes.
 - 0.1.3 (2026-11-25, H-212): depends-on pin [[Accounts and Sync]] 0.15.0 → 0.16.0 (H-212 changed only the username rules, SYNC-112/153/156/160; nothing used here changed; test data writes no `username`). No requirement changes.
+- 0.1.7 (2026-11-26, H-672, validator finding of H-665): the quota table's Remove row and the "Reads" line of the free-tier headroom said 0 reads, against AC 10 (about 7 after SYNC-126 (a) 4); both now say about 7 for Remove. Load stays 0 as specified (not a SYNC-126 action) and is marked not re-measured. Text only, no requirement or behaviour change; no pin change.
 - 0.1.6 (2026-11-26, H-668 to H-671 batch, source: the build note [[Build H-665 H-667]], spec gap 5; no new RJ decision): the Remove's cost note no longer says "0 reads": the window-end sync of SYNC-126 (a) 4 adds one pull, the build measured 7 reads, all from it (TEST-050 note, AC 10). Cost note only; the Large `state/locks` measured 62 entries, 7,658 B (the 0.1.5 estimate was about 6,500 B). Pins SPEC-010 0.19.
 - 0.1.5 (2026-11-26, H-664, RJ 2026-11-26): the two locked test decks lock every card name (one `NameLock` per name, `StoredDeckLocks` `schemaVersion: 2`, TEST-021); `state/locks` row re-estimated at about 6,500 B (not re-measured); the Load and Remove write counts are unchanged (one `state/locks` write); pins SPEC-008 0.6, SPEC-010 0.18.0. Generator change goes with H-665.
 - 0.1.4 (2026-11-25, H-252, RJ default for [[Decks]] §13 choice 27a): new TEST-025 and AC 18: the three test decks get all six zones (about 66 copies in about 32 entries, one split Main / Sideboard card, one rune with 3 or more copies); byte figures re-estimated (3 decks ≈ 11,200 B, total ≈ 268 KB, Small ≈ 21 KB, still far below the 1 MiB limit; the arithmetic is the table's, not re-measured); depends-on pin [[Shared Cards and Lock-in]] 0.4.4 → 0.4.5. Builder item for the generator: H-310.
