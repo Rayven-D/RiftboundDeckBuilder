@@ -86,7 +86,6 @@ import {
 import { DeckListFocus } from '../../shared/deck/deck-list-focus';
 import { DeckLocks } from '../../shared/deck/deck-locks.service';
 import { LockActions } from '../../shared/deck/lock-actions';
-import { LockBadge } from '../../shared/deck/lock-badge';
 import { EmptyState } from '../../shared/empty-state';
 import { Icon } from '../../shared/icon';
 import type { StoredPrintingCodes } from '../../shared/storage/records';
@@ -166,8 +165,8 @@ function localToday(): string {
  * under the header. Rename only (no card editor, DECK-080 deferred).
  *
  * Every number comes from `computeDeckOwnership` / `summarizeDeck` over all decks and one `computeSharedPool` run, as on
- * the list (OWN-073). The lock badge and Lock in / Unlock are H-060's shared pieces (`app-lock-badge`,
- * `app-lock-actions`); a lock change re-reads the page through `DeckLocks.changed`.
+ * the list (OWN-073). Lock in / Unlock is H-060's shared `app-lock-actions`, since H-662 an icon-only toggle right after
+ * the deck name (no lock badge or lock date in the header); a lock change re-reads the page through `DeckLocks.changed`.
  */
 @Component({
   selector: 'app-deck-detail',
@@ -180,7 +179,6 @@ function localToday(): string {
     DeckCardContent,
     DeckMissing,
     LockActions,
-    LockBadge,
     MatButton,
     MatIconButton,
     MatMenu,

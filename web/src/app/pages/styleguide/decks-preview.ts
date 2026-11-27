@@ -111,8 +111,7 @@ const CARD_STATES: readonly { id: string; label: string }[] = [
       <div class="column-items">
         <app-lock-badge [lock]="s.lockedView.lock" label="Locked" />
         <app-lock-badge [lock]="s.lockedView.lock" label="Locked · 2 cards short" />
-        <app-lock-badge label="Locked" [showDate]="false" />
-        <span><span class="caption">Tile size: </span><app-lock-badge class="tile-size" label="Locked · 1 card short" [showDate]="false" /></span>
+        <span><span class="caption">Tile size: </span><app-lock-badge class="tile-size" label="Locked · 1 card short" /></span>
       </div>
 
       <h3 class="sub">Lock actions</h3>
@@ -125,6 +124,31 @@ const CARD_STATES: readonly { id: string; label: string }[] = [
         <dd><app-lock-actions [deck]="s.deck" [view]="s.lockedView" [pool]="s.pool" /></dd>
         <dt>Locks unreadable: disabled with reason</dt>
         <dd><app-lock-actions [deck]="s.deck" [view]="s.lockedView" [pool]="s.pool" [locksUnreadable]="true" /></dd>
+      </dl>
+
+      <h3 class="sub">Deck detail title: lock toggle (H-662)</h3>
+      <dl class="button-rows title-locks">
+        <dt>Complete deck, unlocked (try it; preview only, nothing saved)</dt>
+        <dd>
+          <div class="title-row">
+            <span class="title-name display">Kennen Tempo</span>
+            <app-lock-actions variant="icon" [deck]="s.readyDeck" [view]="readyView()" [pool]="s.pool" />
+          </div>
+        </dd>
+        <dt>Cards missing: aria-disabled with reason</dt>
+        <dd>
+          <div class="title-row">
+            <span class="title-name display">Kennen Tempo</span>
+            <app-lock-actions variant="icon" [deck]="s.deck" [view]="s.view" [pool]="s.pool" />
+          </div>
+        </dd>
+        <dt>Locked deck</dt>
+        <dd>
+          <div class="title-row">
+            <span class="title-name display">Kennen Tempo</span>
+            <app-lock-actions variant="icon" [deck]="s.deck" [view]="s.lockedView" [pool]="s.pool" />
+          </div>
+        </dd>
       </dl>
       <div class="actions">
         <button matButton="outlined" type="button" (click)="openLockIn(true)">Lock in dialog, other decks</button>
@@ -247,6 +271,16 @@ const CARD_STATES: readonly { id: string; label: string }[] = [
     }
     .actions {
       margin-top: var(--space-3);
+    }
+    /* H-662: the Deck detail title row in small (same flex row; the reason line wraps under it). */
+    .title-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0 var(--space-2);
+    }
+    .title-name {
+      font-size: var(--font-size-lg);
     }
     .column-items {
       display: grid;

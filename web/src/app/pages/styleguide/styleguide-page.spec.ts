@@ -151,8 +151,8 @@ describe('StyleguidePage Decks section (H-391)', { timeout: PAGE_TIMEOUT }, () =
     const chips = [...el.querySelectorAll('.row-items app-deck-status-chip .chip')].map((c) => c.textContent!.trim());
     // H-400: the chip has no locked / short kinds (the lock is app-lock-badge); locked and unavailable render nothing.
     expect(chips).toEqual(['Ready to build', 'Partly available', 'None available']);
-    expect(el.querySelector('.column-items app-lock-badge')!.textContent).toContain('Locked in on');
-    const actions = [...el.querySelectorAll<HTMLButtonElement>('app-lock-actions button')];
+    expect(el.querySelector('.column-items app-lock-badge')!.textContent).not.toContain('Locked in on'); // H-662
+    const actions = [...el.querySelectorAll<HTMLButtonElement>('app-lock-actions:not(.variant-icon) button')];
     expect(actions.map((b) => b.textContent!.trim())).toEqual(['Lock in', 'Lock in', 'Unlock', 'Lock in']);
     expect(actions[0].getAttribute('aria-disabled')).not.toBe('true');
     expect(actions[1].getAttribute('aria-disabled')).toBe('true');
@@ -163,6 +163,17 @@ describe('StyleguidePage Decks section (H-391)', { timeout: PAGE_TIMEOUT }, () =
     expect(el.querySelector('[role="tablist"]')).not.toBeNull();
     expect(el.querySelector('app-deck-card-content')).not.toBeNull();
     expect(el.textContent).toContain('Card no longer in the card data');
+  });
+
+  it('H-662: shows the Deck detail title lock toggle: icon only, named "Lock deck" / "Unlock deck", aria-pressed', async () => {
+    const el = section((await render()).fixture);
+    const toggles = [...el.querySelectorAll<HTMLButtonElement>('app-lock-actions.variant-icon button.lock-toggle')];
+    expect(toggles.map((b) => b.getAttribute('aria-label'))).toEqual(['Lock deck', 'Lock deck', 'Unlock deck']);
+    expect(toggles.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'true']);
+    expect(toggles.map((b) => b.getAttribute('aria-disabled'))).toEqual([null, 'true', null]);
+    // Closed lock (Material `lock`) when locked, open lock (`lock_open`) when not: the shape, not colour alone.
+    const kind = (b: HTMLButtonElement) => (/^M240-80q/.test(b.querySelector('path')!.getAttribute('d')!) ? 'lock' : /^M240-640h360/.test(b.querySelector('path')!.getAttribute('d')!) ? 'lock_open' : '?');
+    expect(toggles.map(kind)).toEqual(['lock_open', 'lock_open', 'lock']);
   });
 
   it('H-391: Lock in on the preview deck flips to Unlock without touching the browser stores', async () => {

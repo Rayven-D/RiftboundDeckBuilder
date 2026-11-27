@@ -371,7 +371,7 @@ describe('Deck detail (H-254)', () => {
       expect(qa(h, '#section-main [data-card]').map((b) => b.tabIndex)).toEqual([-1, 0, -1]);
     });
 
-    it('OWN-115 / OWN-040: the tile face has ×N from 2, the count chip, the deck-total line for a split card and the shared line', async () => {
+    it('OWN-115 / OWN-040 / H-663: the tile face has ×N from 2, the count chip and the deck-total line for a split card; no shared line', async () => {
       const other = detailDeck('0b7c0000-0000-4000-8000-0000000000a2', 'Jinx Aggro');
       const h = await setup(URL_, { decks: [detailDeck(), other] });
       const lr = tile(h, 'main:lightning rush');
@@ -381,7 +381,36 @@ describe('Deck detail (H-254)', () => {
       const emp = tile(h, 'sideboard:the empyrean');
       expect(text(emp.querySelector('app-ownership-chip'))).toBe('0 of 1 available');
       expect(text(emp.querySelector('.split'))).toBe('2 of 3 in this deck');
-      expect(text(lr.querySelector('.shared'))).toBe('Also in 1 other deck');
+      expect(lr.querySelector('.shared')).toBeNull();
+      expect(text(lr)).not.toContain('other deck');
+    });
+
+    it('H-663: with other decks (one locked) using the cards, no tile or row shows other-deck information in Card or List view, nor in its name; the dialog still does', async () => {
+      const deck2Id = '0b7c0000-0000-4000-8000-0000000000a2';
+      const h = await setup(URL_, { decks: [detailDeck(), detailDeck(deck2Id, 'Jinx Aggro')], owned: DETAIL_OWNED, locks: [deck2Id], width: 'phone' });
+      const noOther = (els: HTMLElement[]) => {
+        expect(els.length).toBeGreaterThan(0);
+        for (const el of els) {
+          expect(text(el)).not.toMatch(/other deck|Also in|locked/i);
+          expect(el.getAttribute('aria-label') ?? '').not.toMatch(/other deck|also in|locked/i);
+        }
+      };
+      noOther(qa(h, 'app-deck-card-tile [data-card]'));
+      const view = qa(h, '.view-toggle button');
+      view[1].click();
+      await settle(h);
+      expect(qa(h, 'app-deck-card-tile')).toHaveLength(0);
+      noOther(qa(h, 'app-deck-card-row [data-card]'));
+      // This deck's own counts stay on the row.
+      expect(text(tile(h, 'main:lightning rush').querySelector('app-ownership-chip'))).toBe('0 of 3 available');
+      // The card dialog keeps "Other decks using this card" with Jinx Aggro and its lock, and the breakdown.
+      tile(h, 'main:lightning rush').click();
+      await settle(h);
+      const d = text(dialogEl());
+      expect(d).toContain('Other decks using this card');
+      expect(d).toContain('Jinx Aggro');
+      expect(d).toContain('Jinx Aggro · needs 3 · Locked, holds 1');
+      expect(d).toContain('Locked by other decks: 1');
     });
 
     it('OWN-114 / AC 30: List view rows "3× Lightning Rush" with the label; "1×" shown; Fizz in Main and Sideboard; remembered on this device', async () => {
@@ -450,17 +479,21 @@ describe('Deck detail (H-254)', () => {
       expect(more.getAttribute('aria-expanded')).toBe('true');
     });
 
-    it('H-475: the header actions come after the title and status in the DOM; from 40rem they sit beside them (wrapping flex row) with the reason line under the whole row', async () => {
+    it('H-475 / H-662: the header actions come after the title and status in the DOM; from 40rem they sit beside them (wrapping flex row); the lock toggle follows the name with its reason line under the title row', async () => {
       const h = await setup(URL_);
       const header = q(h, 'header.deck-header')!;
       const main = header.querySelector('.header-top > .header-main')!;
       const actions = header.querySelector('.header-top > .actions')!;
       expect(main.nextElementSibling).toBe(actions);
       for (const sel of ['.deck-name', '.meta', '.summary']) expect(main.querySelector(sel)).not.toBeNull();
-      // Focus order (DOM order of the header's controls): status → Lock in → Copy missing list → chevron → More.
+      // Focus order (DOM order of the header's controls): back → lock toggle (H-662) → status → Copy missing list → chevron → More.
       const controls = Array.from(header.querySelectorAll<HTMLElement>('a, button')).map((b) => b.getAttribute('aria-label') ?? text(b));
-      expect(controls).toEqual(['Decks', 'Rule check', 'Lock in', 'Copy missing list', 'More copy options', 'More actions']);
-      expect(q(h, 'app-lock-actions')!.classList).toContain('in-row');
+      expect(controls).toEqual(['Decks', 'Lock deck', 'Rule check', 'Copy missing list', 'More copy options', 'More actions']);
+      // H-662: the toggle sits in the title row right after the name; the actions row has no Lock in / Unlock.
+      const titleRow = main.querySelector('.title-row')!;
+      expect(titleRow.firstElementChild!.matches('h1.deck-name')).toBe(true);
+      expect(titleRow.querySelector('h1 + app-lock-actions.variant-icon')).not.toBeNull();
+      expect(actions.querySelector('app-lock-actions')).toBeNull();
       // The ban-list and other notices stay below the header.
       expect(header.nextElementSibling!.classList).toContain('notices');
 
@@ -473,10 +506,11 @@ describe('Deck detail (H-254)', () => {
       expect(side.style.getPropertyValue('flex')).toMatch(/^0 0 auto$/);
       // Phones keep the one-column header (no flex row outside the desktop query).
       expect(cssRules((s) => targets(s, 'header-top')).filter((r) => r.media === null).map((r) => r.style.getPropertyValue('display'))).toEqual(['grid']);
-      // app-lock-actions joins the row and puts its reason under it, desktop only.
-      const inRow = cssRules((s) => s.includes('in-row') && s.includes('.reason'));
-      expect(inRow.map((r) => r.media)).toEqual(['(min-width: 40rem)']);
+      // H-662: the icon toggle joins the title row and puts its reason under the whole row, on every width.
+      const inRow = cssRules((s) => s.includes('variant-icon') && s.includes('.reason'));
+      expect(inRow.map((r) => r.media)).toEqual([null]);
       expect(inRow[0].style.getPropertyValue('flex-basis') || inRow[0].style.getPropertyValue('flex')).toContain('100%');
+      expect(cssRules((s) => targets(s, 'title-row')).filter((r) => r.media === null)[0].style.getPropertyValue('flex-wrap')).toBe('wrap');
     });
 
     it('H-461 (A13): both halves of Copy missing list are 44px tall on phones / touch (header split and the Missing copy), 40px on desktop', async () => {
@@ -670,7 +704,10 @@ describe('Deck detail (H-254)', () => {
   });
 
   describe('lock in and unlock (SPEC-008 SHARE-020…029, SHARE-033, SHARE-041; SPEC-005 OWN-116; H-060 pieces)', () => {
-    const lockButton = (h: RouterTestingHarness) => root(h).querySelector<HTMLButtonElement>('app-lock-actions button')!;
+    // H-662: Lock in / Unlock is the icon-only toggle after the deck name.
+    const lockButton = (h: RouterTestingHarness) => root(h).querySelector<HTMLButtonElement>('.title-row app-lock-actions button.lock-toggle')!;
+    const label = (b: HTMLButtonElement) => b.getAttribute('aria-label');
+    const headerText = (h: RouterTestingHarness) => text(q(h, 'header.deck-header'));
     const confirmLock = async (h: RouterTestingHarness) => {
       dialogEl()!.querySelector<HTMLButtonElement>('button.confirm')!.click();
       await settle(h, 10);
@@ -678,26 +715,45 @@ describe('Deck detail (H-254)', () => {
       await settle(h);
     };
 
-    it('SHARE-041 / D7: a locked deck shows the badge "Locked · Locked in on Nov 23, 2026" and Unlock', async () => {
+    it('H-662 / OWN-010: a locked deck shows a closed-lock icon toggle after the name ("Unlock deck", pressed, tooltip); no badge, no lock date, no Unlock button', async () => {
       const h = await setup(URL_, { owned: DETAIL_ALL_OWNED, locks: [DETAIL_DECK_ID] });
-      expect(text(q(h, '.meta app-lock-badge'))).toBe('Locked · Locked in on Nov 23, 2026');
-      expect(text(lockButton(h))).toBe('Unlock');
+      const btn = lockButton(h);
+      expect(btn.tagName).toBe('BUTTON');
+      expect(label(btn)).toBe('Unlock deck');
+      expect(btn.getAttribute('aria-pressed')).toBe('true');
+      expect(btn.getAttribute('aria-disabled')).toBeNull();
+      expect(btn.classList).toContain('lock-toggle--locked');
+      expect(btn.classList).toContain('mat-mdc-tooltip-trigger');
+      expect(text(btn)).toBe(''); // icon only
+      expect(q(h, 'header.deck-header app-lock-badge')).toBeNull();
+      expect(headerText(h)).not.toContain('Locked in on');
+      expect(qa(h, 'header.deck-header button').filter((b) => /^(Unlock|Lock in)$/.test(text(b)))).toEqual([]);
       expect(text(q(h, '.copies'))).toBe('23 of 23 copies locked in · 100%, 100 percent');
     });
 
-    it('SHARE-033 / OWN-102 / D8: a locked deck that is short shows the warning badge "Locked · 6 cards short" and stays locked', async () => {
+    it('H-662 / SHARE-033 / OWN-102: a locked deck that is short stays locked: "Unlock deck" toggle, no badge, the copies line shows the shortfall', async () => {
       const h = await setup(URL_, { locks: [DETAIL_DECK_ID] });
-      const badge = q(h, '.meta app-lock-badge')!;
-      expect(text(badge)).toBe('Locked · 6 cards short · Locked in on Nov 23, 2026');
-      expect(badge.querySelector('.badge--short')).not.toBeNull();
+      expect(q(h, 'header.deck-header app-lock-badge')).toBeNull();
+      expect(headerText(h)).not.toContain('Locked in on');
       expect(text(q(h, '.copies'))).toBe('12 of 23 copies locked in · 52%, 52 percent');
-      expect(text(lockButton(h))).toBe('Unlock');
+      expect(label(lockButton(h))).toBe('Unlock deck');
+      expect(lockButton(h).getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('H-662: an unlocked deck shows the open-lock toggle "Lock deck", not pressed, 44 x 44', async () => {
+      const h = await setup(URL_, { owned: DETAIL_ALL_OWNED, width: 'phone' });
+      const btn = lockButton(h);
+      expect(label(btn)).toBe('Lock deck');
+      expect(btn.getAttribute('aria-pressed')).toBe('false');
+      expect(btn.getAttribute('aria-haspopup')).toBe('dialog');
+      expect(btn.classList).not.toContain('lock-toggle--locked');
+      const size = cssRules((s) => s.trim().endsWith('.lock-toggle') && !s.includes('--locked'))[0].style;
+      expect([size.getPropertyValue('width'), size.getPropertyValue('height')]).toEqual(['44px', '44px']);
     });
 
     it('SPEC-008 AC 23 / SHARE-021 / SHARE-029 (a): Lock in confirms, then the badge shows, the copies read "locked in" and the snack says "Kennen Tempo is locked in." (same tab, no storage event)', async () => {
       const h = await setup(URL_, { owned: DETAIL_ALL_OWNED });
-      expect(q(h, '.meta app-lock-badge .badge')).toBeNull();
-      expect(text(lockButton(h))).toBe('Lock in');
+      expect(label(lockButton(h))).toBe('Lock deck');
       lockButton(h).click();
       await settle(h);
       expect(text(dialogEl()?.querySelector('h2'))).toBe("Lock in 'Kennen Tempo'?");
@@ -705,10 +761,10 @@ describe('Deck detail (H-254)', () => {
       expect((await stores.locks.load())!.locks.map((l) => l.deckId)).toEqual([DETAIL_DECK_ID]);
       expect(snack()).toBe('Kennen Tempo is locked in.');
       expect(snackAction()).toBeNull();
-      expect(text(q(h, '.meta app-lock-badge .badge'))).toBe('Locked');
+      expect(lockButton(h).getAttribute('aria-pressed')).toBe('true');
       expect(text(q(h, '.copies'))).toBe('23 of 23 copies locked in · 100%, 100 percent');
       expect(text(q(h, '#zone-main'))).toBe('Main Deck · 6 cards · 6 locked in');
-      expect(text(lockButton(h))).toBe('Unlock');
+      expect(label(lockButton(h))).toBe('Unlock deck');
     });
 
     it('SPEC-008 AC 23 / SHARE-023 / SHARE-029 (b): Unlock goes at once, the snack has no Undo, the badge goes and the copies read "available"', async () => {
@@ -721,10 +777,10 @@ describe('Deck detail (H-254)', () => {
       expect((await stores.locks.load())!.locks).toEqual([]);
       expect(snack()).toBe('Kennen Tempo is unlocked. Its cards count toward your other decks again.');
       expect(snackAction()).toBeNull();
-      expect(q(h, '.meta app-lock-badge .badge')).toBeNull();
+      expect(lockButton(h).getAttribute('aria-pressed')).toBe('false');
       expect(text(q(h, '.copies'))).toBe('23 of 23 copies available · 100%, 100 percent');
-      expect(text(lockButton(h))).toBe('Lock in');
-      expect(document.activeElement).toBe(lockButton(h)); // Decks Components §7: focus moves to the new button
+      expect(label(lockButton(h))).toBe('Lock deck');
+      expect(document.activeElement).toBe(lockButton(h)); // focus stays on the toggle
     });
 
     it('SPEC-008 AC 23 / SHARE-020 / OWN-116: an incomplete deck: Lock in is aria-disabled, focusable, and the reason line is visible and its aria-describedby', async () => {
@@ -749,7 +805,7 @@ describe('Deck detail (H-254)', () => {
       expect(snack()).toBe("Couldn't save the lock. Try again.");
       expect(await stores.locks.load()).toBeNull();
       expect(text(q(h, '.copies'))).toBe('23 of 23 copies available · 100%, 100 percent');
-      expect(text(lockButton(h))).toBe('Lock in');
+      expect(label(lockButton(h))).toBe('Lock deck');
     });
 
     it('DECK-091 / SHARE-020: a read-only deck cannot be locked (aria-disabled with its reason)', async () => {
@@ -774,7 +830,8 @@ describe('Deck detail (H-254)', () => {
       Array.from(dialogEl()!.querySelectorAll('button')).find((b) => text(b) === 'Save')!.click();
       await settle(h, 10);
       expect((await stores.locks.load())!.locks).toEqual([lock(DETAIL_DECK_ID)]);
-      expect(text(q(h, '.meta app-lock-badge'))).toBe('Locked · Locked in on Nov 23, 2026');
+      expect(lockButton(h).getAttribute('aria-pressed')).toBe('true');
+      expect(headerText(h)).not.toContain('Locked in on');
 
       await h.navigateByUrl(`/decks/${deck2Id}`);
       await settle(h, 10);
@@ -928,11 +985,13 @@ describe('Deck detail (H-254)', () => {
       expect(phone.map((r) => r.style.getPropertyValue('min-height'))).toContain('44px');
     });
 
-    it('H-467 (2): in the header row the Lock in button is 40px with a fine pointer from 40rem, like Copy missing list and More', async () => {
+    it('H-467 (2) / H-662: More and the chevron are 40px with a fine pointer, 44px on phones; the title-row lock toggle is 44 x 44 on every width', async () => {
       await setup(URL_);
-      const rule = cssRules((s) => s.includes('in-row') && /button$/.test(s.trim())).find((r) => r.media === '(min-width: 40rem) and (pointer: fine)');
-      expect(rule?.style.getPropertyValue('height')).toBe('40px');
-      expect(rule?.style.getPropertyValue('min-height')).toBe('40px');
+      // H-662: Lock in / Unlock left the actions row, so no 40px in-row button rule remains.
+      expect(cssRules((s) => s.includes('in-row'))).toHaveLength(0);
+      const toggle = cssRules((s) => s.trim() === '.lock-toggle').filter((r) => !r.media?.includes('forced-colors'));
+      expect(toggle.map((r) => r.media)).toEqual([null]);
+      expect(toggle[0].style.getPropertyValue('height')).toBe('44px');
       // More and the chevron are 40px at rest and 44px on phones / touch.
       const more = cssRules((s) => targets(s, 'more'));
       expect(more.find((r) => r.media === null)?.style.getPropertyValue('height')).toBe('40px');
@@ -995,22 +1054,21 @@ describe('Deck detail (H-254)', () => {
       expect(document.title).toBe('Deck detail · Rift Builder');
     });
 
-    it('H-520: from 40rem the Lock in reason line is start-aligned and exactly the row\'s width (basis 100%, no grow, negative margin on the end side); phones unchanged', async () => {
+    it('H-520 / H-662: the Lock in reason line sits under the title row on every width, start-aligned, the row\'s full width (basis 100%, no grow)', async () => {
       await setup(URL_);
-      const reason = cssRules((s) => s.includes('in-row') && s.includes('.reason')).find((r) => r.media === '(min-width: 40rem)')!;
-      const st = reason.style;
-      expect(st.getPropertyValue('text-align')).toBe('start');
-      expect(st.getPropertyValue('justify-content')).toBe('flex-start');
+      const reason = cssRules((s) => s.includes('variant-icon') && s.includes('.reason'));
+      expect(reason.map((r) => r.media)).toEqual([null]);
+      const st = reason[0].style;
       expect(st.getPropertyValue('flex-grow')).toBe('0');
       expect(st.getPropertyValue('flex-basis')).toBe('100%');
-      // jsdom keeps the shorthand: start 0, end minus the column gap.
-      expect(st.getPropertyValue('margin-inline').replace(/\s+/g, ' ').trim()).toBe('0 calc(-1 * var(--space-2))');
-      expect(st.getPropertyValue('contain')).toBe('inline-size');
-      // The header row starts its lines (the reason's line is the only one with free space), so it sits under Lock in.
+      expect(st.getPropertyValue('order')).toBe('1');
+      // The reason itself is a start-aligned flex line (icon + text).
+      const base = cssRules((s) => s.trim() === '.reason')[0].style;
+      expect(base.getPropertyValue('justify-content')).toBe('');
+      expect(base.getPropertyValue('text-align')).toBe('');
+      // The header's desktop actions row still starts its lines (H-520).
       const row = cssRules((s) => s.trim() === '.header-top > .actions').find((r) => r.media === '(min-width: 40rem)')!;
       expect(row.style.getPropertyValue('justify-content')).toBe('flex-start');
-      // Phones: no in-row rule outside the 40rem query.
-      expect(cssRules((s) => s.includes('in-row') && s.includes('.reason')).filter((r) => r.media === null)).toHaveLength(0);
     });
 
     it('H-468 (10): below 64rem a press opens the dialog and sets no "Showing" status', async () => {

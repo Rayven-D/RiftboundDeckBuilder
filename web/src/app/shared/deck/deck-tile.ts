@@ -93,7 +93,7 @@ export function deckArtState(fill: number | null): { state: OwnershipState; fill
           <p class="ownership">
             <!-- RJ 2026-11-25: the lock is its own badge next to the ownership chip (no date on the tile). -->
             <app-deck-status-chip [filter]="s.ownershipFilter" />
-            <app-lock-badge [label]="s.lockBadge" [showDate]="false" />
+            <app-lock-badge [label]="s.lockBadge" />
             <span class="copies">{{ s.ownershipLine }}</span>
           </p>
           @if (s.completionPercent !== null) {

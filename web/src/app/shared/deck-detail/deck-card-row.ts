@@ -2,19 +2,18 @@ import { Component, computed, input, output } from '@angular/core';
 import type { OwnershipCard } from '../../core/decks';
 import { CardArt } from '../deck/card-art';
 import { OwnershipChip } from '../deck/ownership-chip';
-import { Icon } from '../icon';
 import { StatusLabel } from '../status-label';
 import { DETAIL_TEXT, banText, cardAccessibleName, cardId, labelParts } from './detail-view';
 
 /**
  * One card in List view (SPEC-005 OWN-114): `<thumbnail> 2× <Card Name>` with the same fill as the Card view tile
- * (OWN-030…036), the count label "2 of 3 available" (with its deck-total part when split, OWN-033), the shared line
- * (SHARE-042) and the ban label (OWN-015). "1×" is shown here (the row has no `×N` badge). At least 44px tall; the
+ * (OWN-030…036), the count label "2 of 3 available" (with its deck-total part when split, OWN-033) and the ban label
+ * (OWN-015); no other-deck information (H-663, RJ 2026-11-26: the SHARE-042 line stays in the card dialog / panel). "1×" is shown here (the row has no `×N` badge). At least 44px tall; the
  * same press target and selection as the tile (OWN-038, OWN-111).
  */
 @Component({
   selector: 'app-deck-card-row',
-  imports: [CardArt, OwnershipChip, StatusLabel, Icon],
+  imports: [CardArt, OwnershipChip, StatusLabel],
   template: `
     <button
       type="button"
@@ -52,9 +51,6 @@ import { DETAIL_TEXT, banText, cardAccessibleName, cardId, labelParts } from './
               <span class="muted">{{ p.total }}</span>
             }
           </span>
-          @if (card().sharedLabel; as shared) {
-            <span class="meta muted"><app-icon name="stacks" />{{ shared }}</span>
-          }
         }
         @if (ban(); as b) {
           <app-status-label [variant]="b.variant" [text]="b.text" />
@@ -125,9 +121,6 @@ import { DETAIL_TEXT, banText, cardAccessibleName, cardId, labelParts } from './
       align-items: center;
       gap: var(--space-1) var(--space-2);
       font-size: var(--font-size-xs);
-    }
-    .meta app-icon {
-      font-size: 12px;
     }
     .meta--unknown {
       color: var(--color-text);

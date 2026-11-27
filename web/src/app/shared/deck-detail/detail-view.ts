@@ -222,12 +222,12 @@ export function banText(ban: CardBan): string | null {
   }
 }
 
-/** OWN-033 / SHARE-044 accessible name of a tile or row: name, zone, (unknown), label, shared, ban, preview. */
+/** OWN-033 / SHARE-044 accessible name of a tile or row: name, zone, (unknown), label, ban, preview. H-663: no
+ *  other-deck part (the tile and row show none; the card dialog / panel has "Other decks using this card"). */
 export function cardAccessibleName(card: OwnershipCard): string {
   const parts = [card.name, ZONE_LABEL[card.zone]];
   if (card.flags.includes('unknown-card')) parts.push('card no longer in the card data');
   if (card.label) parts.push(card.label);
-  if (card.sharedLabel) parts.push(lowerFirst(card.sharedLabel.replace(' · ', ', ')));
   const ban = banText(card.banStatus);
   if (ban) parts.push(lowerFirst(ban));
   if (card.flags.includes('preview')) parts.push('preview');

@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.35
+version: 1.36
 ---
 # API Contracts
 
@@ -411,6 +411,11 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
     fallback only if the Router refuses and the code is still in the URL.
   - `MESSAGES.signedIn` = "You're signed in.", notified as `success` in `SyncEngine.signIn()` (email link and
     Google) right after the uid arrives, before `openSession()`; `start()` (restore) never sends it.
+  - **Locked decks left short by a merge (SYNC-074, H-148):** `EngineDeps.shortfalls?(before, after)` (SPEC-008
+    `lockedShortfalls`; still unwired in the app, H-075) is read once after each merge, and the engine sends **one**
+    `info` notice for all of them: `lockedShortfallNotice(list): string | null` (exported from `sync-engine.ts`)
+    joins one "'<deck name>' (locked) is now <n> cards short." sentence per deck ("1 card short" for one) with a
+    space, in the hook's order; `null` (no notice) for an empty list.
   - **Firebase continue URL with a query (verified on the Auth emulator, firebase-tools 15.37.0, 2026-11-24;
     `web/rules-tests/email-link-return.test.ts`):** the emailed link is
     `http://127.0.0.1:9099/emulator/action?mode=signIn&lang=en&oobCode=…&apiKey=…&continueUrl=<encoded continue URL>`.
@@ -573,7 +578,8 @@ Not an endpoint. Writes go through the **tracked** `stores.collection` only.
   this any more since H-253). v1.24: generic over the review shape `P` and the action's choice `C`; `prepare` also
   gets the text box as parsed (`text`, used by Deck Import for `importRemovedLines`; the collection ignores it).
 - **Service** (`web/src/app/core/import/collection-import.ts`, `CollectionImport`, root): implements
-  `ImportCommitter`; `undo()`; `written: Subject<void>` (fires after a commit or Undo this tab wrote; Collection
+  `ImportCommitter`; `prepare` reads `CardData.loadApiCatalog()` (never the generated test catalog, H-233); `undo()`;
+  `written: Subject<void>` (fires after a commit or Undo this tab wrote; Collection
   reloads in place, COLL-091). Notice: `MatSnackBar` `(message, 'Undo', { duration: COMMIT_NOTICE_MS = 10_000,
   politeness: 'polite' })`. Undo: Nothing to undo unless the stored snapshot's `updatedAt` equals the one this commit
   kept; COLL-058 confirmation when the stored record's `updatedAt` differs from the commit's; IMP-050a warnings from
@@ -755,12 +761,15 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   collection `save(…, { replace: true })`, one `set()`; then the locks with the two test locks added);
   `removeTestData(stores, now)` (locks without the test ids, the test decks deleted (tombstones after the 10 s Undo
   window), the collection saved with `cards: {}` and `catalogVersion: ""`: one `update()` with a tombstone per card);
-  `removeTestDecks(stores, now)`: the TEST-033 part for a Replace import (test decks and their locks only). The
-  import commit exists since H-158 (`CollectionImport.commit`, see "Owned Cards Import commit"); **a Replace must
-  call `removeTestDecks` in the same commit** (H-233, marked in the code next to the save).
+  `removeTestDecks(stores, now)`: the TEST-033 part for a Replace import (test decks and their locks only).
+  `CollectionImport.commit` calls it on **every Replace**, right after the collection write (H-233; a no-op without
+  test decks, and it also clears a stray test deck, TEST-034); an Add never calls it (TEST-032 blocks Add first).
 - **Catalog** (`CardData.loadCatalog()`): reads the stored collection (`stores.raw.collection`, read only); with the
   marker it returns `generateLargeSample(n).catalog` (dynamic import, its own lazy chunk), with no `/api` call and no
   dev key; the cached catalog follows the marker (a Remove goes back to `/api`). The dev key path is unchanged.
+  `CardData.loadApiCatalog()` (H-233) always returns the `/api` catalog (own cache, cleared by `reload()`), even
+  with the marker: the Owned Cards Import resolves against it, so a Replace over test data writes the real
+  `catalogVersion` (AC 12).
 - **Flag:** `environment.testDataEnabled` (true in `environment.ts` and `environment.development.ts`), injected as
   `TEST_DATA_ENABLED` (`core/test-data/test-data-flag.ts`). False hides Load and Change set; the banner and Remove stay.
 
@@ -886,6 +895,10 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.36 (2026-11-26, H-148, H-233): no endpoint change and no stored-shape change. SYNC-074: one `info` notice for
+  every locked deck a merge left short, `lockedShortfallNotice()` in `sync-engine.ts`. TEST-033: `CardData.loadApiCatalog()`;
+  `CollectionImport.prepare` uses it; `CollectionImport.commit` calls `removeTestDecks` on every Replace, and the
+  Replace confirmation's IMP-050a warnings leave the test decks out (they go in the same commit).
 - v1.35 (2026-11-26, H-194, H-344, SPEC-002 0.5, SPEC-006 0.16 DECK-050…056): no endpoint change and no stored-shape
   change. New section "Deck legality engine": `data/banlist.json` (Standard + `2v2` `unverified` list) and
   `data/formats.json`, `web/src/app/core/legality/` (`evaluateLegality`, rules, data check), `CardData.loadLegalityData()`

@@ -247,8 +247,8 @@ describe('DecksPage list tiles (SPEC-005 OWN-002, OWN-100…104)', { timeout: 20
     // RJ 2026-11-25: the lock is its own badge; a locked complete deck (group `locked`) has no ownership chip.
     expect(text(tile.querySelector('app-deck-status-chip'))).toBe('');
     expect(text(tile.querySelector('.ownership app-lock-badge'))).toBe('Locked');
-    // The tile badge has no "Locked in on <date>" (the header's, SHARE-041).
-    expect(tile.querySelector('app-lock-badge .date')).toBeNull();
+    // The tile badge has no "Locked in on <date>" (H-662: no lock date anywhere).
+    expect(tile.querySelector('app-lock-badge')!.textContent).not.toContain('Locked in on');
     TestBed.resetTestingModule();
     const short = await setup({ decks: [deck54], owned: { [LEGEND]: 1, 'Lightning Rush': 1, Gust: 48 }, locks: [lock(id(4))] });
     tile = short.tiles()[0];
