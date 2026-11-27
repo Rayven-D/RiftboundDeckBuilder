@@ -2,7 +2,7 @@ import type {
   BanListFile,
   CardSet,
   CollectionCatalogView,
-  DeckLock,
+  NameLock,
   PlayableCard,
   Printing,
   StoredCollection,
@@ -100,7 +100,7 @@ function view(
   collection: StoredCollection,
   opts: {
     decks?: UserDeck[] | null;
-    locks?: DeckLock[] | null;
+    locks?: NameLock[] | null;
     bans?: BanListFile | null;
     codes?: Record<string, string>;
   } = {},
@@ -136,7 +136,9 @@ const deckCards = (cards: [string, number][]) =>
   }));
 const deck = (i: number, name: string, cards: [string, number][], runes: [string, number][] = []) =>
   sampleDeck(i, name, deckCards(cards), deckCards(runes));
-const lockOf = (d: UserDeck, at: string): DeckLock => ({ deckId: d.id, lockedAt: at });
+/** SPEC-008 v0.6: the deck toggle's locks, a name lock on every name of the deck. */
+const lockOf = (d: UserDeck, at: string): NameLock[] =>
+  [...new Set([...d.main, ...d.sideboard, ...d.runes, ...d.battlefields].map((c) => c.cardKey))].map((cardKey) => ({ deckId: d.id, cardKey, lockedAt: at }));
 
 // ---------------------------------------------------------------- entries and order
 
@@ -371,21 +373,22 @@ describe('Collection view: locks, dialog and ban (SPEC-008)', () => {
     ["Kai'Sa, Survivor", 2],
     ['Gust', 1],
   ]);
-  const kennen = deck(2, 'Kennen Tempo', [["Kai'Sa, Survivor", 5]]);
+  // v0.6: a lock holds its whole need, so Kennen needs 4 (2 + 4 = the 6 owned); a locked name is never short.
+  const kennen = deck(2, 'Kennen Tempo', [["Kai'Sa, Survivor", 4]]);
   const draven = deck(3, 'Draven Midrange', [
     ['Gust', 3],
     ["Kai'Sa, Survivor", 1],
   ]);
   const ezreal = deck(4, 'Ezreal Control', [['Gust', 2]]);
   const decks = [jinx, kennen, draven, ezreal];
-  const locks = [lockOf(jinx, '2026-11-20T00:00:00Z'), lockOf(kennen, '2026-11-21T00:00:00Z')];
+  const locks = [...lockOf(jinx, '2026-11-20T00:00:00Z'), ...lockOf(kennen, '2026-11-21T00:00:00Z')];
   const v = view(cat, collection, { decks, locks });
 
-  it('SHARE-002 SHARE-033 (A3): the lock band sums holds per card and sits on every printing tile of the card', () => {
+  it('SHARE-002 / SHARE-094 (d) (A3): the lock band sums holds per card (one entry per deck whose name lock holds it) on every printing tile', () => {
     const kaisa = v.cards.get('kaisa survivor')!;
-    expect(kaisa.locked.map((u) => [u.deckName, u.hold, u.short])).toEqual([
-      ['Jinx Aggro', 2, false],
-      ['Kennen Tempo', 4, true],
+    expect(kaisa.locked.map((u) => [u.deckName, u.hold])).toEqual([
+      ['Jinx Aggro', 2],
+      ['Kennen Tempo', 4],
     ]);
     expect(kaisa.lockedCopies).toBe(6);
     expect(kaisa.tiles.map((t) => t.entryId)).toEqual(['p:k', 'u:kaisa survivor', 'p:ks']);
@@ -439,8 +442,8 @@ describe('Collection view: locks, dialog and ban (SPEC-008)', () => {
     ]);
     expect(d.printings[0].ariaLabel).toBe('Show OGN-007, 2 copies');
     expect(d.lockedIn).toEqual([
-      { deckId: jinx.id, deckName: 'Jinx Aggro', copies: '2 copies', short: false },
-      { deckId: kennen.id, deckName: 'Kennen Tempo', copies: '4 copies', short: true },
+      { deckId: jinx.id, deckName: 'Jinx Aggro', copies: '2 copies' },
+      { deckId: kennen.id, deckName: 'Kennen Tempo', copies: '4 copies' },
     ]);
     const av = availability(v.pool, draven.id, 'kaisa survivor');
     expect(d.couldFit).toEqual([
@@ -477,11 +480,11 @@ describe('Collection view: locks, dialog and ban (SPEC-008)', () => {
     const control = deck(6, 'Rune Control', [], [['Calm Rune', 2]]);
     const rv = view(cat, collection, {
       decks: [tempo, control],
-      locks: [lockOf(tempo, '2026-11-22T00:00:00Z')],
+      locks: lockOf(tempo, '2026-11-22T00:00:00Z'),
     });
     const d = cardDetail(rv, 'p:r')!;
     expect(d.lockedIn).toEqual([
-      { deckId: tempo.id, deckName: 'Rune Tempo', copies: '3 copies', short: false },
+      { deckId: tempo.id, deckName: 'Rune Tempo', copies: '3 copies' },
     ]);
     // 4 owned, Rune Tempo holds 3 → 1 available to Rune Control, which needs 2.
     expect(d.couldFit.map((r) => [r.deckName, r.label, r.state])).toEqual([
@@ -494,7 +497,7 @@ describe('Collection view: locks, dialog and ban (SPEC-008)', () => {
     expect(cardDetail(v, 'p:l')!.couldFitEmpty).toBe('None of your decks use this card.');
     const onlyLocked = view(cat, collection, {
       decks: [jinx],
-      locks: [lockOf(jinx, '2026-11-20T00:00:00Z')],
+      locks: lockOf(jinx, '2026-11-20T00:00:00Z'),
     });
     const d = cardDetail(onlyLocked, 'p:k')!;
     expect(d.lockedIn).toHaveLength(1);

@@ -56,7 +56,7 @@ describe('SyncEngine first sign-in, sign-out and the gate (SPEC-010 SYNC-009, H-
       for (let i = 0; i < 350; i++) await laptop.setCard(`card ${i}`, 1 + (i % 3));
       for (let i = 0; i < 20; i++) await laptop.addTag(`t_tag${String(i).padStart(3, '0')}`, `Tag ${i}`);
       const decks = [];
-      for (let i = 0; i < 10; i++) decks.push(await laptop.createDeck(`Deck ${i}`, [card('card 1', 1)]));
+      for (let i = 0; i < 10; i++) decks.push(await laptop.createDeck(`Deck ${i}`, [card('card 2', 1)]));
       for (let i = 0; i < 3; i++) await laptop.lock(decks[i].id);
       expect(firstFrameGate(laptop)).toBe('signed-out'); // legacy data is never shown (SYNC-009)
 
@@ -270,7 +270,7 @@ describe('SyncEngine first sign-in, sign-out and the gate (SPEC-010 SYNC-009, H-
       for (let i = 0; i < 350; i++) await laptop.setCard(`card ${i}`, 1 + (i % 3));
       for (let i = 0; i < 20; i++) await laptop.addTag(`t_tag${String(i).padStart(3, '0')}`, `Tag ${i}`);
       const decks = [];
-      for (let i = 0; i < 10; i++) decks.push(await laptop.createDeck(`Deck ${i}`, [card('card 1', 1)]));
+      for (let i = 0; i < 10; i++) decks.push(await laptop.createDeck(`Deck ${i}`, [card('card 2', 1)]));
       for (let i = 0; i < 3; i++) await laptop.lock(decks[i].id);
       await laptop.engine.flush();
       laptop.now += 60_000;

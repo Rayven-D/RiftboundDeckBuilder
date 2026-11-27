@@ -100,7 +100,7 @@ service cloud.firestore {
           && d.assignments is map && d.assignments.size() <= 6000)
         || (name == 'locks'
           && exactKeys(d, ['schemaVersion', 'updatedAt', 'syncedAt', 'locks'], [])
-          && d.locks is map && d.locks.size() <= 400)
+          && d.locks is map && d.locks.size() <= 6000)
       );
     }
 

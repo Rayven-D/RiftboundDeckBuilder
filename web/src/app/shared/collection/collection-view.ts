@@ -22,7 +22,7 @@ import type {
   CardBan,
   CardCategory,
   CardKey,
-  DeckLock,
+  NameLock,
   DeckOwnershipInput,
   EntryKind,
   IsoDate,
@@ -59,12 +59,11 @@ export interface CollectionTile {
   readonly order: number;
 }
 
+/** A deck whose card-name lock holds copies of this card (SHARE-094 (d): one entry per deck; never short, v0.6). */
 export interface LockedUse {
   readonly deckId: string;
   readonly deckName: string;
   readonly hold: number;
-  /** The locked deck holds fewer copies of this card than it needs (SHARE-033). */
-  readonly short: boolean;
 }
 
 export interface CardSummary {
@@ -107,7 +106,7 @@ export interface CollectionViewInput {
   /** null = the deck store couldn't be read; treated as no decks, and flagged. */
   readonly decks: readonly UserDeck[] | null;
   /** null = the lock store couldn't be read (SHARE-061). */
-  readonly locks: readonly DeckLock[] | null;
+  readonly locks: readonly NameLock[] | null;
   /** null = ban data couldn't be loaded (COLL-008). */
   readonly banData: BanListFile | null;
   readonly today: IsoDate;
@@ -213,12 +212,7 @@ export function buildCollectionView(input: CollectionViewInput): CollectionView 
     if (cardPool && !pool.locksIgnored) {
       for (const u of cardPool.uses) {
         if (!u.locked || u.hold < 1) continue;
-        locked.push({
-          deckId: u.deckId,
-          deckName: u.deckName,
-          hold: u.hold,
-          short: pool.byDeck[u.deckId]?.cardsShort.includes(cardKey) ?? false,
-        });
+        locked.push({ deckId: u.deckId, deckName: u.deckName, hold: u.hold });
       }
     }
     summaries.set(cardKey, {
@@ -455,7 +449,7 @@ export interface CardDetail {
   /** "You own 6 across all printings", or null with only one entry. */
   readonly ownedHeading: string | null;
   readonly printings: PrintingRow[];
-  readonly lockedIn: { deckId: string; deckName: string; copies: string; short: boolean }[];
+  readonly lockedIn: { deckId: string; deckName: string; copies: string }[];
   /** Unlocked decks using the card; fully available first, then by name. */
   readonly couldFit: FitRow[];
   /**
@@ -508,7 +502,6 @@ export function cardDetail(view: CollectionView, entryId: string): CardDetail | 
       deckId: u.deckId,
       deckName: u.deckName,
       copies: copiesText(u.hold),
-      short: u.short,
     })),
     couldFit,
     couldFitEmpty:

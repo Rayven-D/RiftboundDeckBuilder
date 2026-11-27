@@ -9,29 +9,31 @@ import {
   MatDialogTitle,
 } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
-import type { LockedShortfall } from '../../core/decks';
-import { ShortfallWarning } from '../deck/shortfall-warning';
+import type { LockLoss } from '../../core/decks';
+import { LockRemovalNotice } from '../deck/lock-removal-notice';
 
 export interface ImportConfirmData {
   readonly title: string;
   readonly text: string;
-  /** SPEC-008 SHARE-034: the locked decks this change leaves short, one warning line each (IMP-050a). */
-  readonly shortfalls: readonly LockedShortfall[];
+  /** SPEC-008 SHARE-088 (v0.6): the name locks this change unlocks (IMP-050a); empty = no lock hit, no mention. */
+  readonly losses: readonly LockLoss[];
   readonly confirm: string;
 }
 
 /**
- * The Replace confirmation (SPEC-003 IMP-050, IMP-050a a) and the Undo confirmation (COLL-058, IMP-050a b): Cancel
- * first, the action last. Closes with true only for the action; Cancel and Escape change nothing.
+ * The Replace confirmation (SPEC-003 IMP-050, IMP-050a a) and the Undo confirmation (COLL-058, IMP-050a b), with the
+ * SHARE-088 lock lines inside when the change unlocks a card-name lock: Cancel first, the action last. Closes with true only for the action; Cancel and Escape change nothing.
  */
 @Component({
   selector: 'app-import-confirm-dialog',
-  imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, ShortfallWarning],
+  imports: [MatDialogTitle, MatDialogContent, MatDialogActions, MatDialogClose, MatButton, LockRemovalNotice],
   template: `
     <h2 mat-dialog-title>{{ data.title }}</h2>
     <mat-dialog-content>
-      <p>{{ data.text }}</p>
-      <app-shortfall-warning [items]="data.shortfalls" />
+      @if (data.text) {
+        <p>{{ data.text }}</p>
+      }
+      <app-lock-removal-notice [losses]="data.losses" />
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button matButton type="button" mat-dialog-close>Cancel</button>

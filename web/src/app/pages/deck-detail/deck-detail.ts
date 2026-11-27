@@ -16,7 +16,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDivider } from '@angular/material/divider';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
@@ -31,7 +31,7 @@ import {
   summarizeDeck,
   type CollectionCatalogView,
   type CollectionOwnership,
-  type DeckLock,
+  type NameLock,
   type DeckOwnershipInput,
   type DeckOwnershipView,
   type DeckTileSummary,
@@ -57,6 +57,7 @@ import {
   DeckCardDialogResult,
 } from '../../shared/deck-detail/deck-card-dialog';
 import { DeckCardRow } from '../../shared/deck-detail/deck-card-row';
+import type { NameLockContext } from '../../shared/deck-detail/name-lock-action';
 import { DeckCardTile } from '../../shared/deck-detail/deck-card-tile';
 import { confirmDelete, openRenameDialog, openRuleCheck } from '../../shared/deck-detail/deck-dialogs';
 import { CopyMode, DeckMissing } from '../../shared/deck-detail/deck-missing';
@@ -89,7 +90,7 @@ import { LockActions } from '../../shared/deck/lock-actions';
 import { EmptyState } from '../../shared/empty-state';
 import { Icon } from '../../shared/icon';
 import type { StoredPrintingCodes } from '../../shared/storage/records';
-import { noticeOptions } from '../../shared/sync/notice';
+import { NOTICE_POSITION, noticeOptions } from '../../shared/sync/notice';
 import { ReadOnlyAreaError } from '../../shared/sync/tracked-stores';
 
 /**
@@ -179,7 +180,6 @@ function localToday(): string {
     DeckCardContent,
     DeckMissing,
     LockActions,
-    MatButton,
     MatIconButton,
     MatMenu,
     MatMenuItem,
@@ -199,7 +199,8 @@ export class DeckDetail {
   /** The deck id from the route. Another deck's link (an "Other decks" row) changes it in place. */
   readonly deckId = input.required<string>();
 
-  private readonly stores = inject(AppStores).stores;
+  private readonly app = inject(AppStores);
+  private readonly stores = this.app.stores;
   private readonly cardData = inject(CardData);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
@@ -242,11 +243,17 @@ export class DeckDetail {
     return d ? sourceParts(d.deck) : { pilot: null, sourceUrl: null };
   });
   protected readonly locked = computed(() => this.view()?.lock?.locked ?? false);
-  /** OWN-116: Copy missing list is hidden when nothing is missing or ownership is unavailable. */
-  protected readonly canCopyMissing = computed(() => {
-    const v = this.view();
-    return !!v && v.ownershipAvailable && v.missing.length > 0;
+  /** H-665 (SHARE-094 (a)): what the card dialog / panel's per-name Lock / Unlock reads. */
+  protected readonly lockContext = computed((): NameLockContext | null => {
+    const d = this.loaded();
+    return d ? { deck: d.deck, pool: d.pool, readOnly: d.readOnly, locksUnreadable: d.locksUnreadable } : null;
   });
+  protected readonly nameExpanded = signal(false);
+  /** H-668: the clamped name overflows its two lines (measured on render and resize). */
+  protected readonly nameOverflows = signal(false);
+  /** H-668: the name is a toggle only when it is (or was, while expanded) actually clamped. */
+  protected readonly nameInteractive = computed(() => this.nameOverflows() || this.nameExpanded());
+  private readonly nameText = viewChild<ElementRef<HTMLElement>>('nameText');
   protected readonly descExpanded = signal(false);
   protected readonly descOverflows = signal(false);
   private readonly desc = viewChild<ElementRef<HTMLElement>>('desc');
@@ -292,6 +299,7 @@ export class DeckDetail {
         this.tab.set('card');
         this.active.set({});
         this.descExpanded.set(false);
+        this.nameExpanded.set(false);
         this.banDismissed.set(false);
         this.loadedId = null;
         void this.load(id, true);
@@ -316,6 +324,22 @@ export class DeckDetail {
       const phase = this.phase();
       if (phase === 'ready' && d) this.title.setTitle(`${d.deck.name} · Rift Builder`);
       else if (phase === 'not-found') this.title.setTitle('Deck detail · Rift Builder');
+    });
+
+    // H-668: the name is interactive only when the two-line clamp actually cuts it (no polling: ResizeObserver).
+    effect((onCleanup) => {
+      const el = this.nameText()?.nativeElement;
+      if (!el || typeof ResizeObserver === 'undefined') {
+        this.nameOverflows.set(false);
+        return;
+      }
+      const measure = () => {
+        if (!untracked(this.nameExpanded)) this.nameOverflows.set(el.scrollHeight > el.clientHeight + 1);
+      };
+      const ro = new ResizeObserver(measure);
+      ro.observe(el);
+      measure();
+      onCleanup(() => ro.disconnect());
     });
 
     // OWN-010 (c): "Show more" only when the description is longer than three lines.
@@ -419,7 +443,7 @@ export class DeckDetail {
     const [decks, locks, collection, tags, printingCodes] = await Promise.all([
       s.decks.list().catch((): UserDeck[] => []),
       s.locks.load().then(
-        (l): readonly DeckLock[] => l?.locks ?? [],
+        (l): readonly NameLock[] => l?.locks ?? [],
         () => null, // SHARE-061: unreadable → locks ignored
       ),
       s.collection.load().catch(() => {
@@ -658,6 +682,7 @@ export class DeckDetail {
       },
       locked: () => this.locked(),
       ownershipAvailable: () => this.view()?.ownershipAvailable ?? false,
+      lockContext: () => this.lockContext(),
     };
     const ref = this.dialog.open<DeckCardDialog, DeckCardDialogData, DeckCardDialogResult>(DeckCardDialog, {
       data,
@@ -740,6 +765,7 @@ export class DeckDetail {
       return;
     }
     this.scheduleReload(); // the shared lines of this deck change too
+    this.app.majorAction(); // SYNC-126 (a) 5: Duplicate
     const ref = this.snackBar.open(DETAIL_TEXT.duplicated, DETAIL_TEXT.open, noticeOptions('success'));
     ref.onAction().subscribe(() => void this.router.navigate(['/decks', copy.id]));
   }
@@ -813,13 +839,14 @@ export class DeckDetail {
       this.leaving = false;
       return;
     }
-    await this.releaseLock(removed.id);
+    // SHARE-024 / SYNC-035 / AC 87: the deck's name locks stay stored, ignored while the deck is gone (SHARE-062), and
+    // leave with the deck tombstone when the 10 s Undo window ends; an Undo keeps them as they were.
     const stores = this.stores;
     const saved = this.deckImport.saved;
     const listFocus = this.listFocus;
     listFocus.request({ kind: 'first' }); // H-462: the first tile, or the empty state's Import deck
     void this.router.navigate(['/decks']);
-    const ref = this.snackBar.open(DETAIL_TEXT.deleted, DETAIL_TEXT.undo, { duration: DELETE_UNDO_MS, politeness: 'polite' });
+    const ref = this.snackBar.open(DETAIL_TEXT.deleted, DETAIL_TEXT.undo, { duration: DELETE_UNDO_MS, politeness: 'polite', ...NOTICE_POSITION });
     ref.onAction().subscribe(async () => {
       try {
         listFocus.request({ kind: 'deck', deckId: removed.id }); // H-462: the restored deck's tile
@@ -831,20 +858,31 @@ export class DeckDetail {
     });
   }
 
-  /** SHARE-024: deleting a locked deck removes its lock too, through DeckLocks (the store also drops orphans, SHARE-062). */
-  private async releaseLock(deckId: string): Promise<void> {
-    const locks = await this.deckLocks.load().catch(() => null);
-    if (!locks?.some((l) => l.deckId === deckId)) return; // none, or unreadable: never overwritten (SHARE-061)
-    try {
-      await this.deckLocks.unlock(deckId);
-    } catch {
-      // the orphan lock is ignored and dropped on the next lock save (SHARE-062)
-    }
-  }
-
   /** `app-lock-actions` saved a change: recompute (DeckLocks.changed does the same; the reload is coalesced). */
   protected lockChanged(): void {
     this.scheduleReload();
+  }
+
+  /** H-668: a tap (or Enter / Space) on a clamped name shows it in full, or clamps it again. */
+  protected toggleName(): void {
+    if (!this.nameInteractive()) return;
+    this.nameExpanded.update((x) => !x);
+  }
+
+  protected onNameKey(e: KeyboardEvent): void {
+    if (!this.nameInteractive()) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      this.toggleName();
+    } else if (e.key === 'Escape' && this.nameExpanded()) {
+      e.preventDefault();
+      this.nameExpanded.set(false);
+    }
+  }
+
+  /** H-668: losing focus clamps the name again (tapping elsewhere, Tab away). */
+  protected collapseName(): void {
+    this.nameExpanded.set(false);
   }
 
   protected toggleDesc(): void {

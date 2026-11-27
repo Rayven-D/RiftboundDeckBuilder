@@ -4,6 +4,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import type { OwnershipCard } from '../../core/decks';
 import { Icon } from '../icon';
 import { DeckCardContent } from './deck-card-content';
+import type { NameLockContext } from './name-lock-action';
 
 /** What the page gives the dialog. The functions read the page's signals, so the dialog follows store changes (OWN-070). */
 export interface DeckCardDialogData {
@@ -14,6 +15,8 @@ export interface DeckCardDialogData {
   neighbour(id: string, step: -1 | 1): string | null;
   locked(): boolean;
   ownershipAvailable(): boolean;
+  /** H-665: the per-name lock control's context (SHARE-094 (a)); null = none. Optional for older callers. */
+  lockContext?(): NameLockContext | null;
 }
 
 /** Closed result: the card to return focus to, and whether it left the deck while open. */
@@ -54,6 +57,7 @@ export const DECK_CARD_DIALOG_TITLE_ID = 'deck-card-dialog-title';
         [card]="c"
         [locked]="data.locked()"
         [ownershipAvailable]="data.ownershipAvailable()"
+        [lockContext]="data.lockContext?.() ?? null"
         [fullUrl]="data.fullUrl(c)"
         [headingLevel]="0"
         [wide]="true"

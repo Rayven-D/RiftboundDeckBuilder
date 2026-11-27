@@ -7,7 +7,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { lock, makeCatalog, makeDeck } from '../../core/decks/engine-fixtures';
-import type { DeckLock, StoredDeckLocks, UserDeck } from '../../core/decks';
+import type { NameLock, StoredDeckLocks, UserDeck } from '../../core/decks';
 import { AppStores } from '../../core/storage/app-stores';
 import { BrowserStores, createBrowserStores } from '../../core/storage/browser-stores';
 import { MemoryBackend } from '../../core/storage/kv-backend';
@@ -46,19 +46,19 @@ const dialog = () => document.querySelector('mat-dialog-container');
 let backend: MemoryBackend;
 let stores: BrowserStores;
 
-async function setup(opts: { owned: number; locks?: DeckLock[] | 'newer'; collection?: 'unreadable'; tempo?: Partial<UserDeck> }) {
+async function setup(opts: { owned: number; locks?: NameLock[] | 'newer'; collection?: 'unreadable'; tempo?: Partial<UserDeck> }) {
   backend = new MemoryBackend();
   stores = createBrowserStores(backend, { now: () => Date.now(), changed: () => undefined, readOnly: () => false });
   const tempo = { ...makeDeck(TEMPO_ID, 'Kennen Tempo', { main: [['Hextech Ray', 3]] }), ...opts.tempo } as UserDeck;
   const other = makeDeck(OTHER_ID, 'Kennen Control', { main: [['Hextech Ray', 3]] });
   await stores.raw.decks.put(tempo);
   await stores.raw.decks.put(other);
-  if (opts.locks === 'newer') backend.set(STORAGE_KEYS.locks, JSON.stringify({ schemaVersion: 2, updatedAt: 'x', locks: [] }));
-  else if (opts.locks) backend.set(STORAGE_KEYS.locks, JSON.stringify({ schemaVersion: 1, updatedAt: 'x', locks: opts.locks }));
+  if (opts.locks === 'newer') backend.set(STORAGE_KEYS.locks, JSON.stringify({ schemaVersion: 3, updatedAt: 'x', locks: [] }));
+  else if (opts.locks) backend.set(STORAGE_KEYS.locks, JSON.stringify({ schemaVersion: 2, updatedAt: 'x', locks: opts.locks }));
   TestBed.configureTestingModule({
     imports: [Host],
     providers: [
-      { provide: AppStores, useValue: { stores } },
+      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
     ],
   });
@@ -137,8 +137,8 @@ describe('SPEC-008 app-lock-actions (SHARE-020…023, SHARE-029; SPEC-005 OWN-11
     expect(document.activeElement?.classList).toContain('confirm');
     let release!: () => void;
     const locks = TestBed.inject(DeckLocks);
-    const real = locks.lockIn.bind(locks);
-    vi.spyOn(locks, 'lockIn').mockImplementation((id) => new Promise<void>((r) => (release = () => void real(id).then(r))));
+    const real = locks.lockDeck.bind(locks);
+    vi.spyOn(locks, 'lockDeck').mockImplementation((d) => new Promise<void>((r) => (release = () => void real(d).then(r))));
     dialog()!.querySelector<HTMLButtonElement>('button.confirm')!.click();
     await settle(fixture);
     const saving = el.querySelector<HTMLButtonElement>('button.lock-in')!;
@@ -166,7 +166,7 @@ describe('SPEC-008 app-lock-actions (SHARE-020…023, SHARE-029; SPEC-005 OWN-11
   });
 
   it('SPEC-008 AC 23 / SHARE-023 Unlock: at once, no confirmation, snack with "Its cards count toward your other decks again." and no Undo', async () => {
-    const { el, fixture } = await setup({ owned: 3, locks: [lock(TEMPO_ID)] });
+    const { el, fixture } = await setup({ owned: 3, locks: lock(TEMPO_ID) });
     const unlock = el.querySelector<HTMLButtonElement>('button.unlock')!;
     expect(text(unlock)).toBe('Unlock');
     unlock.click();
@@ -195,7 +195,7 @@ describe('SPEC-008 app-lock-actions (SHARE-020…023, SHARE-029; SPEC-005 OWN-11
   });
 
   it('SPEC-008 AC 19 / SHARE-053 (c) ownership unavailable, locked: Unlock stays enabled and works', async () => {
-    const { el, fixture } = await setup({ owned: 3, locks: [lock(TEMPO_ID)], collection: 'unreadable' });
+    const { el, fixture } = await setup({ owned: 3, locks: lock(TEMPO_ID), collection: 'unreadable' });
     const unlock = el.querySelector<HTMLButtonElement>('button.unlock')!;
     expect(unlock.getAttribute('aria-disabled')).not.toBe('true');
     unlock.click();
@@ -211,7 +211,7 @@ describe('SPEC-008 app-lock-actions (SHARE-020…023, SHARE-029; SPEC-005 OWN-11
     const button = el.querySelector<HTMLButtonElement>('button.lock-in')!;
     expect(button.getAttribute('aria-disabled')).toBe('true');
     expect(text(el.querySelector('.reason'))).toBe('Locked decks could not be read');
-    expect(JSON.parse(backend.get(STORAGE_KEYS.locks)!).schemaVersion).toBe(2);
+    expect(JSON.parse(backend.get(STORAGE_KEYS.locks)!).schemaVersion).toBe(3);
   });
 
   it('SPEC-008 AC 15 / SHARE-020 an empty deck: "Lock in needs at least one card"; read-only: "This deck is read-only"', async () => {

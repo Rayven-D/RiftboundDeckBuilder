@@ -131,17 +131,46 @@ describe('browser stores (SPEC-003/006/007/008 as mapped by SPEC-010)', () => {
     await expect(s.update(deck('abc'), 'x')).rejects.toBeInstanceOf(UnreadableRecordError);
   });
 
-  it('SHARE-062 the lock store drops locks whose deck does not exist on save', async () => {
-    const s = new LocalDeckLockStore(backend, async () => new Set(['d1']));
+  it('SHARE-062 / SHARE-022 the lock store drops name locks whose deck or name does not exist, one per (deck, name)', async () => {
+    const s = new LocalDeckLockStore(backend, async () => new Map([['d1', new Set(['gust', 'hextech ray'])]]));
     await s.save({
-      schemaVersion: 1,
+      schemaVersion: 2,
       updatedAt: 'x',
       locks: [
-        { deckId: 'd1', lockedAt: 'a' },
-        { deckId: 'gone', lockedAt: 'b' },
+        { deckId: 'd1', cardKey: 'gust', lockedAt: 'a' },
+        { deckId: 'd1', cardKey: 'gust', lockedAt: 'c' },
+        { deckId: 'd1', cardKey: 'not in deck', lockedAt: 'a' },
+        { deckId: 'gone', cardKey: 'gust', lockedAt: 'b' },
       ],
     });
-    expect((await s.load())!.locks).toEqual([{ deckId: 'd1', lockedAt: 'a' }]);
+    expect(await s.load()).toEqual({ schemaVersion: 2, updatedAt: 'x', locks: [{ deckId: 'd1', cardKey: 'gust', lockedAt: 'a' }] });
+  });
+
+  it('SHARE-092 / SPEC-008 AC 34 a v1 record is migrated once on load, written back as v2; a v2 record is never migrated', async () => {
+    const calls: unknown[] = [];
+    const migrate = async (v1: { locks: { deckId: string; lockedAt: string }[] }) => {
+      calls.push(v1);
+      return {
+        schemaVersion: 2 as const,
+        updatedAt: 'NOW',
+        locks: v1.locks.map((l) => ({ deckId: l.deckId, cardKey: 'gust', lockedAt: l.lockedAt })),
+      };
+    };
+    const s = new LocalDeckLockStore(backend, async () => new Map([['d1', new Set(['gust'])]]), migrate);
+    backend.set(STORAGE_KEYS.locks, JSON.stringify({ schemaVersion: 1, updatedAt: 'x', locks: [{ deckId: 'd1', lockedAt: 'T' }] }));
+    const v2 = { schemaVersion: 2, updatedAt: 'NOW', locks: [{ deckId: 'd1', cardKey: 'gust', lockedAt: 'T' }] };
+    expect(await s.load()).toEqual(v2);
+    expect(JSON.parse(backend.get(STORAGE_KEYS.locks)!)).toEqual(v2);
+    expect(await s.load()).toEqual(v2); // running it again on the v2 record changes nothing
+    expect(calls).toHaveLength(1);
+  });
+
+  it('SHARE-061 a lock record newer than v2 is unreadable and never overwritten', async () => {
+    const s = new LocalDeckLockStore(backend, async () => new Map());
+    backend.set(STORAGE_KEYS.locks, JSON.stringify({ schemaVersion: 3, updatedAt: 'x', locks: [] }));
+    await expect(s.load()).rejects.toBeInstanceOf(UnreadableRecordError);
+    await expect(s.save({ schemaVersion: 2, updatedAt: 'y', locks: [] })).rejects.toBeInstanceOf(UnreadableRecordError);
+    expect(JSON.parse(backend.get(STORAGE_KEYS.locks)!).schemaVersion).toBe(3);
   });
 
   it('SYNC-091 clearLocalData removes every Rift Builder record and nothing else', () => {

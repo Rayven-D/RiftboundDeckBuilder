@@ -28,7 +28,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { map, take } from 'rxjs';
 import { CardData } from '../../core/cards/card-data';
-import type { DeckLock, DeckOwnershipInput, StoredTags } from '../../core/decks';
+import type { DeckOwnershipInput, NameLock, StoredTags } from '../../core/decks';
 import { AppStores } from '../../core/storage/app-stores';
 import { refocusAfterDialog } from '../../core/sync/sync.service';
 import { KEY_PREFIX } from '../../core/storage/kv-backend';
@@ -70,7 +70,7 @@ import { CollectionImport } from '../../core/import/collection-import';
 import { PageFab } from '../../shared/page-fab';
 import { Icon } from '../../shared/icon';
 import type { StoredPrintingCodes } from '../../shared/storage/records';
-import { noticeOptions } from '../../shared/sync/notice';
+import { NOTICE_POSITION, noticeOptions } from '../../shared/sync/notice';
 import { TEST_TEXT, TestSetId, isTestCollection } from '../../shared/collection/test-data';
 import { TEST_DATA_ENABLED } from '../../core/test-data/test-data-flag';
 import { loadTestData, removeTestData } from '../../core/test-data/test-data-ops';
@@ -382,7 +382,7 @@ export class CollectionPage {
         this.stores.printingCodes.load().catch(() => null),
         this.stores.decks.list().catch(() => null), // flagged: Could fit in isn't shown
         this.stores.locks.load().then(
-          (l): readonly DeckLock[] => l?.locks ?? [],
+          (l): readonly NameLock[] => l?.locks ?? [],
           () => null, // SHARE-061: unreadable → locks ignored
         ),
       ]);
@@ -622,6 +622,7 @@ export class CollectionPage {
       if (result?.gone) {
         this.snackBar.open('This card is no longer in your collection.', undefined, {
           duration: 6000,
+          ...NOTICE_POSITION,
         });
         const fallback = this.results()[Math.min(this.activeIndex(), this.results().length - 1)];
         if (fallback) this.focusTile(fallback.entryId);
@@ -765,6 +766,6 @@ export class CollectionPage {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     const message = [`Exported ${countLine(out.copies, out.cards)}.`, ...out.notices].join(' ');
-    this.snackBar.open(message, undefined, { duration: 6000 });
+    this.snackBar.open(message, undefined, { duration: 6000, ...NOTICE_POSITION });
   }
 }

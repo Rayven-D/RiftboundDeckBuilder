@@ -2,7 +2,7 @@ import { Component, Injectable, computed, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { Subject } from 'rxjs';
-import type { DeckLock, OwnershipCard } from '../../core/decks';
+import type { NameLock, OwnershipCard, UserDeck } from '../../core/decks';
 import { DeckCardContent } from '../../shared/deck-detail/deck-card-content';
 import {
   DECK_CARD_DIALOG_TITLE_ID,
@@ -32,14 +32,14 @@ export class PreviewLocks {
   readonly changed = new Subject<void>();
   now = () => new Date().toISOString();
 
-  async load(): Promise<readonly DeckLock[]> {
-    return [...this.locked()].map((deckId) => ({ deckId, lockedAt: this.now() }));
+  async load(): Promise<readonly NameLock[]> {
+    return [];
   }
-  async lockIn(deckId: string): Promise<void> {
-    this.locked.update((s) => new Set(s).add(deckId));
+  async lockDeck(deck: UserDeck): Promise<void> {
+    this.locked.update((s) => new Set(s).add(deck.id));
     this.changed.next();
   }
-  async unlock(deckId: string): Promise<void> {
+  async unlockDeck(deckId: string): Promise<void> {
     this.locked.update((s) => {
       const next = new Set(s);
       next.delete(deckId);
@@ -110,8 +110,7 @@ const CARD_STATES: readonly { id: string; label: string }[] = [
       <h3 class="sub">Lock badge</h3>
       <div class="column-items">
         <app-lock-badge [lock]="s.lockedView.lock" label="Locked" />
-        <app-lock-badge [lock]="s.lockedView.lock" label="Locked · 2 cards short" />
-        <span><span class="caption">Tile size: </span><app-lock-badge class="tile-size" label="Locked · 1 card short" /></span>
+        <span><span class="caption">Tile size: </span><app-lock-badge class="tile-size" label="Locked" /></span>
       </div>
 
       <h3 class="sub">Lock actions</h3>

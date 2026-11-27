@@ -46,7 +46,7 @@ async function setup(url: string, seed = 0) {
     providers: [
       provideRouter(routes, withComponentInputBinding()),
       provideOpenGate(),
-      { provide: AppStores, useValue: { stores } },
+      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
       { provide: CardData, useValue: cardData },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
     ],

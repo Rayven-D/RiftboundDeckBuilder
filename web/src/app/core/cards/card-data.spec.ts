@@ -12,7 +12,7 @@ function setup() {
     changed: () => undefined,
     readOnly: () => false,
   });
-  TestBed.configureTestingModule({ providers: [{ provide: AppStores, useValue: { stores } }] });
+  TestBed.configureTestingModule({ providers: [{ provide: AppStores, useValue: { stores, majorAction: () => undefined } }] });
   return { stores, cardData: TestBed.inject(CardData) };
 }
 

@@ -40,9 +40,9 @@ export function deckArtState(fill: number | null): { state: OwnershipState; fill
  *   deck) sit in the details after the copies line, so the link's description carries them (H-465 (2)). Nothing
  *   when null.
  * - name + "Read-only" tag (DECK-091), source line (OWN-003), player (OWN-104), the ownership chip, the lock badge
- *   ("Locked" / "Locked · 2 cards short", SHARE-041, no date; kept while ownership is unavailable, SHARE-053 (b))
- *   and the copies line (OWN-102). A locked complete deck (group `locked`) has no ownership chip, only the badge;
- *   a short locked deck shows its group chip (Partly / None available) and the short badge. Then the legality
+ *   ("Locked" for a fully locked deck only, SHARE-041 v0.6, no date; kept while ownership is unavailable, SHARE-053
+ *   (b)) and the copies line (OWN-102). A locked deck (group `locked`) has no ownership chip, only the badge; a
+ *   partly locked deck has no badge. Then the legality
  *   label (OWN-004), ban flag (OWN-103) and "Updated <date>" (OWN-090).
  * Screen readers hear "Kennen Tempo, link" then the details (name = `aria-labelledby`, rest = `aria-describedby`).
  */

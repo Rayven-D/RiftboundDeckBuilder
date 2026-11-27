@@ -1,12 +1,17 @@
 import {
   CollectionCard,
+  DeckLockV1,
+  NameLock,
   StoredCollection,
   StoredDeckLocks,
   StoredTags,
   Tag,
   TagId,
   UserDeck,
+  nameLockKey,
+  parseNameLockKey,
 } from '../storage/records';
+import { deckNeeds, migrateLocksV1, ownedForDecksOf, settleLocks } from '../../core/decks';
 import {
   addPending,
   canonicalJson,
@@ -274,66 +279,188 @@ export function mergePulled(input: MergeInput): MergeResult {
     }
   }
 
-  // ---- Locks (SYNC-017, SYNC-070…076) ----
+  // ---- Locks (SYNC-017, SYNC-070…077; v0.18: one entry per deck and card name, key `<deckId>|<cardKey>`) ----
   if (local.locks !== 'unreadable' && !(pulled.locks && pulled.locks.schemaVersion > KNOWN_DOC_SCHEMA)) {
-    const locks = new Map((local.locks?.locks ?? []).map((l) => [l.deckId, l.lockedAt]));
+    const locks = new Map((local.locks?.locks ?? []).map((l) => [nameLockKey(l.deckId, l.cardKey), l.lockedAt]));
     let changed = false;
+    /** A name lock this merge removes: stamped as a user change and pending, so it syncs (SYNC-041 exceptions). */
+    const dropLock = (key: string) => {
+      locks.delete(key);
+      changed = true;
+      log.locks[key] = { t: nextStamp(now, log.locks[key]?.t), unlocked: true, h: '' };
+      addPending(log, 'locks', key);
+    };
+    const legacy: DeckLockV1[] = [];
     const doc = pulled.locks;
     if (doc) {
       addCloudDoc(log, 'locks');
-      for (const [deckId, cl] of Object.entries(doc.locks ?? {})) {
+      for (const [key, cl] of Object.entries(doc.locks ?? {})) {
         if (!validLock(cl)) {
           result.invalid = true;
           continue;
         }
-        const e = log.locks[deckId];
+        if (parseNameLockKey(key).cardKey === null) {
+          // SYNC-017 migration: an entry of the old per-deck shape. A live one is converted below (SHARE-092); the
+          // old key becomes a pending tombstone that the next push removes from the cloud map (deleteField).
+          if (cl.lockedAt !== null) legacy.push({ deckId: key, lockedAt: msToIso(cl.lockedAt) });
+          log.locks[key] = { t: Math.max(cl.updatedAt, log.locks[key]?.t ?? -Infinity), unlocked: true, h: '' };
+          addPending(log, 'locks', key);
+          continue;
+        }
+        const e = log.locks[key];
         if (cl.updatedAt < (e?.t ?? -Infinity)) {
-          addPending(log, 'locks', deckId);
+          addPending(log, 'locks', key);
           continue;
         }
         const value = cl.lockedAt === null ? undefined : msToIso(cl.lockedAt);
-        if (locks.get(deckId) !== value) {
-          if (value) locks.set(deckId, value);
-          else locks.delete(deckId);
+        if (locks.get(key) !== value) {
+          if (value) locks.set(key, value);
+          else locks.delete(key);
           changed = true;
         }
-        log.locks[deckId] = { t: cl.updatedAt, unlocked: !value, h: value ?? '' };
-        removePending(log, 'locks', deckId);
-        unreject(log, 'locks', deckId);
+        log.locks[key] = { t: cl.updatedAt, unlocked: !value, h: value ?? '' };
+        removePending(log, 'locks', key);
+        unreject(log, 'locks', key);
       }
       if (absentMeansDeleted) {
-        for (const deckId of Object.keys(log.locks)) {
-          if (deckId in (doc.locks ?? {}) || log.pending.locks.includes(deckId)) continue;
-          if (locks.delete(deckId)) changed = true;
-          delete log.locks[deckId];
+        for (const key of Object.keys(log.locks)) {
+          if (key in (doc.locks ?? {}) || log.pending.locks.includes(key)) continue;
+          if (locks.delete(key)) changed = true;
+          delete log.locks[key];
         }
       }
     }
-    // SYNC-071: deletion wins over a lock; the drop is written as a pending unlock tombstone.
-    for (const deckId of [...locks.keys()]) {
-      if (localDecks.has(deckId) || !(deletedNow.has(deckId) || log.deckTombstones[deckId])) continue;
-      locks.delete(deckId);
-      changed = true;
-      log.locks[deckId] = { t: nextStamp(now, log.locks[deckId]?.t), unlocked: true, h: '' };
-      addPending(log, 'locks', deckId);
+
+    // The merged collection and tags, for the conversion and the lock drops below (null = not readable here).
+    const collectionNow = result.collection ?? (local.collection === 'unreadable' ? undefined : local.collection);
+    const tagsNow = result.tags ?? (local.tags === 'unreadable' ? undefined : local.tags);
+    // No collection record at all (none yet on this device) or an unreadable one: nothing is known, no drop.
+    const ownershipNow = !collectionNow || tagsNow === undefined ? null : { collection: collectionNow, tags: tagsNow };
+    const mergedDecks = [...localDecks.values()];
+
+    // SYNC-017 / SHARE-092: an old per-deck lock pulled from the cloud becomes a lock on every counted name the old
+    // rule held in full, with the deck's lockedAt, stamped now so it syncs. A name already in the log is left alone.
+    if (legacy.length) {
+      for (const l of migrateLocksV1(legacy, mergedDecks, ownershipNow, iso).locks) {
+        const key = nameLockKey(l.deckId, l.cardKey);
+        if (log.locks[key]) continue;
+        locks.set(key, l.lockedAt);
+        changed = true;
+        log.locks[key] = { t: now, unlocked: false, h: l.lockedAt };
+        addPending(log, 'locks', key);
+      }
     }
+
+    // SYNC-071: deletion wins over a lock; the drop is written as a pending unlock tombstone. A deck this device deleted
+    // whose 10 s Undo window is still open keeps its name locks untouched (SYNC-035, AC 87): they go out with the deck
+    // tombstone once the window ends (this merge, run by that window-end sync, drops them), and an Undo keeps them.
+    for (const key of [...locks.keys()]) {
+      const deckId = parseNameLockKey(key).deckId;
+      if (localDecks.has(deckId) || !(deletedNow.has(deckId) || log.deckTombstones[deckId])) continue;
+      if ((log.deckTombstones[deckId]?.pushAfter ?? 0) > now) continue;
+      dropLock(key);
+    }
+
+    // SYNC-072 / SHARE-093: a deck whose cards changed elsewhere keeps the name locks that still fit; a locked name
+    // whose need changed, or that left the deck, is unlocked (so the deck is no longer locked); a name added to it is
+    // open. The SYNC-072 notice stays.
+    for (const { before, after } of cloudWonDecks) {
+      const keys = [...locks.keys()].filter((k) => parseNameLockKey(k).deckId === after.id);
+      // The notice also when this pull's own unlock tombstone already removed the lock (another device dropped it).
+      const hadLock = keys.length > 0 || (local.locks?.locks ?? []).some((l) => l.deckId === after.id);
+      if (!hadLock) continue;
+      const was = deckNeeds(before);
+      const is = deckNeeds(after);
+      for (const key of keys) {
+        const k = parseNameLockKey(key).cardKey as string;
+        if (was.get(k) !== is.get(k)) dropLock(key);
+      }
+      result.notices.push(`'${after.name}' changed on another device while it was locked.`);
+    }
+
+    // SYNC-068 / SYNC-074 / SHARE-090, SHARE-091: a pulled change that leaves a name lock short drops it whole, latest
+    // first (the earliest locks keep their copies, also when two devices locked one name for different decks,
+    // SYNC-073), and the deck's locked status with it; no dialog, one combined notice.
+    if (ownershipNow) {
+      const needs = new Map(mergedDecks.map((d) => [d.id, deckNeeds(d)]));
+      const valid: NameLock[] = [];
+      for (const [key, lockedAt] of locks) {
+        const { deckId, cardKey } = parseNameLockKey(key);
+        if (cardKey !== null && (needs.get(deckId)?.get(cardKey) ?? 0) > 0) valid.push({ deckId, cardKey, lockedAt });
+      }
+      const kept = new Set(
+        settleLocks(valid, ownedForDecksOf(ownershipNow), mergedDecks).map((l) => nameLockKey(l.deckId, l.cardKey)),
+      );
+      // Only what the pull caused: a lock that fitted before this merge (or arrived with it) and no longer does. A lock
+      // this device's own change already left short is not "a change on another device"; the pool ignores it anyway.
+      const keptBefore = new Set(
+        local.collection && local.collection !== 'unreadable' && local.tags !== 'unreadable'
+          ? settleLocks(
+              local.locks?.locks ?? [],
+              ownedForDecksOf({ collection: local.collection, tags: local.tags }),
+              local.decks,
+            ).map((l) => nameLockKey(l.deckId, l.cardKey))
+          : [],
+      );
+      const localKeys = new Set((local.locks?.locks ?? []).map((l) => nameLockKey(l.deckId, l.cardKey)));
+      const dropped = valid.filter((l) => {
+        const key = nameLockKey(l.deckId, l.cardKey);
+        return !kept.has(key) && (keptBefore.has(key) || !localKeys.has(key));
+      });
+      if (dropped.length) {
+        const fullyLocked = (deckId: string) =>
+          [...(needs.get(deckId)?.keys() ?? [])].every((k) => locks.has(nameLockKey(deckId, k)));
+        const lines = new Map<string, { deck: UserDeck; wasLocked: boolean; names: string[] }>();
+        for (const l of dropped) {
+          const deck = localDecks.get(l.deckId) as UserDeck;
+          const line = lines.get(l.deckId) ?? { deck, wasLocked: fullyLocked(l.deckId), names: [] };
+          line.names.push(cardNameIn(deck, l.cardKey));
+          lines.set(l.deckId, line);
+        }
+        for (const l of dropped) dropLock(nameLockKey(l.deckId, l.cardKey));
+        result.notices.push(lockDropNotice([...lines.values()]));
+      }
+    }
+
     if (changed) {
       result.locks = {
-        schemaVersion: 1,
+        schemaVersion: 2,
         updatedAt: iso,
-        locks: [...locks].map(([deckId, lockedAt]) => ({ deckId, lockedAt })),
+        locks: [...locks].flatMap(([key, lockedAt]) => {
+          const { deckId, cardKey } = parseNameLockKey(key);
+          return cardKey === null ? [] : [{ deckId, cardKey, lockedAt }];
+        }),
       };
       log.recordUpdatedAt.locks = iso;
-    }
-    // SYNC-072: a deck changed elsewhere while locked stays locked with its new cards.
-    for (const { after } of cloudWonDecks) {
-      if (locks.has(after.id)) result.notices.push(`'${after.name}' changed on another device while it was locked.`);
     }
   } else if (pulled.locks) {
     result.newerSchema.push('locks');
   }
 
   return result;
+}
+
+/** The name a deck stores for a card (its first counted entry of that `cardKey`). */
+function cardNameIn(deck: UserDeck, cardKey: string): string {
+  const all = [deck.legend, deck.champion, ...deck.main, ...deck.battlefields, ...deck.runes, ...deck.sideboard];
+  return all.find((c) => c?.cardKey === cardKey)?.name ?? cardKey;
+}
+
+/**
+ * SHARE-091 / SYNC-074 (proposed wording, not RJ's): ONE notice for every lock a sync dropped, in H-148's single
+ * notice form (one text, sentences joined by a space; Material shows one snack bar at a time): "Locks removed after a
+ * change on another device." then one sentence per deck, "'Kennen Tempo' is no longer locked: Hextech Ray unlocked."
+ * for a deck that was locked, "'Kennen Tempo': Hextech Ray unlocked." for a partly locked one.
+ */
+export function lockDropNotice(
+  lines: readonly { deck: { name: string }; wasLocked: boolean; names: readonly string[] }[],
+): string {
+  const parts = lines.map((l) =>
+    l.wasLocked
+      ? `'${l.deck.name}' is no longer locked: ${l.names.join(', ')} unlocked.`
+      : `'${l.deck.name}': ${l.names.join(', ')} unlocked.`,
+  );
+  return ['Locks removed after a change on another device.', ...parts].join(' ');
 }
 
 /** Returns the merged tags record, or null when nothing changed locally. Mutates `log` and `result`. */

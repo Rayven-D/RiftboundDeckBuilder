@@ -7,7 +7,7 @@ import type {
   CardCategory,
   CollectionCatalogView,
   DeckCard,
-  DeckLock,
+  NameLock,
   DeckOwnershipInput,
   DeckZone,
   PlayableCard,
@@ -138,7 +138,19 @@ function entry([name, qty]: [string, number]): DeckCard {
   return { cardKey: nameKey(name), name, qty };
 }
 
+/** Decks made by `makeDeck`, by id (latest wins), so `lock(id)` can lock every name of one (test seam). */
+const made = new Map<string, UserDeck>();
+/** Lets a test register a deck it built another way (e.g. a page fixture), for `lock(id)`. */
+export function registerDeck(deck: UserDeck): UserDeck {
+  made.set(deck.id, deck);
+  return deck;
+}
+
 export function makeDeck(id: string, name: string, zones: ZoneSpec): UserDeck {
+  return registerDeck(buildDeck(id, name, zones));
+}
+
+function buildDeck(id: string, name: string, zones: ZoneSpec): UserDeck {
   return {
     schemaVersion: 1,
     id,
@@ -159,6 +171,24 @@ export function makeDeck(id: string, name: string, zones: ZoneSpec): UserDeck {
   };
 }
 
-export function lock(deckId: string, lockedAt = '2026-11-23T10:00:00Z'): DeckLock {
-  return { deckId, lockedAt };
+/**
+ * SPEC-008 v0.6 test helper: the deck toggle's locks (a name lock on every counted name, SHARE-084) for a deck, or for
+ * the latest `makeDeck` / `registerDeck` with that id.
+ */
+export function lock(deck: UserDeck | string, lockedAt = '2026-11-23T10:00:00Z'): NameLock[] {
+  const d = typeof deck === 'string' ? made.get(deck) : deck;
+  if (!d) throw new Error(`lock(): no deck ${deck as string} was made`);
+  return lockAll(d, lockedAt);
+}
+
+/** One name lock (SPEC-008 v0.6). */
+export function nameLock(deckId: string, cardKey: string, lockedAt = '2026-11-23T10:00:00Z'): NameLock {
+  return { deckId, cardKey, lockedAt };
+}
+
+/** The deck toggle (SHARE-084): a name lock on every counted name of `deck`, one `lockedAt`. */
+export function lockAll(deck: UserDeck, lockedAt = '2026-11-23T10:00:00Z'): NameLock[] {
+  const all = [deck.legend, deck.champion, ...deck.main, ...deck.battlefields, ...deck.runes, ...deck.sideboard];
+  const keys = [...new Set(all.filter((c) => c !== null).map((c) => c!.cardKey))];
+  return keys.map((cardKey) => ({ deckId: deck.id, cardKey, lockedAt }));
 }

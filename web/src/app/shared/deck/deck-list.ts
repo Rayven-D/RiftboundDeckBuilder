@@ -2,7 +2,7 @@ import {
   type BanListFile,
   type CollectionCatalogView,
   type CollectionOwnership,
-  type DeckLock,
+  type NameLock,
   type DeckOwnershipInput,
   type DeckOwnershipView,
   type DeckTileSummary,
@@ -187,7 +187,7 @@ export interface DeckListInput {
   /** Every deck in the store: readable ones and newer-schema ones shown read-only (DECK-091, OWN-064). */
   readonly decks: readonly UserDeck[];
   /** null = lock store unreadable (SHARE-061). */
-  readonly locks: readonly DeckLock[] | null;
+  readonly locks: readonly NameLock[] | null;
   /** null = the collection or the tags couldn't be read (OWN-062). A missing record is an empty one, not null. */
   readonly collection: {
     readonly collection: StoredCollection;

@@ -1,4 +1,5 @@
 import { Component, computed, input, output, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import type { DeckOwnershipView } from '../../core/decks';
@@ -19,7 +20,7 @@ let nextId = 0;
  */
 @Component({
   selector: 'app-deck-missing',
-  imports: [Icon, MatButton, MatIconButton, MatMenu, MatMenuItem, MatMenuTrigger],
+  imports: [Icon, MatButton, MatIconButton, MatMenu, MatMenuItem, MatMenuTrigger, NgTemplateOutlet],
   template: `
     @let v = view();
     @if (!v.ownershipAvailable) {
@@ -44,7 +45,15 @@ let nextId = 0;
           <h2 class="missing-title">Missing</h2>
           <p class="all"><app-icon name="check_circle" />{{ text.allAvailable }}</p>
         } @else {
-          <h2 class="missing-title">Missing <span class="muted">· {{ total() }} {{ total() === 1 ? 'copy' : 'copies' }}</span></h2>
+          @if (showCopy() && copyPlacement() === 'heading') {
+            <!-- H-669 (RJ 2026-11-26): on desktop the split button sits on the Missing heading row, right-aligned. -->
+            <div class="missing-head">
+              <h2 class="missing-title">Missing <span class="muted">· {{ total() }} {{ total() === 1 ? 'copy' : 'copies' }}</span></h2>
+              <ng-container [ngTemplateOutlet]="copyButton" />
+            </div>
+          } @else {
+            <h2 class="missing-title">Missing <span class="muted">· {{ total() }} {{ total() === 1 ? 'copy' : 'copies' }}</span></h2>
+          }
           <div [id]="listId">
             @for (g of shownGroups(); track g.zone) {
               <h3>{{ g.label }}</h3>
@@ -60,22 +69,26 @@ let nextId = 0;
               {{ expanded() ? 'Show fewer' : 'Show all ' + lineCount() + ' lines' }}
             </button>
           }
-          @if (showCopy()) {
-            <div class="copy">
-              <button matButton="outlined" type="button" class="copy-main" (click)="copyRequested.emit('sections')">
-                <app-icon name="content_copy" />Copy missing list
-              </button>
-              <button matIconButton type="button" class="copy-more" aria-label="More copy options" [matMenuTriggerFor]="copyMenu">
-                <app-icon name="expand_more" />
-              </button>
-              <mat-menu #copyMenu="matMenu" xPosition="before">
-                <button mat-menu-item type="button" (click)="copyRequested.emit('merged')">Copy as one list</button>
-              </mat-menu>
-            </div>
+          @if (showCopy() && copyPlacement() === 'end') {
+            <ng-container [ngTemplateOutlet]="copyButton" />
           }
         }
       }
     }
+    <!-- OWN-052 / OWN-053: one copy control, placed at the end (phone, tablet) or on the heading row (desktop, H-669). -->
+    <ng-template #copyButton>
+      <div class="copy" [class.copy--head]="copyPlacement() === 'heading'">
+        <button matButton="outlined" type="button" class="copy-main" (click)="copyRequested.emit('sections')">
+          <app-icon name="content_copy" />Copy missing list
+        </button>
+        <button matIconButton type="button" class="copy-more" aria-label="More copy options" [matMenuTriggerFor]="copyMenu">
+          <app-icon name="expand_more" />
+        </button>
+        <mat-menu #copyMenu="matMenu" xPosition="before">
+          <button mat-menu-item type="button" (click)="copyRequested.emit('merged')">Copy as one list</button>
+        </mat-menu>
+      </div>
+    </ng-template>
   `,
   styles: `
     :host {
@@ -160,6 +173,22 @@ let nextId = 0;
       align-items: center;
       margin-top: var(--space-3);
     }
+    .missing-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-2);
+      margin-bottom: var(--space-2);
+    }
+    .missing-head .missing-title {
+      margin: 0;
+    }
+    .copy--head {
+      flex: none;
+      margin-top: 0;
+      margin-inline-start: auto;
+    }
     .copy-main {
       border-top-right-radius: 0;
       border-bottom-right-radius: 0;
@@ -196,6 +225,8 @@ export class DeckMissing {
   /** Show the copies and cards lines (the Missing tab); below 64rem the header already carries them. */
   readonly showCounts = input(true);
   readonly showCopy = input(true);
+  /** Where the copy control goes: after the list (phone and tablet) or on the heading row, right-aligned (desktop, H-669). */
+  readonly copyPlacement = input<'heading' | 'end'>('end');
   /** Collapse the list past 10 lines (below 64rem, OWN-051). */
   readonly collapsible = input(false);
   readonly copyRequested = output<CopyMode>();

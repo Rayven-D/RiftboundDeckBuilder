@@ -11,7 +11,7 @@ import { of } from 'rxjs';
 import { routes } from '../../app.routes';
 import { CardData, CatalogResult } from '../../core/cards/card-data';
 import { lock, makeDeck, makeInput } from '../../core/decks/engine-fixtures';
-import type { TournamentDeckSource, UserDeck } from '../../core/decks';
+import type { NameLock, TournamentDeckSource, UserDeck } from '../../core/decks';
 import { NEW_DECK_ID } from '../../core/import/deck-import';
 import { AppStores } from '../../core/storage/app-stores';
 import { BrowserStores, createBrowserStores } from '../../core/storage/browser-stores';
@@ -28,6 +28,8 @@ interface Setup {
   decks?: UserDeck[];
   owned?: Record<string, number> | null;
   locks?: string[];
+  /** H-665: individual name locks, added to the deck locks. */
+  nameLocks?: NameLock[];
   width?: Width;
   corruptCollection?: boolean;
   catalogError?: boolean;
@@ -66,7 +68,8 @@ async function setup(url: string, s: Setup = {}) {
   stores = createBrowserStores(backend, { now: () => Date.now(), changed: () => undefined, readOnly: () => false });
   for (const d of s.decks ?? [detailDeck()]) await stores.raw.decks.put(d);
   if (s.owned !== null) await stores.raw.collection.save(makeInput(DETAIL_CATALOG, { owned: s.owned ?? DETAIL_OWNED }).collection);
-  if (s.locks) await stores.raw.locks.save({ schemaVersion: 1, updatedAt: '', locks: s.locks.map((id) => lock(id)) });
+  if (s.locks || s.nameLocks)
+    await stores.raw.locks.save({ schemaVersion: 2, updatedAt: '', locks: [...(s.locks ?? []).flatMap((id) => lock(id)), ...(s.nameLocks ?? [])] });
   if (s.corruptCollection) backend.set(STORAGE_KEYS.collection, '{not json');
   for (const [k, v] of Object.entries(s.raw ?? {})) backend.set(k, v);
   device = { ...(s.device ?? {}) };
@@ -85,7 +88,7 @@ async function setup(url: string, s: Setup = {}) {
     providers: [
       provideRouter(routes, withComponentInputBinding()),
       provideOpenGate(),
-      { provide: AppStores, useValue: { stores } },
+      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
       { provide: CardData, useValue: cardData },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       { provide: BreakpointObserver, useValue: breakpoints(s.width ?? 'desktop') },
@@ -119,6 +122,12 @@ const dialogEl = () => document.querySelector('mat-dialog-container');
 const menuItems = () => Array.from(document.querySelectorAll<HTMLButtonElement>('.mat-mdc-menu-panel [mat-menu-item]'));
 const menuItem = (label: string) => menuItems().find((b) => text(b) === label)!;
 
+/** H-669: on desktop the Copy missing list split button is on the Missing tab's heading row. */
+async function openMissing(h: RouterTestingHarness): Promise<void> {
+  q(h, '#deck-tab-missing')!.click();
+  await settle(h);
+}
+
 async function openMore(h: RouterTestingHarness): Promise<void> {
   q(h, 'button[aria-label="More actions"]')!.click();
   await settle(h);
@@ -140,7 +149,10 @@ describe('Deck detail (H-254)', () => {
       expect(text(q(h, '.legality'))).toBe('Not fully checked');
       expect(text(q(h, '.meta button'))).toBe('Rule check');
       expect(text(q(h, '.cards'))).toBe('2 of 8 cards fully available');
-      expect(text(q(h, '.split-main'))).toBe('Copy missing list');
+      // H-669: Copy missing list is in the Missing panel now, not in the header.
+      expect(q(h, 'header.deck-header .copy-main, header.deck-header .split-main')).toBeNull();
+      await openMissing(h);
+      expect(text(q(h, '.tabpanel .missing-head .copy-main'))).toBe('Copy missing list');
       await openMore(h);
       expect(menuItems().map(text)).toEqual(['Copy deck list', 'Download .txt', 'Duplicate', 'Rename', 'Delete']);
       expect(root(h).textContent).not.toMatch(/Edit cards/);
@@ -387,7 +399,7 @@ describe('Deck detail (H-254)', () => {
 
     it('H-663: with other decks (one locked) using the cards, no tile or row shows other-deck information in Card or List view, nor in its name; the dialog still does', async () => {
       const deck2Id = '0b7c0000-0000-4000-8000-0000000000a2';
-      const h = await setup(URL_, { decks: [detailDeck(), detailDeck(deck2Id, 'Jinx Aggro')], owned: DETAIL_OWNED, locks: [deck2Id], width: 'phone' });
+      const h = await setup(URL_, { decks: [detailDeck(), detailDeck(deck2Id, 'Jinx Aggro')], owned: { ...DETAIL_OWNED, 'Lightning Rush': 3 }, locks: [deck2Id], width: 'phone' });
       const noOther = (els: HTMLElement[]) => {
         expect(els.length).toBeGreaterThan(0);
         for (const el of els) {
@@ -402,15 +414,15 @@ describe('Deck detail (H-254)', () => {
       expect(qa(h, 'app-deck-card-tile')).toHaveLength(0);
       noOther(qa(h, 'app-deck-card-row [data-card]'));
       // This deck's own counts stay on the row.
-      expect(text(tile(h, 'main:lightning rush').querySelector('app-ownership-chip'))).toBe('0 of 3 available');
+      expect(text(tile(h, 'main:lightning rush').querySelector('app-ownership-chip'))).toMatch(/^\d of 3 available$/);
       // The card dialog keeps "Other decks using this card" with Jinx Aggro and its lock, and the breakdown.
       tile(h, 'main:lightning rush').click();
       await settle(h);
       const d = text(dialogEl());
       expect(d).toContain('Other decks using this card');
       expect(d).toContain('Jinx Aggro');
-      expect(d).toContain('Jinx Aggro · needs 3 · Locked, holds 1');
-      expect(d).toContain('Locked by other decks: 1');
+      expect(d).toContain('Jinx Aggro · needs 3 · Locked, holds 3');
+      expect(d).toContain('Locked by other decks: 3');
     });
 
     it('OWN-114 / AC 30: List view rows "3× Lightning Rush" with the label; "1×" shown; Fizz in Main and Sideboard; remembered on this device', async () => {
@@ -479,21 +491,20 @@ describe('Deck detail (H-254)', () => {
       expect(more.getAttribute('aria-expanded')).toBe('true');
     });
 
-    it('H-475 / H-662: the header actions come after the title and status in the DOM; from 40rem they sit beside them (wrapping flex row); the lock toggle follows the name with its reason line under the title row', async () => {
+    it('H-475 / H-662 / H-668 / H-669: the title row holds the name, the lock toggle and More actions top-right (focus order name → lock → More); the header has no other actions row', async () => {
       const h = await setup(URL_);
       const header = q(h, 'header.deck-header')!;
       const main = header.querySelector('.header-top > .header-main')!;
-      const actions = header.querySelector('.header-top > .actions')!;
-      expect(main.nextElementSibling).toBe(actions);
+      expect(header.querySelector('.header-top > .actions')).toBeNull(); // H-669: Copy missing list moved to the Missing panel
+      expect(main.nextElementSibling).toBeNull();
       for (const sel of ['.deck-name', '.meta', '.summary']) expect(main.querySelector(sel)).not.toBeNull();
-      // Focus order (DOM order of the header's controls): back → lock toggle (H-662) → status → Copy missing list → chevron → More.
+      // Focus order (DOM order of the header's controls): back → lock toggle (H-662) → More (H-668) → status.
       const controls = Array.from(header.querySelectorAll<HTMLElement>('a, button')).map((b) => b.getAttribute('aria-label') ?? text(b));
-      expect(controls).toEqual(['Decks', 'Lock deck', 'Rule check', 'Copy missing list', 'More copy options', 'More actions']);
-      // H-662: the toggle sits in the title row right after the name; the actions row has no Lock in / Unlock.
+      expect(controls).toEqual(['Decks', 'Lock deck', 'More actions', 'Rule check']);
+      // H-662: the toggle sits in the title row right after the name; H-668: More is the row's last item.
       const titleRow = main.querySelector('.title-row')!;
       expect(titleRow.firstElementChild!.matches('h1.deck-name')).toBe(true);
-      expect(titleRow.querySelector('h1 + app-lock-actions.variant-icon')).not.toBeNull();
-      expect(actions.querySelector('app-lock-actions')).toBeNull();
+      expect(titleRow.querySelector('h1 + app-lock-actions.variant-icon + button.more')).not.toBeNull();
       // The ban-list and other notices stay below the header.
       expect(header.nextElementSibling!.classList).toContain('notices');
 
@@ -502,15 +513,121 @@ describe('Deck detail (H-254)', () => {
       expect(desktop('header-top')[0].style.getPropertyValue('display')).toBe('flex');
       expect(desktop('header-top')[0].style.getPropertyValue('flex-wrap')).toBe('wrap');
       expect(desktop('header-main')[0].style.getPropertyValue('min-width')).toBe('0px');
-      const side = cssRules((s) => s.trim() === '.header-top > .actions').find((r) => DESKTOP(r.media))!;
-      expect(side.style.getPropertyValue('flex')).toMatch(/^0 0 auto$/);
+      expect(cssRules((s) => s.trim() === '.header-top > .actions')).toEqual([]);
       // Phones keep the one-column header (no flex row outside the desktop query).
       expect(cssRules((s) => targets(s, 'header-top')).filter((r) => r.media === null).map((r) => r.style.getPropertyValue('display'))).toEqual(['grid']);
-      // H-662: the icon toggle joins the title row and puts its reason under the whole row, on every width.
-      const inRow = cssRules((s) => s.includes('variant-icon') && s.includes('.reason'));
-      expect(inRow.map((r) => r.media)).toEqual([null]);
-      expect(inRow[0].style.getPropertyValue('flex-basis') || inRow[0].style.getPropertyValue('flex')).toContain('100%');
-      expect(cssRules((s) => targets(s, 'title-row')).filter((r) => r.media === null)[0].style.getPropertyValue('flex-wrap')).toBe('wrap');
+      // H-668: the title row never wraps (the buttons keep their place); More is pinned to the right edge.
+      const row = cssRules((s) => s.trim() === '.title-row').filter((r) => r.media === null)[0].style;
+      expect([row.getPropertyValue('flex-wrap'), row.getPropertyValue('align-items')]).toEqual(['nowrap', 'flex-start']);
+      const more = cssRules((s) => s.trim() === '.title-row > .more')[0].style;
+      expect([more.getPropertyValue('flex-grow'), more.getPropertyValue('flex-shrink'), more.getPropertyValue('margin-inline-start')]).toEqual(['0', '0', 'auto']);
+    });
+
+    it('H-668 phone: More actions is on the title row and no actions row is left (Copy missing list stays under the Missing list); targets 44 px', async () => {
+      const h = await setup(URL_, { width: 'phone' });
+      const header = q(h, 'header.deck-header')!;
+      expect(header.querySelector('.header-top > .actions')).toBeNull();
+      expect(header.querySelector('.title-row > button.more[aria-label="More actions"]')).not.toBeNull();
+      const controls = Array.from(header.querySelectorAll<HTMLElement>('.title-row button')).map((b) => b.getAttribute('aria-label'));
+      expect(controls).toEqual(['Lock deck', 'More actions']);
+      expect(q(h, 'app-deck-missing .copy-main')).not.toBeNull();
+      // At least 44 px at every width (not only phones / touch).
+      const size = cssRules((s) => s.trim() === '.more');
+      expect(size.map((r) => [r.media, r.style.getPropertyValue('width'), r.style.getPropertyValue('height')])).toEqual([[null, '44px', '44px']]);
+      await openMore(h);
+      expect(menuItems().map(text)).toEqual(['Copy deck list', 'Download .txt', 'Duplicate', 'Rename', 'Delete']);
+    });
+
+    describe('H-668 long names: two lines, then an ellipsis; a clamped name can be expanded', () => {
+      const names = {
+        short: 'Kennen Tempo',
+        twoLines: 'Kennen Tempo with the Storm Package and Extra Battlefields',
+        veryLong: 'Kennen Tempo with the Storm Package, Extra Battlefields, a Full Rune Pool and a Sideboard for Every Matchup You Will Meet',
+        oneWord: 'K'.repeat(60),
+      };
+      let overflowing = false;
+      let observers: (() => void)[] = [];
+      beforeEach(() => {
+        observers = [];
+        vi.stubGlobal(
+          'ResizeObserver',
+          class {
+            constructor(private readonly cb: () => void) {}
+            observe() {
+              observers.push(this.cb);
+            }
+            disconnect() {
+              observers = [];
+            }
+          },
+        );
+        vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (this: HTMLElement) {
+          return this.classList.contains('deck-name-text') && overflowing ? 120 : 40;
+        });
+        vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(() => 40);
+      });
+      afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+      });
+      const nameEl = (h: RouterTestingHarness) => q(h, 'h1.deck-name .deck-name-text')!;
+
+      for (const [kind, name] of Object.entries(names)) {
+        it(`H-668 ${kind} name: the clamp class, the full name in the heading text and its title`, async () => {
+          overflowing = kind === 'veryLong' || kind === 'oneWord';
+          const h = await setup(URL_, { decks: [{ ...detailDeck(), name }], width: 'phone' });
+          const h1 = q(h, 'h1.deck-name')!;
+          expect(text(h1)).toBe(name);
+          expect(h1.getAttribute('title')).toBe(name);
+          expect(nameEl(h).classList).toContain('clamped');
+          expect(nameEl(h).getAttribute('tabindex')).toBe(overflowing ? '0' : null);
+          expect(nameEl(h).getAttribute('aria-expanded')).toBe(overflowing ? 'false' : null);
+        });
+      }
+
+      it('H-668 the clamp CSS: two lines (-webkit-line-clamp: 2), overflow hidden; the name breaks anywhere', async () => {
+        await setup(URL_);
+        const clamp = cssRules((s) => s.includes('.deck-name-text.clamped'))[0].style;
+        expect(clamp.getPropertyValue('-webkit-line-clamp') || clamp.getPropertyValue('line-clamp')).toBe('2');
+        expect(clamp.getPropertyValue('overflow')).toBe('hidden');
+        expect(cssRules((s) => s.trim() === '.deck-name')[0].style.getPropertyValue('overflow-wrap')).toBe('anywhere');
+      });
+
+      it('H-668 a clamped name: a tap shows it in full (aria-expanded, no clamp); blur clamps it again; Enter expands, Escape collapses', async () => {
+        overflowing = true;
+        const h = await setup(URL_, { decks: [{ ...detailDeck(), name: names.veryLong }], width: 'phone' });
+        const el = nameEl(h);
+        el.focus();
+        el.click();
+        await settle(h);
+        expect(el.getAttribute('aria-expanded')).toBe('true');
+        expect(el.classList).not.toContain('clamped');
+        el.dispatchEvent(new FocusEvent('blur'));
+        await settle(h);
+        expect(el.getAttribute('aria-expanded')).toBe('false');
+        expect(el.classList).toContain('clamped');
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        await settle(h);
+        expect(el.getAttribute('aria-expanded')).toBe('true');
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await settle(h);
+        expect(el.getAttribute('aria-expanded')).toBe('false');
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+        await settle(h);
+        expect(el.getAttribute('aria-expanded')).toBe('true');
+      });
+
+      it('H-668 a name that fits two lines is not interactive: no tabindex, no role, no expanded state; a tap does nothing', async () => {
+        overflowing = false;
+        const h = await setup(URL_, { decks: [{ ...detailDeck(), name: names.twoLines }], width: 'phone' });
+        const el = nameEl(h);
+        expect(el.getAttribute('tabindex')).toBeNull();
+        expect(el.getAttribute('role')).toBeNull();
+        el.click();
+        await settle(h);
+        expect(el.getAttribute('aria-expanded')).toBeNull();
+        expect(el.classList).toContain('clamped');
+      });
     });
 
     it('H-461 (A13): both halves of Copy missing list are 44px tall on phones / touch (header split and the Missing copy), 40px on desktop', async () => {
@@ -518,7 +635,8 @@ describe('Deck detail (H-254)', () => {
       expect(q(phone, '.split-main')).toBeNull(); // the phone shows the copy button under the Missing list
       expect(q(phone, 'app-deck-missing .copy-main')).not.toBeNull();
       const PHONE_OR_TOUCH = (m: string | null) => !!m && m.includes('pointer: coarse') && m.includes('max-width: 39.99rem');
-      for (const [main, more] of [['split-main', 'split-more'], ['copy-main', 'copy-more']]) {
+      // H-669: the header split button is gone; one copy control (app-deck-missing) at every width.
+      for (const [main, more] of [['copy-main', 'copy-more']]) {
         const height = (cls: string, prop: string) =>
           cssRules((s) => targets(s, cls))
             .filter((r) => PHONE_OR_TOUCH(r.media))
@@ -555,13 +673,14 @@ describe('Deck detail (H-254)', () => {
   });
 
   describe('actions (OWN-052, OWN-053, OWN-118; DECK-082…085)', () => {
-    it('OWN-052 / OWN-053 / AC 7: Copy missing list writes the DECK-085 text; "Copy as one list" the merged list; "Missing list copied"', async () => {
+    it('OWN-052 / OWN-053 / AC 7 / H-669: Copy missing list (desktop: on the Missing heading row) writes the DECK-085 text; "Copy as one list" the merged list; "Missing list copied"', async () => {
       const h = await setup(URL_);
-      q(h, '.split-main')!.click();
+      await openMissing(h);
+      q(h, '.tabpanel .copy-main')!.click();
       await settle(h);
       expect(clipboard[0]).toContain('Rune Pool:\n3 Chaos Rune\n3 Order Rune');
       expect(snack()).toBe('Missing list copied');
-      q(h, '.split-more')!.click();
+      q(h, '.tabpanel .copy-more')!.click();
       await settle(h);
       menuItem('Copy as one list').click();
       await settle(h);
@@ -570,7 +689,8 @@ describe('Deck detail (H-254)', () => {
 
     it('OWN-116: Copy missing list is hidden when nothing is missing', async () => {
       const h = await setup(URL_, { owned: DETAIL_ALL_OWNED });
-      expect(q(h, '.split-main')).toBeNull();
+      await openMissing(h);
+      expect(q(h, '.copy-main')).toBeNull(); // H-669: the same rule in the Missing panel ("All cards available")
       q(h, '#deck-tab-missing')!.click();
       await settle(h);
       expect(text(q(h, '.tabpanel'))).toContain('All cards available');
@@ -612,7 +732,7 @@ describe('Deck detail (H-254)', () => {
       expect(stored).toMatchObject({ name: 'Kennen budget', notes: 'Budget list', schemaVersion: 1 });
       expect(JSON.stringify(stored.source)).toBe(JSON.stringify(TOURNAMENT));
       expect(stored.updatedAt > deck.updatedAt).toBe(true);
-      expect((await stores.locks.load())!.locks).toEqual([lock(DETAIL_DECK_ID)]);
+      expect((await stores.locks.load())!.locks).toEqual(lock(DETAIL_DECK_ID));
       expect(text(q(h, 'h1'))).toBe('Kennen budget');
       expect(text(q(h, '.description-text'))).toBe('Budget list');
       expect(text(q(h, '.copies'))).toBe('23 of 23 copies locked in · 100%, 100 percent');
@@ -633,7 +753,8 @@ describe('Deck detail (H-254)', () => {
         ['Rename', true],
         ['Delete', true],
       ]);
-      expect(q(h, '.split-main')).not.toBeNull();
+      await openMissing(h);
+      expect(q(h, '.tabpanel .copy-main')).not.toBeNull();
     });
 
     it('DECK-084 / SPEC-006 AC 29: Duplicate stays on the page and offers Open; the copy is unlocked', async () => {
@@ -646,15 +767,16 @@ describe('Deck detail (H-254)', () => {
       expect(text(snackAction())).toBe('Open');
       const copy = (await stores.decks.list()).find((d) => d.name === 'Kennen Tempo (copy)')!;
       expect(copy.duplicatedFrom).toBe(DETAIL_DECK_ID);
-      expect((await stores.locks.load())!.locks.map((l) => l.deckId)).toEqual([DETAIL_DECK_ID]);
+      expect([...new Set((await stores.locks.load())!.locks.map((l) => l.deckId))]).toEqual([DETAIL_DECK_ID]);
       snackAction()!.click();
       await settle(h);
       expect(TestBed.inject(Router).url).toBe(`/decks/${copy.id}`);
       expect(text(q(h, 'h1'))).toBe('Kennen Tempo (copy)');
     });
 
-    it('DECK-082 / DECK-083 / SHARE-024 / SPEC-006 AC 29: Delete asks without "can\'t be undone", removes deck and lock, goes to Decks, Undo restores it unlocked', async () => {
+    it('DECK-082 / DECK-083 / SHARE-024 / SPEC-006 AC 29: Delete asks without "can\'t be undone", removes the deck, goes to Decks; AC 87 (H-665 gap 8): its name locks stay stored (ignored while the deck is gone) and Undo restores it with them, identical', async () => {
       const h = await setup(URL_, { owned: DETAIL_ALL_OWNED, locks: [DETAIL_DECK_ID] });
+      const before = (await stores.locks.load())!.locks;
       await openMore(h);
       menuItem('Delete').click();
       await settle(h);
@@ -666,13 +788,13 @@ describe('Deck detail (H-254)', () => {
       await settle(h, 10);
       expect(TestBed.inject(Router).url).toBe('/decks');
       expect(await stores.decks.get(DETAIL_DECK_ID)).toBeNull();
-      expect((await stores.locks.load())!.locks).toEqual([]);
+      expect((await stores.locks.load())!.locks).toEqual(before);
       expect(snack()).toBe('Deck deleted.');
       expect(text(snackAction())).toBe('Undo');
       snackAction()!.click();
       await settle(h, 10);
       expect((await stores.decks.get(DETAIL_DECK_ID))!.name).toBe('Kennen Tempo');
-      expect((await stores.locks.load())!.locks).toEqual([]);
+      expect((await stores.locks.load())!.locks).toEqual(before);
     });
 
     it('OWN-117: Rule check opens a dialog listing what was not checked', async () => {
@@ -731,13 +853,13 @@ describe('Deck detail (H-254)', () => {
       expect(text(q(h, '.copies'))).toBe('23 of 23 copies locked in · 100%, 100 percent');
     });
 
-    it('H-662 / SHARE-033 / OWN-102: a locked deck that is short stays locked: "Unlock deck" toggle, no badge, the copies line shows the shortfall', async () => {
+    it('H-665 / OWN-121 (e) / SHARE-083 v0.6: stored locks on names that are not fully owned do not hold: the deck is partly locked, "Lock deck", no badge, never "cards short"', async () => {
       const h = await setup(URL_, { locks: [DETAIL_DECK_ID] });
       expect(q(h, 'header.deck-header app-lock-badge')).toBeNull();
       expect(headerText(h)).not.toContain('Locked in on');
-      expect(text(q(h, '.copies'))).toBe('12 of 23 copies locked in · 52%, 52 percent');
-      expect(label(lockButton(h))).toBe('Unlock deck');
-      expect(lockButton(h).getAttribute('aria-pressed')).toBe('true');
+      expect(text(q(h, '.copies'))).toBe('12 of 23 copies available · 52%, 52 percent');
+      expect(label(lockButton(h))).toBe('Lock deck');
+      expect(lockButton(h).getAttribute('aria-pressed')).toBe('false');
     });
 
     it('H-662: an unlocked deck shows the open-lock toggle "Lock deck", not pressed, 44 x 44', async () => {
@@ -758,7 +880,7 @@ describe('Deck detail (H-254)', () => {
       await settle(h);
       expect(text(dialogEl()?.querySelector('h2'))).toBe("Lock in 'Kennen Tempo'?");
       await confirmLock(h);
-      expect((await stores.locks.load())!.locks.map((l) => l.deckId)).toEqual([DETAIL_DECK_ID]);
+      expect([...new Set((await stores.locks.load())!.locks.map((l) => l.deckId))]).toEqual([DETAIL_DECK_ID]);
       expect(snack()).toBe('Kennen Tempo is locked in.');
       expect(snackAction()).toBeNull();
       expect(lockButton(h).getAttribute('aria-pressed')).toBe('true');
@@ -783,17 +905,29 @@ describe('Deck detail (H-254)', () => {
       expect(document.activeElement).toBe(lockButton(h)); // focus stays on the toggle
     });
 
-    it('SPEC-008 AC 23 / SHARE-020 / OWN-116: an incomplete deck: Lock in is aria-disabled, focusable, and the reason line is visible and its aria-describedby', async () => {
+    it('H-670 / SHARE-020 / OWN-116: an incomplete deck: the toggle is operable; pressing it shows "Can\'t lock. Missing 11 cards." (info), no dialog, nothing locked; no visible reason line, the reason stays its aria-describedby', async () => {
       const h = await setup(URL_);
       const btn = lockButton(h);
-      expect(btn.getAttribute('aria-disabled')).toBe('true');
-      expect(btn.disabled).toBe(false);
-      const reason = q(h, 'app-lock-actions .reason')!;
+      expect(btn.getAttribute('aria-disabled')).toBeNull();
+      expect(btn.getAttribute('aria-pressed')).toBe('false');
+      expect(q(h, 'app-lock-actions .reason')).toBeNull(); // RJ: "Remove it to save space"
+      const reason = document.getElementById(btn.getAttribute('aria-describedby')!)!;
+      expect(reason.classList).toContain('visually-hidden');
       expect(text(reason)).toBe('Lock in needs every card available: 6 cards short');
-      expect(btn.getAttribute('aria-describedby')).toBe(reason.id);
       btn.click();
       await settle(h);
       expect(dialogEl()).toBeNull();
+      expect(snack()).toBe("Can't lock. Missing 11 cards.");
+      expect(await stores.locks.load()).toBeNull();
+      expect(btn.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('H-670 singular: a deck missing one copy reads "Can\'t lock. Missing 1 card."', async () => {
+      const h = await setup(URL_, { owned: { ...DETAIL_ALL_OWNED, 'Order Rune': 2 } });
+      lockButton(h).click();
+      await settle(h);
+      expect(snack()).toBe("Can't lock. Missing 1 card.");
+      expect(await stores.locks.load()).toBeNull();
     });
 
     it("SPEC-008 AC 23 / SHARE-063: a failed lock save shows \"Couldn't save the lock. Try again.\" and nothing changes", async () => {
@@ -812,7 +946,8 @@ describe('Deck detail (H-254)', () => {
       const raw = { [`${STORAGE_KEYS.deckPrefix}${DETAIL_DECK_ID}`]: JSON.stringify({ ...detailDeck(), schemaVersion: 2 }) };
       const h = await setup(URL_, { decks: [], raw, owned: DETAIL_ALL_OWNED });
       expect(lockButton(h).getAttribute('aria-disabled')).toBe('true');
-      expect(text(q(h, 'app-lock-actions .reason'))).not.toBe('');
+      // H-670: the reason is not shown under the title any more; it stays the toggle's description.
+      expect(text(document.getElementById(lockButton(h).getAttribute('aria-describedby')!))).toBe('This deck is read-only');
     });
 
     it('SPEC-008 AC 22 / SHARE-025: renaming locked Deck 1 keeps its lock, lockedAt and holds; Deck 2 still reads "0 of 3 available" and its other-deck row names "Kennen budget"', async () => {
@@ -829,7 +964,7 @@ describe('Deck detail (H-254)', () => {
       desc.dispatchEvent(new Event('input'));
       Array.from(dialogEl()!.querySelectorAll('button')).find((b) => text(b) === 'Save')!.click();
       await settle(h, 10);
-      expect((await stores.locks.load())!.locks).toEqual([lock(DETAIL_DECK_ID)]);
+      expect((await stores.locks.load())!.locks).toEqual(lock(DETAIL_DECK_ID));
       expect(lockButton(h).getAttribute('aria-pressed')).toBe('true');
       expect(headerText(h)).not.toContain('Locked in on');
 
@@ -842,14 +977,17 @@ describe('Deck detail (H-254)', () => {
       expect(text(q(h, '.tabpanel'))).toContain('Kennen budget · needs 3 · Locked, holds 3');
     });
 
-    it('SHARE-024: deleting a locked deck removes its lock through DeckLocks and the page leaves for /decks', async () => {
+    it('SHARE-024 / AC 87: deleting a locked deck writes no lock change (the locks leave with the deck tombstone after the Undo window) and the page leaves for /decks', async () => {
       const h = await setup(URL_, { owned: DETAIL_ALL_OWNED, locks: [DETAIL_DECK_ID] });
+      const save = vi.spyOn(stores.locks, 'save');
+      const before = (await stores.locks.load())!.locks;
       await openMore(h);
       menuItem('Delete').click();
       await settle(h);
       Array.from(dialogEl()!.querySelectorAll('button')).find((b) => text(b) === 'Delete')!.click();
       await settle(h, 10);
-      expect((await stores.locks.load())!.locks).toEqual([]);
+      expect(save).not.toHaveBeenCalled();
+      expect((await stores.locks.load())!.locks).toEqual(before);
       expect(TestBed.inject(Router).url).toBe('/decks');
       expect(root(h).querySelector('app-deck-detail')).toBeNull();
     });
@@ -985,17 +1123,16 @@ describe('Deck detail (H-254)', () => {
       expect(phone.map((r) => r.style.getPropertyValue('min-height'))).toContain('44px');
     });
 
-    it('H-467 (2) / H-662: More and the chevron are 40px with a fine pointer, 44px on phones; the title-row lock toggle is 44 x 44 on every width', async () => {
+    it('H-467 (2) / H-662 / H-668: More (now on the title row) is 44px on every width, like the title-row lock toggle', async () => {
       await setup(URL_);
       // H-662: Lock in / Unlock left the actions row, so no 40px in-row button rule remains.
       expect(cssRules((s) => s.includes('in-row'))).toHaveLength(0);
       const toggle = cssRules((s) => s.trim() === '.lock-toggle').filter((r) => !r.media?.includes('forced-colors'));
       expect(toggle.map((r) => r.media)).toEqual([null]);
       expect(toggle[0].style.getPropertyValue('height')).toBe('44px');
-      // More and the chevron are 40px at rest and 44px on phones / touch.
+      // H-668: More is 44px at every width (it shares the row with the 44px toggle; H-669 removed the header chevron).
       const more = cssRules((s) => targets(s, 'more'));
-      expect(more.find((r) => r.media === null)?.style.getPropertyValue('height')).toBe('40px');
-      expect(more.find((r) => r.media?.includes('pointer: coarse'))?.style.getPropertyValue('height')).toBe('44px');
+      expect(more.map((r) => [r.media, r.style.getPropertyValue('height')])).toEqual([[null, '44px']]);
     });
 
     it('H-468 (4) / (5): More menu icons sit in the menu item\'s icon slot (centred with the text); Duplicate has its own icon, not stacks', async () => {
@@ -1054,21 +1191,28 @@ describe('Deck detail (H-254)', () => {
       expect(document.title).toBe('Deck detail · Rift Builder');
     });
 
-    it('H-520 / H-662: the Lock in reason line sits under the title row on every width, start-aligned, the row\'s full width (basis 100%, no grow)', async () => {
-      await setup(URL_);
-      const reason = cssRules((s) => s.includes('variant-icon') && s.includes('.reason'));
-      expect(reason.map((r) => r.media)).toEqual([null]);
-      const st = reason[0].style;
-      expect(st.getPropertyValue('flex-grow')).toBe('0');
-      expect(st.getPropertyValue('flex-basis')).toBe('100%');
-      expect(st.getPropertyValue('order')).toBe('1');
-      // The reason itself is a start-aligned flex line (icon + text).
-      const base = cssRules((s) => s.trim() === '.reason')[0].style;
-      expect(base.getPropertyValue('justify-content')).toBe('');
-      expect(base.getPropertyValue('text-align')).toBe('');
-      // The header's desktop actions row still starts its lines (H-520).
-      const row = cssRules((s) => s.trim() === '.header-top > .actions').find((r) => r.media === '(min-width: 40rem)')!;
-      expect(row.style.getPropertyValue('justify-content')).toBe('flex-start');
+    it('H-520 / H-670: no visible Lock in reason line under the title (RJ "Remove it to save space")', async () => {
+      const h = await setup(URL_);
+      expect(cssRules((s) => s.includes('variant-icon') && s.includes('.reason'))).toEqual([]);
+      expect(q(h, '.title-row .reason')).toBeNull();
+    });
+
+    it('H-669 desktop: Copy missing list is on the Missing heading row ("Missing · 11 copies"), right-aligned, after the heading in focus order; tablet keeps it under the list', async () => {
+      const h = await setup(URL_);
+      await openMissing(h);
+      const head = q(h, '.tabpanel app-deck-missing .missing-head')!;
+      expect(text(head.querySelector('h2'))).toBe('Missing · 11 copies');
+      const order = Array.from(head.children).map((c) => c.tagName.toLowerCase() + '.' + c.className.split(' ')[0]);
+      expect(order).toEqual(['h2.missing-title', 'div.copy']);
+      expect(Array.from(head.querySelectorAll('button')).map((b) => b.getAttribute('aria-label') ?? text(b))).toEqual(['Copy missing list', 'More copy options']);
+      const st = cssRules((s) => s.includes('.missing-head') && !s.includes('.missing-title'))[0].style;
+      expect([st.getPropertyValue('display'), st.getPropertyValue('justify-content')]).toEqual(['flex', 'space-between']);
+      expect(qa(h, '.tabpanel .copy-main')).toHaveLength(1);
+      TestBed.resetTestingModule();
+      const t = await setup(URL_, { width: 'tablet' });
+      expect(q(t, 'header.deck-header .copy-main')).toBeNull();
+      expect(q(t, '.missing-flow app-deck-missing .missing-head')).toBeNull();
+      expect(q(t, '.missing-flow app-deck-missing .copy .copy-main')).not.toBeNull();
     });
 
     it('H-468 (10): below 64rem a press opens the dialog and sets no "Showing" status', async () => {
@@ -1077,6 +1221,132 @@ describe('Deck detail (H-254)', () => {
       await settle(h);
       expect(dialogEl()).not.toBeNull();
       expect(text(q(h, 'p[role="status"].visually-hidden'))).toBe('');
+    });
+  });
+
+  describe('H-665 card-name locks on Deck detail (SPEC-008 SHARE-080…094, ACs 25 to 35; SPEC-005 OWN-121, AC 41)', () => {
+    // Tempo needs Lightning Rush ×3 and Gust ×2, both fully owned (SPEC-005 AC 41's Hextech Ray / Gust example).
+    const tempo = () =>
+      makeDeck(DETAIL_DECK_ID, 'Kennen Tempo', {
+        main: [
+          ['Lightning Rush', 3],
+          ['The Empyrean', 2],
+        ],
+      });
+    const owned = { 'Lightning Rush': 3, 'The Empyrean': 2 };
+    const ray = (at = '2026-11-26T10:00:00Z') => ({ deckId: DETAIL_DECK_ID, cardKey: 'lightning rush', lockedAt: at });
+    const toggle = (h: RouterTestingHarness) => root(h).querySelector<HTMLButtonElement>('.title-row app-lock-actions button.lock-toggle')!;
+    const nameButton = () => document.querySelector<HTMLButtonElement>('mat-dialog-container app-name-lock-action button')
+      ?? document.querySelector<HTMLButtonElement>('app-name-lock-action button');
+    const open = async (h: RouterTestingHarness, id: string) => {
+      tile(h, id).click();
+      await settle(h);
+    };
+
+    it('SPEC-005 AC 41 / SPEC-008 AC 35 (SHARE-094, OWN-121): a locked name\'s tile and row show only a small lock icon and "3 of 3 locked in"; no Lock button on them; the accessible name adds "Locked in this deck"', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned, nameLocks: [ray()], width: 'phone' });
+      const lr = tile(h, 'main:lightning rush');
+      expect(lr.querySelector('[data-name-lock]')).not.toBeNull();
+      expect(text(lr.querySelector('app-ownership-chip'))).toBe('3 of 3 locked in');
+      expect(lr.getAttribute('aria-label')).toBe('Lightning Rush, Main Deck, 3 of 3 locked in, Locked in this deck, ban status unknown');
+      expect(lr.querySelector('button, app-name-lock-action')).toBeNull();
+      expect(text(lr)).not.toMatch(/Locked in this deck|Lock these|Unlock these/);
+      const emp = tile(h, 'main:the empyrean');
+      expect(emp.querySelector('[data-name-lock]')).toBeNull();
+      expect(text(emp.querySelector('app-ownership-chip'))).toBe('2 of 2 available');
+      // The deck is not locked: the header toggle is open, no badge, never "cards short".
+      expect(toggle(h).getAttribute('aria-label')).toBe('Lock deck');
+      expect(q(h, 'app-lock-badge')).toBeNull();
+      expect(root(h).textContent).not.toContain('cards short');
+      expect(qa(h, 'app-name-lock-action')).toHaveLength(0); // the control is only in the dialog / panel
+      // List view: the same icon, no other lock text.
+      qa(h, '.view-toggle button')[1].click();
+      await settle(h);
+      expect(tile(h, 'main:lightning rush').querySelector('[data-name-lock]')).not.toBeNull();
+      expect(tile(h, 'main:the empyrean').querySelector('[data-name-lock]')).toBeNull();
+    });
+
+    it('SPEC-008 AC 25 / SHARE-082: "Lock these copies" in the card dialog stores one NameLock with no confirmation and no snack bar; the control then reads "Unlock these copies"', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned, width: 'phone' });
+      const major = vi.spyOn(TestBed.inject(AppStores), 'majorAction');
+      await open(h, 'main:lightning rush');
+      expect(text(nameButton())).toBe('Lock these copies');
+      nameButton()!.click();
+      await settle(h, 10);
+      expect((await stores.locks.load())!.locks).toEqual([{ deckId: DETAIL_DECK_ID, cardKey: 'lightning rush', lockedAt: expect.any(String) }]);
+      expect(document.querySelectorAll('mat-dialog-container')).toHaveLength(1); // no confirmation on top
+      expect(snack()).toBeNull();
+      expect(text(nameButton())).toBe('Unlock these copies');
+      expect(major).toHaveBeenCalledTimes(1); // SYNC-126 (a) 6
+      expect(text(dialogEl())).toContain('Locked in by this deck: 3');
+    });
+
+    it('SPEC-008 AC 27 / SHARE-083 / SHARE-029 (a): locking the last open name locks the deck: closed toggle, "Kennen Tempo is locked in."', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned, nameLocks: [ray()], width: 'phone' });
+      await open(h, 'main:the empyrean');
+      nameButton()!.click();
+      await settle(h, 10);
+      expect(snack()).toBe('Kennen Tempo is locked in.');
+      expect(toggle(h).getAttribute('aria-label')).toBe('Unlock deck');
+      expect(toggle(h).getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('SPEC-008 AC 29 / SHARE-085: unlocking one name of a locked deck: "Kennen Tempo is no longer fully locked.", the deck opens, the other name keeps its lock', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned, locks: [DETAIL_DECK_ID], width: 'phone' });
+      expect(toggle(h).getAttribute('aria-label')).toBe('Unlock deck');
+      await open(h, 'main:the empyrean');
+      expect(text(nameButton())).toBe('Unlock these copies');
+      nameButton()!.click();
+      await settle(h, 10);
+      expect(snack()).toBe('Kennen Tempo is no longer fully locked.');
+      expect((await stores.locks.load())!.locks.map((l) => l.cardKey)).toEqual(['lightning rush']);
+      expect(toggle(h).getAttribute('aria-label')).toBe('Lock deck');
+      expect(tile(h, 'main:lightning rush').querySelector('[data-name-lock]')).not.toBeNull();
+      expect(tile(h, 'main:the empyrean').querySelector('[data-name-lock]')).toBeNull();
+    });
+
+    it('SPEC-008 AC 28 / SHARE-084: the deck toggle on a locked deck removes only that deck\'s name locks; another deck keeps its own', async () => {
+      const other = makeDeck('0b7c0000-0000-4000-8000-0000000000a2', 'Kennen Aggro', { main: [['Lightning Rush', 2]] });
+      const h = await setup(URL_, {
+        decks: [tempo(), other],
+        owned: { ...owned, 'Lightning Rush': 5 },
+        locks: [DETAIL_DECK_ID],
+        nameLocks: [{ deckId: other.id, cardKey: 'lightning rush', lockedAt: '2026-11-26T09:00:00Z' }],
+        width: 'phone',
+      });
+      toggle(h).click();
+      await settle(h, 10);
+      expect(snack()).toBe('Kennen Tempo is unlocked. Its cards count toward your other decks again.');
+      expect((await stores.locks.load())!.locks).toEqual([{ deckId: other.id, cardKey: 'lightning rush', lockedAt: '2026-11-26T09:00:00Z' }]);
+    });
+
+    it('SPEC-008 AC 26 / SHARE-081 / H-670: a name that is not fully available is not locked: the reason is visible text tied to the control, and a press shows "Can\'t lock. Missing 1 copy."', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned: { 'Lightning Rush': 2, 'The Empyrean': 2 }, width: 'phone' });
+      await open(h, 'main:lightning rush');
+      const b = nameButton()!;
+      expect(b.getAttribute('aria-disabled')).toBeNull(); // H-670: operable, the notice is the feedback
+      const reason = document.getElementById(b.getAttribute('aria-describedby')!);
+      expect(text(reason)).toBe('Lock needs every copy available: 2 of 3');
+      b.click();
+      await settle(h, 6);
+      expect(snack()).toBe("Can't lock. Missing 1 copy.");
+      expect((await stores.locks.load())?.locks ?? []).toEqual([]);
+      expect(text(nameButton())).toBe('Lock these copies');
+    });
+
+    it('H-670 plural: a name missing 3 copies reads "Can\'t lock. Missing 3 copies."', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned: { 'The Empyrean': 2 }, width: 'phone' });
+      await open(h, 'main:lightning rush');
+      nameButton()!.click();
+      await settle(h, 6);
+      expect(snack()).toBe("Can't lock. Missing 3 copies.");
+      expect(await stores.locks.load()).toBeNull();
+    });
+
+    it('SHARE-094 (a) desktop: the per-name control is in the Card tab of the panel too, and only there', async () => {
+      const h = await setup(URL_, { decks: [tempo()], owned });
+      expect(qa(h, '.tabpanel app-name-lock-action')).toHaveLength(1);
+      expect(qa(h, 'app-deck-card-tile app-name-lock-action, app-deck-card-row app-name-lock-action')).toHaveLength(0);
     });
   });
 });

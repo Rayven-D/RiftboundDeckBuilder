@@ -23,16 +23,12 @@ import type { ParseResult } from '../../shared/import/parse-card-list';
 import { EMPTY_SNAPSHOT_AT, StoredCollection } from '../../shared/storage/records';
 import type { PreparedOk } from '../../shared/import/collection-commit';
 import { ReadOnlyAreaError } from '../../shared/sync/tracked-stores';
-import { noticeOptions } from '../../shared/sync/notice';
+import { NOTICE_POSITION, noticeOptions } from '../../shared/sync/notice';
 import { refocusAfterDialog } from '../sync/sync.service';
 import { CardData } from '../cards/card-data';
-import {
-  CollectionCatalogView,
-  LockedShortfall,
-  computeSharedPool,
-  lockedShortfalls,
-  shortfallNotice,
-} from '../decks';
+import { CollectionCatalogView, LockLoss, computeSharedPool, lockLosses } from '../decks';
+import { DeckLocks } from '../../shared/deck/deck-locks.service';
+import { LOCK_REMOVAL_TEXT } from '../../shared/deck/deck-locks';
 import { StorageFullError } from '../storage/kv-backend';
 import { AppStores } from '../storage/app-stores';
 import { removeTestDecks } from '../test-data/test-data-ops';
@@ -69,6 +65,8 @@ export class CollectionImport implements ImportCommitter {
   private readonly cardData = inject(CardData);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly app = inject(AppStores);
+  private readonly deckLocks = inject(DeckLocks);
 
   /** Emits after every commit or Undo this app wrote, so an open Collection refreshes in place (COLL-091, COLL-073). */
   readonly written = new Subject<void>();
@@ -90,8 +88,10 @@ export class CollectionImport implements ImportCommitter {
   }
 
   /**
-   * IMP-049…052 / IMP-072: Add at once; Replace after its IMP-050 confirmation (with the IMP-050a warnings). On a
-   * written commit the notice with Undo shows (IMP-073); a failed write returns the error and shows nothing.
+   * IMP-049…052 / IMP-072: Add at once; Replace after its IMP-050 confirmation, which lists the card-name locks it
+   * would unlock (IMP-050a, SHARE-087…090: free copies go first, so only locks it must take are listed). Confirm
+   * writes the collection and drops exactly those name locks. On a written commit the notice with Undo shows
+   * (IMP-073) and an immediate sync starts (SYNC-126 (a) 2); a failed write returns the error and shows nothing.
    */
   async commit(prepared: PreparedOk, mode: CommitMode): Promise<CommitOutcome> {
     let before: StoredCollection | null;
@@ -104,14 +104,15 @@ export class CollectionImport implements ImportCommitter {
     const after =
       mode === 'add' ? addToCollection(before, prepared.resolved, at) : replaceCollection(prepared.resolved, at);
 
+    let losses: LockLoss[] = [];
     if (mode === 'replace') {
       const nameOf = (k: string) => prepared.catalog.cards[k]?.name ?? k;
-      // TEST-033: the test decks go in this commit, so they are left out of the IMP-050a warnings.
-      const shortfalls = await this.shortfalls(before, after, prepared.catalog, { withoutTestDecks: true });
+      // TEST-033: the test decks go in this commit, so they are left out of the IMP-050a lines.
+      losses = await this.losses(before, after, prepared.catalog, { withoutTestDecks: true });
       const ok = await confirmImport(this.dialog, {
         title: COMMIT_TEXT.replaceTitle,
         text: replaceConfirmText(replaceChanges(before, after, nameOf)),
-        shortfalls,
+        losses,
         confirm: COMMIT_TEXT.replaceConfirm,
       });
       if (!ok) return { status: 'cancelled' };
@@ -122,6 +123,7 @@ export class CollectionImport implements ImportCommitter {
     } catch (err) {
       return { status: 'error', message: writeError(err) };
     }
+    await this.dropLosses(losses);
     if (mode === 'replace') {
       // SPEC-013 TEST-033 / TEST-034 (H-233): the new collection's real `catalogVersion` ends the test state (and the
       // banner, with Remove), so the same commit removes the three test decks and their locks (a no-op when there
@@ -140,6 +142,7 @@ export class CollectionImport implements ImportCommitter {
     };
     this.written.next();
     this.showCommitNotice();
+    this.app.majorAction(); // SYNC-126 (a) 2: Add or Replace
     return { status: 'written' };
   }
 
@@ -150,6 +153,7 @@ export class CollectionImport implements ImportCommitter {
     const ref = this.snackBar.open(last.message, UNDO_TEXT.action, {
       duration: COMMIT_NOTICE_MS,
       politeness: 'polite',
+      ...NOTICE_POSITION,
     });
     ref.onAction().subscribe(() => void this.undoCommit(last));
   }
@@ -179,16 +183,16 @@ export class CollectionImport implements ImportCommitter {
     const restore = snapshot!;
     const changed = changedSinceCommit(current, commit.commitAt);
     const catalog = await this.cardData.loadCatalog();
-    const shortfalls =
-      catalog.status === 'ok' ? await this.shortfalls(current, restore, catalog.catalog) : [];
-    const confirmed = changed || shortfalls.length > 0;
-    if (confirmed) {
-      const ok = await confirmImport(this.dialog, {
-        title: UNDO_TEXT.confirmTitle,
-        text: changed ? UNDO_TEXT.changedSince : UNDO_TEXT.lockedOnly,
-        shortfalls,
-        confirm: UNDO_TEXT.confirm,
-      });
+    const losses = catalog.status === 'ok' ? await this.losses(current, restore, catalog.catalog) : [];
+    // IMP-075 (a) / IMP-050a (b): the COLL-058 confirmation when the collection changed since the commit (with the
+    // lock lines inside); otherwise a confirmation only when a name lock would be unlocked (SHARE-088 wording).
+    if (changed || losses.length > 0) {
+      const ok = await confirmImport(
+        this.dialog,
+        changed
+          ? { title: UNDO_TEXT.confirmTitle, text: UNDO_TEXT.changedSince, losses, confirm: UNDO_TEXT.confirm }
+          : { title: LOCK_REMOVAL_TEXT.title, text: '', losses, confirm: LOCK_REMOVAL_TEXT.confirm },
+      );
       refocusAfterDialog(undefined);
       if (!ok) {
         // (c) Cancel: nothing written, the commit notice again with a fresh 10 s.
@@ -206,6 +210,7 @@ export class CollectionImport implements ImportCommitter {
       notice(err instanceof ReadOnlyAreaError ? err.message : UNDO_TEXT.failed, 'error');
       return;
     }
+    await this.dropLosses(losses);
     this.last = null; // (b) spent: Undo works once
     try {
       await this.stores.collection.clearPrevious();
@@ -213,16 +218,31 @@ export class CollectionImport implements ImportCommitter {
       // The restore is written; a snapshot left behind is never offered again (`last` is spent, IMP-074).
     }
     this.written.next();
-    notice([UNDO_TEXT.undone, ...(confirmed ? shortfalls.map(shortfallNotice) : [])].join(' '));
+    // IMP-075 (b) v0.16: just "Import undone." (no per-deck notice after it any more).
+    notice(UNDO_TEXT.undone);
+    this.app.majorAction(); // SYNC-126 (a) 3
   }
 
-  /** SPEC-008 `lockedShortfalls(before, after)` over the shared pool (IMP-050a); empty when anything can't be read. */
-  private async shortfalls(
+  /**
+   * SHARE-088 Confirm: removes exactly the listed name locks after the collection write. Not a separate sync (the
+   * commit or Undo starts one). If it fails the collection change stands; the pool settles the short locks anyway
+   * (SHARE-090), so nothing shows them as locked.
+   */
+  private async dropLosses(losses: readonly LockLoss[]): Promise<void> {
+    try {
+      await this.deckLocks.dropLosses(losses, { sync: false });
+    } catch {
+      // see above
+    }
+  }
+
+  /** SPEC-008 `lockLosses(before, after)` over the shared pool (IMP-050a); empty when anything can't be read. */
+  private async losses(
     before: StoredCollection | null,
     after: StoredCollection,
     catalog: CollectionCatalogView,
     opts: { withoutTestDecks?: boolean } = {},
-  ): Promise<LockedShortfall[]> {
+  ): Promise<LockLoss[]> {
     try {
       const [allDecks, locks, tags, printingCodes] = await Promise.all([
         this.stores.decks.list(),
@@ -244,7 +264,7 @@ export class CollectionImport implements ImportCommitter {
           },
         });
       const empty: StoredCollection = { schemaVersion: 1, updatedAt: '', catalogVersion: '', cards: {} };
-      return lockedShortfalls(pool(before ?? empty), pool(after));
+      return lockLosses(pool(before ?? empty), pool(after));
     } catch {
       return [];
     }

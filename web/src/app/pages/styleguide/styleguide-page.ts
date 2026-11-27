@@ -394,7 +394,7 @@ export class StyleguidePage {
     for (const d of await this.stores.raw.decks.list()) await this.stores.raw.decks.delete(d.id);
     for (const d of s.decks) await this.stores.raw.decks.put(d);
     localStorage.setItem(DEV_SAMPLE_DECKS_KEY, JSON.stringify(s.decks.map((d) => d.id)));
-    await this.stores.raw.locks.save({ schemaVersion: 1, updatedAt: new Date().toISOString(), locks: s.locks });
+    await this.stores.raw.locks.save({ schemaVersion: 2, updatedAt: new Date().toISOString(), locks: s.locks });
   }
 
   private confirmReplace(): boolean {

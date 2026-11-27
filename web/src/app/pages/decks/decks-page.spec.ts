@@ -36,7 +36,7 @@ async function setup(url: string, decks = 0) {
       { provide: CardData, useValue: cardData },
       provideRouter(routes, withComponentInputBinding()),
       provideOpenGate(),
-      { provide: AppStores, useValue: { stores } },
+      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
     ],
   });

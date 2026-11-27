@@ -95,33 +95,55 @@ p {
     flex: 1 1 20rem;
     min-width: 0;
   }
-
-  .header-top > .actions {
-    flex: 0 0 auto;
-    justify-content: flex-start;
-    max-width: 100%;
-    margin-top: 0;
-  }
 }
 
-// H-662: the deck name and its lock toggle on one wrapping row; the Lock in reason line (OWN-116) wraps under it.
+// H-662 / H-668: the deck name, its lock toggle and More actions on one row that never wraps: the toggle and More keep
+// their 44 px and their place (More pinned to the right edge), the name takes the remaining width and wraps. All three
+// are top-aligned, so the buttons sit level with the name's first line.
 .title-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-wrap: nowrap;
+  align-items: flex-start;
   gap: 0 var(--space-2);
+
+  > .more {
+    flex: none;
+    margin-inline-start: auto;
+  }
 }
 
 .deck-name {
   flex: 0 1 auto;
   min-width: 0;
   margin: 0;
+  // Centre a one-line name on the 44 px buttons; longer names start at the same top line.
+  padding-block: 6px;
   font-size: var(--font-size-xl);
   line-height: 1.15;
   overflow-wrap: anywhere;
 
   @media (max-width: 39.99rem) {
+    padding-block: 8px;
     font-size: var(--font-size-lg);
+  }
+}
+
+// H-668 (RJ 2026-11-26): at most two lines, then an ellipsis (a single very long word breaks anywhere). Clamped at every
+// width; the full name is in the heading's title and text, and a tap / Enter / Space shows it (aria-expanded).
+.deck-name-text {
+  display: block;
+  border-radius: var(--radius-sm);
+
+  &.clamped {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  &[role='button'] {
+    cursor: pointer;
   }
 }
 
@@ -207,57 +229,13 @@ p {
   font-variant-numeric: tabular-nums;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
-
-  // H-662: on phones only More is left in the row (Copy missing list sits under the Missing list); it keeps the
-  // right edge, where it was beside the old full-width Lock in / Unlock button.
-  @media (max-width: 39.99rem) {
-    justify-content: flex-end;
-  }
-}
-
-.split {
-  display: inline-flex;
-  align-items: center;
-}
-
-.split-main {
-  --mat-button-outlined-container-shape: var(--radius-md) 0 0 var(--radius-md);
-
-  app-icon {
-    margin-inline-end: var(--space-2);
-    font-size: 18px;
-  }
-
-  // H-461 (A13): same height as .split-more on phones / touch, so the two halves match.
-  @media (pointer: coarse), (max-width: 39.99rem) {
-    --mat-button-outlined-container-height: 44px;
-  }
-}
-
-.split-more,
+// H-669: the header's Copy missing list split button moved into the Missing area (app-deck-missing).
+// H-668: on the title row next to the 44 px lock toggle, at least 44 px at every width.
 .more {
-  width: 40px;
-  height: 40px;
-  padding: 8px;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
   font-size: 24px;
-
-  @media (pointer: coarse), (max-width: 39.99rem) {
-    width: 44px;
-    height: 44px;
-    padding: 10px;
-  }
-}
-
-.split-more {
-  margin-inline-start: -1px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
 .menu-icon {

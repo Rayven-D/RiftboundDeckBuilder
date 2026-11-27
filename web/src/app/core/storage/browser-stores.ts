@@ -1,4 +1,7 @@
 import type { StoredSyncLog, SyncLogStore } from '../../shared/sync/sync-types';
+import { deckCards as deckEntries } from '../../shared/storage/records';
+import type { StoredDeckLocksV1, UserDeck } from '../../shared/storage/records';
+import { migrateLocksV1 } from '../decks/name-locks';
 import type { LocalAdapters } from '../../shared/sync/sync-engine';
 import {
   SerialQueue,
@@ -71,9 +74,30 @@ export function createBrowserStores(backend: KeyValueBackend, opts: BrowserStore
   const log = new LocalSyncLogStore(backend);
   const viewState = new LocalViewStateStore(backend);
   const rawDecks = new LocalDeckStore(backend);
-  // SHARE-062: a lock is an orphan only when its deck is not in the store; a read-only (newer) deck still is (DECK-091).
-  const deckIds = async () =>
-    new Set([...(await rawDecks.list()), ...(await rawDecks.newerDecks())].map((d) => d.id));
+  // SHARE-062: a name lock is an orphan when its deck is not in the store or the name is not in that deck; a read-only
+  // (newer) deck still is in the store (DECK-091).
+  const allDecks = async (): Promise<UserDeck[]> => [...(await rawDecks.list()), ...(await rawDecks.newerDecks())];
+  // SYNC-035 / AC 87: a deck deleted on this device whose 10 s Undo window is still open keeps every name lock (null =
+  // keep all names): nothing is dropped or stamped for it until the window ends, and an Undo restores it as it was.
+  const heldDeletions = (): string[] => {
+    try {
+      const raw = backend.get(STORAGE_KEYS.syncLog);
+      const log = raw ? (JSON.parse(raw) as StoredSyncLog) : null;
+      const now = opts.now();
+      return Object.entries(log?.deckTombstones ?? {})
+        .filter(([id, t]) => t.pushAfter > now && log!.pending.decks.includes(id))
+        .map(([id]) => id);
+    } catch {
+      return [];
+    }
+  };
+  const deckCardKeys = async () => {
+    const m = new Map<string, ReadonlySet<string> | null>(
+      (await allDecks()).map((d) => [d.id, new Set(deckEntries(d).map((c) => c.cardKey))] as const),
+    );
+    for (const id of heldDeletions()) if (!m.has(id)) m.set(id, null);
+    return m;
+  };
   const takenTagIds = () => {
     // Short ids must not reuse a tag tombstone's id (SYNC-016).
     try {
@@ -85,14 +109,24 @@ export function createBrowserStores(backend: KeyValueBackend, opts: BrowserStore
   };
   const rawTags = new LocalTagStore(backend, viewState, opts.now, takenTagIds);
   const rawCollection = new LocalCollectionStore(backend);
-  const rawLocks = new LocalDeckLockStore(backend, deckIds);
+  // SHARE-092: a v1 record is converted once, on load, from the decks and the collection as stored.
+  const migrateLocks = async (v1: StoredDeckLocksV1) => {
+    let ownership: Parameters<typeof migrateLocksV1>[2];
+    try {
+      ownership = { collection: await rawCollection.load(), tags: await rawTags.load() };
+    } catch {
+      ownership = null; // unreadable: every name of a locked deck stays locked (settled later, SHARE-090)
+    }
+    return migrateLocksV1(v1.locks, await allDecks(), ownership, new Date(opts.now()).toISOString());
+  };
+  const rawLocks = new LocalDeckLockStore(backend, deckCardKeys, migrateLocks);
   const ctx: TrackingContext = { log, queue, now: opts.now, changed: opts.changed, readOnly: opts.readOnly };
 
   return {
     collection: new TrackedCollectionStore(rawCollection, ctx),
     tags: new TrackedTagStore(rawTags, ctx),
     decks: new TrackedDeckStore(rawDecks, ctx),
-    locks: new TrackedDeckLockStore(rawLocks, ctx, deckIds),
+    locks: new TrackedDeckLockStore(rawLocks, ctx, deckCardKeys),
     printingCodes: new LocalPrintingCodeStore(backend),
     viewState,
     log,

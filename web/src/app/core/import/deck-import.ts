@@ -49,7 +49,8 @@ export const DECK_SAVE_TEXT = {
  */
 @Injectable({ providedIn: 'root' })
 export class DeckImport implements DeckImportCommitter {
-  private readonly stores = inject(AppStores).stores;
+  private readonly app = inject(AppStores);
+  private readonly stores = this.app.stores;
   private readonly cardData = inject(CardData);
   private readonly gate = inject(SignInGate);
   private readonly snackBar = inject(MatSnackBar);
@@ -90,6 +91,7 @@ export class DeckImport implements DeckImportCommitter {
       // written; the stamped copy is read again by whoever lists the decks
     }
     this.saved.next(stored);
+    this.app.majorAction(); // SYNC-126 (a) 1: an imported deck saved
     const ref = this.snackBar.open(DECK_SAVE_TEXT.saved, DECK_SAVE_TEXT.view, noticeOptions('success'));
     ref.onAction().subscribe(() => void this.router.navigate(['/decks', stored.id]));
     return { status: 'written' };

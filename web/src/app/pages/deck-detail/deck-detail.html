@@ -48,8 +48,25 @@
                  open lock = not). OWN-116 / SHARE-020…023, SHARE-029: the same Lock in / Unlock logic, confirmation,
                  snack bars and disabled states; the SHARE-020 reason line wraps under the title row. It saves through
                  DeckLocks; the page re-reads on DeckLocks.changed and passes the new view back in. -->
+            <!-- H-668 (RJ 2026-11-26): name, lock toggle and More actions on one row at every width; the toggle and More
+                 keep their place and 44 px size, the name takes the rest, wraps and is clamped to two lines (full name
+                 in the title attribute and in the heading text). A clamped name is a button inside the heading: a tap,
+                 Enter or Space shows the full name; blur or Escape clamps it again. Focus order: name, lock, More. -->
             <div class="title-row">
-              <h1 class="deck-name">{{ d.deck.name }}</h1>
+              <h1 class="deck-name" [attr.title]="d.deck.name">
+                <span
+                  #nameText
+                  class="deck-name-text"
+                  [class.clamped]="!nameExpanded()"
+                  [attr.tabindex]="nameInteractive() ? 0 : null"
+                  [attr.role]="nameInteractive() ? 'button' : null"
+                  [attr.aria-expanded]="nameInteractive() ? nameExpanded() : null"
+                  (click)="toggleName()"
+                  (keydown)="onNameKey($event)"
+                  (blur)="collapseName()"
+                  >{{ d.deck.name }}</span
+                >
+              </h1>
               <app-lock-actions
                 variant="icon"
                 [deck]="d.deck"
@@ -59,6 +76,19 @@
                 [locksUnreadable]="d.locksUnreadable"
                 (changed)="lockChanged()"
               />
+              <button #moreButton matIconButton type="button" class="more" aria-label="More actions" [matMenuTriggerFor]="moreMenu">
+                <app-icon name="more_vert" />
+              </button>
+              <mat-menu #moreMenu="matMenu" xPosition="before">
+                <button mat-menu-item type="button" (click)="copyDeckList()"><app-icon name="content_copy" class="menu-icon" matMenuItemIcon />Copy deck list</button>
+                <button mat-menu-item type="button" (click)="downloadDeckList()"><app-icon name="download" class="menu-icon" matMenuItemIcon />Download .txt</button>
+                <button mat-menu-item type="button" [disabled]="d.readOnly" (click)="duplicate()"><app-icon name="library_add" class="menu-icon" matMenuItemIcon />Duplicate</button>
+                <button mat-menu-item type="button" [disabled]="d.readOnly" (click)="rename()"><app-icon name="edit" class="menu-icon" matMenuItemIcon />Rename</button>
+                <mat-divider />
+                <button mat-menu-item type="button" class="danger" [disabled]="d.readOnly" (click)="delete()">
+                  <app-icon name="delete" class="menu-icon" matMenuItemIcon />Delete
+                </button>
+              </mat-menu>
             </div>
             @if (d.deck.notes) {
               <div class="description">
@@ -110,35 +140,9 @@
               }
             </div>
           </div>
-          <div class="actions">
-            <!-- H-662: Lock in / Unlock moved to the title row as an icon toggle. -->
-            @if (canCopyMissing() && !isPhone()) {
-              <div class="split">
-                <button matButton="outlined" type="button" class="split-main" (click)="copyMissing('sections')">
-                  <app-icon name="content_copy" />Copy missing list
-                </button>
-                <button matIconButton type="button" class="split-more" aria-label="More copy options" [matMenuTriggerFor]="copyMenu">
-                  <app-icon name="expand_more" />
-                </button>
-                <mat-menu #copyMenu="matMenu" xPosition="before">
-                  <button mat-menu-item type="button" (click)="copyMissing('merged')">Copy as one list</button>
-                </mat-menu>
-              </div>
-            }
-            <button #moreButton matIconButton type="button" class="more" aria-label="More actions" [matMenuTriggerFor]="moreMenu">
-              <app-icon name="more_vert" />
-            </button>
-            <mat-menu #moreMenu="matMenu" xPosition="before">
-              <button mat-menu-item type="button" (click)="copyDeckList()"><app-icon name="content_copy" class="menu-icon" matMenuItemIcon />Copy deck list</button>
-              <button mat-menu-item type="button" (click)="downloadDeckList()"><app-icon name="download" class="menu-icon" matMenuItemIcon />Download .txt</button>
-              <button mat-menu-item type="button" [disabled]="d.readOnly" (click)="duplicate()"><app-icon name="library_add" class="menu-icon" matMenuItemIcon />Duplicate</button>
-              <button mat-menu-item type="button" [disabled]="d.readOnly" (click)="rename()"><app-icon name="edit" class="menu-icon" matMenuItemIcon />Rename</button>
-              <mat-divider />
-              <button mat-menu-item type="button" class="danger" [disabled]="d.readOnly" (click)="delete()">
-                <app-icon name="delete" class="menu-icon" matMenuItemIcon />Delete
-              </button>
-            </mat-menu>
-          </div>
+          <!-- H-668: More actions is on the title row. H-669 (RJ 2026-11-26): Copy missing list moved into the Missing
+               area at every width (the desktop panel's Missing heading row; under the list below 64rem), so the header
+               has no actions row any more. -->
         </div>
       </header>
 
@@ -182,7 +186,7 @@
       @if (!isDesktop() && v.ownershipAvailable && v.summary.copiesRequired > 0) {
         <!-- OWN-051 / OWN-111 (d): below 64rem the missing list sits under the header (counts are in the header). -->
         <section class="missing-flow" aria-label="Missing cards">
-          <app-deck-missing [view]="v" [showCounts]="false" [showCopy]="isPhone()" [collapsible]="true" (copyRequested)="copyMissing($event)" />
+          <app-deck-missing [view]="v" [showCounts]="false" [showCopy]="true" [collapsible]="true" (copyRequested)="copyMissing($event)" />
         </section>
       }
 
@@ -291,12 +295,12 @@
             <div #panelBody class="tabpanel" id="deck-tabpanel" role="tabpanel" tabindex="0" [attr.aria-labelledby]="'deck-tab-' + tab()">
               @if (tab() === 'card') {
                 @if (selected(); as c) {
-                  <app-deck-card-content [card]="c" [locked]="locked()" [ownershipAvailable]="v.ownershipAvailable" [fullUrl]="fullUrl(c)" />
+                  <app-deck-card-content [card]="c" [locked]="locked()" [ownershipAvailable]="v.ownershipAvailable" [fullUrl]="fullUrl(c)" [lockContext]="lockContext()" />
                 } @else {
                   <p class="muted">{{ text.noDeckCards }}</p>
                 }
               } @else {
-                <app-deck-missing [view]="v" (copyRequested)="copyMissing($event)" />
+                <app-deck-missing [view]="v" copyPlacement="heading" (copyRequested)="copyMissing($event)" />
               }
             </div>
           </aside>

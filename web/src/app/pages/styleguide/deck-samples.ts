@@ -12,7 +12,7 @@ import {
   type CollectionCatalogView,
   type CollectionOwnership,
   type DeckCard,
-  type DeckLock,
+  type NameLock,
   type DeckOwnershipInput,
   type DeckOwnershipView,
   type DeckTileSummary,
@@ -26,6 +26,7 @@ import {
   computeSharedPool,
   summarizeDeck,
 } from '../../core/decks';
+import { lockEveryName } from '../../shared/collection/sample-data';
 import { sampleCardArt } from '../../shared/deck/sample-art';
 
 const TODAY = '2026-11-25';
@@ -276,10 +277,7 @@ const READ_ONLY = deck(8, 'Shared from a newer version', { legend: [['Ember Quee
 });
 
 const ALL = [TEMPEST, JINX, DRAVEN, READY, NONE, NO_LEGEND, EMPTY, READ_ONLY];
-const LOCKS: DeckLock[] = [
-  { deckId: JINX.id, lockedAt: '2026-11-23T10:00:00Z' },
-  { deckId: DRAVEN.id, lockedAt: '2026-11-21T10:00:00Z' },
-];
+const LOCKS: NameLock[] = [...lockEveryName(JINX, '2026-11-23T10:00:00Z'), ...lockEveryName(DRAVEN, '2026-11-21T10:00:00Z')];
 
 export interface DeckTileSample {
   readonly label: string;
@@ -307,7 +305,7 @@ export interface DeckSamples {
 function ownershipOf(
   input: DeckOwnershipInput,
   decks: UserDeck[],
-  locks: DeckLock[],
+  locks: NameLock[],
 ): Extract<CollectionOwnership, { status: 'ok' }> {
   return { status: 'ok', input, shared: computeSharedPool({ decks, locks, ownership: input }) };
 }
@@ -328,14 +326,14 @@ export function styleguideDecks(): DeckSamples {
   const unavailable: CollectionOwnership = { status: 'unavailable', locks: LOCKS };
   const tempestView = view(TEMPEST);
   const readyView = view(READY);
-  const withLock = (d: UserDeck) => ownershipOf(input, ALL, [...LOCKS, { deckId: d.id, lockedAt: '2026-11-24T10:00:00Z' }]);
+  const withLock = (d: UserDeck) => ownershipOf(input, ALL, [...LOCKS, ...lockEveryName(d, '2026-11-24T10:00:00Z')]);
 
   const tiles: DeckTileSample[] = [
     { label: 'Ready to build, legal', summary: tile(READY, readyView, 'legal') },
     { label: 'Partly available, banned + upcoming, illegal, tournament', summary: tile(TEMPEST, tempestView, 'illegal') },
     { label: 'None available', summary: tile(NONE, view(NONE)) },
     { label: 'Locked (complete)', summary: tile(JINX, view(JINX)) },
-    { label: 'Locked, cards short', summary: tile(DRAVEN, view(DRAVEN)) },
+    { label: 'Partly locked (a name that no longer fits is unlocked)', summary: tile(DRAVEN, view(DRAVEN)) },
     { label: 'No Legend, long name', summary: tile(NO_LEGEND, view(NO_LEGEND)) },
     { label: 'Empty deck', summary: tile(EMPTY, view(EMPTY)) },
     { label: 'Read-only', summary: tile(READ_ONLY, view(READ_ONLY)) },
@@ -348,7 +346,8 @@ export function styleguideDecks(): DeckSamples {
     tiles,
     deck: TEMPEST,
     view: tempestView,
-    lockedView: view(TEMPEST, withLock(TEMPEST)),
+    // v0.6: a locked deck is never short, so the locked sample is the complete Jinx deck (TEMPEST can't be locked).
+    lockedView: view(JINX),
     readyDeck: READY,
     readyView,
     readyLockedView: view(READY, withLock(READY)),

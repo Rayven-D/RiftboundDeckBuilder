@@ -301,12 +301,12 @@ describe('SyncEngine (SPEC-010)', () => {
       expect(await laptop.deckNames()).toEqual([]);
       expect(await laptop.lockedIds()).toEqual([]);
       const locks = (db.get('users/uA/state/locks') as { locks: Record<string, { lockedAt: unknown }> }).locks;
-      expect(locks[deck.id].lockedAt).toBeNull();
+      expect(locks[`${deck.id}|hextech ray`].lockedAt).toBeNull();
       await phone.engine.syncNow();
       expect(await phone.lockedIds()).toEqual([]);
     });
 
-    it('SYNC-072 / H-116 a deck edited elsewhere while locked stays locked with its new cards and shows the notice (info)', async () => {
+    it('SYNC-072 / SHARE-093 / H-116 / SPEC-010 AC 12 (v0.18) a deck edited elsewhere while locked: the name whose need changed is unlocked, the notice (info) shows', async () => {
       const { laptop, phone, deck } = await twoDevicesWithDeck();
       laptop.now = at('10:00');
       await laptop.lock(deck.id);
@@ -318,8 +318,9 @@ describe('SyncEngine (SPEC-010)', () => {
       await phone.engine.syncNow();
       laptop.now = at('10:20');
       await laptop.engine.syncNow();
-      expect(await laptop.lockedIds()).toEqual([deck.id]);
+      expect(await laptop.lockedIds()).toEqual([]);
       expect((await laptop.stores.decks.get(deck.id))!.main).toEqual([card('hextech ray', 4)]);
+      expect(laptop.notices.join(' ')).not.toContain('cards short');
       expect(laptop.notices).toContain("'Kennen Tempo' changed on another device while it was locked.");
       expect(laptop.noticeKinds.find((n) => n.message.startsWith("'Kennen Tempo' changed"))?.kind).toBe('info');
     });
@@ -354,7 +355,7 @@ describe('SyncEngine (SPEC-010)', () => {
       laptop.now = at('11:10');
       await laptop.engine.syncNow();
       for (const d of [laptop, phone]) {
-        expect((await d.stores.locks.load())!.locks).toEqual([{ deckId: deck.id, lockedAt: new Date(at('11:05')).toISOString() }]);
+        expect((await d.stores.locks.load())!.locks).toEqual([{ deckId: deck.id, cardKey: 'hextech ray', lockedAt: new Date(at('11:05')).toISOString() }]);
       }
     });
   });
@@ -508,7 +509,7 @@ describe('SyncEngine (SPEC-010)', () => {
       const laptop = await seedLaptop(db);
       await laptop.addTag('t_Coll01', 'Collector');
       const decks = [];
-      for (let i = 0; i < 12; i++) decks.push(await laptop.createDeck(`Deck ${i}`));
+      for (let i = 0; i < 12; i++) decks.push(await laptop.createDeck(`Deck ${i}`, [card('hextech ray', 1)]));
       await laptop.lock(decks[5].id);
       await laptop.engine.flush();
       for (const d of decks.slice(0, 2)) await laptop.stores.decks.delete(d.id);
@@ -706,8 +707,8 @@ describe('SyncEngine (SPEC-010)', () => {
       db.resetCounts();
       await laptop.engine.flush();
       const locks = db.get('users/uA/state/locks') as { locks: Record<string, object> };
-      expect(Object.keys(locks.locks[deck.id]).sort()).toEqual(['lockedAt', 'updatedAt']);
-      expect((await laptop.stores.locks.load())!.locks).toEqual([{ deckId: deck.id, lockedAt: expect.any(String) }]);
+      expect(Object.keys(locks.locks[`${deck.id}|hextech ray`]).sort()).toEqual(['lockedAt', 'updatedAt']);
+      expect((await laptop.stores.locks.load())!.locks).toEqual([{ deckId: deck.id, cardKey: 'hextech ray', lockedAt: expect.any(String) }]);
       const paths = [...db.docs.keys()];
       expect(paths.every((p) => /^users\/uA(\/state\/(collection|tags|locks)|\/decks\/[0-9a-f-]{36})?$/.test(p))).toBe(true);
       expect(JSON.stringify([...db.docs.values()])).not.toMatch(/short|savedViews|printingCodes|ready|partial/);

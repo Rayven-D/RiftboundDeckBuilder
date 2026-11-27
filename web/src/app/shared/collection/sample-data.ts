@@ -7,7 +7,7 @@ import type {
   CardSet,
   CollectionCatalogView,
   DeckCard,
-  DeckLock,
+  NameLock,
   PlayableCard,
   Printing,
   StoredCollection,
@@ -20,7 +20,15 @@ export interface SampleData {
   collection: StoredCollection;
   printingCodes: StoredPrintingCodes;
   decks: UserDeck[];
-  locks: DeckLock[];
+  /** SPEC-008 v0.6 name locks: one per counted name of each locked deck, one `lockedAt` per deck (SPEC-013 TEST-021). */
+  locks: NameLock[];
+}
+
+/** A name lock on every counted name of `deck` (the deck toggle, SHARE-084), all with `lockedAt`. */
+export function lockEveryName(deck: UserDeck, lockedAt: string): NameLock[] {
+  const all = [deck.legend, deck.champion, ...deck.main, ...deck.battlefields, ...deck.runes, ...deck.sideboard];
+  const keys = [...new Set(all.filter((c): c is DeckCard => c !== null).map((c) => c.cardKey))];
+  return keys.map((cardKey) => ({ deckId: deck.id, cardKey, lockedAt }));
 }
 
 const STAMP = '2026-11-24T00:00:00.000Z';
@@ -241,8 +249,8 @@ export function generateLargeSample(entries: number): SampleData {
     printingCodes: { schemaVersion: 1, updatedAt: STAMP, codes: {} },
     decks,
     locks: [
-      { deckId: decks[0].id, lockedAt: '2026-11-20T10:00:00.000Z' },
-      { deckId: decks[1].id, lockedAt: '2026-11-21T10:00:00.000Z' },
+      ...lockEveryName(decks[0], '2026-11-20T10:00:00.000Z'),
+      ...lockEveryName(decks[1], '2026-11-21T10:00:00.000Z'),
     ],
   };
 }
@@ -409,8 +417,8 @@ export function sampleOverCatalog(catalog: CollectionCatalogView): Omit<SampleDa
     printingCodes: { schemaVersion: 1, updatedAt: STAMP, codes },
     decks,
     locks: [
-      { deckId: decks[0].id, lockedAt: '2026-11-20T10:00:00.000Z' },
-      { deckId: decks[1].id, lockedAt: '2026-11-21T10:00:00.000Z' },
+      ...lockEveryName(decks[0], '2026-11-20T10:00:00.000Z'),
+      ...lockEveryName(decks[1], '2026-11-21T10:00:00.000Z'),
     ],
   };
 }

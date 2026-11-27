@@ -28,20 +28,20 @@ const kindOf = (d: Device, message: string): NoticeKind | undefined =>
 
 describe('H-116 notice kinds: noticeOptions', () => {
   it('H-116 success closes after 6 s and is polite', () => {
-    expect(noticeOptions('success')).toEqual({ duration: 6000, politeness: 'polite' });
+    expect(noticeOptions('success')).toEqual({ duration: 6000, politeness: 'polite', verticalPosition: 'top', horizontalPosition: 'center' });
   });
 
   it('H-116 info (instructions and events) stays until OK and is polite', () => {
-    expect(noticeOptions('info')).toEqual({ duration: 0, politeness: 'polite' });
+    expect(noticeOptions('info')).toEqual({ duration: 0, politeness: 'polite', verticalPosition: 'top', horizontalPosition: 'center' });
   });
 
   it('H-116 error stays until OK and is the only assertive kind', () => {
-    expect(noticeOptions('error')).toEqual({ duration: 0, politeness: 'assertive' });
+    expect(noticeOptions('error')).toEqual({ duration: 0, politeness: 'assertive', verticalPosition: 'top', horizontalPosition: 'center' });
   });
 
   it('H-116 a missing or unknown kind stays open and is polite', () => {
-    expect(noticeOptions()).toEqual({ duration: 0, politeness: 'polite' });
-    expect(noticeOptions('later' as NoticeKind)).toEqual({ duration: 0, politeness: 'polite' });
+    expect(noticeOptions()).toEqual({ duration: 0, politeness: 'polite', verticalPosition: 'top', horizontalPosition: 'center' });
+    expect(noticeOptions('later' as NoticeKind)).toEqual({ duration: 0, politeness: 'polite', verticalPosition: 'top', horizontalPosition: 'center' });
   });
 });
 

@@ -2,6 +2,7 @@ import { Component, computed, input, output } from '@angular/core';
 import type { OwnershipCard } from '../../core/decks';
 import { CardArt } from '../deck/card-art';
 import { OwnershipChip } from '../deck/ownership-chip';
+import { Icon } from '../icon';
 import { StatusLabel } from '../status-label';
 import { DETAIL_TEXT, banText, cardAccessibleName, cardId, labelParts } from './detail-view';
 
@@ -13,7 +14,7 @@ import { DETAIL_TEXT, banText, cardAccessibleName, cardId, labelParts } from './
  */
 @Component({
   selector: 'app-deck-card-row',
-  imports: [CardArt, OwnershipChip, StatusLabel],
+  imports: [CardArt, OwnershipChip, StatusLabel, Icon],
   template: `
     <button
       type="button"
@@ -47,6 +48,10 @@ import { DETAIL_TEXT, banText, cardAccessibleName, cardId, labelParts } from './
         @if (parts(); as p) {
           <span class="meta">
             <app-ownership-chip [state]="card().state" [label]="p.count" />
+            @if (card().nameLocked) {
+              <!-- H-665 (SHARE-094 (b), OWN-121 (a)): only a small lock icon; its name is in the row's accessible name. -->
+              <app-icon name="lock" class="name-lock" data-name-lock />
+            }
             @if (p.total) {
               <span class="muted">{{ p.total }}</span>
             }
@@ -114,6 +119,11 @@ import { DETAIL_TEXT, banText, cardAccessibleName, cardId, labelParts } from './
     }
     .name {
       font-weight: 600;
+    }
+    .name-lock {
+      flex: none;
+      font-size: 16px;
+      color: var(--color-accent-text);
     }
     .meta {
       display: flex;

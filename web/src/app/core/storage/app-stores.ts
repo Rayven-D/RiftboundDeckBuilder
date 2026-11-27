@@ -11,6 +11,7 @@ import { LocalStorageBackend } from './kv-backend';
 export class AppStores {
   private changedHook: () => void = () => undefined;
   private readOnlyHook: (area: string) => boolean = () => false;
+  private majorHook: () => void = () => undefined;
 
   readonly stores: BrowserStores = createBrowserStores(new LocalStorageBackend(), {
     now: () => Date.now(),
@@ -18,8 +19,19 @@ export class AppStores {
     readOnly: (area) => this.readOnlyHook(area),
   });
 
-  connect(changed: () => void, readOnly: (area: string) => boolean): void {
+  connect(changed: () => void, readOnly: (area: string) => boolean, major: () => void = () => undefined): void {
     this.changedHook = changed;
     this.readOnlyHook = readOnly;
+    this.majorHook = major;
+  }
+
+  /**
+   * SPEC-010 SYNC-126 (H-667): call right after a **major action** has been saved locally (a deck import saved, a
+   * collection import committed or undone, a deck duplicated, any lock or unlock). Signed in and online it starts one
+   * immediate sync (pull, then push); otherwise the change stays pending. Never awaited: the action never waits for
+   * the network (SYNC-085). A deck deletion is a major action once its Undo window ends; the sync engine does that.
+   */
+  majorAction(): void {
+    this.majorHook();
   }
 }

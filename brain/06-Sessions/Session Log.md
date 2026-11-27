@@ -7,6 +7,11 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-26 (late): builder H-665 + H-667, then H-668 to H-671 (one branch `loop/H-665-H-667-name-locks-sync`)
+- H-665: SPEC-008 0.6.1 card-name locks (engine, StoredDeckLocks v2 with the local and cloud v1 migration, per-name Lock / Unlock in the card dialog, lock icon on tiles and rows, removal confirmation in Replace and Undo, sync drop with one notice replacing H-148's text, rules cap 6000, Test Data name locks). state/locks measured: 4,000 entries 475,790 B; 6,000 entries 715,290 B.
+- H-667: SYNC-126 immediate pull-then-push on six major actions, one queued follow-up, deletions after their Undo window. Then RJ's chat items H-668 (⋮ on the title row, two-line expandable name), H-669 (Copy missing list in the Missing panel), H-670 ("Can't lock. Missing n cards / copies.", reason line removed), H-671 (all notices at the top).
+- Web: lint clean, build OK (461.6 kB initial), 1527 unit tests, 90 rules tests, e2e 5 / 5; not pushed. Notes, proposal wording and gaps: [[Build H-665 H-667]].
+
 ## 2026-11-26: builder H-148, H-233, H-486 (one branch `loop/H-148-H-233-H-486`)
 - H-148 (SYNC-074): `SyncEngine.afterMerge` sends one `info` notice for all short locked decks (`lockedShortfallNotice`); combined wording = spec sentence per deck joined by a space (RJ to confirm). Takes effect once H-075 wires the hook.
 - H-233 (TEST-033 / AC 12): a Replace import calls `removeTestDecks` in the same commit; imports now resolve against `CardData.loadApiCatalog()` so a Replace over test data writes the real `catalogVersion` (gap found: it would have written `'generated'`).

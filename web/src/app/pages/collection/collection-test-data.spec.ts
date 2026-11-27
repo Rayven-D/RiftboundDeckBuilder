@@ -34,7 +34,7 @@ const OWN_DECK: UserDeck = {
   catalogVersion: '0.2',
   legend: null,
   champion: null,
-  main: [],
+  main: [{ cardKey: 'gust', name: 'Gust', qty: 1 }],
   sideboard: [],
   runes: [],
   battlefields: [],
@@ -57,7 +57,7 @@ async function setup(o: Opts = {}) {
   fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('no /api in this test'));
   if (o.ownDeck) {
     await stores.decks.create(OWN_DECK);
-    await stores.locks.save({ schemaVersion: 1, updatedAt: '', locks: [{ deckId: OWN_DECK.id, lockedAt: OWN_DECK.createdAt }] });
+    await stores.locks.save({ schemaVersion: 2, updatedAt: '', locks: [{ deckId: OWN_DECK.id, cardKey: 'gust', lockedAt: OWN_DECK.createdAt }] });
   }
   if (o.realCards)
     await stores.collection.save({
@@ -71,7 +71,7 @@ async function setup(o: Opts = {}) {
     providers: [
       provideRouter(routes, withComponentInputBinding()),
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
-      { provide: AppStores, useValue: { stores } },
+      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
       { provide: TEST_DATA_ENABLED, useValue: o.flag ?? true },
       // Signed out: the real gate, decided from an empty sync log (SYNC-009).
       ...(o.signedOut ? [] : [provideOpenGate()]),

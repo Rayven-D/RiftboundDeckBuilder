@@ -44,7 +44,7 @@ async function setup(url: string, s: Setup = {}) {
   if (sample?.collection) await stores.raw.collection.save(sample.collection);
   for (const d of sample?.decks ?? []) await stores.raw.decks.put(d);
   if (sample?.locks)
-    await stores.raw.locks.save({ schemaVersion: 1, updatedAt: '', locks: sample.locks });
+    await stores.raw.locks.save({ schemaVersion: 2, updatedAt: '', locks: sample.locks });
   if (s.corruptCollection) backend.set(STORAGE_KEYS.collection, '{not json');
   if (s.corruptLocks)
     backend.set(
@@ -66,7 +66,7 @@ async function setup(url: string, s: Setup = {}) {
     providers: [
       provideRouter(routes, withComponentInputBinding()),
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
-      { provide: AppStores, useValue: { stores } },
+      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
       { provide: CardData, useValue: cardData },
       // Signed in and synced: the gate is open (SPEC-010 SYNC-009). The gate is covered in pages/gated-pages.spec.ts.
       provideOpenGate(),

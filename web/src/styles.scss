@@ -406,21 +406,20 @@ html {
   }
 }
 
-/* H-101: on phones the fixed tab bar is always shown, so lift every snack bar above it: bar height + its
- * hairline + safe-area inset + space-2 gap. Bottom margin only; Material keeps its side/top margins and width.
- * The class is doubled (0,2,0) because Material's `.mat-mdc-snack-bar-container { margin: 8px }` is (0,1,0)
- * and loads after this file, so a single class would tie and lose. No !important.
- * The margin makes the CDK overlay pane grow over the bar, so the pane is click-through and only the snack
- * bar itself takes taps. Matched with :has(), not .mat-mdc-snack-bar-handset: 600-640px panes lack that class. */
-@media (max-width: 40rem) {
-  .cdk-overlay-pane:has(> .mat-mdc-snack-bar-container) {
-    pointer-events: none;
-  }
+/* H-671 (RJ 2026-11-26): every notice opens at the top (MAT_SNACK_BAR_DEFAULT_OPTIONS in app.config), centred, at
+ * every width, just under the sticky header so it never covers the header or the account control: header height +
+ * the phone's top safe-area inset + space-2 gap. Top margin only; Material keeps its side margins and width. (This
+ * replaces H-101's bottom lift over the phone tab bar and the floating button's clearance, both only needed at the
+ * bottom.) The class is doubled (0,2,0) because Material's `.mat-mdc-snack-bar-container { margin: 8px }` is
+ * (0,1,0) and loads after this file. The margin makes the CDK overlay pane grow over the header, so the pane is
+ * click-through and only the snack bar itself takes taps. */
+.cdk-overlay-pane:has(> .mat-mdc-snack-bar-container) {
+  pointer-events: none;
+}
 
-  .mat-mdc-snack-bar-container.mat-mdc-snack-bar-container {
-    margin-bottom: calc(var(--tabbar-height) + var(--tabbar-border) + env(safe-area-inset-bottom) + var(--space-2));
-    pointer-events: auto;
-  }
+.mat-mdc-snack-bar-container.mat-mdc-snack-bar-container {
+  margin-top: calc(var(--header-height) + env(safe-area-inset-top) + var(--space-2));
+  pointer-events: auto;
 }
 
 /* SPEC-010 SYNC-150 (g), H-246: on phones the account menu opens upward from the tab bar's account tab. Its right
@@ -444,8 +443,7 @@ html {
  * its floating button (`app-page-fab` sets html.has-fab), (1) the page reserves the button's room above the footer,
  * inside <main> (its height plus 16px on each side), so scrolled to the end the button docks between the last row and
  * the footer and nothing sits below the footer; scroll-padding keeps a tile focused by keyboard clear of the button at
- * rest; (2) snack bars (the import Undo, the export notice) sit above it at every width, docked or not (`--fab-dock`,
- * set on <html> by the button). The panes are click-through, as H-101, so the grown pane never covers the button.
+ * rest. (2) H-671: snack bars open at the top now, so they need no clearance above the button any more.
  */
 html.has-fab {
   --fab-clearance: calc(var(--space-5) + var(--fab-size) + var(--space-3));
@@ -462,15 +460,6 @@ html.has-fab {
 
 html.has-fab .site-main {
   padding-bottom: calc(var(--fab-size) + 2 * var(--space-4));
-}
-
-html.has-fab .cdk-overlay-pane:has(> .mat-mdc-snack-bar-container) {
-  pointer-events: none;
-}
-
-html.has-fab .mat-mdc-snack-bar-container.mat-mdc-snack-bar-container {
-  margin-bottom: calc(var(--fab-clearance) + var(--fab-dock, 0px));
-  pointer-events: auto;
 }
 
 body {

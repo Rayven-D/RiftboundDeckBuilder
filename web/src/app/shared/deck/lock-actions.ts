@@ -25,7 +25,7 @@ import {
 } from '../../core/decks';
 import { Icon } from '../icon';
 import { noticeOptions } from '../sync/notice';
-import { LOCK_TEXT, deckLockCheck, lockedInNotice, otherDecksLine, unlockedNotice } from './deck-locks';
+import { LOCK_TEXT, cantLockDeckNotice, deckLockCheck, lockedInNotice, otherDecksLine, unlockedNotice } from './deck-locks';
 import { DeckLocks } from './deck-locks.service';
 import { LockInDialog, LockInDialogData } from './lock-in-dialog';
 
@@ -35,6 +35,10 @@ let nextId = 0;
  * SPEC-008 SHARE-020…023, SHARE-029 / SPEC-005 OWN-116 Lock in / Unlock ([[Decks Components]] §7), built in H-060
  * for the Deck detail header (H-254) to drop in. It saves through `DeckLocks` and shows its own confirmation and
  * snack bars; the page recomputes on `DeckLocks.changed` (or the `changed` output).
+ *
+ * SPEC-008 v0.6 (H-665): this is the **deck-level** control. Lock in creates a name lock on every counted name not
+ * locked yet (SHARE-084; a partly locked deck counts as not locked, so it shows Lock in and needs to be complete);
+ * Unlock removes only this deck's name locks. "Locked" = every name locked (SHARE-083).
  *
  * - **Lock in** (unlocked deck): filled, `lock` icon. Enabled only when `canLock()` is ok. Otherwise it stays
  *   focusable (`aria-disabled`, `disabledInteractive`) and the SHARE-020 reason is visible text under the actions,
@@ -74,7 +78,7 @@ let nextId = 0;
         [matTooltip]="iconLabel()"
         matTooltipPosition="below"
         [matTooltipShowDelay]="300"
-        (click)="locked() ? unlock() : lockIn()"
+        (click)="locked() ? unlock() : missingCards() !== null ? cantLock() : lockIn()"
       >
         @switch (locked()) {
           @case (true) {
@@ -118,7 +122,13 @@ let nextId = 0;
       </div>
     }
     @if (reason(); as r) {
-      <p class="reason" [id]="reasonId"><app-icon name="help" /><span>{{ r }}</span></p>
+      @if (variant() === 'icon') {
+        <!-- H-670 (RJ 2026-11-26 "Remove it to save space"): no visible reason line under the title; the reason stays
+             the toggle's description for screen readers (aria-describedby), and a missing-cards press gives a notice. -->
+        <span class="visually-hidden" [id]="reasonId">{{ r }}</span>
+      } @else {
+        <p class="reason" [id]="reasonId"><app-icon name="help" /><span>{{ r }}</span></p>
+      }
     }
   `,
   styles: `
@@ -162,10 +172,13 @@ let nextId = 0;
     :host(.variant-icon) {
       display: contents;
     }
-    :host(.variant-icon) .reason {
-      order: 1;
-      flex: 0 0 100%;
-      margin-top: 0;
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
     }
     .lock-toggle {
       display: inline-grid;
@@ -249,9 +262,21 @@ export class LockActions {
   );
   /** H-662: the icon toggle's name and tooltip ("Lock deck" / "Unlock deck"). */
   protected readonly iconLabel = computed(() => (this.locked() ? LOCK_TEXT.unlockDeck : LOCK_TEXT.lockDeck));
+  /**
+   * H-670: the deck's missing copies when the toggle can't lock only because cards are missing (`incomplete`); null
+   * otherwise. Then the toggle is operable and pressing it shows "Can't lock. Missing n cards." (no lock happens).
+   */
+  protected readonly missingCards = computed(() => {
+    const c = this.check();
+    if (this.locked() || c.ok || c.reason !== 'incomplete') return null;
+    return this.view().missing.reduce((n, m) => n + m.missing, 0);
+  });
   /** H-662: the same disabled state as the text buttons (Unlock: never while locked() holds, as `locked()` is false
-   *  while the lock store is unreadable; Lock in: whenever there is a reason), and while saving. */
-  protected readonly iconDisabled = computed(() => this.saving() || (!this.locked() && !!this.reason()));
+   *  while the lock store is unreadable; Lock in: whenever there is a reason), and while saving. H-670: not for the
+   *  missing-cards case, which is operable and answers with a notice. */
+  protected readonly iconDisabled = computed(
+    () => this.saving() || (!this.locked() && !!this.reason() && this.missingCards() === null),
+  );
   /** Visible reason line: SHARE-020 for Lock in; SHARE-061 for Unlock while the lock store is unreadable. */
   protected readonly reason = computed(() => {
     if (this.locked()) return null;
@@ -279,13 +304,19 @@ export class LockActions {
     });
     const ok = (await firstValueFrom(ref.afterClosed())) === true;
     if (!ok) return;
-    await this.save(() => this.locks.lockIn(deck.id), lockedInNotice(deck.name));
+    await this.save(() => this.locks.lockDeck(deck), lockedInNotice(deck.name));
+  }
+
+  /** H-670: the toggle on a deck missing cards: an info notice, nothing is locked; aria-pressed stays false. */
+  protected cantLock(): void {
+    if (this.saving()) return;
+    this.snackBar.open(cantLockDeckNotice(this.missingCards() ?? 0), undefined, noticeOptions('info'));
   }
 
   protected async unlock(): Promise<void> {
     if (this.saving() || this.locksUnreadable()) return;
     const deck = this.deck();
-    await this.save(() => this.locks.unlock(deck.id), unlockedNotice(deck.name));
+    await this.save(() => this.locks.unlockDeck(deck.id), unlockedNotice(deck.name));
   }
 
   private async save(run: () => Promise<void>, done: string): Promise<void> {

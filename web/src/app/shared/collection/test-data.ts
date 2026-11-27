@@ -4,7 +4,6 @@
  * bundle with the Collection page.
  */
 import type {
-  DeckLock,
   StoredCollection,
   StoredDeckLocks,
   UserDeck,
@@ -84,7 +83,8 @@ export interface TestLoadPlan {
 
 /**
  * TEST-020 / TEST-021: what Load writes, from the generator's output for `entries`. The collection and decks
- * carry `test-data-<n>` (the dev tool keeps its old values); the two test locks are added to the user's own
+ * carry `test-data-<n>` (the dev tool keeps its old values); the name locks of the two locked test decks (one per
+ * counted name, so each deck is locked, SHARE-083; `schemaVersion: 2`, TEST-021 v0.1.5) are added to the user's own
  * locks (any earlier lock on a test id is replaced). Timestamps are `nowIso`.
  */
 export function planTestLoad(
@@ -98,7 +98,7 @@ export function planTestLoad(
   return {
     collection: { ...sample.collection, updatedAt: nowIso, catalogVersion: marker },
     decks: sample.decks.map((d) => ({ ...d, catalogVersion: marker, createdAt: nowIso, updatedAt: nowIso })),
-    locks: { schemaVersion: 1, updatedAt: nowIso, locks: [...own, ...sample.locks.map((l): DeckLock => ({ ...l }))] },
+    locks: { schemaVersion: 2, updatedAt: nowIso, locks: [...own, ...sample.locks.map((l) => ({ ...l }))] },
   };
 }
 

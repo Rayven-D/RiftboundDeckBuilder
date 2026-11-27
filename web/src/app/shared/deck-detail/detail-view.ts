@@ -222,12 +222,14 @@ export function banText(ban: CardBan): string | null {
   }
 }
 
-/** OWN-033 / SHARE-044 accessible name of a tile or row: name, zone, (unknown), label, ban, preview. H-663: no
- *  other-deck part (the tile and row show none; the card dialog / panel has "Other decks using this card"). */
+/** OWN-033 / SHARE-044 accessible name of a tile or row: name, zone, (unknown), label, lock icon, ban, preview. H-663:
+ *  no other-deck part (the tile and row show none; the card dialog / panel has "Other decks using this card").
+ *  H-665 (SHARE-094 (b), OWN-121 (a), proposal wording): a locked name adds "Locked in this deck" after the label. */
 export function cardAccessibleName(card: OwnershipCard): string {
   const parts = [card.name, ZONE_LABEL[card.zone]];
   if (card.flags.includes('unknown-card')) parts.push('card no longer in the card data');
   if (card.label) parts.push(card.label);
+  if (card.nameLocked) parts.push(NAME_LOCKED_LABEL);
   const ban = banText(card.banStatus);
   if (ban) parts.push(lowerFirst(ban));
   if (card.flags.includes('preview')) parts.push('preview');
@@ -250,15 +252,19 @@ export function allocationLine(card: OwnershipCard): string | null {
     .join(' · ');
 }
 
-/** SHARE-043 / OWN-042 "This deck" lines, word for word. */
-export function breakdownLines(card: OwnershipCard, locked: boolean): string[] {
+/** SHARE-094 (b) proposal wording: the accessible name of a locked name's tile / row lock icon. */
+export const NAME_LOCKED_LABEL = 'Locked in this deck';
+
+/** SHARE-043 / OWN-042 "This deck" lines, word for word; "Locked in by this deck: H" when this deck has a name lock on
+ *  the card (v0.6: per name, not per deck). */
+export function breakdownLines(card: OwnershipCard): string[] {
   const lines = [
     `Owned for decks: ${card.ownedForDecks}${card.ownedExcluded > 0 ? ` (${card.ownedExcluded} more excluded from decks)` : ''}`,
     `Locked by other decks: ${card.lockedByOthers}`,
     `Available to this deck: ${card.available}${card.extra > 0 ? ` (${card.extra} extra)` : ''}`,
     `This deck needs: ${card.cardRequired}`,
   ];
-  if (locked) lines.push(`Locked in by this deck: ${card.heldByThisDeck ?? 0}`);
+  if (card.nameLocked) lines.push(`Locked in by this deck: ${card.heldByThisDeck ?? 0}`);
   return lines;
 }
 

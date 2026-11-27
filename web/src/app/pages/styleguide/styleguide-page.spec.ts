@@ -51,7 +51,7 @@ async function render(): Promise<{ fixture: ComponentFixture<StyleguidePage>; st
     providers: [
       provideRouter([]),
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
-      { provide: AppStores, useValue: { stores } },
+      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
       { provide: CardData, useValue: cardData },
     ],
   });
@@ -139,7 +139,7 @@ describe('StyleguidePage Decks section (H-391)', { timeout: PAGE_TIMEOUT }, () =
     expect(text.some((t) => t.includes('Ready to build'))).toBe(true);
     expect(text.some((t) => t.includes('Partly available') && t.includes('1 banned card'))).toBe(true);
     expect(text.some((t) => t.includes('None available'))).toBe(true);
-    expect(text.some((t) => /Locked · \d+ cards? short/.test(t))).toBe(true);
+    expect(text.some((t) => /cards? short/.test(t))).toBe(false); // H-665: no "Locked · n cards short" any more
     expect(text.some((t) => t.includes('No cards to count'))).toBe(true);
     expect(text.some((t) => t.includes('Read-only'))).toBe(true);
     expect(text.filter((t) => t.includes('Ownership unavailable')).length).toBe(2);
@@ -170,7 +170,8 @@ describe('StyleguidePage Decks section (H-391)', { timeout: PAGE_TIMEOUT }, () =
     const toggles = [...el.querySelectorAll<HTMLButtonElement>('app-lock-actions.variant-icon button.lock-toggle')];
     expect(toggles.map((b) => b.getAttribute('aria-label'))).toEqual(['Lock deck', 'Lock deck', 'Unlock deck']);
     expect(toggles.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'true']);
-    expect(toggles.map((b) => b.getAttribute('aria-disabled'))).toEqual([null, 'true', null]);
+    // H-670: the incomplete deck's toggle is operable (it answers with "Can't lock. Missing n cards.").
+    expect(toggles.map((b) => b.getAttribute('aria-disabled'))).toEqual([null, null, null]);
     // Closed lock (Material `lock`) when locked, open lock (`lock_open`) when not: the shape, not colour alone.
     const kind = (b: HTMLButtonElement) => (/^M240-80q/.test(b.querySelector('path')!.getAttribute('d')!) ? 'lock' : /^M240-640h360/.test(b.querySelector('path')!.getAttribute('d')!) ? 'lock_open' : '?');
     expect(toggles.map(kind)).toEqual(['lock_open', 'lock_open', 'lock']);
