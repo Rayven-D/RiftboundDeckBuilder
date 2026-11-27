@@ -84,6 +84,11 @@ H-085 (filed as H-065 at first; that ID is a different item on `dev`), branch `l
 - Until card data and storage exist, Continue shows the parsed list on the Import page marked "Not saved yet". Empty states link to `/import?type=collection` or `?type=deck`, which opens that dialog.
 - Excel support (`read-excel-file`, MIT) is loaded only when an .xlsx is picked.
 
+## Notices (snack bars): top of the page (RJ, 2026-11-26, H-671)
+- RJ, in chat: "Let's also display the notices at the top of the page instead of the bottom, on all formats (mobile, tablet desktop)" and "All notices, not just the deck ones. All notices will move to the top." **Every notice opens top-centre, just below the sticky header, at every width** (spec: [[Accounts and Sync]] SYNC-161). This **supersedes** the bottom placement and its clearances in [[Brief H-101]] (lift over the phone tab bar), [[Brief H-245 H-246 H-247]] and [[Collection Components]] (notices above the floating Add / Import button): a notice is no longer at the bottom, so nothing at the bottom keeps room for it.
+- **Builder defaults, not RJ's words:** offset = `--header-height` + `env(safe-area-inset-top)` + `--space-2` (7 px under the header measured at 375, 768 and 1280); the pane is click-through; one `NOTICE_POSITION` constant (`shared/sync/notice.ts`, via `noticeOptions()`) is the only place the position lives, and a unit test scans every `snackBar.open(` in `web/src/app` for it. A notice raised from a full-screen dialog shows above it. Kinds, text, lifetime and actions (SYNC-087) are unchanged.
+- The styleguide toggles for the lock (`styleguide-page`) follow the H-670 states: an incomplete deck's toggle is operable with hidden reason text, not `aria-disabled`.
+
 ## Footer notice (RJ, 2026-11-23)
 - Riot's Legal Jibber Jabber statement keeps Riot's wording (it is the required notice, [[Card Data & Images]] #6) but is set at the extra-small size with tight padding, so it takes one or two lines.
 

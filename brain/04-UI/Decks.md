@@ -221,14 +221,15 @@ Decks
 > in the section bar (§13a (5)), and the reason-line alignment decided below (built in H-520).
 > [[Decks Components]] §5 has the sizes.
 ```
-Desktop 1440 (content 1152px), unlocked deck, 3 cards short
+Desktop 1440 (content 1152px), unlocked deck, 3 cards short  (v0.17, H-668 / H-669: no actions block)
 ← Decks
-┌ .header-main (flex 1 1 20rem) ────────────────┐      ┌ .actions (content width, top = name top) ─────────┐
-│ Kennen Tempo [🔓]     (H1, Archivo xl; icon 44px)│      │ [⧉ Copy missing list|▾] [⋮]                       │
-│ 1st, Regional Championship: Europe · Nov 6 –   │      └───────────────────────────────────────────────────┘
-│ Nov 8, 2026 · ASC Evansrhim · Source ↗         │        [🔓] = Lock deck (aria-label); reason line placement: SPEC-005 Open question 21
-│ ⛔ Not legal in Standard today   Rule check     │        ⋮ = Copy deck list, Download .txt, Duplicate,
-│ 34 of 66 copies available · 51%                │            Rename, divider, Delete
+┌ title row (one row at every width; never wraps) ───────────────────────────────────────────────────────┐
+│ Kennen Tempo (H1, Archivo xl, max 2 lines, then "…")                          [🔓 44×44] [⋮ 44×44]    │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+│ 1st, Regional Championship: Europe · Nov 6 –   │        [🔓] = Lock deck (aria-label); no visible reason line (H-670)
+│ Nov 8, 2026 · ASC Evansrhim · Source ↗         │        ⋮ = Copy deck list, Download .txt, Duplicate,
+│ ⛔ Not legal in Standard today   Rule check     │            Rename, divider, Delete
+│ 34 of 66 copies available · 51%                │
 │ 18 of 32 cards fully available                 │
 └────────────────────────────────────────────────┘
 ┌ sticky section bar ──────────────────────────────────────────────────────────────────────────────────┐
@@ -240,7 +241,7 @@ Legend · 1 card · 1 available                          ┌ panel (sticky) ─�
 └─────┘                                                │ info, SHARE-043 breakdown,    │
 Chosen Champion · 1 card · 0 available                 │ printings, other decks        │
 …                                                      │ Missing: lines per section,   │
-Main Deck · 39 cards · 12 available                    │ [⧉ Copy missing list]         │
+Main Deck · 39 cards · 12 available                    │ Missing · 11 copies [⧉ Copy…▾]│  (H-669: heading row, right-aligned; wraps under the heading at 1280)
 ┌────┐┌────┐┌────┐┌────┐┌────┐   5 columns             └───────────────────────────────┘
 │ ×3 ││    ││ ×2 ││    ││ ×3 │
 │art ││art ││art ││art ││art │
@@ -253,7 +254,12 @@ Lightning…  Hextech…
 Locked deck (H-662): the toggle after the name is a closed lock [🔒] = Unlock deck; no badge, no date, no reason line
 │ Kennen Tempo [🔒]                                                    │      [⋮]
 ```
-- **Header from 40rem (H-475, RJ 2026-11-25):** a wrapping flex row (`.header-top`). Left, `.header-main`: name,
+- **v0.17 (H-668 to H-671, RJ 2026-11-26, in chat; SPEC-005 0.17) supersedes the next three bullets and the phone sketch below where they differ:**
+  - **Title row, every width:** name · lock toggle · ⋮ on one row that never wraps; the toggle and ⋮ are 44 × 44 and pinned right (builder default), the name takes the rest and wraps to **2 lines then an ellipsis**. When cut it is `role="button"` `tabindex="0"` `aria-expanded`: tap / Enter / Space shows the full name (the row grows, the buttons stay), blur or Escape returns to 2 lines. A name that fits is not interactive. Focus order: name (when cut), lock toggle, ⋮. There is **no actions row** and no top-right actions block (RJ: "move this menu up to match the name row … Let's utilize that space"; "wrap the long names. If the name exceeds two lines, use ellipses"; "tapping it will reveal the full name. Losing its focus will revert it back to two lines with ellipses").
+  - **Copy missing list is in the Missing area, never the header:** on the Missing panel's heading row, right-aligned, from 64rem (wraps under the heading when it doesn't fit, as at 1280, where the panel is about 290 px wide; a smaller button is not asked for); below 64rem under the missing list (RJ: "This should move into the 'missing' area. Mobile already does this").
+  - **No reason line:** the "Lock in needs every card available: n cards short" line is gone at every width (RJ: "Remove it to save space"); its text is visually hidden, the toggle's `aria-describedby`. An incomplete deck's toggle is operable and shows the notice "Can't lock. Missing `<x>` cards." (x = missing copies). The long H-477 reason-line argument below is history.
+  - **Notices open at the top** of the page, centred under the sticky header, at every width (SPEC-010 SYNC-161).
+- **Header from 40rem (H-475, RJ 2026-11-25; superseded by the v0.17 bullet above for the actions):** a wrapping flex row (`.header-top`). Left, `.header-main`: name,
   description (if any), source line, meta row, summary lines. Right, `.actions`: Copy missing
   list + chevron · More, top-aligned with the name and flush with the content's end edge. **Since H-662 (RJ
   2026-11-26) the lock is the icon toggle right after the name, not a badge in the meta row and not in the actions.** When both sides can't fit (a
@@ -284,19 +290,16 @@ Locked deck (H-662): the toggle after the name is a closed lock [🔒] = Unlock 
   sticky at `top: header + section bar + --space-4`, with `max-height` set to the rest of the
   viewport and its own scroll.
 - **Tablet 40–64rem:** one column. The summary lines stay in the header; the missing list is its own panel under
-  the header and notices, collapsed when it has more than 10 lines (OWN-051). Copy missing list stays in the
-  header actions (the panel's own copy button is phones only).
+  the header, collapsed when it has more than 10 lines (OWN-051). Copy missing list sits under that list (v0.17, H-669: not in the header).
 - **Phone < 40rem:**
 ```
 ← Decks
-Kennen Tempo [🔓]                         lock toggle 44×44 (🔒 closed when locked)
+Kennen Tempo (2 lines max, "…")  [🔓] [⋮]   title row; toggle and ⋮ 44×44, pinned right (🔒 closed when locked)
 1st, Regional Championship: Europe · Nov 6 – 8, 2026 (wraps)
 ⛔ Not legal in Standard today · Rule check
 34 of 66 copies available · 51%
 18 of 32 cards fully available
-[⋮]                                      More 44×44 (no full-width Lock in / Unlock button)
-ⓘ Lock in needs every card available: 3 cards short   (only while disabled; placement: SPEC-005 Open question 21)
-(notices)
+(no reason line since H-670; notices open at the top of the page, H-671)
 ┌ Missing cards ───────────────────┐
 │ ▸ Missing: 14 lines, 32 copies   │   collapsed > 10 lines
 │ [⧉ Copy missing list|▾]          │   44px halves (H-461)
@@ -414,7 +417,7 @@ tiles on desktop). The opener is the tile button with `aria-haspopup="dialog"`, 
 ## 9. Header actions and lock flow (SHARE-020…026, DECK-080…085)
 | Action | Look | Rules |
 |---|---|---|
-| **Lock toggle** (H-662, RJ 2026-11-26; replaces the Lock in and Unlock buttons) | icon-only, right after the deck name: `lock` (closed) when locked, `lock_open` when not; 44 px target; accessible name **"Lock deck"** / **"Unlock deck"**, `aria-pressed`, tooltip with the same text (the names are the builder's, SPEC-005 Open question 21) | Unlocked: `canLock()`; disabled = `aria-disabled="true"` with focus kept, plus the visible reason line from `lockCheckMessage()` tied with `aria-describedby` (placement: SPEC-005 Open question 21). Locked: unlocks at once, no confirmation (SHARE-023); works while ownership is unavailable (SHARE-053c); disabled only when locks are unreadable (SHARE-061) |
+| **Lock toggle** (H-662, RJ 2026-11-26; replaces the Lock in and Unlock buttons) | icon-only, right after the deck name: `lock` (closed) when locked, `lock_open` when not; 44 px target; accessible name **"Lock deck"** / **"Unlock deck"**, `aria-pressed`, tooltip with the same text (the names are the builder's, SPEC-005 Open question 21) | Unlocked: `canLock()`; disabled = `aria-disabled="true"` with focus kept, plus the reason from `lockCheckMessage()` as **visually hidden** text tied with `aria-describedby` (v0.17, H-670: no visible reason line; an `incomplete` deck is not `aria-disabled` and shows the "Can't lock" notice instead). Locked: unlocks at once, no confirmation (SHARE-023); works while ownership is unavailable (SHARE-053c); disabled only when locks are unreadable (SHARE-061) |
 | **Copy missing list** | outlined split button: main = copy (OWN-052); ▾ menu = "Copy as one list" (OWN-053, choice 19) | Hidden when nothing is missing or ownership is unavailable. "Missing list copied" snack |
 | **⋯ More** (`more_vert`, "More actions") | menu | **Export deck**: "Copy deck list" and "Download .txt" (DECK-085) · **Duplicate** (DECK-084) · **Rename** (name, source, notes; DECK-081; choice 14) · divider · **Delete** (danger) |
 
@@ -482,7 +485,7 @@ card controls are disabled with **"Unlock this deck to change its cards"**. Rena
 | D3 | Deck not found | `app-empty-state`: **This deck isn't in your decks** · **It may have been deleted on another device.** · **Back to Decks** (choice 21) | — (spec silent) |
 | D4 | Populated | §6–§8 | OWN-010…055 |
 | D5 | Complete, unlocked | Lock in enabled; missing list reads **All cards available**; Copy missing list hidden | SHARE-020, OWN-051 |
-| D6 | Incomplete | Lock in disabled + reason **Lock in needs every card available: 3 cards short** | SHARE-020 |
+| D6 | Incomplete | Toggle operable, no visible reason line (hidden description "Lock in needs every card available: 3 cards short"); pressing shows the notice **"Can't lock. Missing 7 cards."** (v0.17, H-670) | SHARE-020, SHARE-096 |
 | D7 | Locked | Closed-lock toggle after the name ("Unlock deck"), no badge, no date; "… locked in" labels. Card-edit controls disabled if editing exists (H-662) | SHARE-041, SHARE-025 |
 | D8 | ~~Locked and short~~ (removed in v0.6, H-664) / **Partly locked** | Open toggle ("Lock deck"); locked names show the lock icon; no list badge | SHARE-083, SHARE-094 |
 | D9 | Empty deck (R = 0) | Summary **No cards to count**; every section "No cards in this zone"; Lock in disabled **Lock in needs at least one card** | OWN-050, SHARE-020 |
@@ -714,7 +717,7 @@ the styleguide samples.
    with links, and the card info. Unknown and unavailable variants per §8.
 6. **A6** The summary and missing list match `view.summary` / `view.missing`. Copy missing list
    puts `missingText` on the clipboard and shows "Missing list copied". It's collapsed above 10 lines.
-7. **A7** Lock in is enabled only when `canLock` is ok; otherwise the reason line shows. The
+7. **A7** Lock in is enabled only when `canLock` is ok; otherwise (v0.17) pressing it shows the "Can't lock" notice and no reason line is visible. The
    confirmation copy is verbatim. Lock and Unlock update the header, labels, list tile and other
    decks without a reload.
 8. **A8** States L1–L13 and D1–D18 render as specified.
