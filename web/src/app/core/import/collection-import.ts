@@ -23,7 +23,7 @@ import type { ParseResult } from '../../shared/import/parse-card-list';
 import { EMPTY_SNAPSHOT_AT, StoredCollection } from '../../shared/storage/records';
 import type { PreparedOk } from '../../shared/import/collection-commit';
 import { ReadOnlyAreaError } from '../../shared/sync/tracked-stores';
-import { noticeOptions } from '../../shared/sync/notice';
+import { NOTICE_POSITION, noticeOptions } from '../../shared/sync/notice';
 import { refocusAfterDialog } from '../sync/sync.service';
 import { CardData } from '../cards/card-data';
 import { CollectionCatalogView, LockLoss, computeSharedPool, lockLosses } from '../decks';
@@ -153,6 +153,7 @@ export class CollectionImport implements ImportCommitter {
     const ref = this.snackBar.open(last.message, UNDO_TEXT.action, {
       duration: COMMIT_NOTICE_MS,
       politeness: 'polite',
+      ...NOTICE_POSITION,
     });
     ref.onAction().subscribe(() => void this.undoCommit(last));
   }

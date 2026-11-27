@@ -16,7 +16,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { MatButton, MatIconButton } from '@angular/material/button';
+import { MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatDivider } from '@angular/material/divider';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
@@ -90,7 +90,7 @@ import { LockActions } from '../../shared/deck/lock-actions';
 import { EmptyState } from '../../shared/empty-state';
 import { Icon } from '../../shared/icon';
 import type { StoredPrintingCodes } from '../../shared/storage/records';
-import { noticeOptions } from '../../shared/sync/notice';
+import { NOTICE_POSITION, noticeOptions } from '../../shared/sync/notice';
 import { ReadOnlyAreaError } from '../../shared/sync/tracked-stores';
 
 /**
@@ -180,7 +180,6 @@ function localToday(): string {
     DeckCardContent,
     DeckMissing,
     LockActions,
-    MatButton,
     MatIconButton,
     MatMenu,
     MatMenuItem,
@@ -846,7 +845,7 @@ export class DeckDetail {
     const listFocus = this.listFocus;
     listFocus.request({ kind: 'first' }); // H-462: the first tile, or the empty state's Import deck
     void this.router.navigate(['/decks']);
-    const ref = this.snackBar.open(DETAIL_TEXT.deleted, DETAIL_TEXT.undo, { duration: DELETE_UNDO_MS, politeness: 'polite' });
+    const ref = this.snackBar.open(DETAIL_TEXT.deleted, DETAIL_TEXT.undo, { duration: DELETE_UNDO_MS, politeness: 'polite', ...NOTICE_POSITION });
     ref.onAction().subscribe(async () => {
       try {
         listFocus.request({ kind: 'deck', deckId: removed.id }); // H-462: the restored deck's tile

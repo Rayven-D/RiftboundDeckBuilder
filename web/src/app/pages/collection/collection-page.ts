@@ -70,7 +70,7 @@ import { CollectionImport } from '../../core/import/collection-import';
 import { PageFab } from '../../shared/page-fab';
 import { Icon } from '../../shared/icon';
 import type { StoredPrintingCodes } from '../../shared/storage/records';
-import { noticeOptions } from '../../shared/sync/notice';
+import { NOTICE_POSITION, noticeOptions } from '../../shared/sync/notice';
 import { TEST_TEXT, TestSetId, isTestCollection } from '../../shared/collection/test-data';
 import { TEST_DATA_ENABLED } from '../../core/test-data/test-data-flag';
 import { loadTestData, removeTestData } from '../../core/test-data/test-data-ops';
@@ -622,6 +622,7 @@ export class CollectionPage {
       if (result?.gone) {
         this.snackBar.open('This card is no longer in your collection.', undefined, {
           duration: 6000,
+          ...NOTICE_POSITION,
         });
         const fallback = this.results()[Math.min(this.activeIndex(), this.results().length - 1)];
         if (fallback) this.focusTile(fallback.entryId);
@@ -765,6 +766,6 @@ export class CollectionPage {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     const message = [`Exported ${countLine(out.copies, out.cards)}.`, ...out.notices].join(' ');
-    this.snackBar.open(message, undefined, { duration: 6000 });
+    this.snackBar.open(message, undefined, { duration: 6000, ...NOTICE_POSITION });
   }
 }

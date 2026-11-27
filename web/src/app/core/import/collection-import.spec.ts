@@ -118,6 +118,8 @@ describe('CollectionImport commit and Undo (SPEC-003 IMP-049…052, IMP-072…07
     expect(open).toHaveBeenCalledWith('Added 5 copies of 2 cards.', 'Undo', {
       duration: COMMIT_NOTICE_MS,
       politeness: 'polite',
+      verticalPosition: 'top',
+      horizontalPosition: 'center',
     });
     expect(COMMIT_NOTICE_MS).toBe(10_000);
     expect(written).toHaveBeenCalledTimes(1); // COLL-091: Collection refreshes in place

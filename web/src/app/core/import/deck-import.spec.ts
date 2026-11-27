@@ -162,7 +162,7 @@ describe('SPEC-006 Deck Import save (DeckImport, H-253)', () => {
     const importer = setup();
     const open = vi.spyOn((importer as unknown as { snackBar: { open: (...a: unknown[]) => unknown } }).snackBar, 'open');
     await save(importer);
-    expect(open).toHaveBeenCalledWith('Deck saved.', 'View deck', { duration: SUCCESS_NOTICE_MS, politeness: 'polite' });
+    expect(open).toHaveBeenCalledWith('Deck saved.', 'View deck', { duration: SUCCESS_NOTICE_MS, politeness: 'polite', verticalPosition: 'top', horizontalPosition: 'center' });
   });
 
   it('DECK-092 / AC 15 / AC 29: with 200 decks stored, Save gives DECK_LIMIT, writes nothing and shows no "Deck saved."', async () => {
