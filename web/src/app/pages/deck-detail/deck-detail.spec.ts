@@ -482,21 +482,21 @@ describe('Deck detail (H-254)', () => {
       expect(more.getAttribute('aria-expanded')).toBe('true');
     });
 
-    it('H-475 / H-662: the header actions come after the title and status in the DOM; from 40rem they sit beside them (wrapping flex row); the lock toggle follows the name with its reason line under the title row', async () => {
+    it('H-475 / H-662 / H-668: the title row holds the name, the lock toggle and More actions (focus order name → lock → More); the remaining actions come after the title and status and from 40rem sit beside them', async () => {
       const h = await setup(URL_);
       const header = q(h, 'header.deck-header')!;
       const main = header.querySelector('.header-top > .header-main')!;
       const actions = header.querySelector('.header-top > .actions')!;
       expect(main.nextElementSibling).toBe(actions);
       for (const sel of ['.deck-name', '.meta', '.summary']) expect(main.querySelector(sel)).not.toBeNull();
-      // Focus order (DOM order of the header's controls): back → lock toggle (H-662) → status → Copy missing list → chevron → More.
+      // Focus order (DOM order of the header's controls): back → lock toggle (H-662) → More (H-668) → status → Copy missing list → chevron.
       const controls = Array.from(header.querySelectorAll<HTMLElement>('a, button')).map((b) => b.getAttribute('aria-label') ?? text(b));
-      expect(controls).toEqual(['Decks', 'Lock deck', 'Rule check', 'Copy missing list', 'More copy options', 'More actions']);
-      // H-662: the toggle sits in the title row right after the name; the actions row has no Lock in / Unlock.
+      expect(controls).toEqual(['Decks', 'Lock deck', 'More actions', 'Rule check', 'Copy missing list', 'More copy options']);
+      // H-662: the toggle sits in the title row right after the name; H-668: More is the row's last item.
       const titleRow = main.querySelector('.title-row')!;
       expect(titleRow.firstElementChild!.matches('h1.deck-name')).toBe(true);
-      expect(titleRow.querySelector('h1 + app-lock-actions.variant-icon')).not.toBeNull();
-      expect(actions.querySelector('app-lock-actions')).toBeNull();
+      expect(titleRow.querySelector('h1 + app-lock-actions.variant-icon + button.more')).not.toBeNull();
+      expect(actions.querySelector('app-lock-actions, button.more')).toBeNull();
       // The ban-list and other notices stay below the header.
       expect(header.nextElementSibling!.classList).toContain('notices');
 
@@ -509,11 +509,115 @@ describe('Deck detail (H-254)', () => {
       expect(side.style.getPropertyValue('flex')).toMatch(/^0 0 auto$/);
       // Phones keep the one-column header (no flex row outside the desktop query).
       expect(cssRules((s) => targets(s, 'header-top')).filter((r) => r.media === null).map((r) => r.style.getPropertyValue('display'))).toEqual(['grid']);
-      // H-662: the icon toggle joins the title row and puts its reason under the whole row, on every width.
-      const inRow = cssRules((s) => s.includes('variant-icon') && s.includes('.reason'));
-      expect(inRow.map((r) => r.media)).toEqual([null]);
-      expect(inRow[0].style.getPropertyValue('flex-basis') || inRow[0].style.getPropertyValue('flex')).toContain('100%');
-      expect(cssRules((s) => targets(s, 'title-row')).filter((r) => r.media === null)[0].style.getPropertyValue('flex-wrap')).toBe('wrap');
+      // H-668: the title row never wraps (the buttons keep their place); More is pinned to the right edge.
+      const row = cssRules((s) => s.trim() === '.title-row').filter((r) => r.media === null)[0].style;
+      expect([row.getPropertyValue('flex-wrap'), row.getPropertyValue('align-items')]).toEqual(['nowrap', 'flex-start']);
+      const more = cssRules((s) => s.trim() === '.title-row > .more')[0].style;
+      expect([more.getPropertyValue('flex-grow'), more.getPropertyValue('flex-shrink'), more.getPropertyValue('margin-inline-start')]).toEqual(['0', '0', 'auto']);
+    });
+
+    it('H-668 phone: More actions is on the title row and no actions row is left (Copy missing list stays under the Missing list); targets 44 px', async () => {
+      const h = await setup(URL_, { width: 'phone' });
+      const header = q(h, 'header.deck-header')!;
+      expect(header.querySelector('.header-top > .actions')).toBeNull();
+      expect(header.querySelector('.title-row > button.more[aria-label="More actions"]')).not.toBeNull();
+      const controls = Array.from(header.querySelectorAll<HTMLElement>('.title-row button')).map((b) => b.getAttribute('aria-label'));
+      expect(controls).toEqual(['Lock deck', 'More actions']);
+      expect(q(h, 'app-deck-missing .copy-main')).not.toBeNull();
+      const size = cssRules((s) => s.includes('.more')).filter((r) => r.media?.includes('max-width: 39.99rem'));
+      expect(size.some((r) => r.style.getPropertyValue('width') === '44px' && r.style.getPropertyValue('height') === '44px')).toBe(true);
+      await openMore(h);
+      expect(menuItems().map(text)).toEqual(['Copy deck list', 'Download .txt', 'Duplicate', 'Rename', 'Delete']);
+    });
+
+    describe('H-668 long names: two lines, then an ellipsis; a clamped name can be expanded', () => {
+      const names = {
+        short: 'Kennen Tempo',
+        twoLines: 'Kennen Tempo with the Storm Package and Extra Battlefields',
+        veryLong: 'Kennen Tempo with the Storm Package, Extra Battlefields, a Full Rune Pool and a Sideboard for Every Matchup You Will Meet',
+        oneWord: 'K'.repeat(60),
+      };
+      let overflowing = false;
+      let observers: (() => void)[] = [];
+      beforeEach(() => {
+        observers = [];
+        vi.stubGlobal(
+          'ResizeObserver',
+          class {
+            constructor(private readonly cb: () => void) {}
+            observe() {
+              observers.push(this.cb);
+            }
+            disconnect() {}
+          },
+        );
+        vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(function (this: HTMLElement) {
+          return this.classList.contains('deck-name-text') && overflowing ? 120 : 40;
+        });
+        vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(() => 40);
+      });
+      afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+      });
+      const nameEl = (h: RouterTestingHarness) => q(h, 'h1.deck-name .deck-name-text')!;
+
+      for (const [kind, name] of Object.entries(names)) {
+        it(`H-668 ${kind} name: the clamp class, the full name in the heading text and its title`, async () => {
+          overflowing = kind === 'veryLong' || kind === 'oneWord';
+          const h = await setup(URL_, { decks: [{ ...detailDeck(), name }], width: 'phone' });
+          const h1 = q(h, 'h1.deck-name')!;
+          expect(text(h1)).toBe(name);
+          expect(h1.getAttribute('title')).toBe(name);
+          expect(nameEl(h).classList).toContain('clamped');
+          expect(nameEl(h).getAttribute('tabindex')).toBe(overflowing ? '0' : null);
+          expect(nameEl(h).getAttribute('aria-expanded')).toBe(overflowing ? 'false' : null);
+        });
+      }
+
+      it('H-668 the clamp CSS: two lines (-webkit-line-clamp: 2), overflow hidden; the name breaks anywhere', async () => {
+        await setup(URL_);
+        const clamp = cssRules((s) => s.includes('.deck-name-text.clamped'))[0].style;
+        expect(clamp.getPropertyValue('-webkit-line-clamp') || clamp.getPropertyValue('line-clamp')).toBe('2');
+        expect(clamp.getPropertyValue('overflow')).toBe('hidden');
+        expect(cssRules((s) => s.trim() === '.deck-name')[0].style.getPropertyValue('overflow-wrap')).toBe('anywhere');
+      });
+
+      it('H-668 a clamped name: a tap shows it in full (aria-expanded, no clamp); blur clamps it again; Enter expands, Escape collapses', async () => {
+        overflowing = true;
+        const h = await setup(URL_, { decks: [{ ...detailDeck(), name: names.veryLong }], width: 'phone' });
+        const el = nameEl(h);
+        el.focus();
+        el.click();
+        await settle(h);
+        expect(el.getAttribute('aria-expanded')).toBe('true');
+        expect(el.classList).not.toContain('clamped');
+        el.dispatchEvent(new FocusEvent('blur'));
+        await settle(h);
+        expect(el.getAttribute('aria-expanded')).toBe('false');
+        expect(el.classList).toContain('clamped');
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        await settle(h);
+        expect(el.getAttribute('aria-expanded')).toBe('true');
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await settle(h);
+        expect(el.getAttribute('aria-expanded')).toBe('false');
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+        await settle(h);
+        expect(el.getAttribute('aria-expanded')).toBe('true');
+      });
+
+      it('H-668 a name that fits two lines is not interactive: no tabindex, no role, no expanded state; a tap does nothing', async () => {
+        overflowing = false;
+        const h = await setup(URL_, { decks: [{ ...detailDeck(), name: names.twoLines }], width: 'phone' });
+        const el = nameEl(h);
+        expect(el.getAttribute('tabindex')).toBeNull();
+        expect(el.getAttribute('role')).toBeNull();
+        el.click();
+        await settle(h);
+        expect(el.getAttribute('aria-expanded')).toBeNull();
+        expect(el.classList).toContain('clamped');
+      });
     });
 
     it('H-461 (A13): both halves of Copy missing list are 44px tall on phones / touch (header split and the Missing copy), 40px on desktop', async () => {
@@ -1070,18 +1174,10 @@ describe('Deck detail (H-254)', () => {
       expect(document.title).toBe('Deck detail · Rift Builder');
     });
 
-    it('H-520 / H-662: the Lock in reason line sits under the title row on every width, start-aligned, the row\'s full width (basis 100%, no grow)', async () => {
-      await setup(URL_);
-      const reason = cssRules((s) => s.includes('variant-icon') && s.includes('.reason'));
-      expect(reason.map((r) => r.media)).toEqual([null]);
-      const st = reason[0].style;
-      expect(st.getPropertyValue('flex-grow')).toBe('0');
-      expect(st.getPropertyValue('flex-basis')).toBe('100%');
-      expect(st.getPropertyValue('order')).toBe('1');
-      // The reason itself is a start-aligned flex line (icon + text).
-      const base = cssRules((s) => s.trim() === '.reason')[0].style;
-      expect(base.getPropertyValue('justify-content')).toBe('');
-      expect(base.getPropertyValue('text-align')).toBe('');
+    it('H-520 / H-670: no visible Lock in reason line under the title (RJ "Remove it to save space"); the desktop actions row starts its lines', async () => {
+      const h = await setup(URL_);
+      expect(cssRules((s) => s.includes('variant-icon') && s.includes('.reason'))).toEqual([]);
+      expect(q(h, '.title-row .reason')).toBeNull();
       // The header's desktop actions row still starts its lines (H-520).
       const row = cssRules((s) => s.trim() === '.header-top > .actions').find((r) => r.media === '(min-width: 40rem)')!;
       expect(row.style.getPropertyValue('justify-content')).toBe('flex-start');

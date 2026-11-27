@@ -254,6 +254,13 @@ export class DeckDetail {
     const v = this.view();
     return !!v && v.ownershipAvailable && v.missing.length > 0;
   });
+  /** H-668: the deck name shows in full (a tap on a clamped name); clamped again on blur or Escape. */
+  protected readonly nameExpanded = signal(false);
+  /** H-668: the clamped name overflows its two lines (measured on render and resize). */
+  protected readonly nameOverflows = signal(false);
+  /** H-668: the name is a toggle only when it is (or was, while expanded) actually clamped. */
+  protected readonly nameInteractive = computed(() => this.nameOverflows() || this.nameExpanded());
+  private readonly nameText = viewChild<ElementRef<HTMLElement>>('nameText');
   protected readonly descExpanded = signal(false);
   protected readonly descOverflows = signal(false);
   private readonly desc = viewChild<ElementRef<HTMLElement>>('desc');
@@ -299,6 +306,7 @@ export class DeckDetail {
         this.tab.set('card');
         this.active.set({});
         this.descExpanded.set(false);
+        this.nameExpanded.set(false);
         this.banDismissed.set(false);
         this.loadedId = null;
         void this.load(id, true);
@@ -323,6 +331,22 @@ export class DeckDetail {
       const phase = this.phase();
       if (phase === 'ready' && d) this.title.setTitle(`${d.deck.name} · Rift Builder`);
       else if (phase === 'not-found') this.title.setTitle('Deck detail · Rift Builder');
+    });
+
+    // H-668: the name is interactive only when the two-line clamp actually cuts it (no polling: ResizeObserver).
+    effect((onCleanup) => {
+      const el = this.nameText()?.nativeElement;
+      if (!el || typeof ResizeObserver === 'undefined') {
+        this.nameOverflows.set(false);
+        return;
+      }
+      const measure = () => {
+        if (!untracked(this.nameExpanded)) this.nameOverflows.set(el.scrollHeight > el.clientHeight + 1);
+      };
+      const ro = new ResizeObserver(measure);
+      ro.observe(el);
+      measure();
+      onCleanup(() => ro.disconnect());
     });
 
     // OWN-010 (c): "Show more" only when the description is longer than three lines.
@@ -857,6 +881,28 @@ export class DeckDetail {
   /** `app-lock-actions` saved a change: recompute (DeckLocks.changed does the same; the reload is coalesced). */
   protected lockChanged(): void {
     this.scheduleReload();
+  }
+
+  /** H-668: a tap (or Enter / Space) on a clamped name shows it in full, or clamps it again. */
+  protected toggleName(): void {
+    if (!this.nameInteractive()) return;
+    this.nameExpanded.update((x) => !x);
+  }
+
+  protected onNameKey(e: KeyboardEvent): void {
+    if (!this.nameInteractive()) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      this.toggleName();
+    } else if (e.key === 'Escape' && this.nameExpanded()) {
+      e.preventDefault();
+      this.nameExpanded.set(false);
+    }
+  }
+
+  /** H-668: losing focus clamps the name again (tapping elsewhere, Tab away). */
+  protected collapseName(): void {
+    this.nameExpanded.set(false);
   }
 
   protected toggleDesc(): void {

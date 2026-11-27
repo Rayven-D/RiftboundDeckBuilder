@@ -180,11 +180,6 @@ let nextId = 0;
       clip-path: inset(50%);
       white-space: nowrap;
     }
-    :host(.variant-icon) .reason {
-      order: 1;
-      flex: 0 0 100%;
-      margin-top: 0;
-    }
     .lock-toggle {
       display: inline-grid;
       flex: none;
