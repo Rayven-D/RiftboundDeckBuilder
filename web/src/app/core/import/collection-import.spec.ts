@@ -1,3 +1,5 @@
+import { Subject } from 'rxjs';
+import { provideTestStores } from '../../core/storage/testing/test-stores';
 import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
@@ -28,6 +30,7 @@ function setup(catalogError = false): CollectionImport {
   stores = createBrowserStores(backend, { now: () => clock, changed: () => undefined, readOnly: () => false });
   const result = (): CatalogResult => (catalogError ? { status: 'error' } : { status: 'ok', catalog: CATALOG });
   const cardData: Partial<CardData> = {
+    sourceChanged: new Subject<void>(), // H-679
     // While test data is stored the app's catalog is the generated one (TEST-024); imports read the /api one.
     loadCatalog: async (): Promise<CatalogResult> =>
       isTestCollection(await stores.raw.collection.load())
@@ -39,7 +42,7 @@ function setup(catalogError = false): CollectionImport {
   TestBed.configureTestingModule({
     providers: [
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
-      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
+      provideTestStores(stores),
       { provide: CardData, useValue: cardData },
     ],
   });

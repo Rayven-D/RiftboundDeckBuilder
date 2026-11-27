@@ -48,6 +48,15 @@ export const TEST_TEXT = {
     'This removes the invented cards and the three test decks from your account. Your own decks are not touched.',
   removed: 'Test data removed.',
   addBlocked: "Remove your test data before adding cards, so test and real cards don't mix.",
+  /** SPEC-013 v0.2 TEST-063 (RJ-approved 2026-11-26): signed out, the sets go into memory only. */
+  guestBanner: "You're trying Rift Builder with test data. Nothing is saved: it's gone when you reload.",
+  /** TEST-060 (proposal wording). */
+  guestDialogText:
+    "Try Rift Builder with invented cards. These are not real cards. Nothing is saved: it's gone when you reload.",
+  /** TEST-064 (a). */
+  guestRemoveText: 'This removes the invented cards and decks from this page.',
+  /** TEST-064 (b): the TEST-022 question without its second sentence. */
+  guestReplaceQuestion: (set: TestSetId) => `Replace your test data with the ${set === 'small' ? 'Small' : 'Large'} set?`,
 } as const;
 
 export const testMarker = (entries: number): string => `${TEST_MARKER_PREFIX}${entries}`;

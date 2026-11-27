@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { SignInGate } from '../../core/sync/sign-in-gate';
 import { SignInPanel } from '../../core/sync/sign-in-panel';
 import { CollectionPage } from './collection-page';
+import { GuestLoad } from './guest-load';
 
 /**
  * SPEC-010 SYNC-009: the `/collection` route. While the gate is not open it shows the page header
@@ -10,16 +11,16 @@ import { CollectionPage } from './collection-page';
  */
 @Component({
   selector: 'app-collection-gate',
-  imports: [CollectionPage, SignInPanel],
+  imports: [CollectionPage, GuestLoad, SignInPanel],
   template: `
-    @if (gate.open()) {
+    @if (gate.content()) {
       <app-collection-page />
     } @else {
       <header class="page-header">
         <h1>Collection</h1>
         <p class="page-lede">Every card you own.</p>
       </header>
-      <app-sign-in-panel />
+      <app-sign-in-panel><app-guest-load /></app-sign-in-panel>
     }
   `,
 })

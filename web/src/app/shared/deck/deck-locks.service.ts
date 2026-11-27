@@ -24,7 +24,10 @@ import {
 @Injectable({ providedIn: 'root' })
 export class DeckLocks {
   private readonly app = inject(AppStores);
-  private readonly store: DeckLockStore = this.app.stores.locks;
+  /** Read on each use: guest test data (H-679) switches `stores` to memory-only stores. */
+  private get store(): DeckLockStore {
+    return this.app.stores.locks;
+  }
   /** Clock seam for tests. */
   now: () => string = () => new Date().toISOString();
 

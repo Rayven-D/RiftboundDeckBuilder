@@ -2,12 +2,13 @@
  * Deck detail `/decks/:id` end to end over real tracked stores and a fixed catalog (SPEC-005 OWN-010, OWN-011,
  * OWN-050…053, OWN-110…119; ACs 7, 8, 17, 27…31, 33; SPEC-006 DECK-081…085, ACs 27…29; SPEC-008 SHARE-025, AC 22).
  */
+import { provideTestStores } from '../../core/storage/testing/test-stores';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { of } from 'rxjs';
+import { Subject, of } from 'rxjs';
 import { routes } from '../../app.routes';
 import { CardData, CatalogResult } from '../../core/cards/card-data';
 import { lock, makeDeck, makeInput } from '../../core/decks/engine-fixtures';
@@ -79,6 +80,7 @@ async function setup(url: string, s: Setup = {}) {
     value: { writeText: async (t: string) => void clipboard.push(t) },
   });
   const cardData: Partial<CardData> = {
+    sourceChanged: new Subject<void>(), // H-679
     loadCatalog: async (): Promise<CatalogResult> => (s.catalogError ? { status: 'error' } : { status: 'ok', catalog: DETAIL_CATALOG }),
     reload: async (): Promise<CatalogResult> => ({ status: 'ok', catalog: DETAIL_CATALOG }),
     loadBans: async () => null,
@@ -88,7 +90,7 @@ async function setup(url: string, s: Setup = {}) {
     providers: [
       provideRouter(routes, withComponentInputBinding()),
       provideOpenGate(),
-      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
+      provideTestStores(stores),
       { provide: CardData, useValue: cardData },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       { provide: BreakpointObserver, useValue: breakpoints(s.width ?? 'desktop') },

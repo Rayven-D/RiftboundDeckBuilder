@@ -2,6 +2,8 @@
  * `/decks` "Import deck" (SPEC-005 OWN-008, OWN-094; SPEC-006 DECK-001; SPEC-010 SYNC-159; H-176). Gate open; the
  * gate itself is covered in pages/gated-pages.spec.ts.
  */
+import { Subject } from 'rxjs';
+import { provideTestStores } from '../../core/storage/testing/test-stores';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
@@ -10,7 +12,6 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../../app.routes';
 import { CardData, CatalogResult } from '../../core/cards/card-data';
 import { makeCatalog, makeDeck } from '../../core/decks/engine-fixtures';
-import { AppStores } from '../../core/storage/app-stores';
 import { createBrowserStores } from '../../core/storage/browser-stores';
 import { MemoryBackend } from '../../core/storage/kv-backend';
 import { provideOpenGate } from '../../core/sync/testing/open-gate';
@@ -27,6 +28,7 @@ async function setup(url: string, decks = 0) {
     await stores.raw.decks.put(makeDeck(`00000000-0000-4000-9000-${String(i).padStart(12, '0')}`, `Deck ${i}`, { main: [['Gust', 1]] }));
   }
   const cardData: Partial<CardData> = {
+    sourceChanged: new Subject<void>(), // H-679
     loadCatalog: async (): Promise<CatalogResult> => ({ status: 'ok', catalog: CATALOG }),
     reload: async (): Promise<CatalogResult> => ({ status: 'ok', catalog: CATALOG }),
     loadBans: async () => null,
@@ -36,7 +38,7 @@ async function setup(url: string, decks = 0) {
       { provide: CardData, useValue: cardData },
       provideRouter(routes, withComponentInputBinding()),
       provideOpenGate(),
-      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
+      provideTestStores(stores),
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
     ],
   });

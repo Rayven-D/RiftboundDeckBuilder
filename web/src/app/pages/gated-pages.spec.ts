@@ -12,6 +12,7 @@ import { routes } from '../app.routes';
 import { AppStores } from '../core/storage/app-stores';
 import { STORAGE_KEYS } from '../core/storage/local-stores';
 import { SignInGate } from '../core/sync/sign-in-gate';
+import { GuestTestData } from '../core/test-data/guest-test-data';
 import { GATE_TEXT } from '../core/sync/sign-in-panel';
 import { SYNC_ADAPTERS, SyncService } from '../core/sync/sync.service';
 import { SIGN_IN_INTRO } from '../core/sync/sync-dialogs';
@@ -116,7 +117,8 @@ describe('Sign-in gate on pages (SPEC-010 SYNC-009)', () => {
       expect(section.hasAttribute('aria-label')).toBe(false);
       expect(section.hasAttribute('aria-labelledby')).toBe(false);
       expect(section.getAttribute('role')).toBeNull();
-      expect(buttons(el)).toEqual(['Sign in']);
+      // SPEC-013 v0.2 TEST-060 (H-679): Load test data under Sign in (testDataEnabled is on in this build).
+      expect(buttons(el)).toEqual(['Sign in', 'Load test data']);
       expect(content(el)).toBeNull();
       expect(adapterLoads).toBe(0); // no firebase chunk (SYNC-002)
     });
@@ -496,5 +498,33 @@ describe('Gate opens after sign-in without a reload (SPEC-010 SYNC-009, AC 46 / 
     await vi.waitFor(() => expect(sync.pendingCount()).toBe(0));
     expect(Object.keys((await stores.collection.load())!.cards)).toHaveLength(40);
     expect(db.writeLog).toEqual([['users/uA/state/collection', 'set']]);
+  });
+  it('H-679 TEST-064 (c) / AC 23 guest test data loaded → Sign in: discarded before the first sync, nothing of it uploaded', async () => {
+    localStorage.clear();
+    const db = new FakeFirestore();
+    const auth = new FakeAuth();
+    const remote = new FakeRemote(db);
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter(routes, withComponentInputBinding()),
+        { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote }) },
+      ],
+    });
+    const harness = await RouterTestingHarness.create('/collection');
+    await harness.fixture.whenStable();
+    const app = TestBed.inject(AppStores);
+    const gate = TestBed.inject(SignInGate);
+    const sync = TestBed.inject(SyncService);
+    sync.start();
+    expect(await TestBed.inject(GuestTestData).load('small')).toBe('ok');
+    expect(app.guest()).toBe(true);
+    expect(gate.content()).toBe(true);
+    expect(Object.keys(localStorage).filter((k) => k.startsWith('rift.'))).toEqual([]);
+    await sync.signInWithGoogle();
+    await vi.waitFor(() => expect(gate.state()).toBe('open'));
+    expect(app.guest()).toBe(false);
+    expect(await app.stores.collection.load()).toBeNull();
+    expect(await app.stores.decks.list()).toEqual([]);
+    expect([...db.docs.keys()]).toEqual(['users/uA']);
   });
 });

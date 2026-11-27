@@ -94,6 +94,8 @@ export class CollectionImport implements ImportCommitter {
    * (IMP-073) and an immediate sync starts (SYNC-126 (a) 2); a failed write returns the error and shows nothing.
    */
   async commit(prepared: PreparedOk, mode: CommitMode): Promise<CommitOutcome> {
+    // H-679: imports stay sign-in only; guest test data never takes an import (the pages offer none).
+    if (this.app.guest()) return { status: 'error', message: COMMIT_TEXT.failed };
     let before: StoredCollection | null;
     try {
       before = await this.stores.collection.load();

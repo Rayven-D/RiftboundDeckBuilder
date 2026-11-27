@@ -24,7 +24,9 @@ export type TestLoadOutcome = 'ok' | 'real-cards' | 'error';
 export interface TestLoadDialogData {
   /** Test data is present: choosing a set asks the TEST-022 confirmation first. */
   replacing: boolean;
-  load: (set: TestSetId) => Promise<TestLoadOutcome>;
+  /** H-679: signed out, the set goes into memory only: guest text, and no network is needed (no offline block). */
+  guest?: boolean;
+  load:(set: TestSetId) => Promise<TestLoadOutcome>;
 }
 
 export interface TestConfirmDialogData {
@@ -83,7 +85,7 @@ export async function confirmTestData(dialog: MatDialog, data: TestConfirmDialog
   template: `
     <h2 mat-dialog-title>{{ text.dialogTitle }}</h2>
     <mat-dialog-content>
-      <p>{{ text.dialogText }}</p>
+      <p>{{ data.guest ? text.guestDialogText : text.dialogText }}</p>
       <fieldset class="sets" [disabled]="busy()">
         <legend class="visually-hidden">Test set</legend>
         @for (o of options; track o.id) {
@@ -100,7 +102,7 @@ export async function confirmTestData(dialog: MatDialog, data: TestConfirmDialog
         }
       </fieldset>
       <div role="status">
-        @if (!online()) {
+        @if (!online() && !data.guest) {
           <p class="note">{{ text.offline }}</p>
         }
         @if (error(); as err) {
@@ -182,7 +184,7 @@ export class TestLoadDialog {
   }
 
   protected canLoad(): boolean {
-    return this.chosen() !== null && this.online() && !this.busy();
+    return this.chosen() !== null && (this.online() || !!this.data.guest) && !this.busy();
   }
 
   protected choose(set: TestSetId): void {
@@ -195,7 +197,7 @@ export class TestLoadDialog {
     if (!set || !this.canLoad()) return; // disabledInteractive: a press while disabled does nothing
     if (this.data.replacing) {
       const ok = await confirmTestData(this.dialog, {
-        text: TEST_TEXT.replaceQuestion(set),
+        text: this.data.guest ? TEST_TEXT.guestReplaceQuestion(set) : TEST_TEXT.replaceQuestion(set),
         confirm: 'Replace',
       });
       if (!ok || this.destroyed) return; // TEST-022: Cancel writes nothing

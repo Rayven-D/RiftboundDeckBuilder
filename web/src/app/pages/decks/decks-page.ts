@@ -25,6 +25,9 @@ import type { FormatName, StoredPrintingCodes, StoredTags, UserDeck } from '../.
 import { CollectionImport } from '../../core/import/collection-import';
 import { DeckImport } from '../../core/import/deck-import';
 import { AppStores } from '../../core/storage/app-stores';
+import { GuestBanner } from '../collection/guest-banner';
+import { GuestLoad } from '../collection/guest-load';
+import { GuestTestData } from '../../core/test-data/guest-test-data';
 import { KEY_PREFIX } from '../../core/storage/kv-backend';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
 import { SignInGate } from '../../core/sync/sign-in-gate';
@@ -132,6 +135,8 @@ type Phase = 'loading' | 'empty' | 'ready';
     EmptyState,
     RouterLink,
     SignInPanel,
+    GuestLoad,
+    GuestBanner,
     PageFab,
     FileDrop,
     DeckTile,
@@ -150,6 +155,8 @@ type Phase = 'loading' | 'empty' | 'ready';
 export class DecksPage {
   protected readonly gate = inject(SignInGate);
   private readonly stores = inject(AppStores).stores;
+  /** H-679: signed-out guest test data (memory only): the banner shows and imports stay sign-in only. */
+  protected readonly guest = inject(AppStores).guest;
   private readonly cardData = inject(CardData);
   private readonly locks = inject(DeckLocks);
   private readonly listFocus = inject(DeckListFocus);
@@ -273,7 +280,8 @@ export class DecksPage {
     });
 
     // DECK-098 / OWN-070: a deck saved here, a lock change, or a collection commit in this tab → read again.
-    merge(this.deckImport.saved, this.locks.changed, this.collectionImport.written)
+    // H-679 TEST-070: the catalog source changed (a pull brought test data) or a guest Change set wrote: read again.
+    merge(this.deckImport.saved, this.locks.changed, this.collectionImport.written, this.cardData.sourceChanged, inject(GuestTestData).changed)
       .pipe(takeUntilDestroyed())
       .subscribe(() => this.scheduleReload());
     // OWN-071 / SHARE-064: another tab changed the stores → recompute in place (scroll and focus stay).
@@ -293,7 +301,7 @@ export class DecksPage {
 
     // Read only while the gate is open, so the cache of a signed-out device stays hidden (SYNC-009, OWN-066).
     effect(() => {
-      if (!this.gate.open()) {
+      if (!this.gate.content()) {
         this.ready.set(false);
         this.model.set(null);
         this.phase.set('loading');
@@ -303,7 +311,7 @@ export class DecksPage {
     });
     // SYNC-159 (c): `?import=1` opens the dialog once the page is ready, then leaves the address (no history entry).
     effect(() => {
-      const decision = launchDecision(this.importParam(), this.ready() ? 'ready' : 'waiting');
+      const decision = launchDecision(this.importParam(), this.guest() ? 'cannot' : this.ready() ? 'ready' : 'waiting');
       if (decision === 'none' || decision === 'wait') return;
       untracked(() => {
         this.dropImportParam();
@@ -326,11 +334,11 @@ export class DecksPage {
 
   /** One reload per frame however many keys changed (bursts from another tab coalesce). */
   private scheduleReload(): void {
-    if (this.reloadScheduled || !this.gate.open()) return;
+    if (this.reloadScheduled || !this.gate.content()) return;
     this.reloadScheduled = true;
     const run = () => {
       this.reloadScheduled = false;
-      if (!this.destroyed && this.gate.open()) void this.load(false);
+      if (!this.destroyed && this.gate.content()) void this.load(false);
     };
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
     else setTimeout(run, 0);
@@ -592,6 +600,7 @@ export class DecksPage {
    * empty state's Import deck, else #main, chosen when the dialog closes (H-189: a `?import=1` launch has no FAB yet).
    */
   protected openImport(file?: File): void {
+    if (this.guest()) return; // H-679: imports stay sign-in only
     const opener = dialogOpener(this.doc);
     const deckCommitter = this.deckImport;
     const ref = this.dialog.open<ImportDialog, ImportDialogData, ImportDialogResult>(ImportDialog, {

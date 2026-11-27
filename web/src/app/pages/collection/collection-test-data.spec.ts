@@ -3,12 +3,12 @@
  * and Remove test data, the Add-while-test-data notice and the flag. Real `CardData` (the generated catalog, TEST-024)
  * with `fetch` refusing, so any `/api` call would show "Card data couldn't load".
  */
+import { provideTestStores } from '../../core/storage/testing/test-stores';
 import { TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../../app.routes';
-import { AppStores } from '../../core/storage/app-stores';
 import { BrowserStores, createBrowserStores } from '../../core/storage/browser-stores';
 import { MemoryBackend } from '../../core/storage/kv-backend';
 import { SignInGate } from '../../core/sync/sign-in-gate';
@@ -71,7 +71,7 @@ async function setup(o: Opts = {}) {
     providers: [
       provideRouter(routes, withComponentInputBinding()),
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
-      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
+      provideTestStores(stores),
       { provide: TEST_DATA_ENABLED, useValue: o.flag ?? true },
       // Signed out: the real gate, decided from an empty sync log (SYNC-009).
       ...(o.signedOut ? [] : [provideOpenGate()]),
@@ -125,9 +125,16 @@ describe('Collection page: SPEC-013 test data (H-205)', () => {
     vi.restoreAllMocks();
   });
 
-  it('TEST-001 / AC 1 signed out: the sign-in panel and no Load test data', async () => {
+  it('TEST-001 / AC 1 signed out: the sign-in panel; Load test data only as the H-679 guest option inside it', async () => {
     const h = await setup({ signedOut: true });
-    expect(page(h).querySelector('app-sign-in-panel')).not.toBeNull();
+    const panel = page(h).querySelector('app-sign-in-panel');
+    expect(panel).not.toBeNull();
+    expect(buttonsIn(panel)).toEqual(['Sign in', TEST_TEXT.loadButton]);
+    expect(page(h).querySelector('app-collection-page')).toBeNull();
+  });
+
+  it('TEST-001 signed out with the flag off: the sign-in panel and no Load test data', async () => {
+    const h = await setup({ signedOut: true, flag: false });
     expect(page(h).textContent).not.toContain(TEST_TEXT.loadButton);
   });
 

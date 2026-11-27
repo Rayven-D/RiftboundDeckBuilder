@@ -46,6 +46,8 @@ import { gridMove } from '../../shared/collection/collection-view';
 import { CollectionImport } from '../../core/import/collection-import';
 import { DECK_SAVE_TEXT, DeckImport, NEW_DECK_ID } from '../../core/import/deck-import';
 import { AppStores } from '../../core/storage/app-stores';
+import { GuestTestData } from '../../core/test-data/guest-test-data';
+import { GuestBanner } from '../collection/guest-banner';
 import { KEY_PREFIX } from '../../core/storage/kv-backend';
 import { DeckStoreError, STORAGE_KEYS } from '../../core/storage/local-stores';
 import { refocusAfterDialog } from '../../core/sync/sync.service';
@@ -173,6 +175,7 @@ function localToday(): string {
   selector: 'app-deck-detail',
   imports: [
     RouterLink,
+    GuestBanner,
     EmptyState,
     Icon,
     DeckCardTile,
@@ -200,6 +203,8 @@ export class DeckDetail {
   readonly deckId = input.required<string>();
 
   private readonly app = inject(AppStores);
+  /** H-679: signed-out guest test data (memory only): the guest banner shows (TEST-063). */
+  protected readonly guest = this.app.guest;
   private readonly stores = this.app.stores;
   private readonly cardData = inject(CardData);
   private readonly dialog = inject(MatDialog);
@@ -365,6 +370,9 @@ export class DeckDetail {
     addEventListener('storage', onStorage);
     this.deckImport.saved.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
     this.collectionImport.written.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
+    // H-679: the catalog source changed (a pull brought test data): read again, so "Card data not loaded" clears.
+    this.cardData.sourceChanged.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
+    inject(GuestTestData).changed.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
     // SHARE-029 / SHARE-064: a lock change this tab wrote raises no storage event; recompute in place.
     this.deckLocks.changed.pipe(takeUntilDestroyed()).subscribe(() => this.scheduleReload());
     this.destroyRef.onDestroy(() => {

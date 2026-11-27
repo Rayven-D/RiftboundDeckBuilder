@@ -97,7 +97,7 @@ export class SyncService {
       : statusText(this.status()),
   );
   /** SYNC-150 / SYNC-156: the username from the sync log (`null` = none). Read synchronously at the first frame. */
-  readonly username = signal<string | null>(this.app.stores.log.peek()?.username ?? null);
+  readonly username = signal<string | null>(this.app.account.log.peek()?.username ?? null);
   /** SYNC-154: the first sync of this device completed, so a username can be saved. */
   readonly accountReady = computed(() => this.gate.state() === 'open');
   /** SYNC-096: this device's own unfinished deletion of the signed-in account (Try again, Cancel deletion). */
@@ -113,7 +113,8 @@ export class SyncService {
     // H-189 finding 9: notices show above a dialog opened after them. Started here (the deferred account control
     // loads this service on every page) rather than at bootstrap, so MatDialog stays out of the initial bundle.
     inject(NoticeLayer);
-    const stores = this.app.stores;
+    // The account cache only: guest test data (H-679) is in other, memory-only stores the engine never sees.
+    const stores = this.app.account;
     this.engine = new SyncEngine({
       local: stores.raw,
       log: stores.log,
@@ -126,10 +127,14 @@ export class SyncService {
       leaveSignInLink: () => this.leaveSignInLink(),
       onAccountCreated: () => this.promptUsername(),
       onStatus: (s) => {
+        // H-679 / TEST-064 (c): a session for a uid becomes expected (the gate leaves signed-out) or a sign-in
+        // reports a status: guest test data is discarded first; it is never uploaded or merged.
+        if (s.kind !== 'signed-out' || this.engine.gate() !== 'signed-out') this.app.leaveGuest();
         this.status.set(s);
         this.username.set(this.engine.username());
         this.deletion.set(this.engine.unfinishedDeletion());
         this.gate.set(this.engine.gate()); // SYNC-009
+        this.app.externalWrite(); // H-679: a pull, first sync or sign-out may have changed the test marker (CardData)
       },
       withTabLock: tabLock,
       setTimer: (fn, ms) => setTimeout(fn, ms),

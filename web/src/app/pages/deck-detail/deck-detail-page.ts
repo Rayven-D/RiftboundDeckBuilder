@@ -2,6 +2,7 @@ import { Component, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { SignInGate } from '../../core/sync/sign-in-gate';
 import { SignInPanel } from '../../core/sync/sign-in-panel';
+import { GuestLoad } from '../collection/guest-load';
 import { DeckDetail } from './deck-detail';
 
 /**
@@ -11,9 +12,9 @@ import { DeckDetail } from './deck-detail';
  */
 @Component({
   selector: 'app-deck-detail-page',
-  imports: [DeckDetail, RouterLink, SignInPanel],
+  imports: [DeckDetail, GuestLoad, RouterLink, SignInPanel],
   template: `
-    @if (gate.open()) {
+    @if (gate.content()) {
       <app-deck-detail [deckId]="id()" />
     } @else {
       <header class="page-header">
@@ -21,7 +22,8 @@ import { DeckDetail } from './deck-detail';
         <h1>Deck detail</h1>
         <p class="page-lede">Which cards you own and which you're missing.</p>
       </header>
-      <app-sign-in-panel />
+      <!-- SPEC-013 v0.2 TEST-060: a signed-out deck URL with no guest data shows the panel with Load test data. -->
+      <app-sign-in-panel><app-guest-load /></app-sign-in-panel>
     }
   `,
 })

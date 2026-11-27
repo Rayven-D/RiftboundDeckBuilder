@@ -19,7 +19,8 @@ export interface GateActions {
  */
 @Injectable({ providedIn: 'root' })
 export class SignInGate {
-  private readonly current = signal<GateState>(gateState(inject(AppStores).stores.log.peek()));
+  private readonly app = inject(AppStores);
+  private readonly current = signal<GateState>(gateState(this.app.account.log.peek()));
   private actions: GateActions | null = null;
 
   readonly state = this.current.asReadonly();
@@ -27,6 +28,11 @@ export class SignInGate {
   readonly open = computed(() => this.state() === 'open');
   /** Tournaments shows Add to your decks / In your decks / Add another copy only while the gate is open (SYNC-009). */
   readonly deckControls = this.open;
+  /**
+   * H-679: Collection, Decks and deck detail show their content: signed in (the gate is open) or, signed out, with
+   * guest test data loaded (memory only). Imports, deck saves and Tournaments' deck controls follow `open` only.
+   */
+  readonly content = computed(() => this.open() || (this.app.guest() && this.state() === 'signed-out'));
   /** Called by `SyncService` whenever the engine's gate may have changed. */
   set(state: GateState): void {
     this.current.set(state);
