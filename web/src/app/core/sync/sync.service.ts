@@ -157,10 +157,14 @@ export class SyncService {
     addEventListener('online', this.onOnline);
     addEventListener('offline', this.onOffline);
     document.addEventListener('visibilitychange', this.onVisibility);
-    void this.engine.start().then(() => {
-      if (isEmailLinkUrl(location.href)) return this.completeEmailLink();
-      return undefined;
-    });
+    void this.engine
+      .start()
+      .then(() => {
+        if (isEmailLinkUrl(location.href)) return this.completeEmailLink();
+        return undefined;
+      })
+      // H-084: a failed start shows the sync error status and notice, never an unhandled rejection.
+      .catch(() => this.engine.startFailed());
   }
 
   pendingCount(): number {

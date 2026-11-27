@@ -75,11 +75,12 @@ describe('H-116 notice kinds sent by the SyncEngine', () => {
     expect(kindOf(d, MESSAGES.deletedOwn)).toBe('success');
   });
 
-  it('H-116 deleteIncomplete is an error', async () => {
+  it('H-116 / H-084 deleteIncomplete is an error status; the engine sends no notice, the account menu sends the one (assertive, Try again)', async () => {
     const d = await seeded(db);
     d.remote.failDeleteAfter = 1;
     expect(await d.engine.deleteAccount()).toBe('failed');
-    expect(kindOf(d, MESSAGES.deleteIncomplete)).toBe('error');
+    expect(kindOf(d, MESSAGES.deleteIncomplete)).toBeUndefined();
+    expect(d.status).toMatchObject({ kind: 'error', message: MESSAGES.deleteIncomplete });
   });
 
   it('H-116 reauthNeeded is info; deleteNotDone (the user cancelled) is a success', async () => {

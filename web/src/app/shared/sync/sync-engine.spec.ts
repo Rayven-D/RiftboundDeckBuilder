@@ -534,7 +534,8 @@ describe('SyncEngine (SPEC-010)', () => {
       laptop.remote.failDeleteAfter = 5;
       expect(await laptop.engine.deleteAccount()).toBe('failed');
       expect(laptop.auth.deletedUser).toBe(false);
-      expect(laptop.notices).toContain(MESSAGES.deleteIncomplete);
+      expect(laptop.notices).not.toContain(MESSAGES.deleteIncomplete); // H-084: the account menu shows the one notice
+      expect(laptop.status).toMatchObject({ kind: 'error', message: MESSAGES.deleteIncomplete });
       expect(await laptop.engine.deleteAccount()).toBe('ok');
       expect(laptop.auth.calls.filter((c) => c === 'deleteUser')).toHaveLength(1);
       expect([...db.docs.keys()].filter((k) => k.startsWith('users/uA'))).toEqual([]);
