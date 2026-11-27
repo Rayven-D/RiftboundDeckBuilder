@@ -1,60 +1,33 @@
 import { FakeFirestore } from './testing/fakes';
 import { Device, at, card } from './testing/device';
-import { lockedShortfallNotice } from './sync-engine';
-import type { EngineDeps } from './sync-engine';
-import type { LocalSnapshot } from './merge';
+import { lockDropNotice } from './merge';
 
 /**
- * SYNC-074 / H-148: when a sync leaves several locked decks short, the engine sends ONE `info` notice that
- * lists every short locked deck and its shortfall (Material shows one snack bar at a time).
- *
- * The real `shortfalls` hook is SPEC-008 `lockedShortfalls` (wired by H-075). Here a simple stand-in counts
- * each locked deck's missing copies against the collection (no shared pool), and reports decks that got
- * shorter, sorted by name.
+ * SPEC-010 SYNC-068 / SYNC-074 (v0.18, H-665; supersedes H-148's "is now n cards short"): a pull that leaves a
+ * card-name lock short drops that lock (latest first, whole) and the deck's locked status with it, with **no
+ * dialog** and **one** combined `info` notice (H-148's single-notice mechanism, new content, SPEC-008 SHARE-091
+ * proposed wording). The drop is pushed so the other devices get it.
  */
-function shortOf(s: LocalSnapshot, deckId: string): number {
-  const deck = s.decks.find((d) => d.id === deckId);
-  const cards = s.collection && s.collection !== 'unreadable' ? s.collection.cards : {};
-  return (deck?.main ?? []).reduce((n, c) => n + Math.max(0, c.qty - (cards[c.cardKey]?.quantity ?? 0)), 0);
-}
-
-const stubShortfalls: NonNullable<EngineDeps['shortfalls']> = (before, after) => {
-  const locks = after.locks && after.locks !== 'unreadable' ? after.locks.locks : [];
-  return locks
-    .map((l) => ({ deck: after.decks.find((d) => d.id === l.deckId), now: shortOf(after, l.deckId), was: shortOf(before, l.deckId) }))
-    .filter((x) => x.deck && x.now > 0 && x.now > x.was)
-    .map((x) => ({ deckName: x.deck!.name, cardsShort: x.now }))
-    .sort((a, b) => a.deckName.localeCompare(b.deckName));
-};
-
 async function signIn(d: Device, uid = 'uA'): Promise<void> {
   d.auth.nextSignIn = uid;
   await d.engine.signIn('google');
   await d.settle();
 }
 
-describe('SYNC-074 / H-148 lockedShortfallNotice', () => {
-  it('SYNC-074 no short deck: no notice', () => {
-    expect(lockedShortfallNotice([])).toBeNull();
-  });
-
-  it('SYNC-074 one short deck keeps the spec sentence (AC 13)', () => {
-    expect(lockedShortfallNotice([{ deckName: 'Kennen Tempo', cardsShort: 1 }])).toBe(
-      "'Kennen Tempo' (locked) is now 1 card short.",
-    );
-  });
-
-  it('SYNC-074 several short decks: one text listing each deck and its shortfall', () => {
+describe('SHARE-091 lockDropNotice (proposed wording)', () => {
+  it('SHARE-091 one text: the heading, then one sentence per deck (locked / partly locked)', () => {
     expect(
-      lockedShortfallNotice([
-        { deckName: 'Draven Aggro', cardsShort: 2 },
-        { deckName: 'Kennen Tempo', cardsShort: 1 },
+      lockDropNotice([
+        { deck: { name: 'Kennen Tempo' }, wasLocked: true, names: ['Hextech Ray'] },
+        { deck: { name: 'Draven Aggro' }, wasLocked: false, names: ['Lightning Rush', 'Gust'] },
       ]),
-    ).toBe("'Draven Aggro' (locked) is now 2 cards short. 'Kennen Tempo' (locked) is now 1 card short.");
+    ).toBe(
+      "Locks removed after a change on another device. 'Kennen Tempo' is no longer locked: Hextech Ray unlocked. 'Draven Aggro': Lightning Rush, Gust unlocked.",
+    );
   });
 });
 
-describe('SYNC-074 / H-148 SyncEngine sends one shortfall notice per sync', () => {
+describe('SYNC-074 / SPEC-010 AC 13 / SPEC-008 AC 32: SyncEngine drops a lock a pull left short, with one notice', () => {
   let db: FakeFirestore;
   beforeEach(() => {
     db = new FakeFirestore();
@@ -62,11 +35,12 @@ describe('SYNC-074 / H-148 SyncEngine sends one shortfall notice per sync', () =
   });
 
   async function twoDevicesWithLockedDecks() {
-    const laptop = new Device(db, { now: at('09:00'), shortfalls: stubShortfalls });
+    const laptop = new Device(db, { now: at('09:00') });
     await signIn(laptop);
     await laptop.setCard('hextech ray', 3);
+    await laptop.setCard('gust', 2);
     await laptop.setCard('lightning rush', 2);
-    const kennen = await laptop.createDeck('Kennen Tempo', [card('hextech ray', 3)]);
+    const kennen = await laptop.createDeck('Kennen Tempo', [card('hextech ray', 3), card('gust', 2)]);
     const draven = await laptop.createDeck('Draven Aggro', [card('lightning rush', 2)]);
     await laptop.lock(kennen.id);
     await laptop.lock(draven.id);
@@ -76,8 +50,30 @@ describe('SYNC-074 / H-148 SyncEngine sends one shortfall notice per sync', () =
     return { laptop, phone, kennen, draven };
   }
 
-  it('SYNC-074 AC 13 two locked decks going short in one sync get exactly one info notice naming both', async () => {
+  it('SYNC-074 AC 13 the phone lowers Hextech Ray to 2: on the laptop the Hextech Ray lock drops, Gust stays, one info notice, the drop is pushed', async () => {
     const { laptop, phone, kennen, draven } = await twoDevicesWithLockedDecks();
+    phone.now = at('10:00');
+    await phone.setCard('hextech ray', 2);
+    await phone.engine.flush();
+
+    laptop.now = at('10:10');
+    const before = laptop.noticeKinds.length;
+    await laptop.engine.syncNow();
+    await laptop.settle();
+
+    expect(laptop.noticeKinds.slice(before)).toEqual([
+      { message: "Locks removed after a change on another device. 'Kennen Tempo' is no longer locked: hextech ray unlocked.", kind: 'info' },
+    ]);
+    expect(await laptop.lockKeys()).toEqual([`${draven.id}|lightning rush`, `${kennen.id}|gust`].sort());
+    expect(await laptop.quantity('hextech ray')).toBe(2);
+    // (The Device fixture stores each card's name as its cardKey.)
+    // The drop is a lock change: pushed, so the cloud holds the unlock tombstone.
+    expect(db.get('users/uA/state/locks').locks[`${kennen.id}|hextech ray`]).toMatchObject({ lockedAt: null });
+    expect(laptop.notices.join(' ')).not.toContain('cards short');
+  });
+
+  it('SYNC-074 two decks going short in one sync: exactly one notice naming both', async () => {
+    const { laptop, phone } = await twoDevicesWithLockedDecks();
     phone.now = at('10:00');
     await phone.setCard('hextech ray', 2);
     await phone.setCard('lightning rush', 0);
@@ -88,45 +84,28 @@ describe('SYNC-074 / H-148 SyncEngine sends one shortfall notice per sync', () =
     await laptop.engine.syncNow();
     await laptop.settle();
 
-    const shortNotices = laptop.noticeKinds.slice(before).filter((n) => n.message.includes('(locked) is now'));
-    expect(shortNotices).toEqual([
-      {
-        message: "'Draven Aggro' (locked) is now 2 cards short. 'Kennen Tempo' (locked) is now 1 card short.",
-        kind: 'info',
-      },
-    ]);
-    // Both stay locked (SYNC-074: never unlocked automatically).
-    expect((await laptop.lockedIds()).sort()).toEqual([kennen.id, draven.id].sort());
-    expect(await laptop.quantity('hextech ray')).toBe(2);
+    const notices = laptop.noticeKinds.slice(before).filter((n) => n.message.startsWith('Locks removed'));
+    expect(notices).toHaveLength(1);
+    expect(notices[0].message).toContain("'Kennen Tempo' is no longer locked: hextech ray unlocked.");
+    expect(notices[0].message).toContain("'Draven Aggro' is no longer locked: lightning rush unlocked.");
   });
 
-  it('SYNC-074 AC 13 one locked deck going short gets the single-deck sentence', async () => {
-    const { laptop, phone } = await twoDevicesWithLockedDecks();
-    phone.now = at('10:00');
-    await phone.setCard('hextech ray', 2);
-    await phone.engine.flush();
-
-    laptop.now = at('10:10');
-    const before = laptop.noticeKinds.length;
-    await laptop.engine.syncNow();
-    await laptop.settle();
-
-    expect(laptop.noticeKinds.slice(before).filter((n) => n.message.includes('(locked) is now'))).toEqual([
-      { message: "'Kennen Tempo' (locked) is now 1 card short.", kind: 'info' },
-    ]);
-  });
-
-  it('SYNC-074 a sync that leaves no locked deck short sends no shortfall notice', async () => {
+  it('SYNC-074 a pull that only takes free copies changes no lock and sends no notice', async () => {
     const { laptop, phone } = await twoDevicesWithLockedDecks();
     phone.now = at('10:00');
     await phone.setCard('hextech ray', 4);
     await phone.engine.flush();
-
     laptop.now = at('10:10');
+    await laptop.engine.syncNow();
+    await laptop.settle();
+    phone.now = at('10:20');
+    await phone.setCard('hextech ray', 3);
+    await phone.engine.flush();
+    laptop.now = at('10:30');
     const before = laptop.notices.length;
     await laptop.engine.syncNow();
     await laptop.settle();
-
-    expect(laptop.notices.slice(before).filter((m) => m.includes('(locked) is now'))).toEqual([]);
+    expect(laptop.notices.slice(before)).toEqual([]);
+    expect(await laptop.lockKeys()).toHaveLength(3);
   });
 });

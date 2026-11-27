@@ -216,18 +216,21 @@ describe('mergePulled (SPEC-010 sections E and F)', () => {
     });
   });
 
-  describe('decks and locks', () => {
+  describe('decks and locks (SYNC-017 v0.18: one entry per deck and card name)', () => {
     const ldoc = (locks: LocksDoc['locks']): LocksDoc => ({ schemaVersion: 1, updatedAt: 1, syncedAt: 1, locks });
-    const locks = (ids: [string, number][]): StoredDeckLocks => ({
-      schemaVersion: 1,
+    const at10 = 36_000_000;
+    const at10_05 = 36_300_000;
+    const K1 = `${D1}|hextech ray`;
+    const locks = (ids: [string, number][], cardKey = 'hextech ray'): StoredDeckLocks => ({
+      schemaVersion: 2,
       updatedAt: 'x',
-      locks: ids.map(([deckId, t]) => ({ deckId, lockedAt: new Date(t).toISOString() })),
+      locks: ids.map(([deckId, t]) => ({ deckId, cardKey, lockedAt: new Date(t).toISOString() })),
     });
 
     it('SYNC-071 a lock on a deck deleted elsewhere is dropped and becomes a pending unlock tombstone (AC 11)', () => {
       const log = emptySyncLog();
       log.knownDecks[D1] = 500;
-      log.locks[D1] = { t: 600, unlocked: false, h: new Date(600).toISOString() };
+      log.locks[K1] = { t: 600, unlocked: false, h: new Date(600).toISOString() };
       const tomb: DeckDoc = { schemaVersion: 1, createdAt: 100, updatedAt: 900, deletedAt: 900, syncedAt: 2 };
       const r = merge({
         local: local({ decks: [deck(D1, 'Kennen Tempo', 500)], locks: locks([[D1, 600]]) }),
@@ -236,40 +239,60 @@ describe('mergePulled (SPEC-010 sections E and F)', () => {
       });
       expect(r.decksDelete).toEqual([D1]);
       expect(r.locks!.locks).toEqual([]);
-      expect(r.log.locks[D1]).toMatchObject({ unlocked: true });
-      expect(r.log.pending.locks).toEqual([D1]);
+      expect(r.log.locks[K1]).toMatchObject({ unlocked: true });
+      expect(r.log.pending.locks).toEqual([K1]);
     });
 
-    it('SYNC-072 a locked deck changed elsewhere keeps its lock and raises the notice (AC 12)', () => {
+    it('SYNC-072 / SHARE-093 / SPEC-010 AC 12: a locked name whose need changed elsewhere is unlocked (pushed); the notice stays', () => {
       const log = emptySyncLog();
-      log.locks[D1] = { t: 600, unlocked: false, h: new Date(600).toISOString() };
+      log.locks[K1] = { t: 600, unlocked: false, h: new Date(600).toISOString() };
       const changed = deckToDoc(deck(D1, 'Kennen Tempo', 700, [{ cardKey: 'hextech ray', name: 'Hextech Ray', qty: 4 }]));
       const r = merge({
-        local: local({ decks: [deck(D1, 'Kennen Tempo', 500)], locks: locks([[D1, 600]]) }),
+        local: local({ collection: coll({ 'hextech ray': { quantity: 3, byPrinting: {} } }), decks: [deck(D1, 'Kennen Tempo', 500)], locks: locks([[D1, 600]]) }),
         log,
         pulled: { decks: { [D1]: changed }, fullRead: false },
       });
       expect(r.decksPut[0].main[0].qty).toBe(4);
+      expect(r.locks!.locks).toEqual([]);
+      expect(r.log.pending.locks).toEqual([K1]);
+      expect(r.notices).toEqual(["'Kennen Tempo' changed on another device while it was locked."]);
+      expect(r.notices.join(' ')).not.toContain('cards short');
+    });
+
+    it('SYNC-072 a deck changed elsewhere keeps the name locks whose need did not change', () => {
+      const log = emptySyncLog();
+      log.locks[K1] = { t: 600, unlocked: false, h: new Date(600).toISOString() };
+      const changed = deckToDoc(
+        deck(D1, 'Kennen Tempo', 700, [
+          { cardKey: 'hextech ray', name: 'Hextech Ray', qty: 3 },
+          { cardKey: 'gust', name: 'Gust', qty: 1 },
+        ]),
+      );
+      const r = merge({
+        local: local({ collection: coll({ 'hextech ray': { quantity: 3, byPrinting: {} } }), decks: [deck(D1, 'Kennen Tempo', 500)], locks: locks([[D1, 600]]) }),
+        log,
+        pulled: { decks: { [D1]: changed }, fullRead: false },
+      });
       expect(r.locks).toBeUndefined();
       expect(r.notices).toEqual(["'Kennen Tempo' changed on another device while it was locked."]);
     });
 
-    it('SYNC-073 the later of lock and unlock wins', () => {
+    it('SYNC-073 the later of lock and unlock wins, per (deck, name)', () => {
       const log = emptySyncLog();
-      log.locks[D1] = { t: 1000, unlocked: false, h: new Date(1000).toISOString() };
+      log.locks[K1] = { t: 1000, unlocked: false, h: new Date(1000).toISOString() };
       const r = merge({
         local: local({ decks: [deck(D1, 'K', 1)], locks: locks([[D1, 1000]]) }),
         log,
-        pulled: { locks: ldoc({ [D1]: { lockedAt: null, updatedAt: 1500 } }), decks: {}, fullRead: false },
+        pulled: { locks: ldoc({ [K1]: { lockedAt: null, updatedAt: 1500 } }), decks: {}, fullRead: false },
       });
       expect(r.locks!.locks).toEqual([]);
       const r2 = merge({
         local: local({ decks: [deck(D1, 'K', 1)], locks: locks([[D1, 1000]]) }),
         log,
-        pulled: { locks: ldoc({ [D1]: { lockedAt: null, updatedAt: 900 } }), decks: {}, fullRead: false },
+        pulled: { locks: ldoc({ [K1]: { lockedAt: null, updatedAt: 900 } }), decks: {}, fullRead: false },
       });
       expect(r2.locks).toBeUndefined();
-      expect(r2.log.pending.locks).toEqual([D1]);
+      expect(r2.log.pending.locks).toEqual([K1]);
     });
 
     it('SYNC-075 a merge never creates a lock the cloud does not hold', () => {
@@ -278,6 +301,96 @@ describe('mergePulled (SPEC-010 sections E and F)', () => {
         pulled: { decks: { [D1]: deckToDoc(deck(D1, 'K', 2)) }, fullRead: true },
       });
       expect(r.locks).toBeUndefined();
+    });
+
+    describe('SYNC-074 / SYNC-068 / SHARE-091 (v0.18, H-665): a pulled change that leaves a name lock short', () => {
+      const tempo = deck(D1, 'Kennen Tempo', 1, [
+        { cardKey: 'hextech ray', name: 'Hextech Ray', qty: 3 },
+        { cardKey: 'gust', name: 'Gust', qty: 2 },
+      ]);
+      const synced = () => {
+        const log = emptySyncLog();
+        withCards(log, { 'hextech ray': [100, { quantity: 3, byPrinting: {} }], gust: [100, { quantity: 2, byPrinting: {} }] });
+        log.locks[K1] = { t: 600, unlocked: false, h: new Date(600).toISOString() };
+        log.locks[`${D1}|gust`] = { t: 600, unlocked: false, h: new Date(600).toISOString() };
+        return log;
+      };
+      const tempoLocked = () =>
+        local({
+          collection: coll({ 'hextech ray': { quantity: 3, byPrinting: {} }, gust: { quantity: 2, byPrinting: {} } }),
+          decks: [tempo],
+          locks: { schemaVersion: 2, updatedAt: 'x', locks: [...locks([[D1, 600]]).locks, ...locks([[D1, 600]], 'gust').locks] },
+        });
+
+      it('SPEC-010 AC 13 / SPEC-008 AC 32: the phone lowers Hextech Ray to 2: no dialog, its lock drops (pushed), Gust stays, one notice', () => {
+        const r = merge({
+          local: tempoLocked(),
+          log: synced(),
+          pulled: { collection: cdoc({ 'hextech ray': { q: 2, t: 900, p: {} } }), decks: {}, fullRead: false },
+          absentMeansDeleted: false,
+        });
+        expect(r.collection!.cards['hextech ray'].quantity).toBe(2);
+        expect(r.locks!.locks.map((l) => l.cardKey)).toEqual(['gust']);
+        expect(r.log.locks[K1]).toMatchObject({ unlocked: true });
+        expect(r.log.pending.locks).toEqual([K1]);
+        expect(r.notices).toEqual(["Locks removed after a change on another device. 'Kennen Tempo' is no longer locked: Hextech Ray unlocked."]);
+      });
+
+      it('SHARE-091 a partly locked deck reads "\'<deck>\': <names> unlocked."; only free copies taken: no change, no notice', () => {
+        const partly = tempoLocked();
+        (partly.locks as StoredDeckLocks).locks = locks([[D1, 600]]).locks;
+        const r = merge({
+          local: partly,
+          log: synced(),
+          pulled: { collection: cdoc({ 'hextech ray': { q: 2, t: 900, p: {} } }), decks: {}, fullRead: false },
+          absentMeansDeleted: false,
+        });
+        expect(r.notices).toEqual(["Locks removed after a change on another device. 'Kennen Tempo': Hextech Ray unlocked."]);
+        const free = merge({
+          local: { ...tempoLocked(), collection: coll({ 'hextech ray': { quantity: 5, byPrinting: {} }, gust: { quantity: 2, byPrinting: {} } }) },
+          log: synced(),
+          pulled: { collection: cdoc({ 'hextech ray': { q: 4, t: 900, p: {} } }), decks: {}, fullRead: false },
+          absentMeansDeleted: false,
+        });
+        expect(free.locks).toBeUndefined();
+        expect(free.notices).toEqual([]);
+      });
+
+      it('SYNC-073 / SPEC-008 AC 33: two devices locked one name for different decks: the earlier keeps it, the later drops with the notice', () => {
+        const D2 = '0b7c0000-0000-4000-8000-000000000002';
+        const control = deck(D2, 'Kennen Control', 1);
+        const log = emptySyncLog();
+        withCards(log, { 'hextech ray': [100, { quantity: 3, byPrinting: {} }] });
+        log.locks[`${D2}|hextech ray`] = { t: at10_05, unlocked: false, h: new Date(at10_05).toISOString() };
+        const r = merge({
+          local: local({ collection: coll({ 'hextech ray': { quantity: 3, byPrinting: {} } }), decks: [deck(D1, 'Kennen Tempo', 1), control], locks: locks([[D2, at10_05]]) }),
+          log,
+          pulled: { locks: ldoc({ [K1]: { lockedAt: at10, updatedAt: at10 } }), decks: {}, fullRead: false },
+          absentMeansDeleted: false,
+        });
+        expect(r.locks!.locks.map((l) => l.deckId)).toEqual([D1]);
+        expect(r.log.pending.locks).toEqual([`${D2}|hextech ray`]);
+        expect(r.notices).toEqual(["Locks removed after a change on another device. 'Kennen Control' is no longer locked: Hextech Ray unlocked."]);
+      });
+    });
+
+    it('SYNC-017 migration: an old per-deck cloud entry becomes a lock on every name (same lockedAt, pending), the old key a pending tombstone the push removes', () => {
+      const tempo = deck(D1, 'Kennen Tempo', 1, [
+        { cardKey: 'hextech ray', name: 'Hextech Ray', qty: 3 },
+        { cardKey: 'gust', name: 'Gust', qty: 2 },
+      ]);
+      const r = merge({
+        local: local({ collection: coll({ 'hextech ray': { quantity: 3, byPrinting: {} }, gust: { quantity: 2, byPrinting: {} } }), decks: [tempo] }),
+        pulled: { locks: ldoc({ [D1]: { lockedAt: 600, updatedAt: 600 } }), decks: {}, fullRead: false },
+        absentMeansDeleted: false,
+      });
+      expect(r.locks!.locks).toEqual([
+        { deckId: D1, cardKey: 'hextech ray', lockedAt: new Date(600).toISOString() },
+        { deckId: D1, cardKey: 'gust', lockedAt: new Date(600).toISOString() },
+      ]);
+      expect(r.log.locks[D1]).toMatchObject({ unlocked: true });
+      expect([...r.log.pending.locks].sort()).toEqual([D1, `${D1}|gust`, K1].sort());
+      expect(r.notices).toEqual([]);
     });
 
     it('SYNC-044 a full read removes a local deck missing from the cloud unless it is pending', () => {
