@@ -230,17 +230,12 @@ p {
 }
 
 // H-669: the header's Copy missing list split button moved into the Missing area (app-deck-missing).
+// H-668: on the title row next to the 44 px lock toggle, at least 44 px at every width.
 .more {
-  width: 40px;
-  height: 40px;
-  padding: 8px;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
   font-size: 24px;
-
-  @media (pointer: coarse), (max-width: 39.99rem) {
-    width: 44px;
-    height: 44px;
-    padding: 10px;
-  }
 }
 
 .menu-icon {

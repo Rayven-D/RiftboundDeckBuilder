@@ -531,8 +531,9 @@ describe('Deck detail (H-254)', () => {
       const controls = Array.from(header.querySelectorAll<HTMLElement>('.title-row button')).map((b) => b.getAttribute('aria-label'));
       expect(controls).toEqual(['Lock deck', 'More actions']);
       expect(q(h, 'app-deck-missing .copy-main')).not.toBeNull();
-      const size = cssRules((s) => s.includes('.more')).filter((r) => r.media?.includes('max-width: 39.99rem'));
-      expect(size.some((r) => r.style.getPropertyValue('width') === '44px' && r.style.getPropertyValue('height') === '44px')).toBe(true);
+      // At least 44 px at every width (not only phones / touch).
+      const size = cssRules((s) => s.trim() === '.more');
+      expect(size.map((r) => [r.media, r.style.getPropertyValue('width'), r.style.getPropertyValue('height')])).toEqual([[null, '44px', '44px']]);
       await openMore(h);
       expect(menuItems().map(text)).toEqual(['Copy deck list', 'Download .txt', 'Duplicate', 'Rename', 'Delete']);
     });
@@ -1116,17 +1117,16 @@ describe('Deck detail (H-254)', () => {
       expect(phone.map((r) => r.style.getPropertyValue('min-height'))).toContain('44px');
     });
 
-    it('H-467 (2) / H-662: More and the chevron are 40px with a fine pointer, 44px on phones; the title-row lock toggle is 44 x 44 on every width', async () => {
+    it('H-467 (2) / H-662 / H-668: More (now on the title row) is 44px on every width, like the title-row lock toggle', async () => {
       await setup(URL_);
       // H-662: Lock in / Unlock left the actions row, so no 40px in-row button rule remains.
       expect(cssRules((s) => s.includes('in-row'))).toHaveLength(0);
       const toggle = cssRules((s) => s.trim() === '.lock-toggle').filter((r) => !r.media?.includes('forced-colors'));
       expect(toggle.map((r) => r.media)).toEqual([null]);
       expect(toggle[0].style.getPropertyValue('height')).toBe('44px');
-      // More and the chevron are 40px at rest and 44px on phones / touch.
+      // H-668: More is 44px at every width (it shares the row with the 44px toggle; H-669 removed the header chevron).
       const more = cssRules((s) => targets(s, 'more'));
-      expect(more.find((r) => r.media === null)?.style.getPropertyValue('height')).toBe('40px');
-      expect(more.find((r) => r.media?.includes('pointer: coarse'))?.style.getPropertyValue('height')).toBe('44px');
+      expect(more.map((r) => [r.media, r.style.getPropertyValue('height')])).toEqual([[null, '44px']]);
     });
 
     it('H-468 (4) / (5): More menu icons sit in the menu item\'s icon slot (centred with the text); Duplicate has its own icon, not stacks', async () => {
