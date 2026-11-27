@@ -49,7 +49,7 @@ function setup(opts: { catalogError?: boolean } = {}): DeckImport {
   TestBed.configureTestingModule({
     providers: [
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
-      { provide: AppStores, useValue: { stores } },
+      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
       { provide: CardData, useValue: cardData },
       { provide: Router, useValue: { navigate } },
       { provide: NEW_DECK_ID, useValue: () => `00000000-0000-4000-8000-${String(++ids).padStart(12, '0')}` },

@@ -138,6 +138,7 @@ export class SyncService {
     this.app.connect(
       () => this.engine.scheduleChange(),
       (area) => this.engine.isReadOnly(area),
+      () => this.engine.majorAction(), // SYNC-126
     );
     this.gate.connect({ signIn: (trigger) => void this.openSignIn(trigger), retry: () => void this.syncNow() });
     inject(DestroyRef).onDestroy(() => {
