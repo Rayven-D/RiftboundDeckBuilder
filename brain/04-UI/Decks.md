@@ -20,6 +20,7 @@ specs: ["[[Your Decks Ownership View]]", "[[Shared Cards and Lock-in]]", "[[Deck
 > note wins on behavior.
 
 ## Summary
+- **v0.6 (H-664, RJ 2026-11-26): locks are per card name.** The per-name Lock / Unlock control is in the card dialog only; tiles and rows show a small lock icon for a locked name; a deck is locked when every name is; the "Locked · n cards short" state and its warnings are gone; removals that hit a lock show a confirmation. See §9 "Card-name locks" and §8; the older sections below are corrected where marked.
 - **Decks (`/decks`)** becomes a grid of **deck tiles**: Legend art on the left (*superseded, H-321:* RJ
   picked choice 1 (c), the art **filled left to right by the deck's copies, A of R**, with the user's own
   **completion %** next to it; SPEC-005 0.11.1 OWN-100, OWN-101 (d)), then name, source line, an **ownership chip** (Ready to build /
@@ -174,7 +175,7 @@ Decks
 | `none` (unlocked, R > 0) | neutral outline, `radio_button_unchecked`, **None available** | none | "0 of 66 copies available" |
 | `none` with R = 0 | neutral outline, **None available** | none (or **Locked** if locked) | "No cards to count" |
 | `locked` (locked, complete) | **no chip** | `lock`, **Locked** | "54 of 54 copies locked in" |
-| locked + short (`partial`/`none`) | its group chip, **Partly available** or **None available** | warning outline, `warning`, **Locked · 2 cards short** | "50 of 54 copies locked in" |
+| ~~locked + short~~ (**removed in v0.6, H-664**: a locked deck is never short; a deck with only some names locked is an unlocked row above, no badge) | | | |
 | `unavailable` (after H-155) | no chip | **Locked** if the deck is locked, else none | "Ownership unavailable" |
 
   The chip text for `ready` / `partial` / `none` uses the SHARE-051 filter option names, so the tile
@@ -371,7 +372,8 @@ tiles on desktop). The opener is the tile button with `aria-haspopup="dialog"`, 
 │   Nov 23, 2026  Locked by other decks: 1                          │
 │                 Available to this deck: 1                          │
 │                 This deck needs: 3                                 │
-│                 Locked in by this deck: 3        (locked deck only)│
+│                 Locked in by this deck: 3   (v0.6: when this name is locked) │
+│                 [🔒 Lock these copies]   ← v0.6, H-664: the ONLY place of the Lock / Unlock control │
 │                 Available … (1 extra)            (when extra > 0) │
 │                                                                    │
 │                 Your printings                                     │
@@ -431,9 +433,7 @@ tiles on desktop). The opener is the tile button with `aria-haspopup="dialog"`, 
 
 **Lock status in the header (SHARE-041; changed 2026-11-26, H-662, RJ: "No need to show the date locked,
 just lock/unlocked status"):** only the closed-lock toggle after the name. There is **no "Locked" badge, no
-"Locked in on <date>" and no "Locked · 2 cards short" badge in the header**; the short tiles are still partial or
-darkened by their holds. `lockedAt` stays in the data and is not shown. The **tile** badge (Decks list) is unchanged:
-**Locked** / **Locked · 2 cards short** in `--color-warning` on a warning outline, no date.
+"Locked in on <date>" and no "Locked · 2 cards short" badge in the header** (v0.6: that badge no longer exists at all, a locked deck is never short). `lockedAt` stays in the data and is not shown. The **tile** badge (Decks list) is **Locked** only (v0.6: the "Locked · 2 cards short" variant in `--color-warning` is removed), no date.
 
 **Delete confirmation** (DECK-082, SHARE-024; copy depends on choice 15): title **Delete 'Kennen
 Tempo'?**, body for a locked deck adds **Its locked cards will count toward your other decks
@@ -447,12 +447,14 @@ and stays on the page.
 **Card edits while locked** (SHARE-025): if RJ keeps card editing in scope (choice 14), the editor's
 card controls are disabled with **"Unlock this deck to change its cards"**. Rename stays enabled.
 
-**Shortfall warnings** (SHARE-034) live in Collection's confirmations, not on Decks: the Replace
-import (IMP-050a) and the Undo confirmation (H-158 / H-060). They use one shared block,
-`app-shortfall-warning` ([[Decks Components]] §10): a warning icon, one line per deck **"'Kennen
-Tempo' (locked) will be 2 cards short. It stays locked."**, and after a confirmed Undo the notice
-**"'Kennen Tempo' (locked) is now 2 cards short."** Note: `shortfallWarning()` returns the line
-without " It stays locked." The block appends it, or H-060 fixes the helper.
+**Card-name locks (v0.6, H-664, RJ 2026-11-26; SPEC-008 section I, SPEC-005 OWN-121).** 
+- **Where the control is:** the per-name **Lock / Unlock** button lives **only in the card dialog or panel** (§8), in the SHARE-043 breakdown, under "Available to this deck". Label **"Lock these copies"** / **"Unlock these copies"** (proposal, not RJ's). Disabled (`aria-disabled`, focusable) with the visible reason below it when the name is not fully available: **"Lock needs every copy available: 2 of 3"** (proposal). No confirmation for one name.
+- **On the tile and the row (Card view and List view):** a **small lock icon** (`lock`, 16 px, `--color-text-muted`, never colour alone: it has the accessible name "Locked in this deck", part of the tile's own accessible name) next to the count label, and **no other lock text**; no Lock button, no other-deck line (H-663). The count label of a locked name reads "3 of 3 locked in" (SPEC-008 Open question 10).
+- **The deck toggle** (§9) is closed only when **every** name is locked; a deck with some names locked shows the open toggle ("Lock deck") and no list badge. Pressing it on a partly locked deck locks the names still open (same confirmation). Unlocking a locked deck removes only that deck's name locks.
+- **Snack bars:** locking the last open name shows "Kennen Tempo is locked in."; unlocking one name of a locked deck shows "Kennen Tempo is no longer fully locked." (proposal); locking or unlocking one name otherwise gives none.
+- **Removal confirmation (replaces the shortfall warnings, SHARE-087…089):** appears **inside** the Collection Replace import confirmation (IMP-050) and the Undo confirmation, **only when** the change would take copies a name lock holds (free copies are taken first, so most removals show nothing). Block `app-lock-removal-notice` ([[Decks Components]] §10): a `lock_open` icon, the sentence **"Some of the cards you are removing are locked in your decks. Going on unlocks them:"** (proposal), one line per deck **"'Kennen Tempo': 3 Hextech Ray, 2 Gust"** and, for a locked deck, **"'Kennen Tempo' will no longer be locked."**. A standalone confirmation (a future edit path) is titled **"Unlock cards in your decks?"** with **Cancel** and **Unlock and continue**. Confirm applies; Cancel changes nothing, no notice.
+- **Sync notice (no dialog):** after a pull from another device unlocked names, one notice **"Locks removed after a change on another device."** with one line per deck (proposal; SPEC-010 SYNC-074).
+- **No "cards short" anywhere:** the old "will be 2 cards short. It stays locked." and "is now 2 cards short." strings and the helper `shortfallWarning()` are retired.
 
 ## 10. Screen states
 ### Decks list
@@ -482,7 +484,7 @@ without " It stays locked." The block appends it, or H-060 fixes the helper.
 | D5 | Complete, unlocked | Lock in enabled; missing list reads **All cards available**; Copy missing list hidden | SHARE-020, OWN-051 |
 | D6 | Incomplete | Lock in disabled + reason **Lock in needs every card available: 3 cards short** | SHARE-020 |
 | D7 | Locked | Closed-lock toggle after the name ("Unlock deck"), no badge, no date; "… locked in" labels. Card-edit controls disabled if editing exists (H-662) | SHARE-041, SHARE-025 |
-| D8 | Locked and short | Closed-lock toggle only (no header badge since H-662); short tiles partial or darkened; the tile keeps **Locked · 2 cards short** | SHARE-033, SHARE-041 |
+| D8 | ~~Locked and short~~ (removed in v0.6, H-664) / **Partly locked** | Open toggle ("Lock deck"); locked names show the lock icon; no list badge | SHARE-083, SHARE-094 |
 | D9 | Empty deck (R = 0) | Summary **No cards to count**; every section "No cards in this zone"; Lock in disabled **Lock in needs at least one card** | OWN-050, SHARE-020 |
 | D10 | Ownership unavailable | L6 banner; tiles full color, no labels; Lock in disabled **Ownership unavailable**; Unlock still works; aside shows only the banner sentence | OWN-062, OWN-065, SHARE-053 |
 | D11 | Card data not loaded | Banner **Card data not loaded**; tiles are placeholders with stored names, full color, no labels | OWN-063 |
