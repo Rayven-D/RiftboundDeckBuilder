@@ -236,6 +236,27 @@ describe('ImportDialog review step (Owned Cards Import commit, H-158)', () => {
     expect(commit).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'ok' }), 'add');
   });
 
+  it('H-345 / IMP-072: while the commit runs the review button reads as disabled (aria-disabled) and a second press does nothing', async () => {
+    let release!: () => void;
+    const commit = vi.fn<ImportCommitter['commit']>(
+      () => new Promise((resolve) => (release = () => resolve({ status: 'written' }))),
+    );
+    const { f } = withCommitter(commit);
+    type(f, '1 Gust');
+    click(f, 'Continue');
+    await settle(f);
+    const btn = el(f).querySelector<HTMLButtonElement>('button.commit')!;
+    expect(btn.getAttribute('aria-disabled')).not.toBe('true');
+    btn.click();
+    await settle(f);
+    expect(btn.getAttribute('aria-disabled')).toBe('true');
+    expect(btn.disabled).toBe(false); // stays focusable
+    btn.click();
+    expect(commit).toHaveBeenCalledTimes(1);
+    release();
+    await settle(f);
+  });
+
   it('IMP-027: a list where nothing matches offers no commit', async () => {
     const { f } = withCommitter(vi.fn());
     type(f, '2 Nothing Like It');
