@@ -3,6 +3,8 @@
  * SHARE-050…053, SHARE-061 (ACs 13, 15, 19) and the list states L1…L13 of [[Decks]] §10, over real tracked stores
  * (MemoryBackend) and a stubbed card catalog. Gate open; the gate itself (L1) is pages/gated-pages.spec.ts.
  */
+import { Subject } from 'rxjs';
+import { provideTestStores } from '../../core/storage/testing/test-stores';
 import { TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { Location } from '@angular/common';
@@ -13,7 +15,6 @@ import { CardData, CatalogResult } from '../../core/cards/card-data';
 import { nameKey } from '../../core/cards/name-key';
 import type { BanListFile, UserDeck } from '../../core/decks';
 import { lock, makeCatalog, makeDeck } from '../../core/decks/engine-fixtures';
-import { AppStores } from '../../core/storage/app-stores';
 import { BrowserStores, createBrowserStores } from '../../core/storage/browser-stores';
 import { MemoryBackend } from '../../core/storage/kv-backend';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
@@ -79,6 +80,7 @@ async function setup(s: Setup = {}) {
   let failing = s.catalog === 'error';
   const result = (): CatalogResult => (failing ? { status: 'error' } : { status: 'ok', catalog: CATALOG });
   const cardData: Partial<CardData> = {
+    sourceChanged: new Subject<void>(), // H-679
     loadCatalog: async () => result(),
     reload: async () => {
       failing = false;
@@ -90,7 +92,7 @@ async function setup(s: Setup = {}) {
     providers: [
       provideRouter(routes, withComponentInputBinding()),
       provideOpenGate(),
-      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
+      provideTestStores(stores),
       { provide: CardData, useValue: cardData },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
     ],

@@ -2,7 +2,7 @@
   <h1>Decks</h1>
   <!-- OWN-105 (g) -->
   <p class="page-lede">{{ text.lede }}</p>
-  @if (gate.open()) {
+  @if (gate.content()) {
     @switch (phase()) {
       @case ('ready') {
         <!-- OWN-105 (b): polite status. -->
@@ -27,15 +27,22 @@
 </header>
 
 <!-- SYNC-009 / OWN-066: gated (account-only, SPEC-010 v0.12). -->
-@if (gate.open()) {
-  @if (phase() === 'ready') {
+@if (gate.content()) {
+  @if (phase() === 'ready' && !guest()) {
     <!-- OWN-094 (f): right after the page header, before the list's controls. -->
     <app-page-fab label="Import deck" icon="upload" (pressed)="openImport()" />
   }
 
+  @if (guest()) {
+    <!-- H-679: signed-out guest test data, in the TEST-010 banner style; imports stay sign-in only. -->
+    <app-guest-banner />
+  }
+
   @if (phase() === 'empty') {
     <app-empty-state [heading]="empty.heading" [message]="empty.message">
-      <button #emptyImport type="button" class="button" aria-haspopup="dialog" (click)="openImport()">Import deck</button>
+      @if (!guest()) {
+        <button #emptyImport type="button" class="button" aria-haspopup="dialog" (click)="openImport()">Import deck</button>
+      }
       <a class="button button--outlined" routerLink="/tournaments">Tournaments</a>
     </app-empty-state>
   }
@@ -335,8 +342,8 @@
     }
   }
 } @else {
-  <app-sign-in-panel />
+  <app-sign-in-panel><app-guest-load /></app-sign-in-panel>
 }
 
 <!-- OWN-094 / COLL-094 (i) SHOULD: drop a file to import a deck (gate open, page ready). -->
-<app-file-drop text="Drop to import a deck" [enabled]="ready()" (dropped)="openImport($event)" />
+<app-file-drop text="Drop to import a deck" [enabled]="ready() && !guest()" (dropped)="openImport($event)" />

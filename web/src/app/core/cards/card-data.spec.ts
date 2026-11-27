@@ -1,5 +1,5 @@
+import { provideTestStores } from '../../core/storage/testing/test-stores';
 import { TestBed } from '@angular/core/testing';
-import { AppStores } from '../storage/app-stores';
 import { createBrowserStores } from '../storage/browser-stores';
 import { MemoryBackend } from '../storage/kv-backend';
 import { DEV_SAMPLE_KEY, CardData } from './card-data';
@@ -12,7 +12,7 @@ function setup() {
     changed: () => undefined,
     readOnly: () => false,
   });
-  TestBed.configureTestingModule({ providers: [{ provide: AppStores, useValue: { stores, majorAction: () => undefined } }] });
+  TestBed.configureTestingModule({ providers: [provideTestStores(stores)] });
   return { stores, cardData: TestBed.inject(CardData) };
 }
 

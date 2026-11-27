@@ -1,8 +1,9 @@
+import { Subject } from 'rxjs';
+import { provideTestStores } from '../../core/storage/testing/test-stores';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { provideRouter } from '@angular/router';
 import { CardData, CatalogResult, DEV_SAMPLE_DECKS_KEY, DEV_SAMPLE_KEY } from '../../core/cards/card-data';
-import { AppStores } from '../../core/storage/app-stores';
 import { BrowserStores, createBrowserStores } from '../../core/storage/browser-stores';
 import { MemoryBackend } from '../../core/storage/kv-backend';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
@@ -45,13 +46,14 @@ async function render(): Promise<{ fixture: ComponentFixture<StyleguidePage>; st
   });
   const catalog = generateLargeSample(3).catalog;
   const cardData: Partial<CardData> = {
+    sourceChanged: new Subject<void>(), // H-679
     reload: async (): Promise<CatalogResult> => ({ status: 'ok', catalog }),
   };
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
-      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
+      provideTestStores(stores),
       { provide: CardData, useValue: cardData },
     ],
   });

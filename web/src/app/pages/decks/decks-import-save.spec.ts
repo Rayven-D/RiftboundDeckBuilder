@@ -2,6 +2,8 @@
  * `/decks` "Import deck" end to end (SPEC-006 DECK-001, DECK-003, DECK-041, DECK-070, DECK-092, DECK-098; ACs 24,
  * 26, 29; H-253): paste → Continue → review → Save, over real tracked stores and a fixed card catalog.
  */
+import { Subject } from 'rxjs';
+import { provideTestStores } from '../../core/storage/testing/test-stores';
 import { TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
@@ -10,7 +12,6 @@ import { routes } from '../../app.routes';
 import { CardData, CatalogResult } from '../../core/cards/card-data';
 import { makeCatalog, makeDeck } from '../../core/decks/engine-fixtures';
 import { DECK_SAVE_TEXT } from '../../core/import/deck-import';
-import { AppStores } from '../../core/storage/app-stores';
 import { BrowserStores, createBrowserStores } from '../../core/storage/browser-stores';
 import { MemoryBackend } from '../../core/storage/kv-backend';
 import { provideOpenGate } from '../../core/sync/testing/open-gate';
@@ -38,6 +39,7 @@ async function setup(url: string, seed = 0) {
     await stores.raw.decks.put(makeDeck(`00000000-0000-4000-9000-${String(i).padStart(12, '0')}`, `Old ${i}`, {}));
   }
   const cardData: Partial<CardData> = {
+    sourceChanged: new Subject<void>(), // H-679
     loadCatalog: async (): Promise<CatalogResult> => ({ status: 'ok', catalog: CATALOG }),
     reload: async (): Promise<CatalogResult> => ({ status: 'ok', catalog: CATALOG }),
     loadBans: async () => null,
@@ -46,7 +48,7 @@ async function setup(url: string, seed = 0) {
     providers: [
       provideRouter(routes, withComponentInputBinding()),
       provideOpenGate(),
-      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
+      provideTestStores(stores),
       { provide: CardData, useValue: cardData },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
     ],

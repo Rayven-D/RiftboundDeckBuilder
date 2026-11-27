@@ -3,12 +3,12 @@
  * SHARE-063 and SPEC-005 OWN-116 on screen; SPEC-008 AC 23 (feedback and reason line), AC 13 and AC 19 (Unlock while
  * ownership is unavailable).
  */
+import { provideTestStores } from '../../core/storage/testing/test-stores';
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { lock, makeCatalog, makeDeck } from '../../core/decks/engine-fixtures';
 import type { NameLock, StoredDeckLocks, UserDeck } from '../../core/decks';
-import { AppStores } from '../../core/storage/app-stores';
 import { BrowserStores, createBrowserStores } from '../../core/storage/browser-stores';
 import { MemoryBackend } from '../../core/storage/kv-backend';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
@@ -42,7 +42,8 @@ class Host {
 }
 
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
-const snack = () => text(document.querySelector('mat-snack-bar-container'));
+// H-680: the label only (a notice without an action also shows OK).
+const snack = () => text(document.querySelector('mat-snack-bar-container .mat-mdc-simple-snack-bar > :first-child'));
 const dialog = () => document.querySelector('mat-dialog-container');
 
 let backend: MemoryBackend;
@@ -60,7 +61,7 @@ async function setup(opts: { owned: number; locks?: NameLock[] | 'newer'; collec
   TestBed.configureTestingModule({
     imports: [Host],
     providers: [
-      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
+      provideTestStores(stores),
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
     ],
   });

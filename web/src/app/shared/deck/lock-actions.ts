@@ -1,3 +1,4 @@
+import { injectNotices } from '../../shared/notice/notice-snack-bar';
 import {
   Component,
   ElementRef,
@@ -14,7 +15,6 @@ import {
 } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { firstValueFrom } from 'rxjs';
 import {
@@ -239,7 +239,7 @@ export class LockActions {
 
   private readonly locks = inject(DeckLocks);
   private readonly dialog = inject(MatDialog);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly snackBar = injectNotices();
   private readonly action = viewChild('action', { read: ElementRef<HTMLButtonElement> });
   private readonly injector = inject(Injector);
   /** After a saved change the other button replaces this one once the page recomputes: focus it then (§7). */

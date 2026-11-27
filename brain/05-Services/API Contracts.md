@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.38
+version: 1.40
 ---
 # API Contracts
 
@@ -279,7 +279,22 @@ Notes for the UI:
   `SyncService` connects it to the engine (`connect(changed, readOnly, major)`). Callers: `DeckImport.commit`,
   `CollectionImport.commit` / Undo, Deck detail Duplicate, every `DeckLocks` change (not the Delete lock release).
   "Add to your decks" / "Add another copy" (DECK-060 / DECK-064) are not built yet; they must call it when they are.
-  Test stubs of `AppStores` must provide `majorAction`.
+  Test stubs: since v1.39 (H-679) use the real `AppStores` over test stores, `provideTestStores(stores)`
+  (`core/storage/testing/test-stores.ts`, the `ACCOUNT_STORES` token), not a `{ stores, majorAction }` object.
+- **Guest test data (v1.39, H-679, SPEC-013 TEST-060…068):** `AppStores.account` is the account cache over
+  `localStorage` and is the only store set `SyncService` gives the engine. `AppStores.stores` is a stable facade whose
+  members resolve on each access: the guest stores while `AppStores.guest()` is true, else `account`. Guest stores come
+  from `createGuestStores()` (a fresh `MemoryBackend`, no sync hooks) and are switched in by `enterGuest()` /
+  dropped by `leaveGuest()`; `majorAction()` does nothing in guest mode. `SignInGate.content()` = `open() || guest()`
+  decides what Collection, Decks and deck detail render; `open()` alone still gates imports, deck saves and
+  Tournaments' deck controls. `GuestTestData.load(set)` (signed-out only) / `discard()`; `changed` emits after a guest
+  Load or Change set. `SyncService` calls `leaveGuest()` on the first status that isn't `signed-out` (a sign-in) and
+  `externalWrite()` after every status.
+- **Pending Undo is bound to its stores (v1.40, H-681):** `AppStores.pin()` → `{ stores, valid(), ended }`: the concrete
+  stores instance in use now, valid until the data's owner changes (`endMode()`: guest on / off, and the gate moving
+  between open and not open, from `SignInGate.set`). Deck detail's Delete Undo and the collection import's Undo write
+  through `pin.stores` only while `valid()`, and close their notice on `ended`, so a guest record never reaches the
+  account cache (and an account record never reaches guest stores or a signed-out cache).
 
 ## Deck legality engine (SPEC-002 0.5, H-194)
 **Not an endpoint.** Browser only, pure (LEGAL-R01): `web/src/app/core/legality/` (barrel `index.ts`, shapes in
@@ -588,6 +603,12 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   `CollectionCatalogView` (`printings` keyed by `printingId`; the `CardWithPrintings.printings`
   array is split off). Once per session; `reload()` retries. Any failure → `{ status: 'error' }`
   (page state S10). In production this fails until ADR-0004 hosts the API or a static snapshot.
+- **Source follows the test marker (v1.39, H-679, TEST-070):** `loadCatalog()` resolves the source on every call
+  (`test-data-<n>` → generated catalog, else `/api`). `CardData.sourceChanged: Subject<void>` emits when
+  `checkSource()` finds a source other than the one last served; it runs on `AppStores.written` (a tracked save,
+  guest mode on/off, and `externalWrite()` from `SyncService` after each engine status: first sync, pull, sign-out).
+  A failed `/api` result is dropped on a source change, so it is fetched again rather than kept for the session.
+  Collection, Decks and deck detail re-read on `sourceChanged`. Test stubs of `CardData` must provide `sourceChanged`.
 - **Ban data:** `CardData.loadBans()` returns `data/banlist.json` (bundled, H-194/H-344, see "Deck legality
   engine"); only a failed chunk load gives `null`, and then every card's `EntryBan` is `unknown` ("Ban status
   unknown", COLL-008).

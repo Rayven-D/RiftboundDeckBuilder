@@ -36,6 +36,8 @@ export const GATE_TEXT = {
       @default {
         <app-empty-state [message]="gate.state() === 'session-lost' ? text.sessionLost : text.signedOut">
           <button matButton="filled" type="button" aria-haspopup="dialog" (click)="signIn($event)">Sign in</button>
+          <!-- H-679: a page may add Load test data (guest mode) under Sign in. -->
+          <ng-content />
         </app-empty-state>
       }
     }
