@@ -38,3 +38,8 @@ Leak: `deck-detail.ts` `delete()` keeps `const stores = this.stores`, the per-ac
 ## 4. Spec versus build
 - Banner text exact: "You're trying Rift Builder with test data. Nothing is saved: it's gone when you reload." (`shared/collection/test-data.ts` `guestBanner`, straight apostrophe, as spec and AC 19).
 - Change set and Remove test data are built (TEST-064). The builder's differences are acceptable: no Sign in link in the banner (TEST-063 says "may"; the header keeps Sign in); shorter Change set question; banner above the page header on Deck detail; a cancelled sign-in popup keeps guest data.
+
+## Re-check after H-681 (12b1ecc): PASS
+- `AppStores.pin()` binds the Undo to the stores instance; `endMode()` runs on guest on/off and when the gate moves between open and not open. Deck detail Delete and the collection import Undo write only through the pin while `valid()` and dismiss their notice on `ended`. Remaining `this.stores` uses are immediate user actions; lock actions have no Undo or timer; imports are refused in guest mode. No other deferred path holds the facade.
+- The tests assert it: `gated-pages.spec.ts` (guest deletes a guest deck, signs in: notice dismissed, a late Undo and the notice's own action write nothing; account decks empty, no `rift.deck.*` key, Firestore holds only `users/uA`) and `collection-import.spec.ts` (gate change closes the Undo notice; undo changes nothing).
+- Lint pass; unit tests 100 files / 1591 pass. e2e not rerun (no UI change). Residual: a mode change between `pin()` and the notice subscription is covered by the `valid()` guard, not by `ended`.
