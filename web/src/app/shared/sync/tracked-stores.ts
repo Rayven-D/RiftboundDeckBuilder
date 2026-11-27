@@ -208,6 +208,7 @@ export class TrackedDeckStore implements DeckStore {
   }
 
   async create(deck: UserDeck): Promise<void> {
+    if (this.ctx.readOnly(`deck:${deck.id}`)) throw new ReadOnlyAreaError(`deck:${deck.id}`);
     await this.ctx.queue.run(() =>
       withLog(this.ctx, async (log) => {
         const undone = cancelDeckDelete(log, deck, this.ctx.now());

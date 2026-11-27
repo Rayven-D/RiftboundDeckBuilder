@@ -110,7 +110,7 @@ export interface EngineDeps {
   clearTimer?: (h: unknown) => void;
 }
 
-type Problem = 'unreadable' | 'invalid' | 'write' | 'too-large' | 'rejected' | 'read-denied';
+type Problem = 'start' | 'unreadable' | 'invalid' | 'write' | 'too-large' | 'rejected' | 'read-denied';
 
 export class SyncEngine {
   private auth: AuthService | null = null;
@@ -217,6 +217,9 @@ export class SyncEngine {
 
   status(): SyncStatus {
     const pending = pendingCount(this.lastLog);
+    if (!this.uid && this.problem?.kind === 'start' && !this.stopped) {
+      return { kind: 'error', message: this.problem.message, pendingCount: pending };
+    }
     if (!this.uid || this.stopped) return { kind: 'signed-out' };
     // SYNC-096 / SYNC-084: this device's unfinished deletion outranks Offline and Paused (no carve-out); the
     // status text drops the pending count for it (statusText).
@@ -247,6 +250,17 @@ export class SyncEngine {
     const uid = await this.auth!.restore();
     if (!uid) return this.sessionProblem();
     await this.openSession(uid);
+  }
+
+  /**
+   * H-084: start-up failed before the session was known (offline, the `firebase` chunk did not load, restore or the
+   * email-link sign-in threw). Shows the SYNC-084 Error status text and the same text as an error notice, so it does
+   * not look like a silent sign-out. The status shows it only while this device expects a session.
+   */
+  startFailed(): void {
+    if (this.lastLog.sessionExpected) this.setProblem('start', MESSAGES.writeFailed);
+    this.deps.notify(MESSAGES.writeFailed, 'error');
+    this.emit();
   }
 
   /** SYNC-003 / SYNC-005 / SYNC-006. `email-link` completes a link the user opened. */
@@ -321,6 +335,9 @@ export class SyncEngine {
         return;
       }
       this.schedulePush(PUSH_DEBOUNCE_MS);
+    }).catch(() => {
+      // H-084: the save is already on this device; an unreadable sync log only means no push is armed now. The next
+      // save, focus or sync trigger tries again.
     });
   }
 
@@ -424,7 +441,7 @@ export class SyncEngine {
         }, gen);
       }
       if (r !== 'ok') {
-        this.deps.notify(MESSAGES.deleteIncomplete, 'error');
+        // H-084: no notice here; the account menu shows the one, with Try again.
         return 'failed';
       }
       // (3) the Auth user, only after every document is gone
@@ -434,7 +451,7 @@ export class SyncEngine {
         if (again !== 'ok') return again;
         d = await this.auth.deleteUser();
         if (d !== 'ok') {
-          this.deps.notify(MESSAGES.deleteIncomplete, 'error');
+          // H-084: no notice here; the account menu shows the one, with Try again.
           return 'failed';
         }
       }
@@ -446,7 +463,7 @@ export class SyncEngine {
       this.deps.notify(MESSAGES.deletedOwn, 'success');
       return 'ok';
     } catch {
-      this.deps.notify(MESSAGES.deleteIncomplete, 'error');
+      // H-084: no notice here; the account menu shows the one, with Try again.
       return 'failed';
     } finally {
       this.deleting = false;
@@ -972,12 +989,15 @@ export class SyncEngine {
       ['locks', p.locks],
       ...Object.entries(p.decks).map(([id, d]) => [`deck:${id}`, d] as [string, { syncedAt: Ms }]),
     ];
+    // H-084: every document this device wrote is checked and forgotten; one warning at most per pull.
+    let warned = false;
     for (const [ref, doc] of docs) {
       const t = this.writeTimes.get(ref);
       if (!doc || t === undefined) continue;
       this.writeTimes.delete(ref);
       const offset = doc.syncedAt - t;
-      if (Math.abs(offset) > CLOCK_WARN_MS) {
+      if (!warned && Math.abs(offset) > CLOCK_WARN_MS) {
+        warned = true;
         void this.updateLog((l) => {
           l.clockOffsetMs = offset;
         });
@@ -986,7 +1006,6 @@ export class SyncEngine {
           'info',
         );
       }
-      return;
     }
   }
 

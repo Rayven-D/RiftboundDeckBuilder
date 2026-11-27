@@ -216,7 +216,8 @@ export function hasFiles(event: DragEvent): boolean {
             matButton="filled"
             type="button"
             class="commit"
-            [attr.aria-disabled]="busy() || null"
+            [disabled]="busy()"
+            disabledInteractive
             (click)="commit(r)"
           >
             {{ busy() ? words.saving : mode() === 'add' ? words.addAction : words.replaceAction }}
