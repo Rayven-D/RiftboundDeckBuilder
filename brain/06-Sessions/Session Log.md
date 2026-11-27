@@ -7,6 +7,13 @@ Newest first. One short entry per working session.
 
 Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[Session Log 2026-11-24]], [[Session Log 2026-11-24 (day)]] and [[Session Log 2026-11-23 (early)]] (archived).
 
+## 2026-11-26 (all day): Decks finished and released (orchestrator, one session; RJ on the phone)
+- Usage rules adopted (memory): trim the board into [[Completed Items Handoff Board]], validate in bulk, ui-engineer only when needed, pick each agent's model by task size.
+- Merged: #112 (H-197), #113 (board trim 263 KB to about 60 KB), #114 (H-194 + H-344 legality), #115 (H-662/663, H-148/233/486), #116 and #117 (specs), #118 (H-665 card-name locks, H-667 instant sync, H-668 to H-671), #119 (H-672/673), #120 (H-674 to H-676), #121 (H-084, H-345; gates H-340 and H-382 closed), #123 (H-679 guest test data and the "Card data not loaded" fix, H-680 notice OK / swipe, H-681).
+- Firestore rules (locks cap 400 to 6000) deployed to production with RJ's OK. **Released** to production: #122 (Collection + Decks, What's new 0.0.2) and #124 (guest test data, card-data fix); both GitHub Actions deploys succeeded.
+- origin/dev was deleted by the release merge; restored at 2da96dd with RJ's OK. Tournaments left as is.
+- Open: H-677, H-678 (P3), H-186, H-653 items 3 and 4, the rest of H-484; real card data waits on the Riot key (H-020; the live demo can back the H-011 application).
+
 ## 2026-11-26 (night): builder H-679 + H-680 (branch `loop/H-679-guest-test-data`, not pushed)
 - H-679 (SPEC-013 0.2): signed-out **Load test data** on the sign-in panel (Collection, Decks, deck URL) fills fresh memory-only stores; `AppStores.stores` became a facade over the account cache or the guest stores, the sync engine keeps `AppStores.account`. Guest banner with Change set / Remove; imports stay sign-in only; sign-in discards guest data first. TEST-070 bug fix: `CardData.sourceChanged` re-resolves the catalog when the test marker changes (first sync, pull, load, remove, guest on/off) and forgets a failed `/api` result. [[Build H-679]].
 - H-680 (SPEC-010 0.20.1 SYNC-162): one notice component for every snack bar: OK on plain notices, only the action on action notices, 44 px, swipe left / right to dismiss on touch (never runs the action). [[Build H-680]].
