@@ -836,8 +836,10 @@ export class DeckDetail {
     }
     let removed: UserDeck | null;
     this.leaving = true;
+    // H-681: the Undo writes back into the same stores instance, and only while the mode is unchanged.
+    const pin = this.app.pin();
     try {
-      removed = await this.stores.decks.delete(d.deck.id);
+      removed = await pin.stores.decks.delete(d.deck.id);
     } catch (err) {
       this.leaving = false;
       this.snackBar.open(err instanceof ReadOnlyAreaError ? err.message : DETAIL_TEXT.saveFailed, 'OK', noticeOptions('error'));
@@ -849,13 +851,17 @@ export class DeckDetail {
     }
     // SHARE-024 / SYNC-035 / AC 87: the deck's name locks stay stored, ignored while the deck is gone (SHARE-062), and
     // leave with the deck tombstone when the 10 s Undo window ends; an Undo keeps them as they were.
-    const stores = this.stores;
+    const stores = pin.stores;
     const saved = this.deckImport.saved;
     const listFocus = this.listFocus;
     listFocus.request({ kind: 'first' }); // H-462: the first tile, or the empty state's Import deck
     void this.router.navigate(['/decks']);
     const ref = this.snackBar.open(DETAIL_TEXT.deleted, DETAIL_TEXT.undo, { duration: DELETE_UNDO_MS, politeness: 'polite', ...NOTICE_POSITION });
+    // H-681: a sign-in, sign-out or guest switch inside the window ends the Undo and closes its notice.
+    const ended = pin.ended.subscribe(() => ref.dismiss());
+    ref.afterDismissed().subscribe(() => ended.unsubscribe());
     ref.onAction().subscribe(async () => {
+      if (!pin.valid()) return;
       try {
         listFocus.request({ kind: 'deck', deckId: removed.id }); // H-462: the restored deck's tile
         await stores.decks.create(removed); // SYNC-035: within the window this cancels the tombstone

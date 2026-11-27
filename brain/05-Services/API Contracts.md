@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.39
+version: 1.40
 ---
 # API Contracts
 
@@ -290,6 +290,11 @@ Notes for the UI:
   Tournaments' deck controls. `GuestTestData.load(set)` (signed-out only) / `discard()`; `changed` emits after a guest
   Load or Change set. `SyncService` calls `leaveGuest()` on the first status that isn't `signed-out` (a sign-in) and
   `externalWrite()` after every status.
+- **Pending Undo is bound to its stores (v1.40, H-681):** `AppStores.pin()` → `{ stores, valid(), ended }`: the concrete
+  stores instance in use now, valid until the data's owner changes (`endMode()`: guest on / off, and the gate moving
+  between open and not open, from `SignInGate.set`). Deck detail's Delete Undo and the collection import's Undo write
+  through `pin.stores` only while `valid()`, and close their notice on `ended`, so a guest record never reaches the
+  account cache (and an account record never reaches guest stores or a signed-out cache).
 
 ## Deck legality engine (SPEC-002 0.5, H-194)
 **Not an endpoint.** Browser only, pure (LEGAL-R01): `web/src/app/core/legality/` (barrel `index.ts`, shapes in

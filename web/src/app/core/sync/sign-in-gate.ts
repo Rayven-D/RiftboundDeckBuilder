@@ -35,6 +35,8 @@ export class SignInGate {
   readonly content = computed(() => this.open() || (this.app.guest() && this.state() === 'signed-out'));
   /** Called by `SyncService` whenever the engine's gate may have changed. */
   set(state: GateState): void {
+    // H-681: signed in ↔ not signed in changes who owns the data: pending Undos taken before are void.
+    if ((state === 'open') !== (this.current() === 'open')) this.app.endMode();
     this.current.set(state);
   }
 

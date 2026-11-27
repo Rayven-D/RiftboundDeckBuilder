@@ -52,3 +52,14 @@ gone after a reload).
 Checks (2026-11-26, Node 22.23.5): `npm run lint` pass; `npm run build` pass (initial total 461.58 kB, no budget
 warning); `ng test` 1585 of 1586 pass, the one failure being in the then-unwired H-680 spec (not part of this commit);
 `npm run e2e` 6 / 6 pass (with the new H-679 test). `test:rules` not run: no rules change.
+
+## H-681 (validator finding on H-679): Undo bound to its stores
+Deck detail's Delete kept the per-access `stores` facade for its 10 s Undo, so a guest who deleted a guest deck, signed
+in and pressed Undo wrote the guest deck into the account cache (then pushed). Now `AppStores.pin()` captures the stores
+**instance** and the mode; `endMode()` runs on guest on / off and when the gate moves between open and not open. The
+Delete Undo and the collection import Undo (the only two Undo notices, `grep onAction`) write through the pinned
+instance, do nothing once the mode changed, and close their notice on the change; an import whose Replace confirmation
+was open across a sign-out writes nothing. Tests: `gated-pages.spec.ts` "H-681 a guest deletes a guest deck, signs in
+…" (real SyncService and fake Firestore; the notice closes, the held Undo action fired after the sign-in writes nothing
+to the account cache, `localStorage` or Firestore; it fails with the old code), `collection-import.spec.ts` "H-681 a
+sign-out … closes the Undo notice; Undo then writes nothing". Contract: [[API Contracts]] v1.40.

@@ -7,6 +7,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { CardData, CatalogResult } from '../cards/card-data';
 import { lock, makeCatalog, makeDeck } from '../decks/engine-fixtures';
 import { AppStores } from '../storage/app-stores';
+import { SignInGate } from '../sync/sign-in-gate';
 import { BrowserStores, createBrowserStores } from '../storage/browser-stores';
 import { MemoryBackend, StorageFullError } from '../storage/kv-backend';
 import { STORAGE_KEYS } from '../storage/local-stores';
@@ -126,6 +127,20 @@ describe('CollectionImport commit and Undo (SPEC-003 IMP-049…052, IMP-072…07
     });
     expect(COMMIT_NOTICE_MS).toBe(10_000);
     expect(written).toHaveBeenCalledTimes(1); // COLL-091: Collection refreshes in place
+  });
+
+  it('H-681 a sign-out (or any mode change) inside the Undo window closes the Undo notice; Undo then writes nothing', async () => {
+    const importer = setup();
+    const gate = TestBed.inject(SignInGate);
+    gate.set('open');
+    await commitWith(importer, await prepared(importer, '3 Lightning Rush\n2 Gust'), 'add');
+    expect(snackAction()?.textContent?.trim()).toBe('Undo');
+    gate.set('signed-out');
+    await flush();
+    await vi.waitFor(() => expect(document.querySelector('app-notice')).toBeNull());
+    await importer.undo();
+    await flush();
+    expect(await quantities()).toEqual({ 'lightning rush': 3, gust: 2 }); // not undone
   });
 
   it('AC 43 / IMP-072 / COLL-072: a failed write returns the error, shows no notice, and leaves the stored record alone', async () => {

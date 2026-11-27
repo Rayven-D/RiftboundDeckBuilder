@@ -1,5 +1,5 @@
 import { Injectable, InjectionToken, inject, signal } from '@angular/core';
-import { Subject } from 'rxjs';
+import { Observable, Subject, take } from 'rxjs';
 import { BrowserStores, createBrowserStores } from './browser-stores';
 import { LocalStorageBackend, MemoryBackend } from './kv-backend';
 
@@ -52,6 +52,30 @@ export class AppStores {
 
   readonly stores: BrowserStores = this.facade();
 
+  /** H-681: bumped whenever the data's owner changes (guest on / off, sign-in, sign-out). */
+  private mode = 0;
+  private readonly modeEnded = new Subject<void>();
+
+  /**
+   * H-681: the stores **instance** in use now, valid until the mode changes. A pending Undo (deck delete, import)
+   * must write through `stores` only while `valid()`, and close its notice on `ended`, so a guest record never
+   * reaches the account cache and an account record never reaches the guest stores or a signed-out cache.
+   */
+  pin(): { stores: BrowserStores; valid: () => boolean; ended: Observable<void> } {
+    const at = this.mode;
+    return {
+      stores: this.guestStores ?? this.account,
+      valid: () => this.mode === at,
+      ended: this.modeEnded.pipe(take(1)),
+    };
+  }
+
+  /** H-681: the owner of the data changed; every `pin()` taken before is no longer valid. */
+  endMode(): void {
+    this.mode++;
+    this.modeEnded.next();
+  }
+
   connect(changed: () => void, readOnly: (area: string) => boolean, major: () => void = () => undefined): void {
     this.changedHook = changed;
     this.readOnlyHook = readOnly;
@@ -86,6 +110,7 @@ export class AppStores {
 
   /** H-679: features now read and write `guest` (memory only). */
   enterGuest(guest: BrowserStores): void {
+    this.endMode();
     this.guestStores = guest;
     this.guestOn.set(true);
     this.written.next();
@@ -94,6 +119,7 @@ export class AppStores {
   /** H-679: drops the guest data (never uploaded or merged); features are back on the account cache. */
   leaveGuest(): void {
     if (!this.guestStores) return;
+    this.endMode();
     this.guestStores = null;
     this.guestOn.set(false);
     this.written.next();

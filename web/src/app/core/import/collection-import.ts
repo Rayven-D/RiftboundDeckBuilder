@@ -52,6 +52,8 @@ interface LastCommit {
   commitAt: string;
   /** `updatedAt` of the snapshot it kept (IMP-075 d: still ours?). */
   snapshotAt: string;
+  /** H-681: the stores instance and mode the commit was written in; its Undo writes there only. */
+  pin: ReturnType<AppStores['pin']>;
 }
 
 /**
@@ -96,6 +98,7 @@ export class CollectionImport implements ImportCommitter {
   async commit(prepared: PreparedOk, mode: CommitMode): Promise<CommitOutcome> {
     // H-679: imports stay sign-in only; guest test data never takes an import (the pages offer none).
     if (this.app.guest()) return { status: 'error', message: COMMIT_TEXT.failed };
+    const pin = this.app.pin(); // H-681: the Undo belongs to this mode
     let before: StoredCollection | null;
     try {
       before = await this.stores.collection.load();
@@ -120,8 +123,9 @@ export class CollectionImport implements ImportCommitter {
       if (!ok) return { status: 'cancelled' };
     }
 
+    if (!pin.valid()) return { status: 'error', message: COMMIT_TEXT.failed }; // H-681: signed out meanwhile
     try {
-      await this.stores.collection.save(after, { snapshotPrevious: true, replace: mode === 'replace' });
+      await pin.stores.collection.save(after, { snapshotPrevious: true, replace: mode === 'replace' });
     } catch (err) {
       return { status: 'error', message: writeError(err) };
     }
@@ -138,6 +142,7 @@ export class CollectionImport implements ImportCommitter {
       }
     }
     this.last = {
+      pin,
       message: commitNotice(mode, prepared.resolved, after),
       commitAt: after.updatedAt,
       snapshotAt: before?.updatedAt ?? EMPTY_SNAPSHOT_AT,
@@ -157,6 +162,12 @@ export class CollectionImport implements ImportCommitter {
       politeness: 'polite',
       ...NOTICE_POSITION,
     });
+    // H-681: a sign-in, sign-out or guest switch ends the Undo: the notice closes and the commit is no longer undoable.
+    const ended = last.pin.ended.subscribe(() => {
+      if (this.last === last) this.last = null;
+      ref.dismiss();
+    });
+    ref.afterDismissed().subscribe(() => ended.unsubscribe());
     ref.onAction().subscribe(() => void this.undoCommit(last));
   }
 
@@ -169,16 +180,17 @@ export class CollectionImport implements ImportCommitter {
   private async undoCommit(commit: LastCommit | null): Promise<void> {
     const notice = (text: string, kind: 'success' | 'error' = 'success') =>
       this.snackBar.open(text, kind === 'error' ? 'OK' : undefined, noticeOptions(kind));
+    const stores = commit?.pin.stores ?? this.stores;
     let snapshot: StoredCollection | null;
     let current: StoredCollection | null;
     try {
-      [snapshot, current] = await Promise.all([this.stores.collection.loadPrevious(), this.stores.collection.load()]);
+      [snapshot, current] = await Promise.all([stores.collection.loadPrevious(), stores.collection.load()]);
     } catch {
       notice(UNDO_TEXT.failed, 'error');
       return;
     }
     // (d) cleared by a sign-out / first sign-in, spent, or replaced by a later commit (this tab or another).
-    if (!commit || commit !== this.last || !snapshotIsOurs(snapshot, commit.snapshotAt)) {
+    if (!commit || commit !== this.last || !commit.pin.valid() || !snapshotIsOurs(snapshot, commit.snapshotAt)) {
       notice(UNDO_TEXT.nothing);
       return;
     }
@@ -202,9 +214,13 @@ export class CollectionImport implements ImportCommitter {
         return;
       }
     }
+    if (!commit.pin.valid()) {
+      notice(UNDO_TEXT.nothing); // H-681: the mode changed while the confirmation was open
+      return;
+    }
     try {
-      const latest = await this.stores.collection.load();
-      await this.stores.collection.save(
+      const latest = await stores.collection.load();
+      await stores.collection.save(
         { ...restore, updatedAt: nextUpdatedAt(Date.now(), latest?.updatedAt) },
         { replace: true },
       );
@@ -215,7 +231,7 @@ export class CollectionImport implements ImportCommitter {
     await this.dropLosses(losses);
     this.last = null; // (b) spent: Undo works once
     try {
-      await this.stores.collection.clearPrevious();
+      await stores.collection.clearPrevious();
     } catch {
       // The restore is written; a snapshot left behind is never offered again (`last` is spent, IMP-074).
     }

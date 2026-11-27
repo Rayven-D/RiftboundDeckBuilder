@@ -19,6 +19,8 @@ import { SIGN_IN_INTRO } from '../core/sync/sync-dialogs';
 import { emptySyncLog } from '../shared/sync/sync-log';
 import type { StoredSyncLog } from '../shared/sync/sync-types';
 import { FakeAuth, FakeFirestore, FakeRemote } from '../shared/sync/testing/fakes';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Subject } from 'rxjs';
 
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 const buttons = (el: Element) => Array.from(el.querySelectorAll('button')).map(text);
@@ -527,4 +529,69 @@ describe('Gate opens after sign-in without a reload (SPEC-010 SYNC-009, AC 46 / 
     expect(await app.stores.decks.list()).toEqual([]);
     expect([...db.docs.keys()]).toEqual(['users/uA']);
   });
+  it('H-681 a guest deletes a guest deck, signs in inside the 10 s Undo window: the Undo notice is gone and Undo writes nothing to the account or Firestore', async () => {
+    localStorage.clear();
+    const db = new FakeFirestore();
+    const auth = new FakeAuth();
+    const remote = new FakeRemote(db);
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter(routes, withComponentInputBinding()),
+        { provide: SYNC_ADAPTERS, useValue: async () => ({ auth, remote }) },
+      ],
+    });
+    const harness = await RouterTestingHarness.create('/decks');
+    const app = TestBed.inject(AppStores);
+    const gate = TestBed.inject(SignInGate);
+    const sync = TestBed.inject(SyncService);
+    sync.start();
+    expect(await TestBed.inject(GuestTestData).load('small')).toBe('ok');
+    const deckId = (await app.stores.decks.list())[0].id;
+    // Hold the Deck deleted notice's ref, so its Undo can be fired after the sign-in whatever notice replaced it.
+    const snackBar = TestBed.inject(MatSnackBar);
+    const realOpen = snackBar.open.bind(snackBar);
+    const action = new Subject<void>();
+    const dismiss = vi.fn();
+    vi.spyOn(snackBar, 'open').mockImplementation((message, act, config) => {
+      const ref = realOpen(message, act, config);
+      if (message !== 'Deck deleted.') return ref;
+      ref.afterDismissed().subscribe(dismiss);
+      return Object.assign(Object.create(ref), { onAction: () => action.asObservable() }) as typeof ref;
+    });
+    await harness.navigateByUrl(`/decks/${deckId}`);
+    const el = harness.routeNativeElement as HTMLElement;
+    await vi.waitFor(() => {
+      harness.fixture.detectChanges();
+      expect(el.querySelector('h1.deck-name')).not.toBeNull();
+    });
+    // More → Delete → confirm.
+    el.querySelector<HTMLButtonElement>('button[aria-label="More actions"]')!.click();
+    await harness.fixture.whenStable();
+    Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find((b) => text(b) === 'Delete')!.click();
+    await harness.fixture.whenStable();
+    await vi.waitFor(() => expect(document.querySelector('mat-dialog-container')).not.toBeNull());
+    Array.from(document.querySelectorAll<HTMLButtonElement>('mat-dialog-container button')).find((b) => text(b) === 'Delete')!.click();
+    await vi.waitFor(() => expect(text(document.querySelector('mat-snack-bar-container button'))).toBe('Undo'));
+    const undo = document.querySelector<HTMLButtonElement>('mat-snack-bar-container button')!;
+
+    await sync.signInWithGoogle();
+    await vi.waitFor(() => expect(gate.state()).toBe('open'));
+    // The Undo notice is gone (a later notice, e.g. You're signed in., may show in its place).
+    await vi.waitFor(() => {
+      expect(text(document.querySelector('mat-snack-bar-container'))).not.toContain('Deck deleted.');
+      expect(Array.from(document.querySelectorAll('mat-snack-bar-container button')).map(text)).not.toContain('Undo');
+    });
+    expect(dismiss).toHaveBeenCalled();
+    undo.click(); // a press that still reaches the old button does nothing
+    action.next(); // nor does the notice's Undo action itself, fired after the sign-in
+    await harness.fixture.whenStable();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(app.guest()).toBe(false);
+    expect(await app.account.decks.list()).toEqual([]);
+    expect(await app.account.decks.get(deckId)).toBeNull();
+    expect(Object.keys(localStorage).filter((k) => k.startsWith('rift.deck.'))).toEqual([]);
+    await sync.syncNow();
+    expect([...db.docs.keys()]).toEqual(['users/uA']);
+  });
+
 });
