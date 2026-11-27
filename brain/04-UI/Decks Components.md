@@ -135,7 +135,7 @@ Same box as `app-ownership-chip` (inline-flex, gap `--space-1`, padding 1px `--s
 | `partial`, unlocked | `contrast` | Partly available | border `--color-accent`, bg `--color-surface-raised`, icon accent, text `--color-text` |
 | `none`, unlocked | `radio_button_unchecked` | None available | border `--color-border-strong`, bg raised, icon muted |
 | locked, not short | `lock` | `lockBadge` ("Locked") | border `--color-border-strong`, bg raised, text `--color-text` |
-| locked, short | `warning` | `lockBadge` ("Locked · 2 cards short") | border `--color-warning`, text `--color-warning` (6.66 / 6.73 on surface) |
+| ~~locked, short~~ | | | **removed in v0.6 (H-664)**: a locked deck is never short; `lockBadge` is "Locked" or null |
 | `unavailable`, locked | `lock` | Locked | as locked |
 Forced colors: border `CanvasText`. Never color alone: always icon + text.
 
@@ -143,8 +143,8 @@ Forced colors: border `CanvasText`. Never color alone: always icon + text.
 > **separate badge next to the chip**: `app-lock-badge` (§6) with `label` = `lockBadge` and no date
 > (the "Locked in on <date>" stays in the Deck detail header, SHARE-041), sized like the chip
 > (`--font-size-xs`, icon 14px). The tile binds the chip with `filter` only, so the chip shows the
-> ownership group: a locked complete deck (group `locked`) has **no chip, only "Locked"**; a short
-> locked deck shows **Partly / None available + "Locked · 2 cards short"**; ownership unavailable
+> ownership group: a locked deck (group `locked`, every name locked) has **no chip, only "Locked"**; a short
+> locked deck no longer exists (v0.6, H-664); a deck with only some names locked has no badge; ownership unavailable
 > shows **no chip + "Locked"** (SHARE-053 (b), OWN-065). The locked rows above still work when a
 > caller passes `lockBadge`.
 
@@ -237,8 +237,7 @@ nothing when not locked.
 - Not short: `lock` icon + `Locked` (600) + muted ` · Locked in on Nov 23, 2026`
   (`formatIsoDate(lockedAt)`; omitted when `lockedAt` doesn't parse, SHARE-030). Box as the status
   chip's `locked` row, `--font-size-sm`.
-- Short: `warning` icon + `Locked · 2 cards short` in `--color-warning`, warning border, then the
-  muted date.
+- ~~Short: `warning` icon + `Locked · 2 cards short`~~ **removed in v0.6 (H-664)**; the badge is `Locked` only and is shown only for a deck whose every name is locked (SHARE-083). It carries no date (H-383, H-662).
 - It's plain text (no role); screen readers read it in order (SHARE-044).
 
 ## 7. Lock actions, `app-lock-actions` + Lock in dialog
@@ -309,7 +308,8 @@ scrolled into view. Clicking scrolls smoothly (instant under reduced motion), wi
     <span class="type">…</span>
     <span class="labels">app-ownership-chip [state] [label]=chipLabel</span>
     <span class="split">2 of 3 in this deck</span>
-    <span class="shared">stacks icon + sharedLabel</span>
+    <!-- H-663: no `.shared` line (stacks icon + sharedLabel). Removed; SHARE-042 MUST NOT -->
+    <!-- H-664: when this name is locked in this deck (card.nameLocked): a small lock icon, see below -->
     <app-status-label …/>   <span class="flag">Preview</span>
   </button>
 </li>
@@ -327,29 +327,40 @@ scrolled into view. Clicking scrolls smoothly (instant under reduced motion), wi
   | type | `--font-size-xs` muted, 1 line | `card.card?.type`; unknown card: `Card no longer in the card data` in `--color-text` (not muted) |
   | chip | `app-ownership-chip`, now allowed to wrap (`white-space: normal`) | `chipLabel` = `card.label.split(' · ')[0]`; hidden when `card.label === ''` |
   | split | `--font-size-xs` muted | the part after ` · ` when present |
-  | shared | `--font-size-xs` muted, `stacks` 12px | `card.sharedLabel` |
+  | ~~shared~~ | **removed (H-663, RJ 2026-11-26):** no other-deck line on the tile; `card.sharedLabel` is not rendered | ~~`card.sharedLabel`~~ |
   | ban | `app-status-label` | `banned` → `Banned since <date>`; `upcoming` → `Banned from <date>`; `unknown` → nothing on the face (brief choice 11; the page notice covers it) |
+  | lock icon (v0.6, H-664) | `lock` Material icon, 16 px, `--color-text-muted`, at the end of the count-label line (Card view tile and List view row), decorative with the accessible name part below; **no text**, no button, no other-deck info | `card.nameLocked` (SPEC-008 `CardAvailability.nameLocked`); absent when the name is not locked in this deck |
   | flag | 1px `--color-border-strong` `--radius-sm` xs tag `Preview` | `flags.includes('preview')` |
 - **Accessible name** (joined with ", "): name · `zoneLabel` · `card.label` (the whole label) ·
-  `sharedLabel` lowercased-first (`also in 2 other decks · 1 locked` → `also in 2 other decks, 1 locked`)
-  · ban (`banned since Nov 23, 2026` / `banned from …` / `ban status unknown`) · `preview` · unknown:
-  `card no longer in the card data` placed after the zone. Example: "Hextech Ray, Main Deck, 0 of 3
-  available, also in 1 other deck, 1 locked" (SPEC-005 AC 16).
+  ban (`banned since Nov 23, 2026` / `banned from …` / `ban status unknown`) · `preview` · unknown:
+  `card no longer in the card data` placed after the zone. **H-663: no `sharedLabel` part.** **H-664:
+  a locked name adds `Locked in this deck` (proposal wording) after the label.** Examples:
+  "Hextech Ray, Main Deck, 0 of 3 available" (SPEC-005 AC 16, AC 40); "Hextech Ray, Main Deck, 3 of 3
+  locked in, Locked in this deck" (SPEC-005 AC 41).
 - **States:** default · hover `.lift` (fine pointer) · active press · focus-visible ring (2px offset,
   `--radius-md`, around the whole button) · fill change (`clip-path` and divider `left` transition
   `--dur-fill` `--ease-out`, only after first render; none under reduced motion).
 - **Size:** fills its cell; 5 columns in the desktop main column (≈150px), 4 at 1024 and 768, 2 on
   phones (≈160px at 375).
 
-## 10. Shortfall warning, `app-shortfall-warning`
-For the Collection Replace / Undo confirmations (H-158, H-060), not for Decks pages. **Input:**
-`items: LockedShortfall[]`, `mode: 'before' | 'after'`.
-- Box: 1px `--color-warning`, `--radius-md`, padding `--space-3`, `--color-surface`; `warning` icon
-  16px; one `<p>` per deck, `--font-size-sm` `--color-text`.
-- `before`: `shortfallWarning(item) + ' It stays locked.'` → "'Kennen Tempo' (locked) will be 2
-  cards short. It stays locked." (drop the append once the helper includes it).
-- `after`: snack bar (info kind, stays until OK), `shortfallNotice(item)`.
-- It's inside the dialog content, so it's read with the dialog. No `role="alert"`.
+## 10. ~~Shortfall warning, `app-shortfall-warning`~~ → Lock removal notice, `app-lock-removal-notice` (v0.6, H-664, RJ 2026-11-26)
+**The "will be 2 cards short. It stays locked." warning and the after-Undo notice are removed**
+(a locked name is never short; SPEC-008 SHARE-033 and SHARE-034 withdrawn). `shortfallWarning()`,
+`shortfallNotice()`, `LockedShortfall` and `lockedShortfalls()` are retired.
+
+For the Collection **Replace** and **Undo** confirmations (SPEC-003 IMP-050a, SPEC-007 COLL-088), not
+for Decks pages. **Input:** `losses: LockLoss[]` (SPEC-008 `lockLosses(before, after)`: deck, card,
+copies, `deckUnlocks`). **Rendered only when `losses` is not empty** (free copies are taken first, so a
+removal that touches no lock shows nothing and adds no dialog).
+- Box: 1px `--color-warning`, `--radius-md`, padding `--space-3`, `--color-surface`; `lock_open` icon
+  16px; inside the dialog content so it is read with the dialog; no `role="alert"`.
+- Sentence (proposal, not RJ's): **"Some of the cards you are removing are locked in your decks. Going on unlocks them:"**
+- One `<p>` per deck, `--font-size-sm`: **"'Kennen Tempo': 3 Hextech Ray, 2 Gust"** (card names in
+  lock order; copies first, `<n> <card name>`). A deck that stops being locked gets a second line
+  **"'Kennen Tempo' will no longer be locked."**
+- A standalone confirmation (future edit paths, SPEC-008 SHARE-089): title **"Unlock cards in your decks?"**,
+  actions **Cancel** (text, default focus) · **Unlock and continue** (filled). **Cancel** changes nothing.
+- **Sync notice** (no dialog; SPEC-010 SYNC-074): one notice, info kind, stays until OK, **"Locks removed after a change on another device."** with one line per deck, built by the same helper from the same `LockLoss[]` (proposal wording).
 
 ## 11. Summary and missing list, `app-deck-summary`
 **Inputs:** `view: DeckOwnershipView`, `locked: boolean`. **Output:** `copy(mode)`.
@@ -394,8 +405,17 @@ order, for `[` / `]`).
 - **Sections** (`<h3>` xs 600 muted, `--space-5` apart):
   1. **This deck** – `<dl>`-style lines, word for word:
      `Owned for decks: 2` (+ ` (1 more excluded from decks)`), `Locked by other decks: 1`,
-     `Available to this deck: 1` (+ ` (1 extra)` when `extra > 0`), `This deck needs: 3`, and in a
-     locked deck `Locked in by this deck: 3`.
+     `Available to this deck: 1` (+ ` (1 extra)` when `extra > 0`), `This deck needs: 3`, and when this
+     name is locked in this deck `Locked in by this deck: 3` (v0.6: per name, not only in a locked deck).
+     **Lock control (v0.6, H-664, RJ 2026-11-26: "the card dialog (full card info) only"):** directly
+     below these lines, one outlined button, 44 px target, `lock` icon + **`Lock these copies`**, or
+     `lock_open` + **`Unlock these copies`** when `CardAvailability.nameLocked` (labels are proposals,
+     SPEC-008 Open question 9). Disabled with `aria-disabled="true"` (focusable) and `aria-describedby`
+     a visible muted line, using the SPEC-008 SHARE-081 text of `canLockName()`: **`Lock needs every
+     copy available: 2 of 3`** / `This deck is read-only` / `Locked decks could not be read` /
+     `Ownership unavailable`; hidden for an unknown card. Press: the name lock is saved at once, no
+     confirmation; failure shows `Couldn't save the lock. Try again.`; the label and the tile's lock icon
+     change with no reload. A failed press never closes the dialog.
   2. **Your printings** – group `Counts toward this deck` (`printingsOwned`) and group `Owned ·
      excluded from decks` (`excludedPrintings`, each row + ` · Collector`). Row: `OGN-012 ×1`,
      `OGN-012a Foil ×1`, `Printing not specified ×2`, `Printing no longer found (OGN-005) ×1`. Each
@@ -458,7 +478,7 @@ Nothing plays on load; the global reduced-motion block covers everything.
 - One Tab stop per section grid; arrows move; Enter opens the dialog; Escape returns to the tile.
 - Lock in disabled = `aria-disabled` + visible reason with `aria-describedby`.
 - `/styleguide` shows: deck tiles for ready, partial, none, empty deck, locked, locked short,
-  unavailable, read-only, no Legend; card tiles for full, partial 1/3, none, split, shared + locked,
+  unavailable, read-only, no Legend; card tiles for full, partial 1/3, none, split, locked by another deck (H-663: no other-deck line),
   banned, upcoming, preview, unknown, placeholder, battlefield; the lock badge (both); the summary
   with > 10 missing lines; the card dialog (owned + excluded printings, other decks, unknown card).
   **On `/styleguide` since H-391** (section "Decks (H-060, H-254)", `pages/styleguide/decks-preview.ts` on engine-built

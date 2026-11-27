@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-001
-version: 0.4.1
+version: 0.4.2
 status: review
 depends_on: []
 research: ["[[Card Data & Images]]", "[[Sets]]", "[[Deck Construction Rules]]", "[[Collection Import Formats]]", "[[Riot Developer Rules]]", "[[Riot App Application]]", "[[Ban List]]"]
@@ -459,9 +459,11 @@ real cards from research notes.
     only "Dreaming Tree" for "The Dreaming Tree"; the generic rule is RJ's product choice.
 16. **SAMPLE marker** (CARD-044): field name, type and API source for SPEC-002 LEGAL-C10. → researcher
     (H-020), then spec-writer.
-17. **Legality of `ARC` printings** (CARD-023a): [[Sets]] #6 only says ARC is not on the Standard list.
-    Whether ARC cards are legal by name like promos is not researched; SPEC-002's decision once
-    researched.
+17. ~~Legality of `ARC` printings~~ (CARD-023a): **closed 2026-11-26 (H-645).** Researched: [[Formats]] #10
+    and [[Sets]] #7 (`unverified`): no official source says ARC cards are legal or illegal; under the
+    promo name clause an ARC card whose name is in a legal set would be legal by name, and ARC is not on
+    the TR 601.3.c list. The decision lives in SPEC-002 LEGAL-C07 (v0.6, `unverified`, not an official
+    ruling). This spec stores ARC as an ordinary set and decides nothing about legality.
 
 ## Changelog
-Current: 0.4.1 (2026-11-25, H-166, [[Collection Import Formats]] fact 8, community: CARD-036 no longer says the TTS trailing number is a "copy index dropped"; it is an art number that SPEC-003 turns into a suffix hint before the lookup; wording only, no lookup rule changed). Before: 0.4 (2026-11-25, H-165 attempt 2, RJ decision 2026-11-25: CARD-034 optional leading "a" / "the" in name lookup (exact first, then `looseKey` both ways, reachable `ambiguous`; used by SPEC-003 import and SPEC-006), new CARD-038 name search, CARD-033 reworded, `looseKey` definition, ACs 6 and 21 fixed, AC 24 new, Open question 15 closed; CARD-023 / CARD-023a promo codes and ARC; CARD-044 SAMPLE marker reserved, RJ H-193 "left out entirely" noted; `review` because matching behaviour changes). Before: 0.3 (2026-11-23). Full history: [[Card Data Model changelog]] (archived). New entries go in the archive note.
+Current: 0.4.2 (2026-11-26, H-645, text only: Open question 17 closed, pointing to SPEC-002 LEGAL-C07 v0.6; no requirement changed, status stays `review`). Before: 0.4.1 (2026-11-25, H-166, [[Collection Import Formats]] fact 8, community: CARD-036 no longer says the TTS trailing number is a "copy index dropped"; it is an art number that SPEC-003 turns into a suffix hint before the lookup; wording only, no lookup rule changed). Before: 0.4 (2026-11-25, H-165 attempt 2, RJ decision 2026-11-25: CARD-034 optional leading "a" / "the" in name lookup (exact first, then `looseKey` both ways, reachable `ambiguous`; used by SPEC-003 import and SPEC-006), new CARD-038 name search, CARD-033 reworded, `looseKey` definition, ACs 6 and 21 fixed, AC 24 new, Open question 15 closed; CARD-023 / CARD-023a promo codes and ARC; CARD-044 SAMPLE marker reserved, RJ H-193 "left out entirely" noted; `review` because matching behaviour changes). Before: 0.3 (2026-11-23). Full history: [[Card Data Model changelog]] (archived). New entries go in the archive note.

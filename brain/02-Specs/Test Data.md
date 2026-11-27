@@ -1,13 +1,13 @@
 ---
 tags: [spec]
 id: SPEC-013
-version: 0.1.4
+version: 0.1.5
 status: review
 depends_on: ["SPEC-007", "SPEC-003", "SPEC-008", "SPEC-010"]
 research: ["[[Firestore Data Shape]]", "[[Collection Test Data]]"]
 decisions: ["[[ADR-0007 Firebase Accounts and Firestore]]", "[[ADR-0004 Hosting (Deferred)]]"]
-board: H-204, H-205, H-252
-as_of: 2026-11-25
+board: H-204, H-205, H-252, H-664
+as_of: 2026-11-26
 sources:
   - url: https://firebase.google.com/docs/firestore/quotas
     tier: official
@@ -35,7 +35,7 @@ sources:
 - **Numbers (checked 2026-11-25, section "Size and quota"):** the Large collection document is **≈ 254 KB = 24 % of the 1 MiB limit** (4.1× headroom); the whole test set for one account is **≈ 268 KB** (v0.1.4: full-shape test decks, TEST-025). One Load or one Remove is **5 writes** (6 on the first push after a build change), 0 reads; Remove's 3 deck writes go out after the 10 s Undo window. After Remove the collection's `catalogVersion` is `""` and an empty collection is never test data. The free tier allows ≈ **3,300 to 4,000 loads a day** across all testers (20,000 / 6 or 5) before anything else runs, and ≈ **1,300 cold pulls of the Large document a day** on the outbound-data limit. **Everything fits one document: no fallback needed**; RJ has nothing to decide on quota.
 - **Sunset (TEST-040…043):** the tool is hidden when `testDataEnabled` is false; the Remove banner stays for anyone who still has test data until they remove it. The build item that turns on real imports (after H-020) sets the flag to `false`.
 
-**Depends on:** [[My Collection]] 0.15 (pin-only, H-197; v0.14.1 pin earlier), [[Collection Import]] 0.15 (pin-only, H-197; v0.14.1 pin earlier), [[Shared Cards and Lock-in]] 0.4.6, [[Accounts and Sync]] 0.17.2, [[Firestore Data Shape]], [[Collection Test Data]] (the existing generators). **Consumers:** builder item H-205.
+**Depends on:** [[My Collection]] 0.15 (pin-only, H-197; v0.14.1 pin earlier), [[Collection Import]] 0.15 (pin-only, H-197; v0.14.1 pin earlier), [[Shared Cards and Lock-in]] 0.6.1 (H-664: the locks are per card name), [[Accounts and Sync]] 0.18.1, [[Firestore Data Shape]], [[Collection Test Data]] (the existing generators). **Consumers:** builder item H-205.
 **BLOCKED (needs research):** none. Nothing here states a game rule; the cards are invented.
 
 ## Purpose
@@ -70,7 +70,7 @@ Give testers real, synced, clearly fake data on the live site until real card da
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | TEST-020 | MUST | **What Load writes**, through the **tracked** stores (`stores.collection`, `stores.decks`, `stores.locks`, which stamp changes so sync pushes them; never `stores.raw`, which the dev tool uses and sync never stamps): (1) the collection as **one replacement** (`StoredCollection`, `catalogVersion` = `test-data-<n>`, the generator's `cards`); (2) the three test decks, each with `catalogVersion` = `test-data-<n>`; (3) the two test locks, **added** to the user's existing locks (never a replacement of `state/locks`, TEST-021). Tags and printing codes are not written (printing codes are not synced and are rebuilt from the catalog, [[Firestore Data Shape]]). | H-204; SYNC-031, SYNC-041 |
-| TEST-021 | MUST | **Decks.** Load writes the three decks by id (`put`). If the user already has decks of their own, they are **kept**: Load never deletes or edits a deck whose id is not a test id. (Unlike the dev tool, which clears every deck first.) Existing test decks (same ids) are overwritten. The user's own locks are kept; the two test locks are added to them. | H-204 |
+| TEST-021 | MUST | **Decks.** Load writes the three decks by id (`put`). If the user already has decks of their own, they are **kept**: Load never deletes or edits a deck whose id is not a test id. (Unlike the dev tool, which clears every deck first.) Existing test decks (same ids) are overwritten. The user's own locks are kept; the name locks of the two locked test decks are added to them (v0.1.5, H-664: **one `NameLock` per counted name of each of the two decks**, all with the same `lockedAt`, so each deck is locked by SPEC-008 SHARE-083; the generator writes `StoredDeckLocks` `schemaVersion: 2`; the third deck "Generated Open" has none). Remove deletes exactly those name locks. | H-204; RJ 2026-11-26 (H-664) |
 | TEST-022 | MUST | **Confirm.** When test data already exists, choosing a set shows a confirmation "Replace your test data with the {Small / Large} set? Your own decks are kept." (**Replace** / **Cancel**). First load needs no confirmation (the dialog is the confirmation, TEST-003). | H-204 |
 | TEST-023 | MUST | **Progress and result.** While writing, Load shows "Loading…" and is disabled; the Large write is one document `set()`. On success the dialog closes, the SYNC-087 success notice **Test data loaded.** shows and the list renders. A failed write leaves the account unchanged on the server (the sync engine retries as for any save); the dialog stays open with "Couldn't load test data. Check your connection and try again." | H-204; SYNC-087 |
 | TEST-024 | MUST | **Catalog for test data.** While the stored collection's `catalogVersion` starts with `test-data-`, the card-data layer returns the **generated catalog** for that `n` (`generateLargeSample(n).catalog`) instead of calling `/api`, so Collection renders on live, on every device and after a reload, with no dev flag and no `localStorage` key (the dev key `rift.dev.sample` stays dev-only). The generator is loaded on demand (outside the main bundle). If `/api` works (real card data exists) and the marker is present, the generated catalog is **still** used for the test entries until they are removed (TEST-043). | H-204; `CardData` today |
@@ -117,7 +117,7 @@ Give testers real, synced, clearly fake data on the live site until real card da
 |---|---|---|
 | `state/collection` | ≈ 254,000 | 24 % of the limit; 4.1× headroom |
 | 3 decks | ≈ 11,200 | about 32 entries × 95 B + ≈ 700 B base, each (v0.1.4, TEST-025; was 20 entries, ≈ 8,000) |
-| `state/locks` | ≈ 300 | 2 locks × 45 B + overhead |
+| `state/locks` | ≈ 6,500 | v0.1.5 (H-664, SPEC-008 0.6): the two locked test decks lock **every name**, about 32 name entries each, so about 64 entries × ≈ 100 B (key `<deckId>|<cardKey>` + `{ lockedAt, updatedAt }`) + overhead; an estimate, **not re-measured**, still ≪ 1 MiB (was 2 locks × 45 B ≈ 300 B) |
 | indexes | ≈ 2,000 | `syncedAt` only (≈ 400 B per document; heavy fields are exempt in `firestore.indexes.json`) |
 | **Total** | **≈ 268 KB** | Small ≈ 21 KB |
 
@@ -200,4 +200,5 @@ Nothing blocks the build. Defaults below stand unless RJ answers (the spec-write
 - 0.1.1 (2026-11-25, H-204 attempt 2): H-230: after Remove the collection's `catalogVersion` is `""`, a collection with no cards is never test data (TEST-030, TEST-050, TEST-051), new AC 10a. H-231: write counts corrected to 5 per Load or Remove (6 on the first push after a build change, the account update), Remove's three deck writes are pushed after the 10 s Undo window (SYNC-035); quota numbers and ACs 4 and 10 updated to ranges.
 - 0.1.2 (2026-11-25, H-204 merge into `dev`): renumbered SPEC-012 → SPEC-013 (H-201 [[Changelog]] took SPEC-012 first); depends-on pin [[Accounts and Sync]] 0.14.1 → 0.15.0 (H-206 changed only usernames, SYNC-112/153/156; SYNC-035, 095, 142, 151 used here are unchanged). No requirement changes.
 - 0.1.3 (2026-11-25, H-212): depends-on pin [[Accounts and Sync]] 0.15.0 → 0.16.0 (H-212 changed only the username rules, SYNC-112/153/156/160; nothing used here changed; test data writes no `username`). No requirement changes.
+- 0.1.5 (2026-11-26, H-664, RJ 2026-11-26): the two locked test decks lock every card name (one `NameLock` per name, `StoredDeckLocks` `schemaVersion: 2`, TEST-021); `state/locks` row re-estimated at about 6,500 B (not re-measured); the Load and Remove write counts are unchanged (one `state/locks` write); pins SPEC-008 0.6, SPEC-010 0.18.0. Generator change goes with H-665.
 - 0.1.4 (2026-11-25, H-252, RJ default for [[Decks]] §13 choice 27a): new TEST-025 and AC 18: the three test decks get all six zones (about 66 copies in about 32 entries, one split Main / Sideboard card, one rune with 3 or more copies); byte figures re-estimated (3 decks ≈ 11,200 B, total ≈ 268 KB, Small ≈ 21 KB, still far below the 1 MiB limit; the arithmetic is the table's, not re-measured); depends-on pin [[Shared Cards and Lock-in]] 0.4.4 → 0.4.5. Builder item for the generator: H-310.
