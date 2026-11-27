@@ -8,6 +8,7 @@ import type {
   LegalityCardView,
   LegalityCatalog,
   LegalityPrinting,
+  NotEvaluatedItem,
   RegionId,
   RuleResult,
   Violation,
@@ -54,15 +55,28 @@ const ZONE_TEXT: Readonly<Record<Zone, string>> = {
 };
 
 /** Reasons a rule could not be fully checked (`notEvaluatedReason`, DECK-052). */
+/**
+ * LEGAL-R09: a reason that lists cards also carries its label and distinct names. The text builders below register
+ * that structure under the reason's text (same text, same names), and `result()` reads it back into
+ * `notEvaluatedItems`, so the rules keep pushing plain strings and `notEvaluatedReason` is unchanged.
+ */
+const LISTED_REASONS = new Map<string, NotEvaluatedItem>();
+
+function listed(label: string, names: string[]): string {
+  const text = `${label}: ${names.join(', ')}`;
+  LISTED_REASONS.set(text, { text, label, cardNames: [...new Set(names)] });
+  return text;
+}
+
 export const NOT_EVALUATED_TEXT = {
-  domains: (names: string[]) => `Missing domain data for: ${names.join(', ')}`,
+  domains: (names: string[]) => listed('Missing domain data for', names),
   noIdentity: "There is no Legend with domain data, so the deck's domains can't be checked.",
-  category: (names: string[]) => `Missing card type for: ${names.join(', ')}`,
-  champion: (names: string[]) => `Missing champion data for: ${names.join(', ')}`,
-  signature: (names: string[]) => `Missing Signature data for: ${names.join(', ')}`,
-  sets: (names: string[]) => `Set status unknown for: ${names.join(', ')}`,
-  variant: (names: string[]) => `Printing type unknown for: ${names.join(', ')}`,
-  unknownCards: (names: string[]) => `Unknown cards not checked: ${names.join(', ')}`,
+  category: (names: string[]) => listed('Missing card type for', names),
+  champion: (names: string[]) => listed('Missing champion data for', names),
+  signature: (names: string[]) => listed('Missing Signature data for', names),
+  sets: (names: string[]) => listed('Set status unknown for', names),
+  variant: (names: string[]) => listed('Printing type unknown for', names),
+  unknownCards: (names: string[]) => listed('Unknown cards not checked', names),
 } as const;
 
 function unique(names: string[]): string[] {
@@ -98,7 +112,10 @@ function result(
           ? violations[0].message
           : `${violations.length} problems found.`;
   const out: RuleResult = { ruleId, title, status, summary, violations, source };
-  if (reasons.length) out.notEvaluatedReason = reasons.join(' ');
+  if (reasons.length) {
+    out.notEvaluatedReason = reasons.join(' ');
+    out.notEvaluatedItems = reasons.map((text) => LISTED_REASONS.get(text) ?? { text });
+  }
   return out;
 }
 

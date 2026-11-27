@@ -180,6 +180,26 @@ describe('SPEC-006 Deck Import: legality in the review (DECK-050…056, H-344)',
       expect(root.querySelector('.blockers')?.textContent?.trim()).toBe('Ready to save.');
     });
 
+    it('H-676 AC 42 / DECK-107: the review Rule check shows "Missing domain data for n cards" with the names behind "Show cards"', async () => {
+      TestBed.configureTestingModule({ imports: [DeckReview] });
+      const f: ComponentFixture<DeckReview> = TestBed.createComponent(DeckReview);
+      f.componentRef.setInput('prepared', prep(riotText(KENNEN_1), DATA, catalogView(true)));
+      f.componentRef.setInput('today', () => new Date(2026, 10, 8));
+      f.detectChanges();
+      await f.whenStable();
+      f.detectChanges();
+      const root = f.nativeElement as HTMLElement;
+      const line = root.querySelector<HTMLElement>('section.legality-check ul.not-checked li')!;
+      expect(line.textContent?.replace(/\s+/g, ' ').trim()).toMatch(/^Missing domain data for \d+ cards? Show cards$/);
+      expect(line.textContent).not.toContain(':');
+      const toggle = line.querySelector<HTMLButtonElement>('button')!;
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      toggle.click();
+      f.detectChanges();
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+      expect(line.querySelectorAll('ul.names li').length).toBeGreaterThan(0);
+    });
+
     it('DECK-053: an upcoming ban is listed with "will be banned from"', async () => {
       const root = await render(new Date(2026, 10, 15));
       expect(root.querySelector('.verdict')?.textContent?.trim()).toBe('Legal in Standard as of Nov 15, 2026');

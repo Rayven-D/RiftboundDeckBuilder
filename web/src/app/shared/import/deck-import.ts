@@ -19,7 +19,7 @@ import { type NameLookupResult, nameKey, nameLookup } from '../../core/cards/nam
 import { banStatus } from '../../core/decks/ban-status';
 import { verdictLabel } from '../../core/decks/deck-ownership-view';
 import { evaluateLegality, legalityCatalog, toDeckInput } from '../../core/legality/evaluate';
-import type { LegalityData, LegalityResult } from '../../core/legality/types';
+import type { LegalityData, LegalityResult, NotEvaluatedItem } from '../../core/legality/types';
 import { BAN_LINE_TEXT, RULE_CHECK_TEXT, ZONE_LABEL } from '../deck-detail/detail-view';
 import type { CardCategory, CollectionCatalogView, PlayableCard } from '../../core/decks/types';
 import { LIMITS, type CardKey, type DeckCard, type DeckSourceFormat, type UserDeck } from '../storage/records';
@@ -246,6 +246,8 @@ export interface ReviewLegality {
   readonly failed: readonly string[];
   /** DECK-052: the `notEvaluatedReason`s (and why the check could not run at all). */
   readonly notChecked: readonly string[];
+  /** H-676 / LEGAL-R09: the same reasons, structured (card names for the count lines, DECK-107). */
+  readonly notCheckedItems: readonly NotEvaluatedItem[];
   /** DECK-051 / DECK-053: banned and upcoming-banned cards, zone order, with zone and wave name. */
   readonly banned: readonly { readonly text: string; readonly zone: string; readonly waveName: string; readonly upcoming: boolean }[];
   /** DECK-056: "N unresolved cards not checked", or null. */
@@ -826,13 +828,16 @@ export function reviewLegality(
   if (cards.length === 0) return null;
   const unresolved = unresolvedLines ? DECK_REVIEW_TEXT.unresolvedNotChecked(unresolvedLines) : null;
   if (!data) {
-    return { verdict: 'incomplete', label: verdictLabel(null, ''), failed: [], notChecked: [RULE_CHECK_TEXT.noBans], banned: [], unresolved, result: null };
+    return { verdict: 'incomplete', label: verdictLabel(null, ''), failed: [], notChecked: [RULE_CHECK_TEXT.noBans], notCheckedItems: [{ text: RULE_CHECK_TEXT.noBans }], banned: [], unresolved, result: null };
   }
   const asOf = localIsoDate(today);
   const format = data.formats.formats.find((f) => f.id === 'standard');
   const result = evaluateLegality({ deck: toDeckInput(draft), format: 'standard', region: 'global', asOf }, legalityCatalog(catalog), data.bans, data.formats);
   const failed = result.rules.flatMap((r) => r.violations.filter((v) => v.severity === 'error').map((v) => v.message));
   const notChecked = [...new Set(result.rules.flatMap((r) => (r.status === 'not_evaluated' && r.notEvaluatedReason ? [r.notEvaluatedReason] : [])))];
+  const itemsByText = new Map<string, NotEvaluatedItem>();
+  for (const r of result.rules) for (const i of r.notEvaluatedItems ?? []) if (!itemsByText.has(i.text)) itemsByText.set(i.text, i);
+  const notCheckedItems = [...itemsByText.values()];
   const banned: ReviewLegality['banned'][number][] = [];
   const seen = new Set<string>();
   for (const { zone, card } of cards) {
@@ -843,7 +848,7 @@ export function reviewLegality(
     if (b.status === 'banned') banned.push({ text: BAN_LINE_TEXT.banned(card.name, b.bannedSince), zone: ZONE_LABEL[zone], waveName: b.waveName, upcoming: false });
     if (b.status === 'upcoming') banned.push({ text: BAN_LINE_TEXT.upcoming(card.name, b.effective), zone: ZONE_LABEL[zone], waveName: b.waveName, upcoming: true });
   }
-  return { verdict: result.verdict, label: verdictLabel(result, format?.name ?? 'Standard'), failed, notChecked, banned, unresolved, result };
+  return { verdict: result.verdict, label: verdictLabel(result, format?.name ?? 'Standard'), failed, notChecked, notCheckedItems, banned, unresolved, result };
 }
 
 /**

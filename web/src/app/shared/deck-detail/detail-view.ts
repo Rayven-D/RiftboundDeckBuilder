@@ -5,6 +5,7 @@
  * `view.summary.completionPercent`, OWN-010 (f), OWN-101 (d)).
  */
 import { ZONE_ORDER, formatIsoDate } from '../../core/decks';
+import type { NotEvaluatedItem } from '../../core/legality/types';
 import type {
   CardBan,
   CardUse,
@@ -490,6 +491,8 @@ export interface RuleCheckContent {
   failed: string[];
   /** DECK-052 reasons the deck was not fully checked. */
   notChecked: string[];
+  /** H-676 / LEGAL-R09: the same reasons as `notEvaluatedItems`, shown as count lines with a disclosure (OWN-117). */
+  notCheckedItems: NotEvaluatedItem[];
   /** DECK-051 wording, one line per banned / upcoming-banned card, with its zone. */
   banned: { text: string; zone: string; upcoming: boolean }[];
 }
@@ -530,7 +533,7 @@ export function ruleCheckContent(view: DeckOwnershipView, legalityLabel: string,
     if (b.status === 'banned') banned.push({ text: BAN_LINE_TEXT.banned(c.name, b.bannedSince), zone: ZONE_LABEL[c.zone], upcoming: false });
     if (b.status === 'upcoming') banned.push({ text: BAN_LINE_TEXT.upcoming(c.name, b.effective), zone: ZONE_LABEL[c.zone], upcoming: true });
   }
-  return { label: legalityLabel, verdict, failed: [], notChecked, banned };
+  return { label: legalityLabel, verdict, failed: [], notChecked, notCheckedItems: notChecked.map((text) => ({ text })), banned };
 }
 
 // ---------------------------------------------------------------- device setting (OWN-114)
