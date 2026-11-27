@@ -140,22 +140,9 @@
               }
             </div>
           </div>
-          <!-- H-668: More actions moved to the title row; on phones nothing is left here, so the row is not rendered. -->
-          @if (canCopyMissing() && !isPhone()) {
-          <div class="actions">
-              <div class="split">
-                <button matButton="outlined" type="button" class="split-main" (click)="copyMissing('sections')">
-                  <app-icon name="content_copy" />Copy missing list
-                </button>
-                <button matIconButton type="button" class="split-more" aria-label="More copy options" [matMenuTriggerFor]="copyMenu">
-                  <app-icon name="expand_more" />
-                </button>
-                <mat-menu #copyMenu="matMenu" xPosition="before">
-                  <button mat-menu-item type="button" (click)="copyMissing('merged')">Copy as one list</button>
-                </mat-menu>
-              </div>
-          </div>
-          }
+          <!-- H-668: More actions is on the title row. H-669 (RJ 2026-11-26): Copy missing list moved into the Missing
+               area at every width (the desktop panel's Missing heading row; under the list below 64rem), so the header
+               has no actions row any more. -->
         </div>
       </header>
 
@@ -199,7 +186,7 @@
       @if (!isDesktop() && v.ownershipAvailable && v.summary.copiesRequired > 0) {
         <!-- OWN-051 / OWN-111 (d): below 64rem the missing list sits under the header (counts are in the header). -->
         <section class="missing-flow" aria-label="Missing cards">
-          <app-deck-missing [view]="v" [showCounts]="false" [showCopy]="isPhone()" [collapsible]="true" (copyRequested)="copyMissing($event)" />
+          <app-deck-missing [view]="v" [showCounts]="false" [showCopy]="true" [collapsible]="true" (copyRequested)="copyMissing($event)" />
         </section>
       }
 
@@ -313,7 +300,7 @@
                   <p class="muted">{{ text.noDeckCards }}</p>
                 }
               } @else {
-                <app-deck-missing [view]="v" (copyRequested)="copyMissing($event)" />
+                <app-deck-missing [view]="v" copyPlacement="heading" (copyRequested)="copyMissing($event)" />
               }
             </div>
           </aside>

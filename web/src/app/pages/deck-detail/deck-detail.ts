@@ -249,12 +249,6 @@ export class DeckDetail {
     const d = this.loaded();
     return d ? { deck: d.deck, pool: d.pool, readOnly: d.readOnly, locksUnreadable: d.locksUnreadable } : null;
   });
-  /** OWN-116: Copy missing list is hidden when nothing is missing or ownership is unavailable. */
-  protected readonly canCopyMissing = computed(() => {
-    const v = this.view();
-    return !!v && v.ownershipAvailable && v.missing.length > 0;
-  });
-  /** H-668: the deck name shows in full (a tap on a clamped name); clamped again on blur or Escape. */
   protected readonly nameExpanded = signal(false);
   /** H-668: the clamped name overflows its two lines (measured on render and resize). */
   protected readonly nameOverflows = signal(false);

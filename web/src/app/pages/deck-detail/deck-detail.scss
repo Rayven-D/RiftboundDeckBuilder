@@ -95,13 +95,6 @@ p {
     flex: 1 1 20rem;
     min-width: 0;
   }
-
-  .header-top > .actions {
-    flex: 0 0 auto;
-    justify-content: flex-start;
-    max-width: 100%;
-    margin-top: 0;
-  }
 }
 
 // H-662 / H-668: the deck name, its lock toggle and More actions on one row that never wraps: the toggle and More keep
@@ -236,35 +229,7 @@ p {
   font-variant-numeric: tabular-nums;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
-
-}
-
-.split {
-  display: inline-flex;
-  align-items: center;
-}
-
-.split-main {
-  --mat-button-outlined-container-shape: var(--radius-md) 0 0 var(--radius-md);
-
-  app-icon {
-    margin-inline-end: var(--space-2);
-    font-size: 18px;
-  }
-
-  // H-461 (A13): same height as .split-more on phones / touch, so the two halves match.
-  @media (pointer: coarse), (max-width: 39.99rem) {
-    --mat-button-outlined-container-height: 44px;
-  }
-}
-
-.split-more,
+// H-669: the header's Copy missing list split button moved into the Missing area (app-deck-missing).
 .more {
   width: 40px;
   height: 40px;
@@ -276,12 +241,6 @@ p {
     height: 44px;
     padding: 10px;
   }
-}
-
-.split-more {
-  margin-inline-start: -1px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
 .menu-icon {

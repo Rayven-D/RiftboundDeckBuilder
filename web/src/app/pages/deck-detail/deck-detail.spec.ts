@@ -122,6 +122,12 @@ const dialogEl = () => document.querySelector('mat-dialog-container');
 const menuItems = () => Array.from(document.querySelectorAll<HTMLButtonElement>('.mat-mdc-menu-panel [mat-menu-item]'));
 const menuItem = (label: string) => menuItems().find((b) => text(b) === label)!;
 
+/** H-669: on desktop the Copy missing list split button is on the Missing tab's heading row. */
+async function openMissing(h: RouterTestingHarness): Promise<void> {
+  q(h, '#deck-tab-missing')!.click();
+  await settle(h);
+}
+
 async function openMore(h: RouterTestingHarness): Promise<void> {
   q(h, 'button[aria-label="More actions"]')!.click();
   await settle(h);
@@ -143,7 +149,10 @@ describe('Deck detail (H-254)', () => {
       expect(text(q(h, '.legality'))).toBe('Not fully checked');
       expect(text(q(h, '.meta button'))).toBe('Rule check');
       expect(text(q(h, '.cards'))).toBe('2 of 8 cards fully available');
-      expect(text(q(h, '.split-main'))).toBe('Copy missing list');
+      // H-669: Copy missing list is in the Missing panel now, not in the header.
+      expect(q(h, 'header.deck-header .copy-main, header.deck-header .split-main')).toBeNull();
+      await openMissing(h);
+      expect(text(q(h, '.tabpanel .missing-head .copy-main'))).toBe('Copy missing list');
       await openMore(h);
       expect(menuItems().map(text)).toEqual(['Copy deck list', 'Download .txt', 'Duplicate', 'Rename', 'Delete']);
       expect(root(h).textContent).not.toMatch(/Edit cards/);
@@ -482,21 +491,20 @@ describe('Deck detail (H-254)', () => {
       expect(more.getAttribute('aria-expanded')).toBe('true');
     });
 
-    it('H-475 / H-662 / H-668: the title row holds the name, the lock toggle and More actions (focus order name → lock → More); the remaining actions come after the title and status and from 40rem sit beside them', async () => {
+    it('H-475 / H-662 / H-668 / H-669: the title row holds the name, the lock toggle and More actions top-right (focus order name → lock → More); the header has no other actions row', async () => {
       const h = await setup(URL_);
       const header = q(h, 'header.deck-header')!;
       const main = header.querySelector('.header-top > .header-main')!;
-      const actions = header.querySelector('.header-top > .actions')!;
-      expect(main.nextElementSibling).toBe(actions);
+      expect(header.querySelector('.header-top > .actions')).toBeNull(); // H-669: Copy missing list moved to the Missing panel
+      expect(main.nextElementSibling).toBeNull();
       for (const sel of ['.deck-name', '.meta', '.summary']) expect(main.querySelector(sel)).not.toBeNull();
-      // Focus order (DOM order of the header's controls): back → lock toggle (H-662) → More (H-668) → status → Copy missing list → chevron.
+      // Focus order (DOM order of the header's controls): back → lock toggle (H-662) → More (H-668) → status.
       const controls = Array.from(header.querySelectorAll<HTMLElement>('a, button')).map((b) => b.getAttribute('aria-label') ?? text(b));
-      expect(controls).toEqual(['Decks', 'Lock deck', 'More actions', 'Rule check', 'Copy missing list', 'More copy options']);
+      expect(controls).toEqual(['Decks', 'Lock deck', 'More actions', 'Rule check']);
       // H-662: the toggle sits in the title row right after the name; H-668: More is the row's last item.
       const titleRow = main.querySelector('.title-row')!;
       expect(titleRow.firstElementChild!.matches('h1.deck-name')).toBe(true);
       expect(titleRow.querySelector('h1 + app-lock-actions.variant-icon + button.more')).not.toBeNull();
-      expect(actions.querySelector('app-lock-actions, button.more')).toBeNull();
       // The ban-list and other notices stay below the header.
       expect(header.nextElementSibling!.classList).toContain('notices');
 
@@ -505,8 +513,7 @@ describe('Deck detail (H-254)', () => {
       expect(desktop('header-top')[0].style.getPropertyValue('display')).toBe('flex');
       expect(desktop('header-top')[0].style.getPropertyValue('flex-wrap')).toBe('wrap');
       expect(desktop('header-main')[0].style.getPropertyValue('min-width')).toBe('0px');
-      const side = cssRules((s) => s.trim() === '.header-top > .actions').find((r) => DESKTOP(r.media))!;
-      expect(side.style.getPropertyValue('flex')).toMatch(/^0 0 auto$/);
+      expect(cssRules((s) => s.trim() === '.header-top > .actions')).toEqual([]);
       // Phones keep the one-column header (no flex row outside the desktop query).
       expect(cssRules((s) => targets(s, 'header-top')).filter((r) => r.media === null).map((r) => r.style.getPropertyValue('display'))).toEqual(['grid']);
       // H-668: the title row never wraps (the buttons keep their place); More is pinned to the right edge.
@@ -625,7 +632,8 @@ describe('Deck detail (H-254)', () => {
       expect(q(phone, '.split-main')).toBeNull(); // the phone shows the copy button under the Missing list
       expect(q(phone, 'app-deck-missing .copy-main')).not.toBeNull();
       const PHONE_OR_TOUCH = (m: string | null) => !!m && m.includes('pointer: coarse') && m.includes('max-width: 39.99rem');
-      for (const [main, more] of [['split-main', 'split-more'], ['copy-main', 'copy-more']]) {
+      // H-669: the header split button is gone; one copy control (app-deck-missing) at every width.
+      for (const [main, more] of [['copy-main', 'copy-more']]) {
         const height = (cls: string, prop: string) =>
           cssRules((s) => targets(s, cls))
             .filter((r) => PHONE_OR_TOUCH(r.media))
@@ -662,13 +670,14 @@ describe('Deck detail (H-254)', () => {
   });
 
   describe('actions (OWN-052, OWN-053, OWN-118; DECK-082…085)', () => {
-    it('OWN-052 / OWN-053 / AC 7: Copy missing list writes the DECK-085 text; "Copy as one list" the merged list; "Missing list copied"', async () => {
+    it('OWN-052 / OWN-053 / AC 7 / H-669: Copy missing list (desktop: on the Missing heading row) writes the DECK-085 text; "Copy as one list" the merged list; "Missing list copied"', async () => {
       const h = await setup(URL_);
-      q(h, '.split-main')!.click();
+      await openMissing(h);
+      q(h, '.tabpanel .copy-main')!.click();
       await settle(h);
       expect(clipboard[0]).toContain('Rune Pool:\n3 Chaos Rune\n3 Order Rune');
       expect(snack()).toBe('Missing list copied');
-      q(h, '.split-more')!.click();
+      q(h, '.tabpanel .copy-more')!.click();
       await settle(h);
       menuItem('Copy as one list').click();
       await settle(h);
@@ -677,7 +686,8 @@ describe('Deck detail (H-254)', () => {
 
     it('OWN-116: Copy missing list is hidden when nothing is missing', async () => {
       const h = await setup(URL_, { owned: DETAIL_ALL_OWNED });
-      expect(q(h, '.split-main')).toBeNull();
+      await openMissing(h);
+      expect(q(h, '.copy-main')).toBeNull(); // H-669: the same rule in the Missing panel ("All cards available")
       q(h, '#deck-tab-missing')!.click();
       await settle(h);
       expect(text(q(h, '.tabpanel'))).toContain('All cards available');
@@ -740,7 +750,8 @@ describe('Deck detail (H-254)', () => {
         ['Rename', true],
         ['Delete', true],
       ]);
-      expect(q(h, '.split-main')).not.toBeNull();
+      await openMissing(h);
+      expect(q(h, '.tabpanel .copy-main')).not.toBeNull();
     });
 
     it('DECK-084 / SPEC-006 AC 29: Duplicate stays on the page and offers Open; the copy is unlocked', async () => {
@@ -1174,13 +1185,28 @@ describe('Deck detail (H-254)', () => {
       expect(document.title).toBe('Deck detail · Rift Builder');
     });
 
-    it('H-520 / H-670: no visible Lock in reason line under the title (RJ "Remove it to save space"); the desktop actions row starts its lines', async () => {
+    it('H-520 / H-670: no visible Lock in reason line under the title (RJ "Remove it to save space")', async () => {
       const h = await setup(URL_);
       expect(cssRules((s) => s.includes('variant-icon') && s.includes('.reason'))).toEqual([]);
       expect(q(h, '.title-row .reason')).toBeNull();
-      // The header's desktop actions row still starts its lines (H-520).
-      const row = cssRules((s) => s.trim() === '.header-top > .actions').find((r) => r.media === '(min-width: 40rem)')!;
-      expect(row.style.getPropertyValue('justify-content')).toBe('flex-start');
+    });
+
+    it('H-669 desktop: Copy missing list is on the Missing heading row ("Missing · 11 copies"), right-aligned, after the heading in focus order; tablet keeps it under the list', async () => {
+      const h = await setup(URL_);
+      await openMissing(h);
+      const head = q(h, '.tabpanel app-deck-missing .missing-head')!;
+      expect(text(head.querySelector('h2'))).toBe('Missing · 11 copies');
+      const order = Array.from(head.children).map((c) => c.tagName.toLowerCase() + '.' + c.className.split(' ')[0]);
+      expect(order).toEqual(['h2.missing-title', 'div.copy']);
+      expect(Array.from(head.querySelectorAll('button')).map((b) => b.getAttribute('aria-label') ?? text(b))).toEqual(['Copy missing list', 'More copy options']);
+      const st = cssRules((s) => s.includes('.missing-head') && !s.includes('.missing-title'))[0].style;
+      expect([st.getPropertyValue('display'), st.getPropertyValue('justify-content')]).toEqual(['flex', 'space-between']);
+      expect(qa(h, '.tabpanel .copy-main')).toHaveLength(1);
+      TestBed.resetTestingModule();
+      const t = await setup(URL_, { width: 'tablet' });
+      expect(q(t, 'header.deck-header .copy-main')).toBeNull();
+      expect(q(t, '.missing-flow app-deck-missing .missing-head')).toBeNull();
+      expect(q(t, '.missing-flow app-deck-missing .copy .copy-main')).not.toBeNull();
     });
 
     it('H-468 (10): below 64rem a press opens the dialog and sets no "Showing" status', async () => {
