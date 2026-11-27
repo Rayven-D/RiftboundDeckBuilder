@@ -930,6 +930,17 @@ describe('Deck detail (H-254)', () => {
       expect(await stores.locks.load()).toBeNull();
     });
 
+    it('AC 36 / SHARE-096 (a) second example: 0 of the 3-copy card and 1 of the 2-copy card owned gives "Can\'t lock. Missing 4 cards." (copies, not names)', async () => {
+      // Stand-ins for the spec's Hextech Ray x3 (0 owned) and Gust x2 (1 owned): two names short, x = 3 + 1 = 4.
+      const deck = makeDeck(DETAIL_DECK_ID, 'Kennen Tempo', { main: [['Lightning Rush', 3], ['Fizz, Trickster', 2]] });
+      const h = await setup(URL_, { decks: [deck], owned: { 'Fizz, Trickster': 1 } });
+      lockButton(h).click();
+      await settle(h);
+      expect(dialogEl()).toBeNull();
+      expect(snack()).toBe("Can't lock. Missing 4 cards.");
+      expect(await stores.locks.load()).toBeNull();
+    });
+
     it("SPEC-008 AC 23 / SHARE-063: a failed lock save shows \"Couldn't save the lock. Try again.\" and nothing changes", async () => {
       const h = await setup(URL_, { owned: DETAIL_ALL_OWNED });
       vi.spyOn(stores.locks, 'save').mockRejectedValue(new Error('quota'));
