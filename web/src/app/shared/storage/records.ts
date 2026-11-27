@@ -2,7 +2,7 @@
  * Stored record shapes of the browser stores, copied from the specs' data contracts:
  * SPEC-003 `StoredCollection` / `CollectionStore`, SPEC-006 `UserDeck` / `DeckStore`,
  * SPEC-007 `StoredTags` / `TagStore` (with SPEC-010 SYNC-016: `schemaVersion: 3`, short tag ids),
- * SPEC-007 `StoredPrintingCodes`, `StoredViewState`, and SPEC-008 `StoredDeckLocks` / `DeckLockStore`.
+ * SPEC-007 `StoredPrintingCodes`, `StoredViewState`, and SPEC-008 v0.6 `StoredDeckLocks` (v2, `NameLock`) / `DeckLockStore`.
  *
  * Pure types and small guards only: no Angular, no storage access.
  */
@@ -27,6 +27,9 @@ export interface StoredCollection {
   catalogVersion: string;
   cards: Record<CardKey, CollectionCard>;
 }
+
+/** `updatedAt` of the empty Undo snapshot kept when an import commit had no collection before it (IMP-052). */
+export const EMPTY_SNAPSHOT_AT = '1970-01-01T00:00:00.000Z';
 
 export interface CollectionStore {
   load(): Promise<StoredCollection | null>;
@@ -191,16 +194,43 @@ export interface DeckStore {
   delete(id: string): Promise<UserDeck | null>;
 }
 
-// ---- SPEC-008 ----
-export interface DeckLock {
+// ---- SPEC-008 v0.6 (card-name locks, SHARE-080…092) ----
+/** One card name locked in one deck (SHARE-080). Replaces the v1 `DeckLock { deckId, lockedAt }`. */
+export interface NameLock {
   deckId: string;
+  cardKey: CardKey;
+  /** Lock order key (SHARE-030); never displayed. */
   lockedAt: IsoDateTime;
 }
 
 export interface StoredDeckLocks {
+  schemaVersion: 2;
+  updatedAt: IsoDateTime;
+  /** At most one per (deckId, cardKey) (SHARE-022); orphans dropped on save (SHARE-062). */
+  locks: NameLock[];
+}
+
+/** The v1 record (SPEC-008 v0.5): one lock per deck. Read only to migrate it (SHARE-092); never written. */
+export interface DeckLockV1 {
+  deckId: string;
+  lockedAt: IsoDateTime;
+}
+export interface StoredDeckLocksV1 {
   schemaVersion: 1;
   updatedAt: IsoDateTime;
-  locks: DeckLock[];
+  locks: DeckLockV1[];
+}
+
+/** SPEC-010 SYNC-017: the `state/locks` map key of a name lock, `<deckId>|<cardKey>`. */
+export const nameLockKey = (deckId: string, cardKey: CardKey): string => `${deckId}|${cardKey}`;
+
+/**
+ * The parts of a `state/locks` map key; `cardKey` null for a key of the old (v1) shape, keyed by `deckId` alone
+ * (SYNC-017 migration). The deck id never contains `|` (a UUID), so the first `|` separates the parts.
+ */
+export function parseNameLockKey(key: string): { deckId: string; cardKey: CardKey | null } {
+  const i = key.indexOf('|');
+  return i < 0 ? { deckId: key, cardKey: null } : { deckId: key.slice(0, i), cardKey: key.slice(i + 1) };
 }
 
 export interface DeckLockStore {

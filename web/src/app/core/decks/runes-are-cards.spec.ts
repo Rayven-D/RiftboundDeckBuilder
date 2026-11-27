@@ -6,10 +6,10 @@ import {
   canLock,
   computeSharedPool,
   lockCheckMessage,
-  lockedShortfalls,
-  shortfallWarning,
+  lockLosses,
 } from './shared-pool';
-import type { DeckLock, DeckOwnershipInput, UserDeck } from './types';
+import { migrateLocksV1 } from './name-locks';
+import type { DeckOwnershipInput, NameLock, UserDeck } from './types';
 
 // Runes are cards (RJ, 2026-11-24): SPEC-005 v0.5 OWN-028/029, SPEC-008 v0.4 SHARE-006,
 // SPEC-007 v0.8 COLL-089. KENNEN_1-shaped deck: 66 copies in 32 cards, of which Chaos Rune ×9
@@ -49,7 +49,7 @@ const kennen7 = makeDeck('k7', 'Kennen: HXN Gonkra', zones);
 const ownAllNonRunes = (times = 1) => Object.fromEntries(nonRunes.map(([n, q]) => [n, q * times]));
 const TODAY = '2026-11-24';
 
-function viewOf(deck: UserDeck, input: DeckOwnershipInput, decks = [deck], locks: DeckLock[] = []) {
+function viewOf(deck: UserDeck, input: DeckOwnershipInput, decks = [deck], locks: NameLock[] = []) {
   const shared = computeSharedPool({ decks, locks, ownership: input });
   const view = computeDeckOwnership(deck, { status: 'ok', input, shared }, catalog, null, TODAY);
   return { shared, view };
@@ -148,7 +148,7 @@ describe('Runes are cards (SPEC-005 OWN-028/029, SPEC-008 SHARE-006, SPEC-007 CO
 
   it('SPEC-005 AC 19 (OWN-029) no migration: stored records unchanged, unimported runes read as missing', () => {
     const input = makeInput(catalog, { owned: ownAllNonRunes() });
-    const locks = [lock('k1')];
+    const locks = lock('k1');
     const before = JSON.stringify({ kennen1, input, locks });
     const storageBefore = localStorage.length;
     const { view } = viewOf(kennen1, input, [kennen1], locks);
@@ -168,7 +168,7 @@ describe('Runes are cards (SPEC-005 OWN-028/029, SPEC-008 SHARE-006, SPEC-007 CO
   it('SPEC-008 AC 12 (SHARE-006, SHARE-014, SHARE-020) runes not owned block lock in: 2 cards short; owned → lockable', () => {
     const { shared } = viewOf(kennen1, makeInput(catalog, { owned: ownAllNonRunes() }));
     expect(shared.byDeck['k1'].complete).toBe(false);
-    const check = canLock(shared, kennen1, false);
+    const check = canLock(shared, kennen1, false, false);
     expect(check).toEqual({ ok: false, reason: 'incomplete', cardsShort: 2 });
     expect(lockCheckMessage(check)).toBe('Lock in needs every card available: 2 cards short');
     const after = viewOf(
@@ -176,7 +176,7 @@ describe('Runes are cards (SPEC-005 OWN-028/029, SPEC-008 SHARE-006, SPEC-007 CO
       makeInput(catalog, { owned: { ...ownAllNonRunes(), 'Chaos Rune': 9, 'Order Rune': 3 } }),
     ).shared;
     expect(after.byDeck['k1'].complete).toBe(true);
-    expect(canLock(after, kennen1, false)).toEqual({ ok: true });
+    expect(canLock(after, kennen1, false, false)).toEqual({ ok: true });
   });
 
   describe('SPEC-008 AC 17 (SHARE-001, SHARE-006, SHARE-031, SHARE-042, SHARE-043) runes are shared and held', () => {
@@ -196,7 +196,7 @@ describe('Runes are cards (SPEC-005 OWN-028/029, SPEC-008 SHARE-006, SPEC-007 CO
     });
 
     it('SHARE-031/043 KENNEN_1 locked: KENNEN_7 Chaos Rune 3 of 9, Order Rune 0 of 3, breakdown, 2 cards short', () => {
-      const { shared, view } = viewOf(kennen7, input, decks, [lock('k1')]);
+      const { shared, view } = viewOf(kennen7, input, decks, lock('k1'));
       const [chaos, order] = runeTiles(view);
       expect(chaos).toMatchObject({
         label: '3 of 9 available',
@@ -209,46 +209,44 @@ describe('Runes are cards (SPEC-005 OWN-028/029, SPEC-008 SHARE-006, SPEC-007 CO
         cardRequired: 9,
       });
       expect(chaos.otherUses).toEqual([
-        { deckId: 'k1', deckName: 'Kennen: ASC Evansrhim', need: 9, locked: true, hold: 9 },
+        { deckId: 'k1', deckName: 'Kennen: ASC Evansrhim', need: 9, locked: true, hold: 9, lockedAt: '2026-11-23T10:00:00Z' },
       ]);
       expect(order).toMatchObject({ label: '0 of 3 available', state: 'none' });
-      const check = canLock(shared, kennen7, false);
+      const check = canLock(shared, kennen7, false, false);
       expect(lockCheckMessage(check)).toBe('Lock in needs every card available: 2 cards short');
     });
   });
 
-  it('SPEC-008 AC 18 (SHARE-006, SHARE-033; OWN-029) a lock stored before v0.4 with no runes owned: short, stays locked, refills', () => {
-    const locks = [lock('k1', '2026-11-20T10:00:00Z')];
-    const lockBefore = JSON.stringify(locks);
+  it('SPEC-008 AC 18 (SHARE-006, SHARE-092; OWN-029; v0.6) a v1 lock stored before v0.4 with no runes owned migrates to a partly locked deck', () => {
     const input = makeInput(catalog, { owned: ownAllNonRunes() });
-    const { view } = viewOf(kennen1, input, [kennen1], locks);
-    expect(JSON.stringify(locks)).toBe(lockBefore);
-    expect(view.lock).toMatchObject({ locked: true, short: true });
-    expect(runeTiles(view).map((c) => c.label)).toEqual(['0 of 9 locked in', '0 of 3 locked in']);
-    expect(summarizeDeck(kennen1, view, null, null)).toMatchObject({
-      lockBadge: 'Locked · 2 cards short',
-      ownershipFilter: 'partial',
-    });
-    const refilled = viewOf(
-      kennen1,
-      makeInput(catalog, { owned: { ...ownAllNonRunes(), 'Chaos Rune': 9, 'Order Rune': 3 } }),
-      [kennen1],
-      locks,
-    ).view;
-    expect(summarizeDeck(kennen1, refilled, null, null)).toMatchObject({
-      lockBadge: 'Locked',
-      ownershipFilter: 'locked',
-    });
+    const migrated = migrateLocksV1([{ deckId: 'k1', lockedAt: '2026-11-20T10:00:00Z' }], [kennen1], {
+      collection: input.collection,
+      tags: input.tags,
+    }, 'NOW');
+    const names = migrated.locks.map((l) => l.cardKey);
+    expect(names).not.toContain('chaos rune');
+    expect(names).not.toContain('order rune');
+    expect(names.length).toBeGreaterThan(0);
+    const { view } = viewOf(kennen1, input, [kennen1], migrated.locks);
+    expect(view.lock).toMatchObject({ locked: false });
+    expect(runeTiles(view).map((c) => c.label)).toEqual(['0 of 9 available', '0 of 3 available']);
+    expect(summarizeDeck(kennen1, view, null, null)).toMatchObject({ lockBadge: null, ownershipFilter: 'partial' });
+    // Importing the runes locks nothing by itself; once both rune names are locked the deck is locked.
+    const owned = makeInput(catalog, { owned: { ...ownAllNonRunes(), 'Chaos Rune': 9, 'Order Rune': 3 } });
+    expect(viewOf(kennen1, owned, [kennen1], migrated.locks).view.lock?.locked).toBe(false);
+    const runeLocks: NameLock[] = ['chaos rune', 'order rune'].map((cardKey) => ({ deckId: 'k1', cardKey, lockedAt: 'NOW2' }));
+    const full = viewOf(kennen1, owned, [kennen1], [...migrated.locks, ...runeLocks]).view;
+    expect(summarizeDeck(kennen1, full, null, null)).toMatchObject({ lockBadge: 'Locked', ownershipFilter: 'locked' });
   });
 
-  it('SPEC-007 AC 25 (COLL-081, COLL-088, COLL-089) imported runes count toward decks; an excluding tag warns first', () => {
+  it('SPEC-007 AC 25 (COLL-081, COLL-088, COLL-089; v0.6) imported runes count toward decks; an excluding tag would unlock the Chaos Rune lock', () => {
     const owned: OwnedSpec = { owned: { ...ownAllNonRunes(), 'Chaos Rune': 9, 'Order Rune': 3 } };
     const input = makeInput(catalog, owned);
     expect(deckOwnership(input, 'chaos rune')).toMatchObject({ owned: 9, ownedForDecks: 9 });
-    const locks = [lock('k1')];
+    const locks = lock('k1');
     const before = computeSharedPool({ decks: [kennen1], locks, ownership: input });
     expect(before.byCard['chaos rune'].uses).toEqual([
-      { deckId: 'k1', deckName: 'Kennen: ASC Evansrhim', need: 9, locked: true, hold: 9 },
+      { deckId: 'k1', deckName: 'Kennen: ASC Evansrhim', need: 9, locked: true, hold: 9, lockedAt: '2026-11-23T10:00:00Z' },
     ]);
     // Tag the unassigned Chaos Rune entry "Exclude from decks".
     const tagged = makeInput(catalog, {
@@ -258,9 +256,15 @@ describe('Runes are cards (SPEC-005 OWN-028/029, SPEC-008 SHARE-006, SPEC-007 CO
     });
     expect(deckOwnership(tagged, 'chaos rune')).toMatchObject({ owned: 9, ownedForDecks: 0 });
     const after = computeSharedPool({ decks: [kennen1], locks, ownership: tagged });
-    const s = lockedShortfalls(before, after);
-    expect(s.map(shortfallWarning)).toEqual([
-      "'Kennen: ASC Evansrhim' (locked) will be 1 card short.",
+    expect(lockLosses(before, after)).toEqual([
+      {
+        deckId: 'k1',
+        deckName: 'Kennen: ASC Evansrhim',
+        cardKey: 'chaos rune',
+        cardName: 'Chaos Rune',
+        copies: 9,
+        deckUnlocks: true,
+      },
     ]);
   });
 });

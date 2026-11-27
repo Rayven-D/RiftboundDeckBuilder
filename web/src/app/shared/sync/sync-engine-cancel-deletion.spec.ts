@@ -49,7 +49,7 @@ describe('SyncEngine unfinished deletion and Cancel deletion (SPEC-010 SYNC-096,
     const log = await d.log();
     expect(log.deletingUid).toBe('uA');
     expect(log.deletingRemovedAny).toBe(false);
-    expect(d.notices).toContain(MESSAGES.deleteIncomplete);
+    expect(d.notices).not.toContain(MESSAGES.deleteIncomplete); // H-084: the account menu shows the one notice
     expect(d.status).toMatchObject({ kind: 'error', message: MESSAGES.deleteIncomplete });
     expect(d.engine.unfinishedDeletion()).toEqual({ canCancel: true });
 

@@ -28,20 +28,20 @@ const kindOf = (d: Device, message: string): NoticeKind | undefined =>
 
 describe('H-116 notice kinds: noticeOptions', () => {
   it('H-116 success closes after 6 s and is polite', () => {
-    expect(noticeOptions('success')).toEqual({ duration: 6000, politeness: 'polite' });
+    expect(noticeOptions('success')).toEqual({ duration: 6000, politeness: 'polite', verticalPosition: 'top', horizontalPosition: 'center' });
   });
 
   it('H-116 info (instructions and events) stays until OK and is polite', () => {
-    expect(noticeOptions('info')).toEqual({ duration: 0, politeness: 'polite' });
+    expect(noticeOptions('info')).toEqual({ duration: 0, politeness: 'polite', verticalPosition: 'top', horizontalPosition: 'center' });
   });
 
   it('H-116 error stays until OK and is the only assertive kind', () => {
-    expect(noticeOptions('error')).toEqual({ duration: 0, politeness: 'assertive' });
+    expect(noticeOptions('error')).toEqual({ duration: 0, politeness: 'assertive', verticalPosition: 'top', horizontalPosition: 'center' });
   });
 
   it('H-116 a missing or unknown kind stays open and is polite', () => {
-    expect(noticeOptions()).toEqual({ duration: 0, politeness: 'polite' });
-    expect(noticeOptions('later' as NoticeKind)).toEqual({ duration: 0, politeness: 'polite' });
+    expect(noticeOptions()).toEqual({ duration: 0, politeness: 'polite', verticalPosition: 'top', horizontalPosition: 'center' });
+    expect(noticeOptions('later' as NoticeKind)).toEqual({ duration: 0, politeness: 'polite', verticalPosition: 'top', horizontalPosition: 'center' });
   });
 });
 
@@ -75,11 +75,12 @@ describe('H-116 notice kinds sent by the SyncEngine', () => {
     expect(kindOf(d, MESSAGES.deletedOwn)).toBe('success');
   });
 
-  it('H-116 deleteIncomplete is an error', async () => {
+  it('H-116 / H-084 deleteIncomplete is an error status; the engine sends no notice, the account menu sends the one (assertive, Try again)', async () => {
     const d = await seeded(db);
     d.remote.failDeleteAfter = 1;
     expect(await d.engine.deleteAccount()).toBe('failed');
-    expect(kindOf(d, MESSAGES.deleteIncomplete)).toBe('error');
+    expect(kindOf(d, MESSAGES.deleteIncomplete)).toBeUndefined();
+    expect(d.status).toMatchObject({ kind: 'error', message: MESSAGES.deleteIncomplete });
   });
 
   it('H-116 reauthNeeded is info; deleteNotDone (the user cancelled) is a success', async () => {

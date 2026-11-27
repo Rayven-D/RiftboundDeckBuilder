@@ -1,14 +1,16 @@
 ---
 tags: [services, contract]
-version: 1.21
+version: 1.38
 ---
 # API Contracts
 
 Owner: **builder**. The UI builds only against this note. Update it *before* behavior
 changes, and post breaking changes to the [[Handoff Board]].
 
-Implementation: `services/` (Node `http`, TypeScript). Card shapes are the SPEC-001 v0.2 data
+Implementation: `services/` (Node `http`, TypeScript). Card shapes are the SPEC-001 0.4.1 data
 contract ([[Card Data Model]]); the TypeScript source of truth is `services/src/domain/types.ts`.
+The snapshot's own `schemaVersion` is still `'0.2'` (SPEC-001 has not changed the data contract since 0.2),
+so `catalogVersion` starts with `0.2+`: that prefix is the snapshot schema version, not the spec version (CARD-068).
 
 ## Conventions
 - **Base URL: `/api` in every environment** (H-055). The web app's `API_BASE_URL` token is `/api`
@@ -74,6 +76,10 @@ Playable cards sorted by `cardKey`, each with its printings in `printingSortKey`
 ### `GET /api/cards/:cardKey`
 One card by `cardKey`. The path value is passed through `nameKey` (CARD-030), so the canonical name
 also works (`/api/cards/Kai'Sa%2C%20Survivor`). No fuzzy matching or aliases (CARD-033).
+**As built: exact `nameKey` match only.** SPEC-001 0.4 CARD-033 / CARD-034 add a second step (retry with the
+leading "a" / "the" dropped on both sides; several matches give `ambiguous`) that `services/` does not do yet
+(H-648). Until then `/api/cards/Dreaming%20Tree` is `404` even if the card is "The Dreaming Tree". When H-648
+lands, this endpoint's article and `ambiguous` behaviour is written here first.
 → `200 CardResponse` · `404 not-found` · `503 snapshot-unavailable`
 ```json
 {
@@ -128,8 +134,13 @@ All errors use one shape:
 | 500 | `internal` | unexpected error (details only in the server log) |
 
 ## Shared types
-SPEC-001 v0.2 shapes, unchanged: `CardSet`, `PlayableCard`, `Printing`, `CardCategory`,
-`VariantKind`, `CardLookup` (see [[Card Data Model]] → Data contract). API wrappers:
+SPEC-001 0.4.1 shapes (data contract unchanged since 0.2): `CardSnapshot`, `CardSet`, `PlayableCard`,
+`Printing`, `CardCategory`, `VariantKind`, `CardLookup`, `VariantRule` / `VariantRulesFile`, `IngestionReport`
+(see [[Card Data Model]] → Data contract). Checked field by field against `services/src/domain/types.ts` on
+2026-11-26 (H-195): they match. `services/` adds named helper types for inline spec shapes (`CardStats`,
+`CollectorInfo`, `CollectorForm`, `RiotRegion`, `NullCountedAttribute`), same fields. SPEC-001 0.4 adds no
+field: `looseKey` (CARD-034) is a function, not a stored value, and the SAMPLE marker (CARD-044) has no field
+yet (BLOCKED, H-020). API wrappers:
 ```ts
 interface CardWithPrintings extends PlayableCard {
   printings: Printing[];            // printingSortKey order (CARD-070)
@@ -158,24 +169,33 @@ cards: counted, shared and locked like any card, SHARE-006 / OWN-028), plus the 
 
 | Group | Types |
 |---|---|
-| SPEC-008 | `DeckLock`, `StoredDeckLocks`, `DeckLockStore`, `SharedPoolInput`, `SharedPool`, `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck` (`LockFailure`), `LockedShortfall` |
+| SPEC-008 (0.6, H-665) | `NameLock`, `StoredDeckLocks` (schema 2), `DeckLockV1` / `StoredDeckLocksV1` (read only to migrate), `DeckLockStore`, `SharedPoolInput`, `SharedPool`, `CardPool`, `CardUse`, `DeckLockState`, `CardAvailability`, `LockCheck` (`LockFailure`), `NameLockCheck` (`NameLockFailure`), `LockLoss` |
 | SPEC-005 | `CollectionOwnership`, `DeckOwnershipView`, `ZoneSection`, `OwnershipCard`, `OwnedPrintingRow`, `MissingLine`, `CardBan`, `DeckTileSummary` (`OwnershipFilter`) |
-| Read from other specs | SPEC-006 `UserDeck`, `DeckCard`, `DeckZone`, `DeckSource`; SPEC-007 `DeckOwnershipInput`, `DeckOwnership`, `CollectionCatalogView`, `StoredTags`, `Tag`, `StoredPrintingCodes`; SPEC-003 `StoredCollection`; SPEC-002 `BanListFile`, `BanStatus`; SPEC-001 `PlayableCard`, `Printing`, `CardSet` (subset: no `collector` / `extra`) |
+| Read from other specs | SPEC-006 `UserDeck`, `DeckCard`, `DeckZone`, `DeckSource`; SPEC-007 `DeckOwnershipInput`, `DeckOwnership`, `CollectionCatalogView`, `StoredTags`, `Tag`, `StoredPrintingCodes`; SPEC-003 `StoredCollection`; SPEC-002 `BanListFile`, `BanStatus`; SPEC-001 0.4.1 `PlayableCard`, `Printing`, `CardSet` (`Printing` is a subset: no `collector` / `extra`; `PlayableCard` and `CardSet` are the full shapes) |
 
 ```ts
 computeSharedPool(input: SharedPoolInput): SharedPool                              // SHARE-070
 availability(pool: SharedPool, deckId: string, cardKey: CardKey): CardAvailability // SHARE-010/011/015
-canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boolean): LockCheck     // SHARE-020; null = ownership unavailable; no-cards = no entry at all
+canLock(pool: SharedPool | null, deck: UserDeck, readOnly: boolean, isLocked: boolean): LockCheck // SHARE-020; null = ownership unavailable; isLocked from the lock store; no-cards = no entry at all
+canLockName(pool, deck, cardKey, readOnly, isNameLocked): NameLockCheck              // SHARE-081 (H-665)
+storedLockState(locks: readonly NameLock[] | null, deck: UserDeck): DeckLockState | null // SHARE-053 (a): locked when every name has a stored lock
+storedLockedNames(locks, deck): CardKey[]                                          // OWN-121 (a) icons while ownership is unavailable
 countedEntries(deck: UserDeck): { zone; entry }[]                                  // every entry of COUNTED_ZONES (= ZONE_ORDER, runes included)
-lockedShortfalls(before: SharedPool, after: SharedPool): LockedShortfall[]         // SHARE-034
+lockLosses(before: SharedPool, after: SharedPool): LockLoss[]                      // SHARE-087…091: name locks a change drops, latest first
+settleLocks(locks: NameLock[], ownedForDecks: (k) => number, decks): NameLock[]   // SHARE-090: the locks to keep (lock order)
+migrateLocksV1(v1: DeckLockV1[], decks, ownership: { collection; tags } | null, now): StoredDeckLocks // SHARE-092
+ownedForDecksOf({ collection, tags }): (cardKey) => number                         // COLL-081 without a catalog (merge, migration)
+deckNeeds(deck): Map<CardKey, number>; compareLockOrder(a, b)                      // need(D, k); SHARE-030 (+ cardKey)
 computeDeckOwnership(deck, ownership: CollectionOwnership, catalog | null, banData | null, today): DeckOwnershipView // OWN-025
 summarizeDeck(deck, view, legality: { verdict; asOf } | null, format: { id; name } | null): DeckTileSummary
-// text helpers: lockCheckMessage(), cardsShortText(), sharedIndicator(), shortfallWarning(), shortfallNotice()
+completionPercent(a: number, r: number): number | null                          // OWN-101 (b); null when r = 0
+// text helpers: lockCheckMessage(), nameLockCheckMessage() ("Lock needs every copy available: a of q"), cardsShortText(), sharedIndicator()
+// v1.37 removed: lockedShortfalls(), shortfallWarning(), shortfallNotice(), LockedShortfall, DeckLock (now NameLock)
 // minimal stand-ins until SPEC-007 / SPEC-002 are built in web/: deckOwnership(input, cardKey) (COLL-081),
 //   cachedDeckOwnership() (OWN-083, per input object), banStatus(data, cardKey, format, region, asOf) (LEGAL-B10)
 ```
 Notes for the UI:
-- Stored-record shapes (`UserDeck`, `StoredCollection`, `StoredTags` schema 3, `DeckLock`, …) are defined once,
+- Stored-record shapes (`UserDeck`, `StoredCollection`, `StoredTags` schema 3, `NameLock`, …) are defined once,
   in `web/src/app/shared/storage/records.ts`; `core/decks/types.ts` re-exports them. In code `TagTarget` is
   `string` (the spec's `p:` / `u:` pattern is not enforced by type) and `FormatId` is `'standard'`.
 - Treat every input as an immutable snapshot. **H-060 must create a new `DeckOwnershipInput` object
@@ -190,15 +210,126 @@ Notes for the UI:
   like any entry. `OwnershipCard` has no rune flag. Deck entries must be DECK-096-valid (`qty` 1..999).
 - Compute one `SharedPool` per input change and pass it to every deck view and tile (SHARE-071).
 - Lock order (SHARE-030) is a total order: parsed `lockedAt` ascending with unparseable values
-  after every parseable one, then the raw `lockedAt` string, then `deckId`.
-- `canLock(null, …)`: with ownership unavailable the pool is `null`, and the pool is the engine's
-  only lock source, so `already-locked` can't be detected (a locked deck gets `read-only` or
-  `ownership-unavailable`). **The caller must check the lock store itself** and show Unlock, not a
-  disabled Lock in, for a locked deck.
-- With ownership unavailable (OWN-062/063), all **pending a spec-writer decision** (H-076): `OwnershipCard.label` is `''` (no count labels); `DeckOwnershipView.lock` is `null`, so
-  `DeckTileSummary.lockBadge` is `null` (no lock badge, even for a locked deck);
-  `DeckTileSummary.ownershipLine` is "Ownership unavailable" (wording pending spec); and
-  `DeckTileSummary.ownershipFilter` is `'none'`.
+  after every parseable one, then the raw `lockedAt` string, then `deckId`, then (v0.6) `cardKey`.
+- **Card-name locks (v1.37, SPEC-008 0.6):** `computeSharedPool` first keeps only valid name locks (deck in the store,
+  name counted in it, one per (deck, name)) and settles them (SHARE-090: per name, in lock order, a lock that no
+  longer fits is dropped whole, and every later one on that name too); the dropped ones count as not locked. A kept
+  lock holds its deck's whole need (SHARE-031), so a locked name is never short. `DeckLockState` = `{ deckId, locked
+  (every counted name locked, SHARE-083), lockedAt (latest name lock of a locked deck, else null), lockedNames,
+  complete }`; `short` and `cardsShort` are gone. `CardPool` adds `cardName` and `free`; `CardUse` adds `lockedAt`;
+  `CardAvailability` and `OwnershipCard` add `nameLocked`; `heldByThisDeck` is set when the name is locked. A tile
+  of a locked name reads "q of q locked in" in any deck.
+- `canLock(pool, deck, readOnly, isLocked)` (SHARE-020 v0.4.2; v0.6 the deck-level toggle): `isLocked` = every counted name has a name lock in a
+  **readable** lock store (pass `false` when the store is unreadable, SHARE-061). `already-locked` is checked first,
+  so it is returned also with a `null` pool (ownership unavailable) and on a read-only deck; the engine no longer
+  reads the lock from the pool for this check. Show Unlock (no reason line) for `already-locked`.
+- `lockLosses(before, after)` (SHARE-087…091, v1.37): every name lock that is locked in `before` and not in `after`
+  for a deck still in `after`, latest lock first, as `{ deckId, deckName, cardKey, cardName, copies (= need),
+  deckUnlocks }`; empty when free copies cover the change. Render with `app-lock-removal-notice`.
+- Ownership unavailable (OWN-062/063, SHARE-053, OWN-065): `CollectionOwnership` `{ status: 'unavailable', locks? }`
+  carries the stored locks (`readonly NameLock[]`; `null` = lock store unreadable; omitted = no lock known, treated
+  like `null`). **The page must pass the stored locks** so locked decks keep their badge. Then:
+  `OwnershipCard.label` is `''` (no count labels); `DeckOwnershipView.lock` is
+  `{ deckId, locked: true, lockedAt, lockedNames, complete: false }` when every counted name has a stored name lock
+  (lockedAt = the latest), else `null` (`storedLockState`); tiles still carry `nameLocked` from the stored locks. With `status: 'ok'` and `catalog === null`
+  (OWN-063) the same state is built from the pool's lock facts (none when `locksIgnored`), holds discarded.
+  `DeckTileSummary`: `ownershipLine` "Ownership unavailable", `ownershipFilter` `'unavailable'` (SHARE-051 rule 0,
+  for every deck), `lockBadge` "Locked" for a locked deck, never "… cards short"; `null` otherwise.
+- `OwnershipFilter` = `'ready' | 'partial' | 'none' | 'locked' | 'unavailable'`; `unavailable` and `locked` match none
+  of the three ownership filter options (OWN-006).
+- Completion (SPEC-005 v0.10.2 OWN-100, OWN-101; H-311): `DeckOwnershipView.summary` gains
+  `completionFill: number | null` (A / R, exact, 0..1) and `completionPercent: number | null` (0 when A = 0, 100 when
+  A = R, else `min(99, max(1, floor(100·A/R)))`; e.g. 34/66 → 51, 65/66 → 98, 1/300 → 1, 299/300 → 99). Both are
+  `null` when R = 0 or ownership is unavailable (OWN-101 (c), also `catalog === null`). A and R are `copiesAvailable`
+  / `copiesRequired` (every zone, runes and sideboard included); in a locked deck A is the copies locked in (50 of 54
+  → 92). **The Deck detail header (OWN-010 (f)) and the list tile both read this value; never recompute it.**
+- `DeckTileSummary` v0.9 fields (OWN-100…104), all from the same `DeckOwnershipView` (OWN-073), never stored (OWN-026):
+  `legend: { name; imageUrl } | null` (the Legend tile's catalog name and `defaultPrintingId` thumbnail; `null` = no
+  Legend, unknown card or catalog not loaded → the deck mark; still set while ownership is unavailable, OWN-100 (e));
+  `completionFill`, `completionPercent` (= `view.summary`); `bans: DeckTileBans | null` = `{ banned, upcoming,
+  upcomingFrom }` counting distinct `cardKey`s, `upcomingFrom` = earliest upcoming `effective` (`null` when
+  `upcoming` is 0); `bans` is `null` when ban data is not loaded (any card `'unknown'`; an empty deck then reads
+  `{ 0, 0, null }`, which shows nothing either way); `pilot: string | null` (`source.pilot` for a tournament deck,
+  OWN-104); `readOnly: boolean` (`schemaVersion` above 1, DECK-091). `UserDeck`, Firestore rules and every
+  `schemaVersion` are unchanged; the description is the deck's existing `notes`.
+
+## Card-name locks and major-action sync (SPEC-008 0.6.1, SPEC-010 0.18.1; H-665, H-667)
+- **Stored record** `StoredDeckLocks` `{ schemaVersion: 2, updatedAt, locks: NameLock[] }`, `NameLock { deckId, cardKey,
+  lockedAt }`, at most one per (deck, name). `LocalDeckLockStore(backend, deckCards, migrate)` reads schema 1 and 2,
+  never overwrites a newer or corrupt record, and on save drops name locks whose deck or name is missing (SHARE-062).
+  A **v1 record is migrated on load** (SHARE-092) by `migrateLocksV1` (decks, collection and tags read raw) and written
+  back as v2 (raw, so the next reconcile stamps the new entries and syncs them); v1 is never written again.
+- **Cloud** `users/{uid}/state/locks`: `locks` map keyed `<deckId>|<cardKey>` → `{ lockedAt: timestamp | null,
+  updatedAt: timestamp }` (SYNC-017), written with one `FieldPath` per entry. `parseNameLockKey(key)` splits at the
+  first `|`; a key without `|` is the old per-deck shape. Migration: a pulled old **live** entry becomes one lock per
+  counted name the old rule held in full (same `lockedAt`, stamped now, pending); every old key becomes a pending
+  tombstone that the next push removes with `deleteField` (`planPush` purges legacy keys instead of writing a
+  tombstone), in the same `update()` as the new entries. `MAP_CAPS.locks` = 6000 (SYNC-112); the rules cap matches.
+- **Merge** (`mergePulled`): per-key LWW (SYNC-073); SYNC-071 deleted decks drop their name locks; SYNC-072 /
+  SHARE-093 a locked name whose need changed elsewhere (or that left the deck) drops (pending), the notice "'<deck>'
+  changed on another device while it was locked." shows when the deck had a lock before the merge; then SHARE-090 /
+  SHARE-091: the locks the pull left short drop with one `lockDropNotice` (see "Browser stores and sync").
+- **SyncEngine.majorAction()** (SYNC-126): signed in, not stopped / deleting, `isOnline()` and gate `open` → cancels
+  the pending debounce and runs one full pass (`pullAndMerge` always, then `pushPending`); if any pass is running
+  (`guard` counts them) it sets one follow-up flag and exactly one more pass runs when the last one ends. Offline,
+  signed out or gate closed: nothing (stays pending). Deck deletions: `scheduleChange` arms no debounce when the only
+  pending items are deletions inside their 10 s window; a separate Undo-window timer calls `majorAction()` when a
+  deletion's window has ended and it is still pending (an Undo cancels it, so nothing runs).
+- **AppStores.majorAction()** (`core/storage/app-stores.ts`): the app-level hook features call after a local save;
+  `SyncService` connects it to the engine (`connect(changed, readOnly, major)`). Callers: `DeckImport.commit`,
+  `CollectionImport.commit` / Undo, Deck detail Duplicate, every `DeckLocks` change (not the Delete lock release).
+  "Add to your decks" / "Add another copy" (DECK-060 / DECK-064) are not built yet; they must call it when they are.
+  Test stubs of `AppStores` must provide `majorAction`.
+
+## Deck legality engine (SPEC-002 0.5, H-194)
+**Not an endpoint.** Browser only, pure (LEGAL-R01): `web/src/app/core/legality/` (barrel `index.ts`, shapes in
+`types.ts` = the SPEC-002 data contract; `LegalityFormatId` is `'standard'`). There is no API copy yet (LEGAL-R06 wants
+the same evaluator in the API; `services/` has no legality endpoint and is not hosted, ADR-0004).
+
+Data files (versioned JSON in `data/`, LEGAL-B01, LEGAL-C01), bundled into one lazy chunk by
+`CardData.loadLegalityData(): Promise<LegalityData | null>` (`{ bans: BanListFile; formats: FormatsFile }`, once per
+session, a failed load retries next call); `loadBans()` reads the same promise.
+- `data/banlist.json` (`schemaVersion: 1`, `dataVersion: "2026-11-24.1"`): `standard`/`global` `verified`, the four
+  SPEC-002 waves (B09: 15 cards + 7 battlefields as of 2026-11-23); `2v2`/`global` `status: 'unverified'` (LEGAL-B11,
+  data only, never offered or evaluated): one snapshot wave `2v2-before-2026-11-23` (Master Yi + 6 cards + 5
+  battlefields, not a Riot wave, see its `notes`) and the Radiance wave `2v2-2026-11-23`.
+- `data/formats.json` (`schemaVersion: 2`, `dataVersion: "2026-11-24.1"`): `standard` only, deck rules 40 exact / 3 / 3
+  / 12 / 3 / 10, the nine SPEC-002 set rows, `excludedSets: ['OPP','JDG','PR']`, `notes` (why). No `2v2` `FormatDef`
+  (no 2v2 deck rules are specified).
+
+```ts
+evaluateLegality(req: LegalityRequest, catalog: LegalityCatalog, bans: BanListFile, formats: FormatsFile): LegalityResult
+  // every section A rule (LEGAL-001…019 incl. 006a) in ID order; throws for a format without a supported FormatDef (LEGAL-R05)
+legalityCatalog(view: CollectionCatalogView): LegalityCatalog   // cached per view object; isSample = NO_SAMPLE_MARKER
+toDeckInput(deck: Pick<UserDeck, zones>): DeckInput             // SPEC-006 mapping, canonical names
+verdictOf(rules): 'legal' | 'illegal' | 'incomplete'            // LEGAL-R04
+supportedFormat(formats, id): FormatDef | null
+setStatus(def, region, catalogSets, code, asOf): SetStatus       // LEGAL-C02: legal | excluded | not-yet | preview | rotated | unknown
+bannedSet(bans, format: string, region, asOf): Map<cardKey, { entry, wave }>   // LEGAL-B02 (also used by banStatus)
+checkFormats(file, catalog?, today?): DataIssue[]                // C06, C08 (official Riot host for any date), C09 warnings
+checkBanList(file, catalog?): DataIssue[]                        // dates, B06 sources, B05 names resolve with matching kind
+```
+- `LegalityCatalog { catalogVersion, cards: Record<cardKey, LegalityCardView>, sets: LegalitySetView[], isSample? }`.
+  **LEGAL-C10 is stubbed:** `isSample(card, printing)` decides SAMPLE; SPEC-001 CARD-044 has no marker yet (H-020), so
+  the browser catalog uses `NO_SAMPLE_MARKER` (always false) and nothing guesses from set code or number. When the
+  marker exists, set `isSample` in `legalityCatalog`.
+- Names resolve through the CARD-033/034 `nameLookup` (exactly one `cardKey`, else LEGAL-019; no aliases). Unknown
+  names are skipped by the other rules, which report them as `not_evaluated` ("Unknown cards not checked: …"); count
+  rules (003, 008, 010, 013) still count their quantities.
+- Dates are calendar dates compared as `YYYY-MM-DD` strings (LEGAL-B12); messages use `formatIsoDate` (LEGAL-R08).
+- `upcomingBans` lists only the deck's cards (ban: not banned now; unban: banned now) from waves with
+  `announced <= asOf < effective`.
+- `notEvaluatedReason` texts: `NOT_EVALUATED_TEXT` in `rules.ts` (not worded by the spec).
+- **H-676 (SPEC-002 0.7, LEGAL-R09):** `RuleResult.notEvaluatedItems?: NotEvaluatedItem[]` next to the unchanged
+  `notEvaluatedReason`. `NotEvaluatedItem { text, label?, cardNames? }`: one per reason, in the order of
+  `notEvaluatedReason` (the reasons joined by a space); `text` is the full reason line; `label` (the text before the
+  colon) and `cardNames` (distinct names, engine order) only on a reason that lists cards (Missing domain / card
+  type / champion / Signature data, Set status unknown, Printing type unknown, Unknown cards not checked). Present
+  only when `status = 'not_evaluated'`. Types: `web/src/app/core/legality/types.ts`. The `NOT_EVALUATED_TEXT`
+  list builders register their label and names under the reason text and `result()` reads them back.
+  UI: `ReviewLegality.notCheckedItems` (Deck Import review) and `RuleCheckContent.notCheckedItems` (Deck detail
+  Rule check) feed `app-not-checked-list`: "<label> {n} cards" ("1 card"), "{n} unknown cards not checked", names
+  behind "Show cards" / "Hide cards". `notChecked: string[]` stays as the plain-text form.
 
 ## Browser stores and sync (SPEC-010, H-062)
 Not an HTTP API: the browser talks to Firestore directly ([[ADR-0007 Firebase Accounts and Firestore]]).
@@ -214,6 +345,13 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
   `DeckStore.create(record)` of a deck deleted less than 10 s ago is the Undo and cancels the pending
   tombstone (SYNC-035). `CollectionStore.save(c, { replace: true, snapshotPrevious: true })` marks an
   Owned Cards Import in Replace mode (one `set()`, SYNC-014) and keeps the Undo snapshot (IMP-052).
+  With no record yet, `snapshotPrevious` keeps an **empty** snapshot stamped `EMPTY_SNAPSHOT_AT`
+  (`1970-01-01T00:00:00.000Z`, `shared/storage/records.ts`), so the first import can be undone (v1.22).
+  `DeckStore.newerDecks()` (v1.26, DECK-091): the deck records with `schemaVersion` above 1 that still have the v1
+  shape, for read-only display only (`list()` skips them; never written). The lock store counts them as existing
+  decks, so a lock on a read-only deck is not dropped as an orphan (SHARE-062).
+  `TrackedCollectionStore.clearPrevious()` / `RawCollectionStore.clearPrevious()` remove the snapshot (an Undo
+  spends it, IMP-075 b); not stamped, the snapshot is a cache record only.
   Saves to an area whose cloud document is newer throw `ReadOnlyAreaError` (SYNC-046 message).
   `TagStore.load()` migrates long tag ids to `t_` + 6 base-62 (`schemaVersion: 3`, SYNC-016).
 - **Browser cache (SPEC-010 SYNC-140…146, H-172):** the stores are the signed-in account's cache. There is no
@@ -325,6 +463,14 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
     fallback only if the Router refuses and the code is still in the URL.
   - `MESSAGES.signedIn` = "You're signed in.", notified as `success` in `SyncEngine.signIn()` (email link and
     Google) right after the uid arrives, before `openSession()`; `start()` (restore) never sends it.
+  - **Name locks a pull leaves short (SYNC-068, SYNC-074 v0.18, H-665; supersedes H-148's text):** the merge itself
+    drops them (SHARE-090 with `settleLocks` over the merged collection and tags via `ownedForDecksOf`, no catalog),
+    stamps the drops as pending unlock tombstones and adds **one** `info` notice: `lockDropNotice(lines)` (exported
+    from `merge.ts`) = "Locks removed after a change on another device." + one sentence per deck, "'<deck>' is no
+    longer locked: <names> unlocked." (deck was locked) or "'<deck>': <names> unlocked." (partly locked), joined by
+    spaces (H-148's single-notice form). Only locks the pull caused are dropped: one that fitted before the merge, or
+    one that arrived with it. `EngineDeps.shortfalls` and `lockedShortfallNotice` are removed.
+  - **Major action (SYNC-126, H-667):** `SyncEngine.majorAction()`; see "Card-name locks and major-action sync".
   - **Firebase continue URL with a query (verified on the Auth emulator, firebase-tools 15.37.0, 2026-11-24;
     `web/rules-tests/email-link-return.test.ts`):** the emailed link is
     `http://127.0.0.1:9099/emulator/action?mode=signIn&lang=en&oobCode=…&apiKey=…&continueUrl=<encoded continue URL>`.
@@ -442,8 +588,9 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   `CollectionCatalogView` (`printings` keyed by `printingId`; the `CardWithPrintings.printings`
   array is split off). Once per session; `reload()` retries. Any failure → `{ status: 'error' }`
   (page state S10). In production this fails until ADR-0004 hosts the API or a static snapshot.
-- **Ban data:** `CardData.loadBans()` resolves `null` (no `banlist.json` is built or served yet), so
-  every card's `EntryBan` is `unknown` ("Ban status unknown", COLL-008). Swap the body when a source exists.
+- **Ban data:** `CardData.loadBans()` returns `data/banlist.json` (bundled, H-194/H-344, see "Deck legality
+  engine"); only a failed chunk load gives `null`, and then every card's `EntryBan` is `unknown` ("Ban status
+  unknown", COLL-008).
 - **Printing order:** `printing-sort.ts` ports CARD-037 `collectorKey` and the CARD-070 comparator
   from `services/src/domain/` (keep them in step); it reads `collectorNumber`, not the API's `collector`.
 - **View model** (`collection-view.ts`): `buildCollectionView({ ownership: DeckOwnershipInput, decks,
@@ -459,6 +606,210 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
   exact-name guard and per-code printing order, not a catalog resolver (none in web yet, H-057).
 - **Dev only:** `localStorage['rift.dev.sample'] = 'large'` makes `CardData` return a generated
   5,000-entry catalog (`sample-data.ts`), set by the `/styleguide` sample loader.
+
+## Owned Cards Import commit and Undo (SPEC-003 IMP-049…052, IMP-072…075; H-158)
+Not an endpoint. Writes go through the **tracked** `stores.collection` only.
+- **Pure logic** (`web/src/app/shared/import/collection-commit.ts`): `resolveCollectionImport(parse, catalog)` →
+  `ResolvedCollectionImport { cards, copies, cardCount, leftOut, notes, catalogVersion }`: names through the shared
+  name lookup (IMP-025, see "Name lookup" below: exact `nameKey`, then the optional leading "a" / "the") and printing
+  codes through `printingLookup(catalog)(setCode, collectorNumber)` (CARD-036 over the browser
+  catalog: `found` with the first printing / `not-found` / `ambiguous`; IMP-067 exact-name guard, IMP-068 a/c,
+  IMP-069, the guard and IMP-068 compare names exactly). Names that would need the fuzzy review (IMP-026…030), a name
+  several cards share under CARD-034 (`"<name>" matches more than one card: <names>.`, no pick in this dialog yet),
+  IMP-068 (b) and ambiguous codes are **left out** with a line message. `addToCollection(before, imp, at)`,
+  `replaceCollection(imp, at)`, `replaceChanges` + `replaceConfirmText` (IMP-050, AC 19 form),
+  `commitNotice(mode, imp, written)` (IMP-073), `changedSinceCommit`, `snapshotIsOurs`, `nextUpdatedAt(now, previous)`
+  (monotonic), `UNDO_TEXT`.
+- **Name lookup** (`web/src/app/core/cards/name-key.ts`, v1.29, H-343): `looseKey(name)` (CARD-034: `nameKey` with
+  one leading `a ` / `the ` token removed; a bare article stays) and `nameLookup(cardKeys)` → `(name) =>
+  NameLookupResult`: `{ status: 'found', cardKey, method: 'exact' | 'article' }` (an exact `nameKey` match always
+  wins), `{ status: 'ambiguous', cardKeys }` (sorted) or `{ status: 'not-found' }`. Built once per catalog; the one
+  lookup both imports use (IMP-025, DECK-040). Not used by catalog search (CARD-038) or the exact checks (CARD-032,
+  LEGAL-B05).
+- **Dialog seam** (`ImportCommitter<P = PreparedOk, C = CommitMode> { prepare(parse, text), commit(prepared, choice) }`,
+  passed as `ImportDialogData.committer`): with it, Continue shows the review step and the dialog closes with `'committed'`
+  only after `{ status: 'written' }`; `{ status: 'error', message }` stays in the dialog; `'cancelled'` (Replace
+  confirmation cancelled) stays too. Without a committer the dialog closes with the `ParseResult` (no caller does
+  this any more since H-253). v1.24: generic over the review shape `P` and the action's choice `C`; `prepare` also
+  gets the text box as parsed (`text`, used by Deck Import for `importRemovedLines`; the collection ignores it).
+- **Service** (`web/src/app/core/import/collection-import.ts`, `CollectionImport`, root): implements
+  `ImportCommitter`; `prepare` reads `CardData.loadApiCatalog()` (never the generated test catalog, H-233); `undo()`;
+  `written: Subject<void>` (fires after a commit or Undo this tab wrote; Collection
+  reloads in place, COLL-091). Notice: `MatSnackBar` `(message, 'Undo', { duration: COMMIT_NOTICE_MS = 10_000,
+  politeness: 'polite' })`. Undo: Nothing to undo unless the stored snapshot's `updatedAt` equals the one this commit
+  kept; COLL-058 confirmation when the stored record's `updatedAt` differs from the commit's; IMP-050a lock lines from
+  `lockLosses` over `computeSharedPool` (v1.37: a lock-only Undo asks with "Unlock cards in your decks?" / "Unlock and
+  continue"; Confirm then `DeckLocks.dropLosses(losses, { sync: false })`); a written commit or Undo calls
+  `AppStores.majorAction()`; restore = `save({ ...snapshot, updatedAt: next }, { replace: true })`
+  then `clearPrevious()`. Error strings: `COMMIT_TEXT`.
+
+## Deck Import save (SPEC-006 DECK-001…098; H-253)
+Not an endpoint. "Import deck" on `/decks` reuses the H-158 dialog seam (folds in H-273): `ImportDialogData.deckCommitter`
+is an `ImportCommitter<PreparedDeck, DeckSaveRequest>`. Writes go through the **tracked** `stores.decks.create()` only
+(one new `decks/{id}` document per Save, stamped for sync, SYNC-031); nothing else is written (DECK-002), and Continue
+writes nothing (DECK-003).
+- **Pure logic** (`web/src/app/shared/import/deck-import.ts`): `prepareDeckImport(parse, sourceLines(text), catalog)` →
+  `PreparedDeck { lines: DeckImportLine[], sourceFormat, catalogVersion, sections, legends, champions, catalog }`
+  (names through the shared name lookup, exact then leading "a" / "the" (DECK-040, CARD-034), and printing codes
+  through `printingLookup`, as the collection commit; a line that can't resolve carries `attention: { code:
+  'UNKNOWN_CARD' | 'AMBIGUOUS_NAME' | 'UNKNOWN_PRINTING' | 'PRINTING_NAME_MISMATCH' | 'AMBIGUOUS_PRINTING', message }`
+  and, for a code/name mismatch, two `choices`; for `AMBIGUOUS_NAME` (several cards share the loose key, message
+  `"<name>" matches more than one card. Pick one.`) the cards it matches as `choices`, by `cardKey`, none picked).
+  `reviewDeck(prepared, state: DeckReviewState, today)` → `DeckReview { attention, lines: ReviewLine[], slots,
+  questions: ZoneQuestion[], issues, notes, byZone, defaultName, name, nameError, sourceError, blockers, canSave, draft }`.
+  `DeckReviewState` = the user's choices: `removed`, `picks`, `zones` (PICK_ZONE answers, "Move to", changed inferred
+  zones), `legend` / `champion` (`cardKey` or `'empty'` = Leave empty), `typedName` (null = follow the Legend,
+  DECK-070), `sourceText`, `sourceUrl`. `draft` is the `UserDeck` without `id`, `createdAt`, `updatedAt`:
+  `schemaVersion: 1`, `format: 'standard'`, `source: { kind: 'user', text, url }`, `sourceFormat` (`riot-text` /
+  `plain-text` / `csv`), `notes: ''`, `catalogVersion`, `importRemovedLines` only when non-empty (removed lines,
+  rejected tokens, Legend lines not picked), zones merged by `cardKey` per zone. Helpers: `deckSource()`
+  (DECK-071), `displayDate()` (`MMM D, YYYY`), `expectedZone()`, `isChampionUnit()`; strings `DECK_REVIEW_TEXT`.
+  Zone rules in code: DECK-020…026 and DECK-030…038 as specified. 2+ Legends (`Legend:` or unsectioned): the
+  user picks one (PICK_LEGEND) and the others are left out into `importRemovedLines` (Legends are never Main Deck
+  cards). 2+ cards under `Champion:` (e.g. a precon's Champion Unit Options): the user picks one (PICK_CHAMPION);
+  one copy of the pick goes to `champion` and every other copy (unpicked cards, extra copies of the pick) goes to
+  `main` with `zoneMethod: 'user'` and the line reason `DECK_REVIEW_TEXT.championNotPicked` /
+  `.championExtraToMain` (DECK-034 "copies not picked stay in `main`", as for unsectioned lists); "Leave empty"
+  puts them all in `main`. Save still waits for every answer (DECK-038). **`draft.champion.qty` is always 1**
+  (DECK-027, H-410): when one card's lines in `champion` (from `Champion:`, or placed there by the user) add up to more
+  than one copy (`Champion: 2 X`, or X on two lines under `Champion:`), 1 copy is the Chosen Champion and the rest
+  are added to `main` (merged by `cardKey`); each such line has `zone: 'main'`, keeps its `zoneMethod` (`section` /
+  `user`) and gets the reason `championExtraToMain`; nothing goes to `importRemovedLines`. A champion entry under
+  `Champion:` plus another under `Main Deck:` (DECK-025) is kept as written. **DECK-104 (H-500):** while any line
+  with `section: 'legend'` is in `attention`, `questions` holds no `PICK_LEGEND`, the Legend lines that resolved wait
+  with it (no zone, no `PICK_ZONE`), `draft.legend` is null and the name is the fallback; Save is blocked by
+  `blockers.unresolvedLines`. **H-452 additions:** `ReviewLine.movedToMain`
+  (copies of the line that were in the Chosen Champion zone and went to `main`, else 0); `DeckReview.notes` items are
+  `ReviewNote { id, line, message, removable }` (`removable` = the code's card was used over the typed name: IMP-068 (c),
+  or the user picked the code's card on a `PRINTING_NAME_MISMATCH` line); `DeckReview.removedLines` (`{ line, name }[]`
+  in `importRemovedLines` order; name = the card's name, or the line's text when unresolved); `DeckImportLine.code`
+  (the printing code as written, or null) and `noteKind` (`'codeUsed' | 'nameUsed' | null`);
+  `DECK_REVIEW_TEXT.championExtraToMain` is a function of the extra copies (`(n: number) => string`).
+  **Back keeps answers (H-480, DECK-100…102):** `lineIdentities(prepared)` → one identity per `DeckImportLine.id`
+  (DECK-101: trimmed `raw`, section context = the line's `section` zone or none, occurrence number among lines with
+  the same text and context; position is not part of it). `carryReviewAnswers(prev, state, next, today)` →
+  `DeckReviewState` for the next review: `removed` and `zones` entries of unchanged lines (a zone answer only when the
+  line resolves without a pick), and the `legend` / `champion` answer only when `next` asks that question again with
+  the same lines (mapped by identity) and the same candidate `cardKey`s; `picks`, `typedName`, `sourceText`,
+  `sourceUrl` start empty. The dialog holds the review left with Back in memory only and passes the result to
+  `app-deck-review` as the `initialState` input; `DeckReview.answers()` returns the current state.
+- **Parser additions** (`parse-card-list.ts`): `sourceLines(text)` (the parser's line split), `sectionLabelOf(raw)`;
+  section labels accept `*` bold marks (`**Legend:**`, `**Legend**:`, SPEC-003 IMP-016 v0.14).
+- **Service** (`web/src/app/core/import/deck-import.ts`, `DeckImport`, root): `prepare` loads the catalog
+  (`CardData.loadCatalog()`; error → `DECK_SAVE_TEXT.catalogError`, retried on the next Continue); `commit(prepared,
+  { draft })` refuses while the SYNC-009 gate is closed (DECK-097), creates `{ ...draft, id: NEW_DECK_ID(),
+  createdAt: now, updatedAt: now }` (the store stamps the monotonic `updatedAt`), reads it back, emits
+  `saved: Subject<UserDeck>` and opens the snack bar `Deck saved.` / `View deck` (`noticeOptions('success')`: 6 s,
+  polite; the action navigates to `/decks/<id>`). Errors (`DeckStoreError` codes) → `{ status: 'error', message }`:
+  `DECK_LIMIT` → `DECK_SAVE_TEXT.limit`, `DECK_TOO_LARGE` → `.tooLarge`, `STORAGE_FULL` → `.storageFull`, other →
+  `.failed`; `ReadOnlyAreaError` → its message. `NEW_DECK_ID` is an `InjectionToken<() => string>`
+  (`crypto.randomUUID()`), replaceable in tests.
+- **Decks page:** passes `deckCommitter: inject(DeckImport)`; `DeckImport.saved` re-reads the count in place (the
+  list itself is H-060). `ImportPending` is removed (no import closes with a bare `ParseResult` any more).
+- **Legality in the review (DECK-050…056, H-344):** `DeckImport.prepare` also loads `CardData.loadLegalityData()`
+  (null on failure) into `PreparedDeck.legalityData`; `reviewDeck` sets `DeckReview.legality: ReviewLegality | null`
+  from `reviewLegality(data, catalog, draft, unresolvedLines, today)` = SPEC-002 on `toDeckInput(draft)`
+  (`standard`, `global`, `asOf = localIsoDate(today)`), re-run on every review change. `ReviewLegality { verdict,
+  label, failed: string[], notChecked: string[], banned: { text, zone, waveName, upcoming }[], unresolved: string |
+  null, result: LegalityResult | null }`; `null` while the draft has no card. Never in the draft (DECK-055). No data →
+  `incomplete`, "Not fully checked", `notChecked = [RULE_CHECK_TEXT.noBans]`. The review shows it as a "Rule check"
+  block (OWN-117 words, `RULE_CHECK_WORDS`).
+- **Not built:** fuzzy suggestions
+  (DECK-043, IMP-026…030, H-272), the optional leading article (CARD-034), deck codes / TTS (DECK-012, DECK-039, H-047).
+
+## Decks list and shared lock pieces (SPEC-005 OWN-002…008, OWN-084, OWN-100…105; SPEC-008 SHARE-020…029, SHARE-050…063; H-060)
+Not an endpoint. `/decks` lists every deck (no pagination, OWN-084) in a 3 / 2 / 1 column grid
+(`minmax(min(var(--deck-tile-min, 22rem), 100%), 1fr)`). The lock pieces live in `web/src/app/shared/deck/` so the
+Deck detail header (H-254) uses the same ones. Writes: only `stores.locks` (through `DeckLocks`).
+- **Pure list logic** (`shared/deck/deck-list.ts`): `buildDeckList({ decks, locks, collection, catalog, banData,
+  today, format, legality? })` → `DeckListModel { entries: { deck, view, summary }[], pool, collectionUnreadable,
+  catalogMissing, locksUnreadable, banUnknown }`: one `computeSharedPool` when collection and catalog are both
+  readable, else `CollectionOwnership { status: 'unavailable', locks }` with the **stored** locks (`null` = lock store
+  unreadable). `DeckListQuery { text, own, lock, legality, source, sort }`, `DEFAULT_DECK_QUERY`,
+  `parseDeckQuery(params)` → `{ query, ignored }` (unknown values ignored and counted, OWN-105 (e)),
+  `deckQueryParams(q)` (defaults left out; keys `q`, `own`, `lock`, `legality`, `source`, `sort`),
+  `queryDecks(entries, q)` (OWN-005 default order, ties `createdAt` desc then `id`; `name` = `Intl.Collator('en',
+  base, numeric)`; `added` = `createdAt` desc; search = accent-folded substring of the name),
+  `ownershipCounts` (faceted: every filter but ownership), `hiddenLockedCount`, `deckCountLine(shown, total,
+  filtered)` ("3 decks" / "Showing 1 of 3 decks"), `activeFilters`, `clearFilters` (keeps the search),
+  `menuFilterCount`, option lists `DECK_SORTS`, `OWN_OPTIONS`, `LOCK_OPTIONS`, `SOURCE_OPTIONS`,
+  `legalityOptions(formatName)`.
+- **Pure lock logic** (`shared/deck/deck-locks.ts`): `deckLockCheck({ pool, deck, readOnly, lock, locksUnreadable })`
+  wraps `canLock` (`isLocked` = `view.lock` unless the store is unreadable; `ownership-unavailable` becomes
+  `locks-unreadable` when it is); `nameLockCheck({ pool, deck, cardKey, readOnly, nameLocked, locksUnreadable })` the
+  same for one name; `readLocks(store)` → `NameLock[]` (`[]` when none) or `null` (unreadable, never overwritten);
+  record edits `withDeckLocked(stored, deck, now)`, `withDeckUnlocked`, `withNameLocked`, `withNameUnlocked`,
+  `withoutLosses`, `saveLocks(store, change)`; `lockRemovalLines(losses)`, `LOCK_REMOVAL_TEXT`,
+  `noLongerFullyLockedNotice`, `cantLockDeckNotice(n)`, `cantLockNameNotice(n)` (H-670); `otherDecksLine(view)`
+  (SHARE-021, at most 3 names then "and r more"); texts `LOCK_TEXT`, `lockInTitle`, `lockedInNotice`,
+  `unlockedNotice`.
+- **Service** `DeckLocks` (`shared/deck/deck-locks.service.ts`, root): `load(): Promise<NameLock[] | null>`,
+  `lockDeck(deck)`, `unlockDeck(deckId, { sync? })`, `lockName(deckId, cardKey)`, `unlockName(deckId, cardKey)`,
+  `dropLosses(losses, { sync? })` (reject on a failed or refused save, nothing changed), `changed: Subject<void>`
+  after each save this tab wrote; each change then calls `AppStores.majorAction()` unless `sync: false`. Uses
+  `AppStores.stores.locks`.
+- **Components** (standalone; all text from the helpers above):
+
+| Selector | Inputs | Outputs | Needs |
+|---|---|---|---|
+| `app-deck-tile` | `summary: DeckTileSummary` (required), `eager: boolean` | none | Router. One link to `/decks/<id>` (whole tile), Legend art with the completion fill or the deck mark, "51%" + hidden "51 percent of copies available / locked in", status chip (ownership group only) and next to it `app-lock-badge` with `label` = `lockBadge`, `showDate` false (v1.27; a locked complete deck has no chip, only "Locked"; a short one has its group chip and "Locked · n cards short"; "Locked" while ownership is unavailable), source, pilot, legality, ban flags, Updated date, "Read-only" tag |
+| `app-deck-status-chip` | `filter: OwnershipFilter` (required), `lockBadge: string \| null` | none | `lockBadge` wins (warning style when it says "short"); `unavailable` or `locked` without a badge shows nothing. Unchanged in v1.27; the deck tile no longer passes `lockBadge` |
+| `app-lock-badge` | `lock: DeckLockState \| null` (optional since v1.27, default `null`), `label: string \| null` (required, = `summary.lockBadge`), `showDate` (default true) | none | "Locked · Locked in on <MMM D, YYYY>" (date left out when `lockedAt` doesn't parse or `lock` is null). Renders when `label` is set unless `lock.locked` is false (v1.27; before, it also needed `lock`). Size through `--lock-badge-font-size` (default `--font-size-sm`) and `--lock-badge-icon-size` (default 16px) |
+| `app-lock-actions` | `deck: UserDeck` (required), `view: DeckOwnershipView` (required), `pool: SharedPool \| null`, `readOnly: boolean`, `locksUnreadable: boolean` | `changed: void` | `DeckLocks`, `MatDialog`, `MatSnackBar`. Lock in (`aria-disabled` + reason line as `aria-describedby`, SHARE-020) → `LockInDialog` confirmation (SHARE-021) → "Locking in…" → snack "<name> is locked in."; Unlock at once (SHARE-023); failure snack "Couldn't save the lock. Try again." (SHARE-063). The host re-reads on `DeckLocks.changed` and passes the new `view` |
+| `app-lock-removal-notice` (v1.37, replaces `app-shortfall-warning`) | `losses: readonly LockLoss[]` (required) | none | SHARE-088 block inside a confirmation: intro "Some of the cards you are removing are locked in your decks. Going on unlocks them:" then `lockRemovalLines(losses)`; nothing without losses; no `role="alert"` |
+| `app-name-lock-action` (v1.37) | `card: OwnershipCard` (required), `context: NameLockContext { deck, pool, readOnly, locksUnreadable }` (required) | none | `DeckLocks`, `MatSnackBar`. "Lock these copies" / "Unlock these copies" (SHARE-094 (a)), reason line as `aria-describedby`; a not-full name answers with "Can't lock. Missing n copies." (H-670); the last name → "<deck> is locked in."; unlocking a name of a locked deck → "<deck> is no longer fully locked." |
+
+- `CardArt` gains `animateChange` (fill transition `var(--dur-fill, 180ms)`, OWN-035). Global tokens
+  `--deck-tile-min: 22rem`, `--dur-fill: 180ms`.
+- `ImportConfirmData.losses: readonly LockLoss[]` (v1.37; was `shortfalls`) renders `app-lock-removal-notice`; an
+  empty `text` renders no paragraph.
+- **Not built:** legality verdicts (the SPEC-002 engine exists since H-194, but the list does not pass `legality`
+  yet: every deck reads "Not fully checked" and the Legality filter only matches that); the format name in filter
+  labels is the constant "Standard".
+
+## Deck detail (SPEC-005 OWN-010…119, SPEC-006 DECK-081…085, SPEC-008 SHARE-024/025; H-254)
+Not an endpoint. `/decks/:id` reads and writes through the **tracked** stores only; no new stored shape.
+- **Pure logic** (`web/src/app/shared/deck-detail/detail-view.ts`): `headerSummary(view)` → `{ copies, percent, cards }`
+  (`percent` is `view.summary.completionPercent` as it is, `null` → no percentage at all; locked decks read
+  "… copies locked in"); `sectionCounts`, `navLabel` (Legend and Champion show no count); `cardId(card)` =
+  `` `${zone}:${cardKey}` ``, `deckCards`, `firstCardId` (OWN-111 (b)), `findCard`, `neighbourId`; card text
+  `labelParts`, `banText`, `cardAccessibleName`, `allocationLine`, `breakdownLines`, `printingRowText/Label`,
+  `otherUseText`, `cardFacts`, `fullArtUrl`; missing list `missingGroups`, `missingCopies`, `mergedMissingText`
+  ("Copy as one list": one line per card, sections merged, Riot order); `exportDeckText(deck, catalog)` /
+  `exportFileName` (DECK-085); `duplicateDeck(deck, id, now)` (DECK-084: `<name> (copy)` within 80 characters,
+  the name is shortened to keep the suffix, `duplicatedFrom`, never locked); `applyRename(deck, form, sourceOf)` →
+  `{ status: 'ok', deck, changed: { name, other } } | { status: 'invalid', errors }` (OWN-118: name, description,
+  and for user decks source text and URL via `deckSource()`; tournament sources never change; lock untouched);
+  `isReadOnlyDeck`, `newerDeckRecord(raw, id)` (OWN-064: a record with a newer `schemaVersion` the store refuses
+  is shown read-only); `ruleCheckContent`; `DECK_VIEW_KEY = 'deck-view'` + `parseViewMode` (OWN-114, a device
+  setting outside `rift.*`, so not synced and not cleared on sign-out). Copy strings in `DETAIL_TEXT`,
+  `RENAME_TEXT`, `RULE_CHECK_TEXT`.
+- **Page** (`web/src/app/pages/deck-detail/deck-detail.ts`, `DeckDetail`): reads deck, all decks, locks
+  (unreadable → `locksIgnored`), collection + tags (unreadable → ownership unavailable, OWN-062), printing codes,
+  catalog (`CardData.loadCatalog`, error → banner + stored names, OWN-063) and bans (`CardData.loadBans`, null or
+  error → one page notice, OWN-015); `computeSharedPool` over every deck, then `computeDeckOwnership` and
+  `summarizeDeck`. Re-reads on `storage` events for `rift.*` keys (not view state), `DeckImport.saved`,
+  `CollectionImport.written`, and on focus/visibility when the date changed (OWN-119 (d)). Injection tokens
+  `RAW_DECK_RECORD: (id) => string | null` (raw read for the read-only path) and `DEVICE_STORAGE` (view mode),
+  replaceable in tests.
+- **Writes:** Rename → `stores.decks.update(deck, basedOnUpdatedAt)` (`'conflict'` → `DETAIL_TEXT.saveConflict`, the
+  dialog stays open); Duplicate → `stores.decks.create(copy)`, snack "Deck duplicated." / Open; Delete →
+  `stores.decks.delete(id)` (v1.37: the deck's name locks stay stored and leave with the deck tombstone after the Undo
+  window; an Undo keeps them, SYNC-035 / AC 87), navigate to `/decks`, snack "Deck
+  deleted." / Undo for 10 s; Undo → `stores.decks.create(removed)` (unlocked, SHARE-024) then
+  `DeckImport.saved.next(removed)` so an open list re-reads. Read-only decks: Rename, Duplicate and Delete disabled.
+- **Lock pieces (H-060):** the header uses `app-lock-badge [lock]="view.lock" [label]="tile.lockBadge"` and
+  `app-lock-actions [deck] [view] [pool] [readOnly] [locksUnreadable]` (its own reason line, confirmation and
+  SHARE-029 snack bars). `Loaded` carries `pool` (the `SharedPool`, null while ownership is unavailable) and
+  `locksUnreadable`. The page re-reads on `DeckLocks.changed` and on the component's `(changed)` (coalesced), so
+  a lock written in this tab updates the badge, copies line and tiles without a storage event. Delete removes the
+  deck's name locks through `DeckLocks.unlockDeck` (only when one is stored; an unreadable lock store is never
+  overwritten). v1.37: no "cards short" state anywhere; the card content gets `[lockContext]` (`NameLockContext`)
+  for `app-name-lock-action`, and the card dialog data has `lockContext()`. Duplicate calls `AppStores.majorAction()`.
+  v1.38 (H-668…H-670): the title row is name (two-line clamp, expandable) + `app-lock-actions variant="icon"` + More;
+  no header actions row; Copy missing list is in `app-deck-missing` (`copyPlacement="heading"` in the desktop panel).
+- **Not built here:** the legality verdict (the SPEC-002 engine exists since H-194 but this page does not run it yet:
+  always "Not fully checked"). Ban data is real since H-344 (`loadBans()` returns `data/banlist.json`).
 
 ## Test data on live (SPEC-013, H-205)
 Not an endpoint and no new Firestore field: test data is ordinary account data told apart by reserved values
@@ -476,12 +827,15 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   collection `save(…, { replace: true })`, one `set()`; then the locks with the two test locks added);
   `removeTestData(stores, now)` (locks without the test ids, the test decks deleted (tombstones after the 10 s Undo
   window), the collection saved with `cards: {}` and `catalogVersion: ""`: one `update()` with a tombstone per card);
-  `removeTestDecks(stores, now)`: the TEST-033 part for a Replace import (test decks and their locks only). **The
-  import commit is not built yet (imports can't save); when it is, a Replace must call `removeTestDecks` in the same
-  commit** (H-233).
+  `removeTestDecks(stores, now)`: the TEST-033 part for a Replace import (test decks and their locks only).
+  `CollectionImport.commit` calls it on **every Replace**, right after the collection write (H-233; a no-op without
+  test decks, and it also clears a stray test deck, TEST-034); an Add never calls it (TEST-032 blocks Add first).
 - **Catalog** (`CardData.loadCatalog()`): reads the stored collection (`stores.raw.collection`, read only); with the
   marker it returns `generateLargeSample(n).catalog` (dynamic import, its own lazy chunk), with no `/api` call and no
   dev key; the cached catalog follows the marker (a Remove goes back to `/api`). The dev key path is unchanged.
+  `CardData.loadApiCatalog()` (H-233) always returns the `/api` catalog (own cache, cleared by `reload()`), even
+  with the marker: the Owned Cards Import resolves against it, so a Replace over test data writes the real
+  `catalogVersion` (AC 12).
 - **Flag:** `environment.testDataEnabled` (true in `environment.ts` and `environment.development.ts`), injected as
   `TEST_DATA_ENABLED` (`core/test-data/test-data-flag.ts`). False hides Load and Change set; the banner and Remove stay.
 
@@ -607,6 +961,81 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   edits the URL. Records how the Auth emulator combines a continue URL that already has a query.
 - v1.14 (2026-11-24, H-154): no endpoint change. `BrowserStores.clearCollectionData()` for SPEC-007 COLL-074
   (local-only mode): collection, Undo snapshot, tags, printing codes and view state; decks and locks stay.
+- v1.36 (2026-11-26, H-148, H-233): no endpoint change and no stored-shape change. SYNC-074: one `info` notice for
+  every locked deck a merge left short, `lockedShortfallNotice()` in `sync-engine.ts`. TEST-033: `CardData.loadApiCatalog()`;
+  `CollectionImport.prepare` uses it; `CollectionImport.commit` calls `removeTestDecks` on every Replace, and the
+  Replace confirmation's IMP-050a warnings leave the test decks out (they go in the same commit).
+- v1.37 (2026-11-26, H-665, H-667): SPEC-008 0.6.1 card-name locks: `NameLock`, `StoredDeckLocks` schema 2 with the
+  v1 migration, `canLockName`, `lockLosses`, `settleLocks`, `migrateLocksV1`, `ownedForDecksOf`, `storedLockState(locks,
+  deck)`, `DeckLockState` without `short` / `cardsShort`, `nameLocked` on `CardAvailability` / `OwnershipCard`;
+  removed `lockedShortfalls`, `shortfallWarning`, `shortfallNotice`, `LockedShortfall`, `app-shortfall-warning`,
+  `EngineDeps.shortfalls`, `lockedShortfallNotice`; new `app-lock-removal-notice`, `app-name-lock-action`,
+  `DeckLocks` per-name methods, `lockDropNotice`. SPEC-010 0.18.1: `state/locks` keyed `<deckId>|<cardKey>` with the
+  cloud migration, `MAP_CAPS.locks` / rules cap 6000, `SyncEngine.majorAction()` and `AppStores.majorAction()`
+  (SYNC-126). Section "Card-name locks and major-action sync" new.
+- v1.38 (2026-11-26, H-668 to H-671): Deck detail title row = name (two-line clamp, expandable) + lock toggle + More;
+  no header actions row; `app-deck-missing` gains `copyPlacement: 'heading' | 'end'`; the lock toggle answers a
+  missing-cards press with "Can't lock. Missing n cards." and keeps its reason only as visually hidden
+  `aria-describedby` text; `app-name-lock-action` answers a not-full press with "Can't lock. Missing n copies.";
+  `NOTICE_POSITION` (top, centre) in `shared/sync/notice.ts`, carried by `noticeOptions()` and spread into the four
+  calls with their own options.
+- v1.35 (2026-11-26, H-194, H-344, SPEC-002 0.5, SPEC-006 0.16 DECK-050…056): no endpoint change and no stored-shape
+  change. New section "Deck legality engine": `data/banlist.json` (Standard + `2v2` `unverified` list) and
+  `data/formats.json`, `web/src/app/core/legality/` (`evaluateLegality`, rules, data check), `CardData.loadLegalityData()`
+  (bundled lazy chunk; `loadBans()` now returns the real list instead of `null`). Shape changes: `BanList.format` is
+  `FormatId | string`, `BanList.status` adds `'unverified'`, `FormatDef.notes?`; `ban-status.ts` exports `banListFor`,
+  `orderedWaves`, `bannedSet`; `verdictLabel()` in `core/decks`; `PreparedDeck.legalityData`, `DeckReview.legality`
+  (`ReviewLegality`), `prepareDeckImport(…, legalityData = null)`, `reviewLegality()`, `localIsoDate()`;
+  `RULE_CHECK_WORDS` / `BAN_LINE_TEXT` in `shared/deck-detail/detail-view.ts`.
+- v1.34 (2026-11-26, H-195, SPEC-001 0.4.1): no endpoint change and no shape change. Doc pins move from SPEC-001
+  v0.2 to 0.4.1 (header, Shared types, browser-side "Read from other specs"); the `0.2+` prefix of `catalogVersion`
+  is explained as the snapshot `schemaVersion`. Card types checked against the spec and `services/src/domain/types.ts`:
+  no mismatch. `GET /api/cards/:cardKey` now states it is exact-only as built and that the CARD-034 article step is
+  missing in `services/` (H-648). The v1 entry below keeps its historical v0.2 pin.
+- v1.33 (2026-11-26, H-500, SPEC-006 0.14 DECK-104): no endpoint change and no shape change. `reviewDeck` holds
+  `PICK_LEGEND` while a Legend-section line is unresolved; `DECK_REVIEW_WORDS.legendUnresolved` is removed.
+- v1.32 (2026-11-26, H-480, SPEC-006 0.13 DECK-100, DECK-101): no endpoint change and no stored-shape change. New
+  pure `lineIdentities()` and `carryReviewAnswers()` in `shared/import/deck-import.ts`; `app-deck-review` input
+  `initialState` and method `answers()`.
+- v1.31 (2026-11-26, H-452, critique H-341 §4): no endpoint change and no stored-shape change. Review-only shape
+  additions: `ReviewLine.movedToMain`, `ReviewNote` (`id`, `removable`), `DeckReview.removedLines`,
+  `DeckImportLine.code` / `noteKind`; `championExtraToMain(n)` and `championNotPicked` reworded.
+- v1.30 (2026-11-26, H-410, SPEC-006 0.12 DECK-027): no endpoint change and no stored-shape change. `reviewDeck`
+  keeps one copy in `champion`; extra copies of the same card go to `main` with the `championExtraToMain` reason.
+- v1.29 (2026-11-25, H-343, SPEC-001 CARD-034, SPEC-006 DECK-040): no endpoint change and no stored-shape change.
+  New `looseKey` and `nameLookup` in `core/cards/name-key.ts`, used by `resolveCollectionImport` and
+  `prepareDeckImport`: a name with no exact match retries without a leading "a" / "the" (both ways); a name several
+  cards share that way is left out of the collection import and is the new `AMBIGUOUS_NAME` attention code (with the
+  cards as `choices`) in Deck Import.
+- v1.28 (2026-11-25, H-060 follow-up, RJ H-382): no endpoint change and no stored-shape change. `app-lock-badge`:
+  `lock` is optional (default `null`), the badge renders from `label` alone, and two size custom properties; existing
+  bindings (`[lock]`, `[label]`, `[showDate]`) work unchanged. `app-deck-tile` shows the lock as `app-lock-badge` (no
+  date) next to `app-deck-status-chip`, which it now binds with `filter` only; the chip's inputs are unchanged.
+- v1.27 (2026-11-25, H-254, SPEC-005 0.10.2, SPEC-006 0.11.1): no endpoint change and no stored-shape change. New section
+  "Deck detail": the pure helpers in `shared/deck-detail/detail-view.ts`, the page's reads, reload triggers and writes
+  (rename, duplicate, delete + Undo), and the device setting `deck-view`; the header uses H-060's `app-lock-badge`
+  and `app-lock-actions` and re-reads on `DeckLocks.changed`. (v1.26 is H-060's.)
+- v1.26 (2026-11-25, H-060, SPEC-005 0.10.2, SPEC-008 0.4.6): no endpoint change and no stored-shape change. New
+  section "Decks list and shared lock pieces": `deck-list.ts`, `deck-locks.ts`, `DeckLocks`, `app-deck-tile`,
+  `app-deck-status-chip`, `app-lock-badge`, `app-lock-actions` (+ `LockInDialog`), `app-shortfall-warning`;
+  `shortfallWarning` ends with " It stays locked."; `ImportConfirmData.shortfalls` replaces `warnings`;
+  `DeckStore.newerDecks()`; the lock store's orphan check counts read-only decks; `CardArt.animateChange`.
+- v1.25 (2026-11-25, H-311, SPEC-005 0.10.2): no endpoint change and no stored-shape change. `DeckOwnershipView.summary`
+  gains `completionFill` and `completionPercent` (OWN-101); `DeckTileSummary` gains `legend`, `completionFill`,
+  `completionPercent`, `bans` (`DeckTileBans`), `pilot` and `readOnly` (OWN-100…104); new pure `completionPercent(a, r)`.
+- v1.24 (2026-11-25, H-253, SPEC-006 0.11.1): no endpoint change. Unpicked cards under `Champion:` (and extra copies of the
+  picked one) go to `main` with a line reason instead of `importRemovedLines` (DECK-034; RJ 2026-11-25); unpicked Legends
+  are still left out. New "Deck Import save" section: `deck-import.ts`
+  (pure review and draft), `DeckReview` step in the shared dialog, `DeckImport` committer (`stores.decks.create`, "Deck
+  saved." / View deck), `NEW_DECK_ID`; `ImportCommitter` is generic and `prepare` gets the text; parser
+  `sourceLines()`, `sectionLabelOf()` and bold section labels (IMP-016); `ImportPending` removed.
+- v1.23 (2026-11-25, H-155, SPEC-008 0.4.6, SPEC-005 0.10.2): no endpoint change. `canLock` takes `isLocked`
+  (`already-locked` first, also with a null pool); `lockedShortfalls` compares per cardKey; `OwnershipFilter` gains
+  `'unavailable'`; `CollectionOwnership` `'unavailable'` gains optional `locks`; new `storedLockState`;
+  `DeckOwnershipView.lock` keeps a stored lock while ownership is unavailable (SHARE-053, OWN-065).
+- v1.22 (2026-11-25, H-158, SPEC-003 0.12): no endpoint change. New "Owned Cards Import commit and Undo" section
+  (`collection-commit.ts`, `ImportCommitter`, `CollectionImport`); `snapshotPrevious` keeps an empty snapshot when
+  nothing was stored (`EMPTY_SNAPSHOT_AT`); new `clearPrevious()` on the raw and tracked collection stores.
 - v1.21 (2026-11-25, H-246, SPEC-010 v0.17.0): no endpoint change. Theme: `ThemeChoice` is `light` | `dark`,
   `parseTheme` returns `null` for anything else, new `effectiveTheme` / `toggledTheme`, `ThemeService.effective` and
   `toggle()` replace `choice` / `set()`, unknown stored values are removed; `ThemeToggle` replaces `ThemeSwitch`. New

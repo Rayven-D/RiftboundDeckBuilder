@@ -25,9 +25,15 @@ import { ThemeService } from './theme.service';
       [matTooltipShowDelay]="300"
       (click)="toggle()"
     >
-      <!-- Re-created on every change, so the swap animation plays (only after a toggle, never on load). -->
-      @for (t of [theme.effective()]; track t) {
-        <app-icon [class.swap]="swapped()" [name]="dark() ? 'dark_mode' : 'light_mode'" />
+      <!-- Re-created on every change, so the swap animation plays (only after a toggle, never on load). H-468 (1): an
+           @switch, not a one-item @for tracked by identity (that re-creation raised the dev warning NG0956). -->
+      @switch (dark()) {
+        @case (true) {
+          <app-icon [class.swap]="swapped()" name="dark_mode" />
+        }
+        @default {
+          <app-icon [class.swap]="swapped()" name="light_mode" />
+        }
       }
     </button>
   `,

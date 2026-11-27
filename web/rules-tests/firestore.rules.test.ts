@@ -52,7 +52,11 @@ const tagsDoc = () => ({
 });
 const locksDoc = () => ({
   ...meta(),
-  locks: { [DECK]: { lockedAt: T, updatedAt: T }, '0b7c0000-0000-4000-8000-000000000002': { lockedAt: null, updatedAt: T } },
+  // SYNC-017 v0.18: one entry per deck and card name, key `<deckId>|<cardKey>`.
+  locks: {
+    [`${DECK}|hextech ray`]: { lockedAt: T, updatedAt: T },
+    '0b7c0000-0000-4000-8000-000000000002|gust': { lockedAt: null, updatedAt: T },
+  },
 });
 const card = (n: number) => ({ cardKey: `card ${n}`, name: `Card ${n}`, qty: 1 });
 const liveDeck = (over: Record<string, unknown> = {}) => ({
@@ -203,6 +207,39 @@ describe('SYNC-112 field validation', () => {
     await assertSucceeds(setDoc(ref(a, 'users/uA/state/tags'), { ...tagsDoc(), tags: tags(400) }));
     await assertFails(setDoc(ref(a, 'users/uA/state/tags'), { ...tagsDoc(), tags: tags(401) }));
     await assertFails(updateDoc(ref(a, 'users/uA'), { lastClientVersion: 'x'.repeat(41), updatedAt: T, syncedAt: serverTimestamp() }));
+  });
+
+  it('SYNC-112 v0.18 (H-665) locks map cap: 6000 name-lock entries pass, 6001 fail', async () => {
+    const a = db('uA');
+    const locks = (n: number) =>
+      Object.fromEntries(
+        Array.from({ length: n }, (_, i) => [
+          `0b7c0000-0000-4000-8000-${String(Math.floor(i / 60)).padStart(12, '0')}|card name ${i % 60}`,
+          { lockedAt: T, updatedAt: T },
+        ]),
+      );
+    await assertSucceeds(setDoc(ref(a, 'users/uA/state/locks'), { ...locksDoc(), locks: locks(6000) }));
+    await assertFails(setDoc(ref(a, 'users/uA/state/locks'), { ...locksDoc(), locks: locks(6001) }));
+  });
+
+  it("SYNC-017 v0.18 (H-665) a FieldPath update of name-lock keys (spaces, an apostrophe) with the deleteField() of an old per-deck key is allowed", async () => {
+    const a = db('uA');
+    await assertSucceeds(setDoc(ref(a, 'users/uA/state/locks'), { ...locksDoc(), locks: { [DECK]: { lockedAt: T, updatedAt: T } } }));
+    await assertSucceeds(
+      updateDoc(
+        ref(a, 'users/uA/state/locks'),
+        new FieldPath('locks', `${DECK}|kai'sa, survivor`),
+        { lockedAt: T, updatedAt: T },
+        new FieldPath('locks', `${DECK}|hextech ray`),
+        { lockedAt: T, updatedAt: T },
+        new FieldPath('locks', DECK),
+        deleteField(),
+        new FieldPath('updatedAt'),
+        T,
+        new FieldPath('syncedAt'),
+        serverTimestamp(),
+      ),
+    );
   });
 
   it('SYNC-014 / SYNC-034 a FieldPath update with deleteField() is allowed', async () => {

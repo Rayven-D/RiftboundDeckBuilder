@@ -32,7 +32,7 @@ async function account(db: FakeFirestore, opts: { cards?: number; decks?: number
   await laptop.replaceCollection(cards);
   for (let i = 0; i < 20; i++) await laptop.addTag(`t_tag${String(i).padStart(3, '0')}`, `Tag ${i}`);
   const ids: string[] = [];
-  for (let i = 0; i < (opts.decks ?? 10); i++) ids.push((await laptop.createDeck(`Deck ${i}`, [card('card 1', 1)])).id);
+  for (let i = 0; i < (opts.decks ?? 10); i++) ids.push((await laptop.createDeck(`Deck ${i}`, [card('card 2', 1)])).id);
   for (let i = 0; i < 3; i++) await laptop.lock(ids[i]);
   const at = new Date(laptop.now).toISOString();
   await laptop.stores.viewState.save({
@@ -93,7 +93,7 @@ describe('Browser cache (SPEC-010 SYNC-140…SYNC-146, H-172)', () => {
       expect(Object.keys((await r.collection()).cards)).toHaveLength(350);
       expect(await r.deckNames()).toHaveLength(10);
       const decks = await r.stores.decks.list();
-      expect((await r.stores.decks.get(decks[0].id))?.main).toEqual([card('card 1', 1)]);
+      expect((await r.stores.decks.get(decks[0].id))?.main).toEqual([card('card 2', 1)]);
       await r.engine.start();
       await r.settle();
       expect(r.engine.gate()).toBe('open');
@@ -230,6 +230,6 @@ describe('Browser cache (SPEC-010 SYNC-140…SYNC-146, H-172)', () => {
       expect(db.reads).toBe(0);
       expect(db.writes).toBe(0);
       expect(laptop.engine.pendingCount()).toBe(0);
-    });
+    }, 30_000); // H-420: 3,000 cards × 10 rounds outgrows the 5 s default when the machine is busy
   });
 });

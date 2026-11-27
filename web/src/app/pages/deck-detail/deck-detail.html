@@ -1,0 +1,311 @@
+<!-- OWN-111 (b), OWN-119 (b): polite status updates (a picked card left the deck, the deck was deleted elsewhere). -->
+<p class="visually-hidden" role="status" aria-live="polite">{{ status() }}</p>
+
+@switch (phase()) {
+  @case ('loading') {
+    <!-- OWN-119 (a): after 200 ms a title bar placeholder and two skeleton sections, no shimmer. -->
+    <div class="loading" [attr.aria-busy]="showSkeleton() ? 'true' : null">
+      <a class="back" routerLink="/decks"><app-icon name="arrow_back" />Decks</a>
+      <h1 class="visually-hidden">Deck detail</h1>
+      @if (showSkeleton()) {
+        <span class="visually-hidden">Loading this deck…</span>
+        <div class="skeleton-title" aria-hidden="true"></div>
+        @for (s of [0, 1]; track s) {
+          <div class="skeleton-heading" aria-hidden="true"></div>
+          <div class="grid" aria-hidden="true">
+            @for (t of skeletonTiles; track t) {
+              <div class="skeleton-tile"></div>
+            }
+          </div>
+        }
+      }
+    </div>
+  }
+
+  @case ('not-found') {
+    <!-- OWN-119 (b) / D3, D17. H-467: the same back link and spacing as the populated header. H-482 (OWN-119 (b) v0.11,
+         AC 35): no "Deck detail" heading; the empty state's heading is the page's only H1. -->
+    <header class="deck-header">
+      <a class="back" routerLink="/decks"><app-icon name="arrow_back" />Decks</a>
+    </header>
+    <app-empty-state [heading]="text.notFoundHeading" [headingLevel]="1" [message]="text.notFoundMessage">
+      <a class="button" routerLink="/decks">Back to Decks</a>
+    </app-empty-state>
+  }
+
+  @case ('ready') {
+    @if (loaded(); as d) {
+      @let v = d.view;
+      @let h = header()!;
+      <!-- OWN-010: the deck view header, top to bottom (a) … (h). -->
+      <header class="deck-header">
+        <a class="back" routerLink="/decks"><app-icon name="arrow_back" />Decks</a>
+        <!-- H-475: two columns from 40rem (title and status left, actions top-right); one column on phones. The
+             actions stay after the title and status in the DOM, so the focus order is unchanged. -->
+        <div class="header-top">
+          <div class="header-main">
+            <!-- H-662 (RJ 2026-11-26): the lock state is an icon-only toggle right after the name (closed lock = locked,
+                 open lock = not). OWN-116 / SHARE-020…023, SHARE-029: the same Lock in / Unlock logic, confirmation,
+                 snack bars and disabled states; the SHARE-020 reason line wraps under the title row. It saves through
+                 DeckLocks; the page re-reads on DeckLocks.changed and passes the new view back in. -->
+            <!-- H-668 (RJ 2026-11-26): name, lock toggle and More actions on one row at every width; the toggle and More
+                 keep their place and 44 px size, the name takes the rest, wraps and is clamped to two lines (full name
+                 in the title attribute and in the heading text). A clamped name is a button inside the heading: a tap,
+                 Enter or Space shows the full name; blur or Escape clamps it again. Focus order: name, lock, More. -->
+            <div class="title-row">
+              <h1 class="deck-name" [attr.title]="d.deck.name">
+                <span
+                  #nameText
+                  class="deck-name-text"
+                  [class.clamped]="!nameExpanded()"
+                  [attr.tabindex]="nameInteractive() ? 0 : null"
+                  [attr.role]="nameInteractive() ? 'button' : null"
+                  [attr.aria-expanded]="nameInteractive() ? nameExpanded() : null"
+                  (click)="toggleName()"
+                  (keydown)="onNameKey($event)"
+                  (blur)="collapseName()"
+                  >{{ d.deck.name }}</span
+                >
+              </h1>
+              <app-lock-actions
+                variant="icon"
+                [deck]="d.deck"
+                [view]="v"
+                [pool]="d.pool"
+                [readOnly]="d.readOnly"
+                [locksUnreadable]="d.locksUnreadable"
+                (changed)="lockChanged()"
+              />
+              <button #moreButton matIconButton type="button" class="more" aria-label="More actions" [matMenuTriggerFor]="moreMenu">
+                <app-icon name="more_vert" />
+              </button>
+              <mat-menu #moreMenu="matMenu" xPosition="before">
+                <button mat-menu-item type="button" (click)="copyDeckList()"><app-icon name="content_copy" class="menu-icon" matMenuItemIcon />Copy deck list</button>
+                <button mat-menu-item type="button" (click)="downloadDeckList()"><app-icon name="download" class="menu-icon" matMenuItemIcon />Download .txt</button>
+                <button mat-menu-item type="button" [disabled]="d.readOnly" (click)="duplicate()"><app-icon name="library_add" class="menu-icon" matMenuItemIcon />Duplicate</button>
+                <button mat-menu-item type="button" [disabled]="d.readOnly" (click)="rename()"><app-icon name="edit" class="menu-icon" matMenuItemIcon />Rename</button>
+                <mat-divider />
+                <button mat-menu-item type="button" class="danger" [disabled]="d.readOnly" (click)="delete()">
+                  <app-icon name="delete" class="menu-icon" matMenuItemIcon />Delete
+                </button>
+              </mat-menu>
+            </div>
+            @if (d.deck.notes) {
+              <div class="description">
+                <p #desc id="deck-description" class="description-text" [class.clamped]="!descExpanded()">{{ d.deck.notes }}</p>
+                @if (descOverflows() || descExpanded()) {
+                  <button
+                    type="button"
+                    class="text-button"
+                    aria-controls="deck-description"
+                    [attr.aria-expanded]="descExpanded()"
+                    (click)="toggleDesc()"
+                  >
+                    {{ descExpanded() ? 'Show less' : 'Show more' }}
+                  </button>
+                }
+              </div>
+            }
+            <p class="source">
+              {{ d.tile.sourceLine
+              }}@if (source().pilot; as pilot) {
+                · {{ pilot }}
+              }@if (source().sourceUrl; as url) {
+                ·
+                <a class="source-link" [href]="url" target="_blank" rel="noopener noreferrer nofollow"
+                  >Source<app-icon name="open_in_new" /><span class="visually-hidden"> (opens in a new tab)</span></a
+                >
+              }
+            </p>
+            <div class="meta">
+              <!-- H-662: no lock badge or "Locked in on <date>" here any more; the title-row icon shows the lock state. -->
+              <span class="legality" [class]="'legality legality--' + d.tile.legalityVerdict">
+                <app-icon [name]="d.tile.legalityVerdict === 'legal' ? 'check_circle' : d.tile.legalityVerdict === 'illegal' ? 'block' : 'help'" />{{
+                  d.tile.legalityLabel
+                }}
+              </span>
+              <button type="button" class="text-button" aria-haspopup="dialog" (click)="openRuleCheck()">Rule check</button>
+            </div>
+            <!-- OWN-010 (f): the summary at the top on every screen size; the copies line ends with the completion
+                 percentage, view.summary.completionPercent as it is (OWN-101 (d)); nothing at all when it is null. -->
+            <div class="summary">
+              <p class="copies">
+                {{ h.copies
+                }}@if (h.percent !== null) {
+                  <span aria-hidden="true"> · {{ h.percent }}%</span><span class="visually-hidden">, {{ h.percent }} percent</span>
+                }
+              </p>
+              @if (h.cards) {
+                <p class="cards">{{ h.cards }}</p>
+              }
+            </div>
+          </div>
+          <!-- H-668: More actions is on the title row. H-669 (RJ 2026-11-26): Copy missing list moved into the Missing
+               area at every width (the desktop panel's Missing heading row; under the list below 64rem), so the header
+               has no actions row any more. -->
+        </div>
+      </header>
+
+      <!-- OWN-119 (c), (f): banners and notices in the same place as on the list. -->
+      <div class="notices">
+        @if (d.readOnly) {
+          <div class="banner banner--info" role="status">
+            <app-icon name="help" />
+            <p>{{ text.readOnly }}</p>
+          </div>
+        }
+        @if (d.collectionUnreadable) {
+          <div class="banner banner--warning" role="alert">
+            <app-icon name="warning" />
+            <p>{{ text.ownershipUnavailable }}</p>
+          </div>
+        }
+        @if (!d.catalog) {
+          <div class="banner banner--warning" role="alert">
+            <app-icon name="warning" />
+            <p>{{ text.catalogNotLoaded }}</p>
+            <button type="button" class="button button--outlined" (click)="retryCatalog()">Try again</button>
+          </div>
+        }
+        @if (v.locksIgnored) {
+          <div class="banner banner--warning" role="alert">
+            <app-icon name="warning" />
+            <p>{{ text.locksUnreadable }}</p>
+          </div>
+        }
+        @if (d.banUnknown && !banDismissed()) {
+          <p class="notice" role="status">
+            <app-icon name="help" /><span>{{ text.banUnknown }}</span>
+            <button matIconButton type="button" class="dismiss" aria-label="Dismiss" (click)="banDismissed.set(true)">
+              <app-icon name="close" />
+            </button>
+          </p>
+        }
+      </div>
+
+      @if (!isDesktop() && v.ownershipAvailable && v.summary.copiesRequired > 0) {
+        <!-- OWN-051 / OWN-111 (d): below 64rem the missing list sits under the header (counts are in the header). -->
+        <section class="missing-flow" aria-label="Missing cards">
+          <app-deck-missing [view]="v" [showCounts]="false" [showCopy]="true" [collapsible]="true" (copyRequested)="copyMissing($event)" />
+        </section>
+      }
+
+      <!-- OWN-110 section bar + OWN-114 view toggle, sticky under the page header. -->
+      <div class="deck-bar">
+        <nav class="section-nav" aria-label="Deck sections">
+          <ul>
+            @for (s of v.sections; track s.zone) {
+              <li>
+                <a
+                  [attr.href]="'/decks/' + d.deck.id + '#zone-' + s.zone"
+                  [attr.data-zone]="s.zone"
+                  [class.empty]="s.cards.length === 0"
+                  [attr.aria-current]="currentZone() === s.zone ? 'location' : null"
+                  (click)="jump($event, s.zone)"
+                  >{{ navLabel(s) }}</a
+                >
+              </li>
+            }
+          </ul>
+        </nav>
+        <div class="view-toggle" role="group" aria-label="Show cards as">
+          <button type="button" [attr.aria-pressed]="mode() === 'card'" (click)="setMode('card')">
+            <app-icon name="grid_view" /><span class="toggle-label">Card view</span>
+          </button>
+          <button type="button" [attr.aria-pressed]="mode() === 'list'" (click)="setMode('list')">
+            <app-icon name="view_list" /><span class="toggle-label">List view</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="layout" [class.layout--panel]="isDesktop()">
+        <div class="sections">
+          @for (s of v.sections; track s.zone; let si = $index) {
+            <section class="zone" [id]="'section-' + s.zone" [attr.aria-labelledby]="'zone-' + s.zone">
+              <h2 class="zone-title" [id]="'zone-' + s.zone" tabindex="-1">
+                {{ zoneLabel[s.zone] }} <span class="muted">{{ sectionCounts(s) }}</span>
+              </h2>
+              @if (s.cards.length === 0) {
+                <p class="empty-zone">{{ text.emptyZone }}</p>
+              } @else {
+                <ul
+                  [class]="mode() === 'card' ? 'grid' : 'rows'"
+                  role="list"
+                  [attr.aria-label]="zoneLabel[s.zone]"
+                  (keydown)="onGridKey($event, s)"
+                  (focusin)="onGridFocus($event, s)"
+                >
+                  @for (c of s.cards; track cardId(c); let i = $index) {
+                    <li>
+                      @if (mode() === 'card') {
+                        <app-deck-card-tile
+                          [card]="c"
+                          [selected]="isDesktop() && selectedId() === cardId(c)"
+                          [opensDialog]="!isDesktop()"
+                          [focusable]="isActive(s.zone, i)"
+                          [eager]="si < 3 && i < 10"
+                          (pressed)="press(c)"
+                        />
+                      } @else {
+                        <app-deck-card-row
+                          [card]="c"
+                          [selected]="isDesktop() && selectedId() === cardId(c)"
+                          [opensDialog]="!isDesktop()"
+                          [focusable]="isActive(s.zone, i)"
+                          (pressed)="press(c)"
+                        />
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+            </section>
+          }
+        </div>
+
+        @if (isDesktop()) {
+          <!-- OWN-111: the persistent panel with the tabs "Card" and "Missing" (no percentage in either). -->
+          <aside class="panel" aria-label="Card and missing cards">
+            <div class="tabs" role="tablist" aria-label="Deck panel">
+              <button
+                type="button"
+                role="tab"
+                id="deck-tab-card"
+                aria-controls="deck-tabpanel"
+                [attr.aria-selected]="tab() === 'card'"
+                [tabIndex]="tab() === 'card' ? 0 : -1"
+                (click)="selectTab('card')"
+                (keydown)="onTabKey($event)"
+              >
+                Card
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="deck-tab-missing"
+                aria-controls="deck-tabpanel"
+                [attr.aria-selected]="tab() === 'missing'"
+                [tabIndex]="tab() === 'missing' ? 0 : -1"
+                (click)="selectTab('missing')"
+                (keydown)="onTabKey($event)"
+              >
+                Missing
+              </button>
+            </div>
+            <div #panelBody class="tabpanel" id="deck-tabpanel" role="tabpanel" tabindex="0" [attr.aria-labelledby]="'deck-tab-' + tab()">
+              @if (tab() === 'card') {
+                @if (selected(); as c) {
+                  <app-deck-card-content [card]="c" [locked]="locked()" [ownershipAvailable]="v.ownershipAvailable" [fullUrl]="fullUrl(c)" [lockContext]="lockContext()" />
+                } @else {
+                  <p class="muted">{{ text.noDeckCards }}</p>
+                }
+              } @else {
+                <app-deck-missing [view]="v" copyPlacement="heading" (copyRequested)="copyMissing($event)" />
+              }
+            </div>
+          </aside>
+        }
+      </div>
+    }
+  }
+}

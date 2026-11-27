@@ -1,0 +1,342 @@
+<header class="page-header head">
+  <h1>Decks</h1>
+  <!-- OWN-105 (g) -->
+  <p class="page-lede">{{ text.lede }}</p>
+  @if (gate.open()) {
+    @switch (phase()) {
+      @case ('ready') {
+        <!-- OWN-105 (b): polite status. -->
+        <p id="count-line" class="count-line" role="status" aria-live="polite">{{ countText() }}</p>
+        @if (hiddenLocked() > 0) {
+          <!-- OWN-105 (d), brief choice 7 -->
+          <p class="locked-hint">
+            <span>{{ text.lockedHint }}</span>
+            <button type="button" class="text-button" (click)="showLocked()">{{ text.showLocked }}</button>
+          </p>
+        }
+      }
+      @case ('loading') {
+        <p class="count-line">
+          @if (showSkeleton()) {
+            <span class="count-placeholder" aria-hidden="true"></span>
+          }
+        </p>
+      }
+    }
+  }
+</header>
+
+<!-- SYNC-009 / OWN-066: gated (account-only, SPEC-010 v0.12). -->
+@if (gate.open()) {
+  @if (phase() === 'ready') {
+    <!-- OWN-094 (f): right after the page header, before the list's controls. -->
+    <app-page-fab label="Import deck" icon="upload" (pressed)="openImport()" />
+  }
+
+  @if (phase() === 'empty') {
+    <app-empty-state [heading]="empty.heading" [message]="empty.message">
+      <button #emptyImport type="button" class="button" aria-haspopup="dialog" (click)="openImport()">Import deck</button>
+      <a class="button button--outlined" routerLink="/tournaments">Tournaments</a>
+    </app-empty-state>
+  }
+
+  @if (phase() !== 'empty') {
+    @if (model(); as m) {
+      <!-- L6 / L7 / L8: banners, role=alert once. -->
+      @if (m.collectionUnreadable) {
+        <div class="banner banner--warning" role="alert">
+          <app-icon name="warning" />
+          <p>{{ text.ownershipUnavailable }}</p>
+        </div>
+      }
+      @if (m.catalogMissing) {
+        <div class="banner banner--warning" role="alert">
+          <app-icon name="warning" />
+          <p>{{ text.cardDataMissing }}</p>
+          <button type="button" class="button button--outlined" (click)="retryCatalog()">Try again</button>
+        </div>
+      }
+      @if (m.locksUnreadable) {
+        <div class="banner banner--warning" role="alert">
+          <app-icon name="warning" />
+          <p>{{ lockText.locksUnreadable }}</p>
+        </div>
+      }
+      <div class="notices">
+        @if (urlNotice(); as notice) {
+          <!-- L13 / OWN-105 (e) -->
+          <p class="notice" role="status">
+            <app-icon name="help" /><span>{{ notice }}</span>
+            <button matIconButton type="button" class="dismiss" aria-label="Dismiss" (click)="urlNotice.set(null)">
+              <app-icon name="close" />
+            </button>
+          </p>
+        }
+        @if (m.banUnknown && !banDismissed()) {
+          <!-- L9 / OWN-015: one page notice, no ban flags on tiles. -->
+          <p class="notice" role="status">
+            <app-icon name="help" /><span>{{ text.banUnknown }}</span>
+            <button matIconButton type="button" class="dismiss" aria-label="Dismiss" (click)="banDismissed.set(true)">
+              <app-icon name="close" />
+            </button>
+          </p>
+        }
+      </div>
+    }
+
+    <!-- OWN-105 (a): the sticky toolbar (Collection's rule). -->
+    <div #sentinel class="sentinel" aria-hidden="true"></div>
+    <div class="deck-toolbar" [class.deck-toolbar--stuck]="stuck()">
+      <div class="search">
+        <app-icon name="search" class="search-icon" />
+        <input
+          #search
+          type="search"
+          placeholder="Search decks"
+          aria-label="Search decks by name"
+          autocomplete="off"
+          [value]="searchText()"
+          [disabled]="phase() !== 'ready'"
+          (input)="onSearchInput(search.value)"
+          (keydown)="onSearchKey($event)"
+        />
+        @if (searchText()) {
+          <button type="button" class="clear" aria-label="Clear search" (click)="clearSearch()">
+            <app-icon name="close" />
+          </button>
+        }
+      </div>
+
+      @if (isPhone()) {
+        <button
+          #filtersButton
+          type="button"
+          class="icon-control"
+          aria-haspopup="dialog"
+          [attr.aria-label]="phoneFilterCount() ? 'Filters, ' + phoneFilterCount() + ' on' : 'Filters'"
+          [disabled]="phase() !== 'ready'"
+          (click)="openFilters()"
+        >
+          <app-icon name="filter_list" />
+          @if (phoneFilterCount()) {
+            <span class="badge" aria-hidden="true">{{ phoneFilterCount() }}</span>
+          }
+        </button>
+        <button
+          type="button"
+          class="icon-control"
+          aria-label="Sort by"
+          aria-haspopup="menu"
+          [disabled]="phase() !== 'ready'"
+          [matMenuTriggerFor]="sortMenu"
+        >
+          <app-icon name="sort" />
+        </button>
+        <mat-menu #sortMenu="matMenu" xPosition="before">
+          @for (s of sorts; track s.value) {
+            <button
+              mat-menu-item
+              type="button"
+              role="menuitemradio"
+              [attr.aria-checked]="query().sort === s.value"
+              (click)="setSort(s.value)"
+            >
+              <span class="check" aria-hidden="true">{{ query().sort === s.value ? '✓' : '' }}</span>{{ s.label }}
+            </button>
+          }
+        </mat-menu>
+      } @else {
+        <!-- OWN-102 / OWN-105 (a): ownership chips with the user's own deck counts; one Tab stop, arrows select. -->
+        <div
+          class="own-chips"
+          role="radiogroup"
+          aria-label="Ownership"
+          [attr.aria-disabled]="ownershipDisabled() || null"
+          [attr.aria-describedby]="ownershipDisabled() ? 'own-hint' : null"
+        >
+          <button
+            type="button"
+            role="radio"
+            class="own-chip"
+            (keydown)="onOwnKey($event)"
+            [attr.aria-checked]="query().own === null"
+            [attr.aria-label]="'All, ' + counts().all + (counts().all === 1 ? ' deck' : ' decks')"
+            [attr.tabindex]="query().own === null ? 0 : -1"
+            [attr.aria-disabled]="ownershipDisabled() || null"
+            [disabled]="phase() !== 'ready'"
+            (click)="setOwn(null)"
+          >
+            All <span class="n">{{ counts().all }}</span>
+          </button>
+          @for (o of ownOptions; track o) {
+            <button
+              type="button"
+              role="radio"
+              class="own-chip"
+              (keydown)="onOwnKey($event)"
+              [attr.aria-checked]="query().own === o"
+              [attr.aria-label]="ownLabel[o] + ', ' + counts()[o] + (counts()[o] === 1 ? ' deck' : ' decks')"
+              [attr.tabindex]="query().own === o ? 0 : -1"
+              [attr.aria-disabled]="ownershipDisabled() || null"
+              [disabled]="phase() !== 'ready'"
+              (click)="setOwn(o)"
+            >
+              <app-icon [name]="ownIcon[o]" />{{ ownLabel[o] }} <span class="n">{{ counts()[o] }}</span>
+            </button>
+          }
+        </div>
+
+        <div class="control">
+          <span class="control-label" id="lock-label">Lock</span>
+          <mat-select
+            class="select lock-select"
+            aria-labelledby="lock-label"
+            [value]="query().lock ?? 'all'"
+            [disabled]="phase() !== 'ready' || lockDisabled()"
+            (valueChange)="setLock($event)"
+          >
+            @for (o of lockOptions; track o.label) {
+              <mat-option [value]="o.value ?? 'all'">{{ o.label }}</mat-option>
+            }
+          </mat-select>
+        </div>
+
+        <button
+          type="button"
+          class="menu-control"
+          aria-haspopup="menu"
+          [attr.aria-label]="menuCount() ? 'Filters, ' + menuCount() + ' on' : 'Filters'"
+          [disabled]="phase() !== 'ready'"
+          [matMenuTriggerFor]="filtersMenu"
+        >
+          <app-icon name="filter_list" />Filters
+          @if (menuCount()) {
+            <span class="badge" aria-hidden="true">{{ menuCount() }}</span>
+          }
+        </button>
+        <mat-menu #filtersMenu="matMenu" class="deck-filters-menu">
+          <!-- H-465 (1): each option set is a group named by its heading (WCAG 1.3.1 / 4.1.2); the heading itself is
+               hidden from the tree so it is heard once, as the group's name. -->
+          <div role="group" aria-labelledby="deck-filters-legality">
+            <p id="deck-filters-legality" class="menu-group" aria-hidden="true">Legality</p>
+            <button
+              mat-menu-item
+              type="button"
+              role="menuitemradio"
+              [attr.aria-checked]="query().legality === null"
+              (click)="patchQuery({ legality: null })"
+            >
+              <span class="check" aria-hidden="true">{{ query().legality === null ? '✓' : '' }}</span>Any
+            </button>
+            @for (o of legalityOptions; track o.value) {
+              <button
+                mat-menu-item
+                type="button"
+                role="menuitemradio"
+                [attr.aria-checked]="query().legality === o.value"
+                (click)="patchQuery({ legality: o.value })"
+              >
+                <span class="check" aria-hidden="true">{{ query().legality === o.value ? '✓' : '' }}</span>{{ o.label }}
+              </button>
+            }
+          </div>
+          <div role="group" aria-labelledby="deck-filters-source">
+            <p id="deck-filters-source" class="menu-group" aria-hidden="true">Source</p>
+            <button
+              mat-menu-item
+              type="button"
+              role="menuitemradio"
+              [attr.aria-checked]="query().source === null"
+              (click)="patchQuery({ source: null })"
+            >
+              <span class="check" aria-hidden="true">{{ query().source === null ? '✓' : '' }}</span>Any
+            </button>
+            @for (o of sourceOptions; track o.value) {
+              <button
+                mat-menu-item
+                type="button"
+                role="menuitemradio"
+                [attr.aria-checked]="query().source === o.value"
+                (click)="patchQuery({ source: o.value })"
+              >
+                <span class="check" aria-hidden="true">{{ query().source === o.value ? '✓' : '' }}</span>{{ o.label }}
+              </button>
+            }
+          </div>
+        </mat-menu>
+
+        <div class="control sort">
+          <span class="control-label" id="sort-label">Sort by</span>
+          <mat-select
+            class="select sort-select"
+            aria-labelledby="sort-label"
+            [value]="query().sort"
+            [disabled]="phase() !== 'ready'"
+            (valueChange)="setSort($event)"
+          >
+            @for (s of sorts; track s.value) {
+              <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            }
+          </mat-select>
+        </div>
+      }
+    </div>
+    @if (ownershipDisabled() && !isPhone()) {
+      <!-- OWN-105 (f) -->
+      <p id="own-hint" class="toolbar-hint">{{ text.ownershipDisabled }}</p>
+    }
+
+    @if (chips().length) {
+      <!-- OWN-105 (c) -->
+      <div class="active-filters">
+        @for (c of chips(); track c.key; let i = $index) {
+          <button
+            type="button"
+            class="filter-chip"
+            [attr.aria-label]="'Remove filter: ' + c.label"
+            (click)="removeFilter(c.key, i)"
+          >
+            {{ c.label }}<app-icon name="close" />
+          </button>
+        }
+        <button type="button" class="text-button" (click)="clearAll()">{{ text.clearFilters }}</button>
+      </div>
+    }
+
+    @if (phase() === 'loading') {
+      @if (showSkeleton()) {
+        <!-- L2 -->
+        <div class="deck-grid skeleton" aria-busy="true">
+          <span class="visually-hidden">{{ text.loading }}</span>
+          @for (i of skeleton; track i) {
+            <div class="skeleton-tile">
+              <div class="skeleton-art"></div>
+              <div class="skeleton-lines"><span></span><span></span><span></span></div>
+            </div>
+          }
+        </div>
+      }
+    } @else if (results().length === 0) {
+      <!-- L5 -->
+      <app-empty-state [heading]="text.noMatch">
+        <button type="button" class="button" (click)="clearAll()">{{ text.clearFilters }}</button>
+        @if (hiddenLocked() > 0) {
+          <!-- H-468 (9): "Ready to build" hid locked decks; offer them here too, where the eye is (OWN-105 (d)). -->
+          <button type="button" class="button button--outlined" (click)="showLocked()">{{ text.showLocked }}</button>
+        }
+      </app-empty-state>
+    } @else {
+      <!-- OWN-002 / OWN-084: every tile at once, off-screen ones skipped with a reserved height. -->
+      <ul #grid class="deck-grid" role="list" aria-label="Your decks" aria-describedby="count-line">
+        @for (e of results(); track e.deck.id; let i = $index) {
+          <li><app-deck-tile [summary]="e.summary" [eager]="i < 3" /></li>
+        }
+      </ul>
+    }
+  }
+} @else {
+  <app-sign-in-panel />
+}
+
+<!-- OWN-094 / COLL-094 (i) SHOULD: drop a file to import a deck (gate open, page ready). -->
+<app-file-drop text="Drop to import a deck" [enabled]="ready()" (dropped)="openImport($event)" />

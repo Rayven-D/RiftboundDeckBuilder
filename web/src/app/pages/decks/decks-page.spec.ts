@@ -8,11 +8,14 @@ import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../../app.routes';
+import { CardData, CatalogResult } from '../../core/cards/card-data';
+import { makeCatalog, makeDeck } from '../../core/decks/engine-fixtures';
 import { AppStores } from '../../core/storage/app-stores';
 import { createBrowserStores } from '../../core/storage/browser-stores';
 import { MemoryBackend } from '../../core/storage/kv-backend';
 import { provideOpenGate } from '../../core/sync/testing/open-gate';
-import type { UserDeck } from '../../shared/storage/records';
+
+const CATALOG = makeCatalog(['Gust']);
 
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 const dialogTitle = () => text(document.querySelector('mat-dialog-container h2')) || null;
@@ -20,12 +23,20 @@ const dialogTitle = () => text(document.querySelector('mat-dialog-container h2')
 async function setup(url: string, decks = 0) {
   const backend = new MemoryBackend();
   const stores = createBrowserStores(backend, { now: () => Date.now(), changed: () => undefined, readOnly: () => false });
-  vi.spyOn(stores.decks, 'list').mockResolvedValue(Array.from({ length: decks }, (_, i) => ({ id: `d${i}` }) as UserDeck));
+  for (let i = 0; i < decks; i++) {
+    await stores.raw.decks.put(makeDeck(`00000000-0000-4000-9000-${String(i).padStart(12, '0')}`, `Deck ${i}`, { main: [['Gust', 1]] }));
+  }
+  const cardData: Partial<CardData> = {
+    loadCatalog: async (): Promise<CatalogResult> => ({ status: 'ok', catalog: CATALOG }),
+    reload: async (): Promise<CatalogResult> => ({ status: 'ok', catalog: CATALOG }),
+    loadBans: async () => null,
+  };
   TestBed.configureTestingModule({
     providers: [
+      { provide: CardData, useValue: cardData },
       provideRouter(routes, withComponentInputBinding()),
       provideOpenGate(),
-      { provide: AppStores, useValue: { stores } },
+      { provide: AppStores, useValue: { stores, majorAction: () => undefined } },
       { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
     ],
   });
@@ -114,12 +125,12 @@ describe('DecksPage Import deck (OWN-008, OWN-094, DECK-001, SYNC-159)', () => {
     });
   });
 
-  it('H-060 placeholder (RJ 2026-11-25): the count line reads "N decks saved." / "1 deck saved."', async () => {
+  it('OWN-105 (b) (H-060 replaces the "N decks saved." placeholder): the count line reads "N decks" / "1 deck"', async () => {
     const two = await setup('/decks', 2);
-    expect(text(two.el.querySelector('.count-line'))).toBe('2 decks saved.');
+    expect(text(two.el.querySelector('.count-line'))).toBe('2 decks');
     TestBed.resetTestingModule();
     const one = await setup('/decks', 1);
-    expect(text(one.el.querySelector('.count-line'))).toBe('1 deck saved.');
+    expect(text(one.el.querySelector('.count-line'))).toBe('1 deck');
   });
 
   it('SYNC-159 (c) /decks?import=yes is ignored and left alone', async () => {

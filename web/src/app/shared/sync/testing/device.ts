@@ -4,7 +4,8 @@
  */
 import { MemoryBackend } from '../../../core/storage/kv-backend';
 import { BrowserStores, createBrowserStores } from '../../../core/storage/browser-stores';
-import type { DeckCard, StoredCollection, StoredTags, UserDeck } from '../../storage/records';
+import { deckCards } from '../../storage/records';
+import type { DeckCard, NameLock, StoredCollection, StoredDeckLocks, StoredTags, UserDeck } from '../../storage/records';
 import { emptySyncLog } from '../sync-log';
 import { SyncEngine } from '../sync-engine';
 import type { NoticeKind } from '../notice';
@@ -236,26 +237,45 @@ export class Device {
     if (r !== 'ok') throw new Error('conflict');
   }
 
+  private async locksRecord(): Promise<StoredDeckLocks> {
+    return (await this.stores.locks.load()) ?? { schemaVersion: 2, updatedAt: '', locks: [] };
+  }
+
+  private async saveLocks(locks: NameLock[]): Promise<void> {
+    await this.stores.locks.save({ schemaVersion: 2, updatedAt: new Date(this.now).toISOString(), locks });
+  }
+
+  /** The deck toggle (SHARE-084): a name lock on every counted name of the deck not locked yet, one `lockedAt`. */
   async lock(deckId: string): Promise<void> {
-    const l = (await this.stores.locks.load()) ?? { schemaVersion: 1 as const, updatedAt: '', locks: [] };
-    await this.stores.locks.save({
-      schemaVersion: 1,
-      updatedAt: new Date(this.now).toISOString(),
-      locks: [...l.locks.filter((x) => x.deckId !== deckId), { deckId, lockedAt: new Date(this.now).toISOString() }],
-    });
+    const deck = await this.stores.decks.get(deckId);
+    const l = await this.locksRecord();
+    const at = new Date(this.now).toISOString();
+    const have = new Set(l.locks.filter((x) => x.deckId === deckId).map((x) => x.cardKey));
+    const names = [...new Set(deck ? deckCards(deck).map((c) => c.cardKey) : [])].filter((k) => !have.has(k));
+    await this.saveLocks([...l.locks, ...names.map((cardKey) => ({ deckId, cardKey, lockedAt: at }))]);
   }
 
+  /** One name (SHARE-082). */
+  async lockName(deckId: string, cardKey: string): Promise<void> {
+    const l = await this.locksRecord();
+    const rest = l.locks.filter((x) => !(x.deckId === deckId && x.cardKey === cardKey));
+    await this.saveLocks([...rest, { deckId, cardKey, lockedAt: new Date(this.now).toISOString() }]);
+  }
+
+  /** Unlock the deck (SHARE-084): every name lock of that deck. */
   async unlock(deckId: string): Promise<void> {
-    const l = (await this.stores.locks.load()) ?? { schemaVersion: 1 as const, updatedAt: '', locks: [] };
-    await this.stores.locks.save({
-      schemaVersion: 1,
-      updatedAt: new Date(this.now).toISOString(),
-      locks: l.locks.filter((x) => x.deckId !== deckId),
-    });
+    const l = await this.locksRecord();
+    await this.saveLocks(l.locks.filter((x) => x.deckId !== deckId));
   }
 
+  /** Decks with at least one name lock, in stored order. */
   async lockedIds(): Promise<string[]> {
-    return ((await this.stores.locks.load())?.locks ?? []).map((l) => l.deckId);
+    return [...new Set(((await this.stores.locks.load())?.locks ?? []).map((l) => l.deckId))];
+  }
+
+  /** `<deckId>|<cardKey>` of every stored name lock. */
+  async lockKeys(): Promise<string[]> {
+    return ((await this.stores.locks.load())?.locks ?? []).map((l) => `${l.deckId}|${l.cardKey}`).sort();
   }
 
   async deckNames(): Promise<string[]> {

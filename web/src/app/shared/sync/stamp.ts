@@ -1,3 +1,4 @@
+import { nameLockKey } from '../storage/records';
 import type { StoredCollection, StoredDeckLocks, StoredTags, UserDeck } from '../storage/records';
 import {
   PendingList,
@@ -75,10 +76,14 @@ export function stampTags(log: StoredSyncLog, record: StoredTags, now: Ms): Stor
   return next;
 }
 
-/** SYNC-031: a lock changes when it is added, removed, or its `lockedAt` differs. */
+/**
+ * SYNC-031: a name lock changes when it is added, removed, or its `lockedAt` differs. Entries are keyed
+ * `<deckId>|<cardKey>` (SYNC-017 v0.18); an entry of the old per-deck shape (key without `|`) is never current, so
+ * it becomes a pending tombstone that the push removes from the cloud map (the SYNC-017 migration).
+ */
 export function stampLocks(log: StoredSyncLog, record: StoredDeckLocks, now: Ms): StoredSyncLog {
   const next = cloneLog(log);
-  const current = Object.fromEntries(record.locks.map((l) => [l.deckId, l.lockedAt]));
+  const current = Object.fromEntries(record.locks.map((l) => [nameLockKey(l.deckId, l.cardKey), l.lockedAt]));
   const entries: Record<string, LockStamp> = next.locks;
   for (const [deckId, lockedAt] of Object.entries(current)) {
     const e = entries[deckId];

@@ -106,10 +106,11 @@ describe('planPush (SPEC-010 SYNC-043)', () => {
 
   it('SYNC-119 / SYNC-124 live items above the cap are not sent', () => {
     const log = emptySyncLog();
-    for (let i = 0; i <= MAP_CAPS.locks; i++) log.locks[`d${i}`] = { t: 1, unlocked: false, h: 'x' };
-    log.pending.locks = ['d0'];
+    expect(MAP_CAPS.locks).toBe(6000); // SYNC-112 v0.18
+    for (let i = 0; i <= MAP_CAPS.locks; i++) log.locks[`d0|card ${i}`] = { t: 1, unlocked: false, h: 'x' };
+    log.pending.locks = ['d0|card 0'];
     log.cloudDocs = ['locks', 'deck:d0'];
-    const plan = planPush(snap({ locks: { schemaVersion: 1, updatedAt: 'x', locks: [{ deckId: 'd0', lockedAt: 'x' }] } }), log, {
+    const plan = planPush(snap({ locks: { schemaVersion: 2, updatedAt: 'x', locks: [{ deckId: 'd0', cardKey: 'card 0', lockedAt: 'x' }] } }), log, {
       now: NOW,
       readOnly: [],
     });
@@ -128,16 +129,30 @@ describe('planPush (SPEC-010 SYNC-043)', () => {
 
   it('SYNC-076 a lock is pushed only with or after its deck', () => {
     const log = emptySyncLog();
+    const K1 = `${D1}|hextech ray`;
     log.cloudDocs = ['locks'];
-    log.locks[D1] = { t: 5, unlocked: false, h: new Date(5).toISOString() };
-    log.pending.locks = [D1];
-    const locks = { schemaVersion: 1 as const, updatedAt: 'x', locks: [{ deckId: D1, lockedAt: new Date(5).toISOString() }] };
+    log.locks[K1] = { t: 5, unlocked: false, h: new Date(5).toISOString() };
+    log.pending.locks = [K1];
+    const locks = { schemaVersion: 2 as const, updatedAt: 'x', locks: [{ deckId: D1, cardKey: 'hextech ray', lockedAt: new Date(5).toISOString() }] };
     expect(planPush(snap({ locks, decks: [deck(D1)] }), log, { now: NOW, readOnly: [] }).changes.locks).toBeUndefined();
     log.pending.decks = [D1];
     log.knownDecks[D1] = 2000;
     const plan = planPush(snap({ locks, decks: [deck(D1)] }), log, { now: NOW, readOnly: [] });
     expect(plan.changes.decks![D1]).toBeDefined();
-    expect(plan.changes.locks!.locks[D1]).toEqual({ lockedAt: 5, updatedAt: 5 });
+    expect(plan.changes.locks!.locks[K1]).toEqual({ lockedAt: 5, updatedAt: 5 });
+  });
+
+  it('SYNC-017 v0.18 migration: an old per-deck key is removed with deleteField (purge), the name locks go in the same update()', () => {
+    const log = emptySyncLog();
+    const K1 = `${D1}|hextech ray`;
+    log.cloudDocs = ['locks', `deck:${D1}`];
+    log.locks[D1] = { t: 6, unlocked: true, h: '' };
+    log.locks[K1] = { t: 6, unlocked: false, h: new Date(5).toISOString() };
+    log.pending.locks = [D1, K1];
+    const locks = { schemaVersion: 2 as const, updatedAt: 'x', locks: [{ deckId: D1, cardKey: 'hextech ray', lockedAt: new Date(5).toISOString() }] };
+    const plan = planPush(snap({ locks, decks: [deck(D1)] }), log, { now: NOW, readOnly: [] });
+    expect(plan.changes.locks).toMatchObject({ replace: false, purge: [D1], locks: { [K1]: { lockedAt: 5, updatedAt: 6 } } });
+    expect(plan.changes.locks!.locks[D1]).toBeUndefined();
   });
 
   it('SYNC-118 / SYNC-033 / SYNC-046 rejected items, unreadable and read-only areas are not pushed', () => {

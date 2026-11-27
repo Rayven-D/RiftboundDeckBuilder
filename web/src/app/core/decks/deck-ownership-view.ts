@@ -3,8 +3,9 @@ import { cachedDeckOwnership } from './deck-ownership';
 import {
   ZONE_ORDER,
   availability,
-  cardsShortText,
   sharedIndicator,
+  storedLockState,
+  storedLockedNames,
   zoneEntries,
 } from './shared-pool';
 import { tileOwnership } from './tile-ownership';
@@ -16,9 +17,11 @@ import type {
   CollectionCatalogView,
   CollectionOwnership,
   DeckCard,
+  DeckLockState,
   DeckOwnership,
   DeckOwnershipInput,
   DeckOwnershipView,
+  DeckTileBans,
   DeckTileSummary,
   DeckZone,
   FormatId,
@@ -45,6 +48,16 @@ const EXPORT_LABEL: Readonly<Record<DeckZone, string>> = {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+/**
+ * SPEC-004 CAT-045 / OWN-004 / DECK-051 verdict labels: `legal` → "Legal in Standard as of Nov 23, 2026", `illegal` →
+ * "Not legal in Standard today", `incomplete` or no result → "Not fully checked" (DECK-052, never shown as legal).
+ */
+export function verdictLabel(legality: LegalityVerdict | null, formatName: string): string {
+  if (legality?.verdict === 'illegal') return `Not legal in ${formatName} today`;
+  if (legality?.verdict === 'legal') return `Legal in ${formatName} as of ${formatIsoDate(legality.asOf)}`;
+  return 'Not fully checked';
+}
+
 /** OWN-090: an ISO date ('YYYY-MM-DD…') as `MMM D, YYYY`, e.g. `Nov 23, 2026`. */
 export function formatIsoDate(iso: IsoDate): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
@@ -57,7 +70,8 @@ export function formatIsoDate(iso: IsoDate): string {
  * The pool for counted card k is SPEC-008 `availability(shared, deck.id, k).available` (OWN-020),
  * allocated over the deck's counted entries of k in zone order, Main before Sideboard (OWN-022).
  * Rune entries are counted, allocated and listed like any entry (OWN-028). With ownership
- * unavailable or no catalog (OWN-062/063) every tile is full colour without a label.
+ * unavailable or no catalog (OWN-062/063) every tile is full colour without a label, and `lock`
+ * comes from the stored locks (SHARE-053, OWN-065): locked when every name is, holds not computed.
  * Entries must already be valid per SPEC-006 DECK-096 (`qty` an integer 1..999): this function
  * doesn't re-validate, and `tileOwnership` throws a RangeError for `qty < 1` (SHARE-003).
  */
@@ -69,8 +83,9 @@ export function computeDeckOwnership(
   today: IsoDate,
 ): DeckOwnershipView {
   const ok = ownership.status === 'ok' && catalog !== null ? ownership : null;
-  const lock = ok ? (ok.shared.byDeck[deck.id] ?? null) : null;
-  const locked = lock?.locked ?? false;
+  const lock = ok ? (ok.shared.byDeck[deck.id] ?? null) : unavailableLock(deck, ownership);
+  // OWN-121 (a) while ownership is unavailable: the lock icon still follows the stored name locks.
+  const storedNames = ok ? null : new Set(unavailableLockedNames(deck, ownership));
 
   const tagLabels = new Map(ok ? ok.input.tags.tags.map((t) => [t.id, t.label]) : []);
 
@@ -172,6 +187,7 @@ export function computeDeckOwnership(
           lockedByOthers: 0,
           available: 0,
           heldByThisDeck: null,
+          nameLocked: storedNames?.has(entry.cardKey) ?? false,
           otherUses: [],
           extra: 0,
           allocationByZone: {},
@@ -184,7 +200,8 @@ export function computeDeckOwnership(
         };
       }
       const av = ci.av;
-      const tile = tileOwnership(countedOf.get(entry)?.allocated ?? 0, entry.qty, locked);
+      // SHARE-040 v0.6: a locked name reads "locked in" whether or not the whole deck is locked.
+      const tile = tileOwnership(countedOf.get(entry)?.allocated ?? 0, entry.qty, av.nameLocked);
       return {
         cardKey: entry.cardKey,
         zone,
@@ -204,6 +221,7 @@ export function computeDeckOwnership(
         lockedByOthers: av.lockedByOthers,
         available: av.available,
         heldByThisDeck: av.heldByThisDeck,
+        nameLocked: av.nameLocked,
         otherUses: av.otherUses,
         extra: Math.max(0, av.available - ci.required),
         allocationByZone: ci.allocationByZone,
@@ -266,10 +284,42 @@ export function computeDeckOwnership(
       cardsTotal: counted.size,
       cardsFullyAvailable,
       copiesExcludedRelevant,
+      // OWN-101 (c): no value when R = 0 or ownership is unavailable.
+      completionFill: ok && copiesRequired > 0 ? copiesAvailable / copiesRequired : null,
+      completionPercent: ok ? completionPercent(copiesAvailable, copiesRequired) : null,
     },
     missing,
     missingText: missingText(missing),
   };
+}
+
+/**
+ * SPEC-005 OWN-101 (b) completion percentage of A available copies out of R required: 0 when
+ * A = 0, 100 when A = R, else `min(99, max(1, floor(100·A/R)))`; null when R = 0 (OWN-101 (c)).
+ */
+export function completionPercent(a: number, r: number): number | null {
+  if (r <= 0) return null;
+  if (a <= 0) return 0;
+  if (a >= r) return 100;
+  return Math.min(99, Math.max(1, Math.floor((100 * a) / r)));
+}
+
+/**
+ * SHARE-053 (a) lock state while ownership is unavailable: from the stored name locks (locked when every counted name
+ * has one). With the catalog not loaded (OWN-063) a pool may still exist; only its lock facts are used (holds unknown),
+ * and none when it ignored the lock store (SHARE-061).
+ */
+function unavailableLock(deck: UserDeck, ownership: CollectionOwnership): DeckLockState | null {
+  if (ownership.status === 'unavailable') return storedLockState(ownership.locks ?? null, deck);
+  const s = ownership.shared.byDeck[deck.id];
+  if (ownership.shared.locksIgnored || !s?.locked) return null;
+  return { deckId: deck.id, locked: true, lockedAt: s.lockedAt, lockedNames: s.lockedNames, complete: false };
+}
+
+/** The counted names with a name lock while ownership is unavailable (OWN-121 (a): the tile's lock icon). */
+function unavailableLockedNames(deck: UserDeck, ownership: CollectionOwnership): CardKey[] {
+  if (ownership.status === 'unavailable') return storedLockedNames(ownership.locks ?? null, deck);
+  return ownership.shared.locksIgnored ? [] : (ownership.shared.byDeck[deck.id]?.lockedNames ?? []);
 }
 
 function cardBan(
@@ -317,7 +367,8 @@ function missingText(missing: readonly MissingLine[]): string {
 
 /**
  * SPEC-005 `summarizeDeck(deck, view, legality, format)` → `DeckTileSummary` (OWN-002…004,
- * SHARE-050, SHARE-051): pure. `legality` / `format` null → "Not fully checked".
+ * SHARE-050, SHARE-051, SHARE-053, OWN-065): pure. `legality` / `format` null → "Not fully checked".
+ * Ownership unavailable: line "Ownership unavailable", group `unavailable`, badge "Locked" only.
  */
 export function summarizeDeck(
   deck: UserDeck,
@@ -332,27 +383,24 @@ export function summarizeDeck(
   let ownershipLine: string;
   if (!view.ownershipAvailable) ownershipLine = 'Ownership unavailable';
   else if (r === 0) ownershipLine = 'No cards to count';
-  else ownershipLine = `${a} of ${r} copies ${locked ? 'locked in' : 'available'}`;
+  // H-521: singular when the required total is 1 ("1 of 1 copy available").
+  else ownershipLine = `${a} of ${r} ${r === 1 ? 'copy' : 'copies'} ${locked ? 'locked in' : 'available'}`;
 
-  // SHARE-051: first matching rule wins.
+  // SHARE-051: first matching rule wins; rule 0 (SHARE-053 (d), OWN-065 (d)) whatever the lock.
   let ownershipFilter: OwnershipFilter;
-  if (locked && !lock?.short && r > 0) ownershipFilter = 'locked';
+  if (!view.ownershipAvailable) ownershipFilter = 'unavailable';
+  else if (locked && r > 0) ownershipFilter = 'locked';
   else if (r === 0) ownershipFilter = 'none';
   else if (!locked && lock?.complete) ownershipFilter = 'ready';
   else if (a === 0) ownershipFilter = 'none';
   else ownershipFilter = 'partial';
 
-  let lockBadge: string | null = null;
-  if (locked)
-    lockBadge = lock?.short ? `Locked · ${cardsShortText(lock.cardsShort.length)}` : 'Locked';
+  // SHARE-041 / SHARE-050 v0.6: "Locked" only for a fully locked deck (a partly locked deck has no badge); a locked
+  // deck is never short.
+  const lockBadge: string | null = locked ? 'Locked' : null;
 
   const verdict = legality && format ? legality.verdict : 'incomplete';
-  let legalityLabel = 'Not fully checked';
-  if (legality && format && verdict === 'illegal')
-    legalityLabel = `Not legal in ${format.name} today`;
-  if (legality && format && verdict === 'legal') {
-    legalityLabel = `Legal in ${format.name} as of ${formatIsoDate(legality.asOf)}`;
-  }
+  const legalityLabel = legality && format ? verdictLabel(legality, format.name) : verdictLabel(null, '');
 
   return {
     deckId: deck.id,
@@ -364,7 +412,43 @@ export function summarizeDeck(
     ownershipFilter,
     lockBadge,
     updatedAt: deck.updatedAt,
+    legend: tileLegend(view),
+    completionFill: view.summary.completionFill,
+    completionPercent: view.summary.completionPercent,
+    bans: tileBans(view),
+    pilot: deck.source.kind === 'tournament' ? deck.source.pilot : null,
+    // DECK-091: a record newer than schemaVersion 1 is shown read-only.
+    readOnly: (deck.schemaVersion as number) > 1,
   };
+}
+
+/** OWN-100 (a), (d): the Legend tile of the view; null when none, unknown or catalog not loaded. */
+function tileLegend(view: DeckOwnershipView): DeckTileSummary['legend'] {
+  const legend = view.sections.find((s) => s.zone === 'legend')?.cards[0];
+  if (!legend?.card) return null;
+  return { name: legend.name, imageUrl: legend.imageUrl };
+}
+
+/**
+ * OWN-103: distinct cardKeys with status `banned` / `upcoming` (a card in several zones counts
+ * once), and the earliest upcoming `effective`. null when ban data is not loaded (any card
+ * 'unknown', OWN-015).
+ */
+function tileBans(view: DeckOwnershipView): DeckTileBans | null {
+  const byCard = new Map<CardKey, CardBan>();
+  for (const s of view.sections) for (const c of s.cards) byCard.set(c.cardKey, c.banStatus);
+  let banned = 0;
+  let upcoming = 0;
+  let upcomingFrom: IsoDate | null = null;
+  for (const b of byCard.values()) {
+    if (b.status === 'unknown') return null;
+    if (b.status === 'banned') banned += 1;
+    if (b.status === 'upcoming') {
+      upcoming += 1;
+      if (upcomingFrom === null || b.effective < upcomingFrom) upcomingFrom = b.effective;
+    }
+  }
+  return { banned, upcoming, upcomingFrom };
 }
 
 /** OWN-003 source line. */

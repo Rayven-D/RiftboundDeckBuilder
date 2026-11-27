@@ -24,12 +24,24 @@ describe('SPEC-012 changelog.json (LOG-041 data test)', () => {
     expect(validateChangelog(changelog)).toEqual([]);
   });
 
-  it('LOG-041 / LOG-052 / AC 7 the same file before release, with a null date on 0.0.1, also passes every rule', () => {
-    expect(validateChangelog(changelog.map((e) => ({ ...e, date: null })))).toEqual([]);
+  it('LOG-041 / LOG-052 / AC 7 the same file before release, with a null date on the newest entry only, also passes every rule', () => {
+    expect(validateChangelog(changelog.map((e, i) => (i === 0 ? { ...e, date: null } : e)))).toEqual([]);
   });
 
-  it('LOG-050 / LOG-052 / AC 6 the file ships with exactly the sign-in release entry, dated 2026-11-25', () => {
+  it('LOG-050 / LOG-052 / AC 6 the file ships with the Decks release 0.0.2 (2026-11-26) above the sign-in release 0.0.1 (2026-11-25)', () => {
     expect(changelog).toEqual([
+      {
+        version: '0.0.2',
+        date: '2026-11-26',
+        title: 'Decks are here',
+        bullets: [
+          'Import a deck list and check it before you save: fix lines, answer a few questions and see a rule check.',
+          "Each deck shows how many of its cards you own, and can copy the list of cards you're missing.",
+          "Lock a card's copies to one deck so your other decks don't count them. A deck locks itself once every card is locked.",
+          'Removing cards from your collection asks first if it would unlock any of your decks.',
+          'Your changes now sync right away when you import, add, lock or unlock, and notices now appear at the top of the screen.',
+        ],
+      },
       {
         version: '0.0.1',
         date: '2026-11-25',

@@ -55,16 +55,25 @@ describe('stamping (SPEC-010 SYNC-031, SYNC-032, SYNC-035, SYNC-062)', () => {
     expect(log.recordUpdatedAt.collection).toBe('c');
   });
 
-  it('SYNC-031 a lock changes when added, removed or its lockedAt differs', () => {
-    const l = (locks: StoredDeckLocks['locks']): StoredDeckLocks => ({ schemaVersion: 1, updatedAt: 'u', locks });
-    let log = stampLocks(emptySyncLog(), l([{ deckId: 'd', lockedAt: 'A' }]), 10);
+  it('SYNC-031 / SYNC-017 v0.18 a name lock (key "<deckId>|<cardKey>") changes when added, removed or its lockedAt differs', () => {
+    const l = (locks: StoredDeckLocks['locks']): StoredDeckLocks => ({ schemaVersion: 2, updatedAt: 'u', locks });
+    let log = stampLocks(emptySyncLog(), l([{ deckId: 'd', cardKey: "kai'sa, survivor", lockedAt: 'A' }]), 10);
+    expect(log.pending.locks).toEqual(["d|kai'sa, survivor"]);
     log.pending.locks = [];
-    log = stampLocks(log, l([{ deckId: 'd', lockedAt: 'A' }]), 20);
+    log = stampLocks(log, l([{ deckId: 'd', cardKey: "kai'sa, survivor", lockedAt: 'A' }]), 20);
     expect(log.pending.locks).toEqual([]);
-    log = stampLocks(log, l([{ deckId: 'd', lockedAt: 'B' }]), 30);
-    expect(log.locks['d']).toEqual({ t: 30, unlocked: false, h: 'B' });
+    log = stampLocks(log, l([{ deckId: 'd', cardKey: "kai'sa, survivor", lockedAt: 'B' }]), 30);
+    expect(log.locks["d|kai'sa, survivor"]).toEqual({ t: 30, unlocked: false, h: 'B' });
     log = stampLocks(log, l([]), 25);
-    expect(log.locks['d']).toEqual({ t: 31, unlocked: true, h: '' });
+    expect(log.locks["d|kai'sa, survivor"]).toEqual({ t: 31, unlocked: true, h: '' });
+  });
+
+  it('SYNC-017 migration: an old per-deck log entry is never current, so it becomes a pending tombstone', () => {
+    const log = emptySyncLog();
+    log.locks['d'] = { t: 5, unlocked: false, h: 'A' };
+    const next = stampLocks(log, { schemaVersion: 2, updatedAt: 'u', locks: [{ deckId: 'd', cardKey: 'gust', lockedAt: 'A' }] }, 10);
+    expect(next.locks['d']).toEqual({ t: 10, unlocked: true, h: '' });
+    expect(next.pending.locks.sort()).toEqual(['d', 'd|gust']);
   });
 
   it('SYNC-032 reconcile stamps only what differs from the hashes, with the record’s updatedAt; unchanged record → no-op', () => {

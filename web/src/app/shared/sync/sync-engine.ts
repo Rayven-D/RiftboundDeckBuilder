@@ -98,8 +98,6 @@ export interface EngineDeps {
    * before the first-sign-in flow starts. Not called on a cancel (no address), so a reload can offer the link again.
    */
   leaveSignInLink?: () => Promise<void>;
-  /** SPEC-008 `lockedShortfalls(before, after)` (SYNC-068, SYNC-074); optional until H-059 builds it. */
-  shortfalls?: (before: LocalSnapshot, after: LocalSnapshot) => { deckName: string; cardsShort: number }[];
   /**
    * SYNC-154 (v0.14): the first sign-in found no account document and no cloud data (SYNC-048 case (a)), so this
    * flow creates the account. Called once per uid per page load, before the account write, so the username prompt
@@ -112,7 +110,7 @@ export interface EngineDeps {
   clearTimer?: (h: unknown) => void;
 }
 
-type Problem = 'unreadable' | 'invalid' | 'write' | 'too-large' | 'rejected' | 'read-denied';
+type Problem = 'start' | 'unreadable' | 'invalid' | 'write' | 'too-large' | 'rejected' | 'read-denied';
 
 export class SyncEngine {
   private auth: AuthService | null = null;
@@ -132,6 +130,12 @@ export class SyncEngine {
   private problem: { kind: Problem; message: string } | null = null;
   private lastPullAt: Ms | null = null;
   private pushTimer: unknown = null;
+  /** SYNC-035 / SYNC-126 (a) 4: fires when the earliest deck deletion's Undo window ends. */
+  private undoTimer: unknown = null;
+  /** Sync passes (`guard` jobs) running now (SYNC-126 (e): no second, parallel pass for a major action). */
+  private busy = 0;
+  /** SYNC-126 (e): a major action came in while a pass ran; exactly one more full pass runs when it ends. */
+  private followUp = false;
   private lastLog: StoredSyncLog = emptySyncLog();
   private readonly readOnlyAreas = new Set<string>();
   /** SYNC-063: client time of this session's writes, by document ref. */
@@ -213,6 +217,9 @@ export class SyncEngine {
 
   status(): SyncStatus {
     const pending = pendingCount(this.lastLog);
+    if (!this.uid && this.problem?.kind === 'start' && !this.stopped) {
+      return { kind: 'error', message: this.problem.message, pendingCount: pending };
+    }
     if (!this.uid || this.stopped) return { kind: 'signed-out' };
     // SYNC-096 / SYNC-084: this device's unfinished deletion outranks Offline and Paused (no carve-out); the
     // status text drops the pending count for it (statusText).
@@ -243,6 +250,17 @@ export class SyncEngine {
     const uid = await this.auth!.restore();
     if (!uid) return this.sessionProblem();
     await this.openSession(uid);
+  }
+
+  /**
+   * H-084: start-up failed before the session was known (offline, the `firebase` chunk did not load, restore or the
+   * email-link sign-in threw). Shows the SYNC-084 Error status text and the same text as an error notice, so it does
+   * not look like a silent sign-out. The status shows it only while this device expects a session.
+   */
+  startFailed(): void {
+    if (this.lastLog.sessionExpected) this.setProblem('start', MESSAGES.writeFailed);
+    this.deps.notify(MESSAGES.writeFailed, 'error');
+    this.emit();
   }
 
   /** SYNC-003 / SYNC-005 / SYNC-006. `email-link` completes a link the user opened. */
@@ -302,23 +320,57 @@ export class SyncEngine {
     });
   }
 
-  /** After a user save (SYNC-121): one push about 2 s after the last change. */
+  /**
+   * After a user save (SYNC-121): one push about 2 s after the last change. A save that leaves nothing to push now
+   * (only deck deletions inside their 10 s Undo window, or an Undo that cancelled one, SYNC-035) arms no debounce: the
+   * deletion goes out when its window ends (SYNC-126 (a) 4), and an Undo inside the window syncs nothing.
+   */
   scheduleChange(): void {
-    this.deps.log.load().then((l) => {
+    void this.deps.log.load().then((l) => {
       if (l) this.lastLog = l;
       this.emit();
+      if (!this.uid || this.stopped || this.deleting || this.deletionPending) return;
+      if (l && !pushableNow(l, this.deps.now())) {
+        this.scheduleUndoWindow();
+        return;
+      }
+      this.schedulePush(PUSH_DEBOUNCE_MS);
+    }).catch(() => {
+      // H-084: the save is already on this device; an unreadable sync log only means no push is armed now. The next
+      // save, focus or sync trigger tries again.
     });
+  }
+
+  /**
+   * SYNC-126 (v0.18, H-667): a **major action** was saved locally (a deck import saved, a collection import committed
+   * or undone, a deck added or duplicated, a deck deletion whose Undo window ended, any lock or unlock). Signed in,
+   * online and with the gate open, one immediate full sync runs: pull, then push, with no debounce (SYNC-121) and no
+   * 60 s pull skip (SYNC-043). It never blocks the action (the caller does not await it, SYNC-085). While a sync runs,
+   * one follow-up is queued instead (SYNC-126 (e)); offline, signed out or with the gate closed nothing is attempted
+   * and the change stays pending (SYNC-126 (d)). Status and notices are the existing ones (SYNC-084).
+   */
+  majorAction(): void {
     if (!this.uid || this.stopped || this.deleting || this.deletionPending) return;
-    this.schedulePush(PUSH_DEBOUNCE_MS);
+    if (!this.deps.isOnline() || this.gate() !== 'open') return;
+    this.cancelPushTimer(); // the debounced push is carried by this pass
+    if (this.busy > 0) {
+      this.followUp = true;
+      return;
+    }
+    void this.majorSync();
+  }
+
+  private majorSync(): Promise<void> {
+    return this.guard(async () => {
+      if (await this.firstSyncIncomplete()) return;
+      if (await this.pullAndMerge()) await this.pushPending();
+    });
   }
 
   /** Push now (tab hidden, SYNC-043), preceded by a pull when the last one is older than 60 s. */
   async flush(): Promise<void> {
     if (!this.uid || this.stopped || this.deleting || this.deletionPending) return;
-    if (this.pushTimer !== null) {
-      this.deps.clearTimer?.(this.pushTimer);
-      this.pushTimer = null;
-    }
+    this.cancelPushTimer();
     await this.guard(async () => {
       if (await this.firstSyncIncomplete()) return this.firstSignIn(this.uid!);
       if (this.lastPullAt === null || this.deps.now() - this.lastPullAt > PULL_BEFORE_PUSH_MS) {
@@ -389,7 +441,7 @@ export class SyncEngine {
         }, gen);
       }
       if (r !== 'ok') {
-        this.deps.notify(MESSAGES.deleteIncomplete, 'error');
+        // H-084: no notice here; the account menu shows the one, with Try again.
         return 'failed';
       }
       // (3) the Auth user, only after every document is gone
@@ -399,7 +451,7 @@ export class SyncEngine {
         if (again !== 'ok') return again;
         d = await this.auth.deleteUser();
         if (d !== 'ok') {
-          this.deps.notify(MESSAGES.deleteIncomplete, 'error');
+          // H-084: no notice here; the account menu shows the one, with Try again.
           return 'failed';
         }
       }
@@ -411,7 +463,7 @@ export class SyncEngine {
       this.deps.notify(MESSAGES.deletedOwn, 'success');
       return 'ok';
     } catch {
-      this.deps.notify(MESSAGES.deleteIncomplete, 'error');
+      // H-084: no notice here; the account menu shows the one, with Try again.
       return 'failed';
     } finally {
       this.deleting = false;
@@ -524,7 +576,7 @@ export class SyncEngine {
       return { result, snap };
     });
     if (!merged) return;
-    this.afterMerge(merged.result, merged.snap.local);
+    this.afterMerge(merged.result);
 
     // (a) creates the account; (c) / (e) update it only when this build differs (SYNC-012).
     // SYNC-050: this is the flow's only write; nothing else is pushed (planAccountPush).
@@ -625,7 +677,7 @@ export class SyncEngine {
     });
     if (!merged) return false;
     this.lastPullAt = now;
-    this.afterMerge(merged.result, merged.snap.local);
+    this.afterMerge(merged.result);
     return true;
   }
 
@@ -920,18 +972,12 @@ export class SyncEngine {
     await this.saveLog(r.log);
   }
 
-  private afterMerge(r: MergeResult, before: LocalSnapshot): void {
+  private afterMerge(r: MergeResult): void {
     for (const area of r.newerSchema) this.readOnlyAreas.add(area);
     if (r.invalid) this.setProblem('invalid', MESSAGES.invalid);
+    // SYNC-072 notices and the one SHARE-091 / SYNC-074 lock-drop notice (H-665: built by the merge, H-148's single
+    // notice for every unlocked deck).
     for (const n of r.notices) this.deps.notify(n, 'info');
-    if (this.deps.shortfalls) {
-      void this.deps.queue.run(async () => {
-        const after = (await this.snapshot()).local;
-        for (const s of this.deps.shortfalls!(before, after)) {
-          this.deps.notify(`'${s.deckName}' (locked) is now ${s.cardsShort} ${s.cardsShort === 1 ? 'card' : 'cards'} short.`, 'info');
-        }
-      });
-    }
     this.emit();
   }
 
@@ -943,12 +989,15 @@ export class SyncEngine {
       ['locks', p.locks],
       ...Object.entries(p.decks).map(([id, d]) => [`deck:${id}`, d] as [string, { syncedAt: Ms }]),
     ];
+    // H-084: every document this device wrote is checked and forgotten; one warning at most per pull.
+    let warned = false;
     for (const [ref, doc] of docs) {
       const t = this.writeTimes.get(ref);
       if (!doc || t === undefined) continue;
       this.writeTimes.delete(ref);
       const offset = doc.syncedAt - t;
-      if (Math.abs(offset) > CLOCK_WARN_MS) {
+      if (!warned && Math.abs(offset) > CLOCK_WARN_MS) {
+        warned = true;
         void this.updateLog((l) => {
           l.clockOffsetMs = offset;
         });
@@ -957,7 +1006,6 @@ export class SyncEngine {
           'info',
         );
       }
-      return;
     }
   }
 
@@ -974,25 +1022,49 @@ export class SyncEngine {
 
   private schedulePush(ms: number): void {
     if (!this.deps.setTimer) return;
-    this.cancelTimer();
+    this.cancelPushTimer();
     this.pushTimer = this.deps.setTimer(() => {
       this.pushTimer = null;
       void this.flush();
     }, ms);
   }
 
-  /** A deck deletion is pushed after the Undo window (SYNC-035). */
+  /** A deck deletion is pushed when its Undo window ends (SYNC-035), as a major action (SYNC-126 (a) 4). */
   private scheduleUndoWindow(): void {
+    if (!this.deps.setTimer) return;
     const now = this.deps.now();
     const waits = Object.values(this.lastLog.deckTombstones)
       .filter((t) => t.pushAfter > now)
       .map((t) => t.pushAfter - now);
-    if (waits.length && this.pushTimer === null) this.schedulePush(Math.min(...waits) + 50);
+    if (this.undoTimer !== null) this.deps.clearTimer?.(this.undoTimer);
+    this.undoTimer = null;
+    if (!waits.length) return;
+    this.undoTimer = this.deps.setTimer(() => {
+      this.undoTimer = null;
+      void this.undoWindowEnded();
+    }, Math.min(...waits) + 50);
+  }
+
+  /** SYNC-126 (a) 4: an immediate sync only when a deletion whose window ended is still pending (an Undo cancelled it). */
+  private async undoWindowEnded(): Promise<void> {
+    const log = await this.loadLog();
+    const now = this.deps.now();
+    const due = Object.entries(log.deckTombstones).some(
+      ([id, t]) => t.pushAfter > 0 && t.pushAfter <= now && log.pending.decks.includes(id),
+    );
+    if (due) this.majorAction();
+    this.scheduleUndoWindow();
+  }
+
+  private cancelPushTimer(): void {
+    if (this.pushTimer !== null) this.deps.clearTimer?.(this.pushTimer);
+    this.pushTimer = null;
   }
 
   private cancelTimer(): void {
-    if (this.pushTimer !== null) this.deps.clearTimer?.(this.pushTimer);
-    this.pushTimer = null;
+    this.cancelPushTimer();
+    if (this.undoTimer !== null) this.deps.clearTimer?.(this.undoTimer);
+    this.undoTimer = null;
   }
 
   private setProblem(kind: Problem, message: string): void {
@@ -1008,7 +1080,16 @@ export class SyncEngine {
 
   private async guard(job: () => Promise<void>): Promise<void> {
     const run = this.deps.withTabLock ?? ((j) => j());
-    const p = run(job).finally(() => this.emit());
+    this.busy++;
+    const p = run(job).finally(() => {
+      this.busy--;
+      this.emit();
+      // SYNC-126 (e): however many major actions came in meanwhile, exactly one more full pass.
+      if (this.busy === 0 && this.followUp) {
+        this.followUp = false;
+        if (this.uid && !this.stopped) void this.majorSync();
+      }
+    });
     this.running = this.running.then(() => p).catch(() => undefined);
     await p;
   }
@@ -1048,6 +1129,24 @@ export class SyncEngine {
   private emit(): void {
     this.deps.onStatus?.(this.status());
   }
+}
+
+/**
+ * Whether a push now would carry anything: some pending item other than a deck deletion still inside its Undo window
+ * (SYNC-035).
+ */
+function pushableNow(log: StoredSyncLog, now: Ms): boolean {
+  const p = log.pending;
+  const waiting = (id: string) => (log.deckTombstones[id]?.pushAfter ?? 0) > now;
+  return (
+    p.account ||
+    !!p.collectionReplace ||
+    p.cards.length > 0 ||
+    p.tags.length > 0 ||
+    p.assignments.length > 0 ||
+    p.locks.length > 0 ||
+    p.decks.some((id) => !waiting(id))
+  );
 }
 
 const maxCursor = (a: Ms | null, b: Ms | null): Ms | null => (a === null ? b : b === null ? a : Math.max(a, b));

@@ -1,3 +1,4 @@
+import { parseNameLockKey } from '../storage/records';
 import type { StoredCollection, StoredDeckLocks, StoredTags } from '../storage/records';
 import type { LocalSnapshot } from './merge';
 import { deckToDoc } from './merge';
@@ -15,8 +16,11 @@ import type {
   StoredSyncLog,
 } from './sync-types';
 
-/** SYNC-112 map caps (design decision 7). */
-export const MAP_CAPS = { cards: 6000, tags: 400, assignments: 6000, locks: 400 } as const;
+/** SYNC-112 map caps (design decision 7; v0.18: `locks` holds one entry per deck and card name, 6000). */
+export const MAP_CAPS = { cards: 6000, tags: 400, assignments: 6000, locks: 6000 } as const;
+
+/** SYNC-017 v0.18: a `state/locks` key of the old per-deck shape (`<deckId>`, no `|`). */
+const legacyLockKey = (key: string) => parseNameLockKey(key).cardKey === null;
 
 export interface PlannedItem {
   list: PendingList;
@@ -166,14 +170,23 @@ export function planPush(local: LocalSnapshot, log: StoredSyncLog, opts: PlanOpt
     const deckInCloud = (id: string) => log.cloudDocs.includes(`deck:${id}`) || (id in deckDocs && deckDocs[id].deletedAt === null);
     const replace = !log.cloudDocs.includes('locks');
     const keys = (replace ? Object.keys(log.locks) : pendingOf('locks')).filter(
-      (id) => log.locks[id]?.unlocked || deckInCloud(id),
+      (key) => log.locks[key]?.unlocked || deckInCloud(parseNameLockKey(key).deckId),
     );
     if (keys.length && (!replace || pendingOf('locks').length > 0)) {
       const lockEntries = Object.fromEntries(
         Object.entries(log.locks).map(([k, e]) => [k, { t: e.t, deleted: e.unlocked, h: e.h }]),
       );
-      const area = planMap('locks', 'locks', lockEntries, keys, MAP_CAPS.locks, now, plan, (k, e) =>
-        lockValue(locksRec, k, e),
+      // SYNC-017 migration: an old per-deck key is removed (`deleteField`), never written as a tombstone.
+      const area = planMap(
+        'locks',
+        'locks',
+        lockEntries,
+        keys,
+        MAP_CAPS.locks,
+        now,
+        plan,
+        (k, e) => lockValue(locksRec, k, e),
+        (k, e) => e.deleted && legacyLockKey(k),
       );
       if (area) {
         plan.changes.locks = { replace, updatedAt: area.updatedAt, locks: area.values as Record<string, CloudLock>, purge: area.purge };
@@ -213,10 +226,11 @@ function planMap(
   now: Ms,
   plan: PushPlan,
   value: (key: string, e: ItemStamp) => unknown,
+  forcePurge: (key: string, e: ItemStamp) => boolean = () => false,
 ): { values: Record<string, unknown>; purge: string[]; updatedAt: Ms } | null {
   const all = Object.entries(entries);
   const tombs = all.filter(([, e]) => e.deleted).sort((a, b) => a[1].t - b[1].t);
-  const purge = new Set(tombs.filter(([, e]) => e.t < now - TOMBSTONE_TTL_MS).map(([k]) => k));
+  const purge = new Set(tombs.filter(([k, e]) => e.t < now - TOMBSTONE_TTL_MS || forcePurge(k, e)).map(([k]) => k));
   const live = all.length - tombs.length;
   if (live > cap) {
     plan.tooLarge.push(doc);
@@ -275,9 +289,10 @@ function assignmentValue(tags: StoredTags | null, target: string, e: ItemStamp):
   return a && a.length ? { a: [...a], t: e.t } : undefined;
 }
 
-function lockValue(locks: StoredDeckLocks | null, deckId: string, e: ItemStamp): CloudLock | undefined {
+function lockValue(locks: StoredDeckLocks | null, key: string, e: ItemStamp): CloudLock | undefined {
   if (e.deleted) return { lockedAt: null, updatedAt: e.t };
-  const l = locks?.locks.find((x) => x.deckId === deckId);
+  const { deckId, cardKey } = parseNameLockKey(key);
+  const l = locks?.locks.find((x) => x.deckId === deckId && x.cardKey === cardKey);
   return l ? { lockedAt: isoToMs(l.lockedAt), updatedAt: e.t } : undefined;
 }
 

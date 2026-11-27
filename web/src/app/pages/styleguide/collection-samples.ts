@@ -13,7 +13,7 @@ import type {
   VariantKind,
 } from '../../core/decks';
 import { buildCollectionView, CollectionView } from '../../shared/collection/collection-view';
-import { sampleDeck } from '../../shared/collection/sample-data';
+import { lockEveryName, sampleDeck } from '../../shared/collection/sample-data';
 import { sampleCardArt } from '../../shared/deck/sample-art';
 
 interface Spec {
@@ -160,9 +160,9 @@ export function styleguideCollection(): CollectionView {
     },
     decks,
     locks: [
-      { deckId: decks[0].id, lockedAt: '2026-11-20T10:00:00.000Z' },
-      { deckId: decks[1].id, lockedAt: '2026-11-21T10:00:00.000Z' },
-      { deckId: decks[3].id, lockedAt: '2026-11-22T10:00:00.000Z' },
+      ...lockEveryName(decks[0], '2026-11-20T10:00:00.000Z'),
+      ...lockEveryName(decks[1], '2026-11-21T10:00:00.000Z'),
+      ...lockEveryName(decks[3], '2026-11-22T10:00:00.000Z'),
     ],
     banData: BANS,
     today: '2026-11-24',

@@ -1,5 +1,5 @@
 /**
- * Browser-side shapes for the deck ownership engine (SPEC-005 v0.5, SPEC-008 v0.4)
+ * Browser-side shapes for the deck ownership engine (SPEC-005 v0.16, SPEC-008 v0.6)
  * and the parts of SPEC-001/002 it reads. Shapes only; copied from the specs' data contracts
  * because `web/` can't import from `services/`. Keep in sync with the specs and with
  * brain/05-Services/API Contracts.md ("Browser-side shared types").
@@ -11,10 +11,10 @@
 
 import type {
   CardKey,
-  DeckLock,
   FormatId,
   IsoDate,
   IsoDateTime,
+  NameLock,
   PrintingCode,
   PrintingId,
   StoredCollection,
@@ -30,17 +30,19 @@ export type {
   CardKey,
   CollectionCard,
   DeckCard,
-  DeckLock,
   DeckLockStore,
+  DeckLockV1,
   DeckSource,
   DeckSourceFormat,
   FormatId,
   IsoDate,
   IsoDateTime,
+  NameLock,
   PrintingCode,
   PrintingId,
   StoredCollection,
   StoredDeckLocks,
+  StoredDeckLocksV1,
   StoredPrintingCodes,
   StoredTags,
   Tag,
@@ -98,7 +100,7 @@ export interface Printing {
   art: { thumbnailUrl: string | null; fullUrl: string | null; artist: string | null };
 }
 
-// ---- SPEC-002 v0.3 (ban data and the legality fields the deck tile reads) ----
+// ---- SPEC-002 v0.5 (ban data and the legality fields the deck tile reads; the engine is core/legality) ----
 export type RegionId = string;
 export type BanKind = 'card' | 'battlefield' | 'legend';
 export interface BanEntry {
@@ -117,9 +119,11 @@ export interface BanWave {
   notes?: string;
 }
 export interface BanList {
-  format: FormatId;
+  /** `'2v2'` is stored as data only (LEGAL-B11, SPEC-002 v0.5), never offered or evaluated. */
+  format: FormatId | (string & {});
   region: RegionId;
-  status: 'verified' | 'conflict';
+  /** `unverified`: the 2v2 list, of which only the totals are sourced (LEGAL-B11). */
+  status: 'verified' | 'conflict' | 'unverified';
   waves: BanWave[];
 }
 export interface BanListFile {
@@ -178,41 +182,48 @@ export interface DeckOwnership {
 // ---- SPEC-006 (zones) ----
 export type DeckZone = 'legend' | 'champion' | 'main' | 'sideboard' | 'runes' | 'battlefields';
 
-// ---- SPEC-008 v0.4 ----
+// ---- SPEC-008 v0.6 (card-name locks, SHARE-080…095) ----
 export interface SharedPoolInput {
   /** Every deck in the DeckStore (SHARE-005). */
   decks: readonly UserDeck[];
   /** null = lock store unreadable → all locks ignored (SHARE-061). */
-  locks: readonly DeckLock[] | null;
+  locks: readonly NameLock[] | null;
   ownership: DeckOwnershipInput;
 }
 export interface CardUse {
   deckId: string;
   deckName: string;
   need: number;
+  /** v0.6: this deck has a name lock on the card (not the deck lock). */
   locked: boolean;
-  /** 0 when not locked. */
+  /** need when locked, else 0 (SHARE-031). */
   hold: number;
+  /** The name lock's `lockedAt` (lock order, SHARE-030; never shown); null when not locked. Not in the spec's shape. */
+  lockedAt: IsoDateTime | null;
 }
 export interface CardPool {
   cardKey: CardKey;
+  /** The card's name as the first deck using it stores it (for the SHARE-088 lines). Not in the spec's shape. */
+  cardName: string;
   ownedForDecks: number;
   ownedExcluded: number;
-  /** Σ hold over locked decks; ≤ ownedForDecks. */
+  /** Σ hold over name locks; ≤ ownedForDecks (SHARE-031). */
   heldTotal: number;
+  /** ownedForDecks − heldTotal: the copies no lock holds (SHARE-087). */
+  free: number;
   /** Every user of the card, SHARE-015 order. */
   uses: CardUse[];
 }
 export interface DeckLockState {
   deckId: string;
+  /** Every counted cardKey has a name lock (SHARE-083). */
   locked: boolean;
+  /** The latest name `lockedAt` of a locked deck, else null; internal, never shown. */
   lockedAt: IsoDateTime | null;
-  /** SHARE-014 (for a locked deck: not short). */
+  /** Counted cardKeys with a name lock, deck order (partly locked: some, not all). */
+  lockedNames: CardKey[];
+  /** SHARE-014. */
   complete: boolean;
-  /** Locked and some hold < need (SHARE-033). */
-  short: boolean;
-  /** Counted cardKeys with allocated < need, deck order of first appearance. */
-  cardsShort: CardKey[];
 }
 export interface SharedPool {
   locksIgnored: boolean;
@@ -227,8 +238,10 @@ export interface CardAvailability {
   lockedByOthers: number;
   available: number;
   need: number;
-  /** H for a locked deck, null otherwise. */
+  /** H when this deck has a name lock on the card, null otherwise. */
   heldByThisDeck: number | null;
+  /** This deck has a name lock on the card (drives the lock icon, SHARE-094). */
+  nameLocked: boolean;
   /** SHARE-015 order, without this deck. */
   otherUses: CardUse[];
 }
@@ -240,15 +253,40 @@ export type LockFailure =
   | 'locks-unreadable'
   | 'read-only';
 export type LockCheck = { ok: true } | { ok: false; reason: LockFailure; cardsShort?: number };
-export interface LockedShortfall {
+export type NameLockFailure =
+  | 'already-locked'
+  | 'read-only'
+  | 'locks-unreadable'
+  | 'ownership-unavailable'
+  | 'not-in-deck'
+  | 'not-full';
+/** SHARE-081: first failing check wins; `available` (capped at need) and `need` only with `not-full`. */
+export type NameLockCheck =
+  | { ok: true }
+  | { ok: false; reason: NameLockFailure; available?: number; need?: number };
+/** One name lock SHARE-090 drops (SHARE-087…091). */
+export interface LockLoss {
   deckId: string;
   deckName: string;
-  cardsShort: number;
+  cardKey: CardKey;
+  cardName: string;
+  /** hold(D, k) lost = the deck's need of that name. */
+  copies: number;
+  /** The deck was locked and stops being so (SHARE-083). */
+  deckUnlocks: boolean;
 }
 
 // ---- SPEC-005 v0.5 ----
 export type CollectionOwnership =
-  { status: 'ok'; input: DeckOwnershipInput; shared: SharedPool } | { status: 'unavailable' };
+  | { status: 'ok'; input: DeckOwnershipInput; shared: SharedPool }
+  | {
+      status: 'unavailable';
+      /**
+       * The stored locks (SHARE-053, OWN-065): a deck with a lock here keeps its lock state while
+       * ownership is unavailable. null = lock store unreadable (SHARE-061); omitted = no lock known.
+       */
+      locks?: readonly NameLock[] | null;
+    };
 
 export type CardBan = BanStatus | { status: 'unknown' };
 
@@ -279,6 +317,8 @@ export interface OwnershipCard {
   lockedByOthers: number;
   available: number;
   heldByThisDeck: number | null;
+  /** SHARE-094 / OWN-121: this deck has a name lock on the card (the tile and row lock icon). */
+  nameLocked: boolean;
   otherUses: CardUse[];
   extra: number;
   allocationByZone: Partial<Record<DeckZone, { allocated: number; required: number }>>;
@@ -310,6 +350,10 @@ export interface DeckOwnershipView {
   catalogVersion: string | null;
   ownershipAvailable: boolean;
   locksIgnored: boolean;
+  /**
+   * SPEC-008 state; null = no lock or lock store unreadable. With ownership unavailable a stored
+   * lock still gives the SHARE-053 state (OWN-065 (a)): locked when every counted name has a stored name lock.
+   */
   lock: DeckLockState | null;
   sections: ZoneSection[];
   summary: {
@@ -318,12 +362,23 @@ export interface DeckOwnershipView {
     cardsTotal: number;
     cardsFullyAvailable: number;
     copiesExcludedRelevant: number;
+    /**
+     * A / R exact, 0..1 (OWN-100, OWN-101 (e)); null when R = 0 or ownership is unavailable
+     * (OWN-101 (c)). In a locked deck A is the copies locked in (OWN-100 (c)).
+     */
+    completionFill: number | null;
+    /**
+     * OWN-101 (b): 0 when A = 0, 100 when A = R, else min(99, max(1, floor(100·A/R))); null as
+     * `completionFill`. The deck tile and the Deck detail header both read this (OWN-010 (f)).
+     */
+    completionPercent: number | null;
   };
   missing: MissingLine[];
   missingText: string;
 }
 
-export type OwnershipFilter = 'ready' | 'partial' | 'none' | 'locked';
+/** SHARE-051 group; `unavailable` (rule 0) = ownership unavailable (SHARE-053, OWN-065). */
+export type OwnershipFilter = 'ready' | 'partial' | 'none' | 'locked' | 'unavailable';
 
 export interface DeckTileSummary {
   deckId: string;
@@ -335,4 +390,25 @@ export interface DeckTileSummary {
   ownershipFilter: OwnershipFilter;
   lockBadge: string | null;
   updatedAt: IsoDateTime;
+  // SPEC-005 v0.9 (OWN-100…104); all from the same DeckOwnershipView, never stored (OWN-026, OWN-073).
+  /** The deck's Legend card (OWN-100 (a)); null = no Legend, unknown card or catalog not loaded (OWN-100 (d)). */
+  legend: { name: string; imageUrl: string | null } | null;
+  /** = view.summary.completionFill (OWN-100 (b)). */
+  completionFill: number | null;
+  /** = view.summary.completionPercent (OWN-101). */
+  completionPercent: number | null;
+  /** OWN-103: distinct cardKeys banned / upcoming, earliest upcoming `effective`; null = ban data not loaded. */
+  bans: DeckTileBans | null;
+  /** OWN-104: `source.pilot` verbatim for a tournament deck, else null. */
+  pilot: string | null;
+  /** DECK-091: the record has a newer `schemaVersion` than this app knows (OWN-002 "Read-only" tag). */
+  readOnly: boolean;
+}
+
+/** OWN-103 ban flag counts on a deck tile. */
+export interface DeckTileBans {
+  banned: number;
+  upcoming: number;
+  /** Earliest `effective` among the upcoming bans; null when `upcoming` is 0. */
+  upcomingFrom: IsoDate | null;
 }

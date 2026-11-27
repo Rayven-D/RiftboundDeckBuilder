@@ -1,7 +1,7 @@
 /**
- * Deck ownership engine (SPEC-005 v0.5, SPEC-008 v0.4; runes are cards, OWN-028; stored records per
- * SPEC-003 v0.9 and SPEC-007 v0.8 from shared/storage/records). Pure, framework-free and
- * browser-only (OWN-093): no Angular, no storage, no network, no clock.
+ * Deck ownership engine (SPEC-005 v0.16, SPEC-008 v0.6 card-name locks; runes are cards, OWN-028; stored records
+ * per SPEC-003 and SPEC-007 from shared/storage/records). Pure, framework-free and browser-only (OWN-093): no
+ * Angular, no storage, no network, no clock.
  */
 export * from './types';
 export { cachedDeckOwnership, deckOwnership } from './deck-ownership';
@@ -13,19 +13,28 @@ export {
   ZONE_ORDER,
   availability,
   canLock,
+  canLockName,
   cardsShortText,
+  compareLockOrder,
   computeSharedPool,
   countedEntries,
+  deckNeeds,
   lockCheckMessage,
-  lockedShortfalls,
+  lockLosses,
+  nameLockCheckMessage,
+  settleLocks,
   sharedIndicator,
-  shortfallNotice,
-  shortfallWarning,
+  storedLockState,
+  storedLockedNames,
   zoneEntries,
 } from './shared-pool';
+export { migrateLocksV1, ownedForDecksOf } from './name-locks';
+export type { OwnershipRecords } from './name-locks';
 export {
+  completionPercent,
   computeDeckOwnership,
   formatIsoDate,
   sourceLine,
   summarizeDeck,
+  verdictLabel,
 } from './deck-ownership-view';

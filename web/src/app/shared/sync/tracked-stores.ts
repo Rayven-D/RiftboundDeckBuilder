@@ -40,10 +40,13 @@ export interface RawCollectionStore {
   load(): Promise<StoredCollection | null>;
   save(c: StoredCollection, opts?: { snapshotPrevious?: boolean }): Promise<void>;
   loadPrevious(): Promise<StoredCollection | null>;
+  clearPrevious(): Promise<void>;
 }
 export interface RawDeckStore extends DeckStore {
   put(deck: UserDeck): Promise<void>;
   unreadableIds(): Promise<string[]>;
+  /** DECK-091: newer-schema records with the deck fields, for read-only display (H-060). Optional for fakes. */
+  newerDecks?(): Promise<UserDeck[]>;
 }
 
 /** SYNC-046: an area whose cloud document is newer than this app cannot be changed on this device. */
@@ -96,6 +99,11 @@ export class TrackedCollectionStore implements CollectionStore {
     return this.inner.loadPrevious();
   }
 
+  /** IMP-075 (b): spends the Undo snapshot. The snapshot is a local cache record, not a synced item, so nothing is stamped. */
+  clearPrevious(): Promise<void> {
+    return this.ctx.queue.run(() => this.inner.clearPrevious());
+  }
+
   /** `replace` marks an Owned Cards Import in Replace mode: one `set()` of the whole document (SYNC-014). */
   async save(c: StoredCollection, opts: { snapshotPrevious?: boolean; replace?: boolean } = {}): Promise<void> {
     if (this.ctx.readOnly('collection')) throw new ReadOnlyAreaError('collection');
@@ -142,7 +150,7 @@ export class TrackedDeckLockStore implements DeckLockStore {
   constructor(
     private readonly inner: DeckLockStore,
     private readonly ctx: TrackingContext,
-    private readonly deckIds: () => Promise<ReadonlySet<string>>,
+    private readonly deckCards: () => Promise<ReadonlyMap<string, ReadonlySet<string> | null>>,
   ) {}
 
   load(): Promise<StoredDeckLocks | null> {
@@ -157,9 +165,9 @@ export class TrackedDeckLockStore implements DeckLockStore {
     if (this.ctx.readOnly('locks')) throw new ReadOnlyAreaError('locks');
     await this.ctx.queue.run(() =>
       withLog(this.ctx, async (log) => {
-        // Stamp what is actually stored: the store drops orphan locks (SHARE-062).
-        const ids = await this.deckIds();
-        const stored = { ...l, locks: l.locks.filter((x) => ids.has(x.deckId)) };
+        // Stamp what is actually stored: the store drops orphan name locks (SHARE-062).
+        const names = await this.deckCards();
+        const stored = { ...l, locks: l.locks.filter((x) => { const n = names.get(x.deckId); return n === null || (n?.has(x.cardKey) ?? false); }) };
         const next = stampLocks(log, stored, this.ctx.now());
         await this.inner.save(l);
         return next;
@@ -194,7 +202,13 @@ export class TrackedDeckStore implements DeckStore {
     return this.inner.get(id);
   }
 
+  /** DECK-091 / OWN-064: newer-schema decks to show read-only; never written or synced (SYNC-033). */
+  newerDecks(): Promise<UserDeck[]> {
+    return this.inner.newerDecks?.() ?? Promise.resolve([]);
+  }
+
   async create(deck: UserDeck): Promise<void> {
+    if (this.ctx.readOnly(`deck:${deck.id}`)) throw new ReadOnlyAreaError(`deck:${deck.id}`);
     await this.ctx.queue.run(() =>
       withLog(this.ctx, async (log) => {
         const undone = cancelDeckDelete(log, deck, this.ctx.now());

@@ -1,13 +1,16 @@
 import {
+  CardKey,
   CollectionStore,
   CollectionViewStateStore,
   DeckLockStore,
   DeckStore,
+  EMPTY_SNAPSHOT_AT,
   IsoDateTime,
   LIMITS,
   PrintingCodeStore,
   StoredCollection,
   StoredDeckLocks,
+  StoredDeckLocksV1,
   StoredPrintingCodes,
   StoredTags,
   StoredViewState,
@@ -111,14 +114,26 @@ export class LocalCollectionStore implements CollectionStore {
 
   /**
    * `snapshotPrevious` keeps the record being replaced for the import Undo (IMP-052); a plain edit
-   * leaves the Undo snapshot alone.
+   * leaves the Undo snapshot alone. With no record yet, the snapshot is an empty collection stamped
+   * `EMPTY_SNAPSHOT_AT`, so undoing the first import restores the empty state (SPEC-007 AC 27).
    */
   async save(c: StoredCollection, opts: { snapshotPrevious?: boolean } = {}): Promise<void> {
     const current = await this.load();
-    if (opts.snapshotPrevious && current) {
-      this.backend.set(STORAGE_KEYS.collectionPrevious, JSON.stringify(current));
+    if (opts.snapshotPrevious) {
+      const previous: StoredCollection = current ?? {
+        schemaVersion: 1,
+        updatedAt: EMPTY_SNAPSHOT_AT,
+        catalogVersion: c.catalogVersion,
+        cards: {},
+      };
+      this.backend.set(STORAGE_KEYS.collectionPrevious, JSON.stringify(previous));
     }
     this.backend.set(STORAGE_KEYS.collection, JSON.stringify(c));
+  }
+
+  /** IMP-075 (b): the snapshot is spent once an Undo used it. */
+  async clearPrevious(): Promise<void> {
+    this.backend.remove(STORAGE_KEYS.collectionPrevious);
   }
 }
 
@@ -263,6 +278,27 @@ export class LocalDeckStore implements DeckStore {
     return out;
   }
 
+  /**
+   * DECK-091 / OWN-064 (H-060): records with a **newer** `schemaVersion` that still have the version-1 deck fields
+   * (id, name, zones, `updatedAt`), so the Decks page can show them read-only with ownership. Corrupt records and
+   * newer ones without those fields are left out. Read only: nothing is migrated or written.
+   */
+  async newerDecks(): Promise<UserDeck[]> {
+    const out: UserDeck[] = [];
+    for (const id of this.ids()) {
+      let v: unknown;
+      try {
+        v = readJson(this.backend, this.key(id));
+      } catch {
+        continue;
+      }
+      if (!isObject(v) || typeof v['schemaVersion'] !== 'number' || v['schemaVersion'] <= 1) continue;
+      if (!deckShape(v) || !isObject(v['source']) || typeof v['createdAt'] !== 'string') continue;
+      out.push(v as unknown as UserDeck);
+    }
+    return out;
+  }
+
   async get(id: string): Promise<UserDeck | null> {
     return readVersioned<UserDeck>(this.backend, this.key(id), [1], deckShape);
   }
@@ -304,23 +340,54 @@ export class LocalDeckStore implements DeckStore {
 
 const locksShape = (v: Record<string, unknown>) => typeof v['updatedAt'] === 'string' && Array.isArray(v['locks']);
 
-/** SPEC-008 `DeckLockStore`. A save drops locks whose deck is not in the deck store (SHARE-062). */
+/**
+ * Each stored deck's counted card names (SHARE-062: a name lock is an orphan when its deck or name is missing); `null`
+ * = keep every name lock of that deck (a deletion still inside its Undo window, SYNC-035).
+ */
+export type DeckCardKeys = () => Promise<ReadonlyMap<string, ReadonlySet<CardKey> | null>>;
+
+/** Whether a name lock is kept on save (SHARE-062, SYNC-035). */
+export const keepsNameLock = (names: ReadonlyMap<string, ReadonlySet<CardKey> | null>, deckId: string, cardKey: CardKey): boolean => {
+  const n = names.get(deckId);
+  return n === null || (n?.has(cardKey) ?? false);
+};
+
+/**
+ * SPEC-008 v0.6 `DeckLockStore` (`schemaVersion: 2`, one `NameLock` per deck and card name). A save drops name locks
+ * whose deck is not in the deck store or whose name is not in that deck (SHARE-062), and keeps one per (deck, name)
+ * (SHARE-022). A v1 record (one lock per deck) is converted once on load by `migrate` (SHARE-092) and written back as
+ * v2 (raw, so the sync log sees the new record on its next reconcile and syncs it); v1 is never written again.
+ */
 export class LocalDeckLockStore implements DeckLockStore {
   constructor(
     private readonly backend: KeyValueBackend,
-    private readonly deckIds: () => Promise<ReadonlySet<string>>,
+    private readonly deckCards: DeckCardKeys,
+    private readonly migrate: (v1: StoredDeckLocksV1) => Promise<StoredDeckLocks> = async (v1) => ({
+      schemaVersion: 2,
+      updatedAt: v1.updatedAt,
+      locks: [],
+    }),
   ) {}
 
   async load(): Promise<StoredDeckLocks | null> {
-    return readVersioned<StoredDeckLocks>(this.backend, STORAGE_KEYS.locks, [1], locksShape);
+    const rec = readVersioned<StoredDeckLocks | StoredDeckLocksV1>(this.backend, STORAGE_KEYS.locks, [1, 2], locksShape);
+    if (rec?.schemaVersion !== 1) return rec;
+    const v2 = await this.migrate(rec);
+    this.backend.set(STORAGE_KEYS.locks, JSON.stringify(v2));
+    return v2;
   }
 
   async save(l: StoredDeckLocks): Promise<void> {
-    assertOverwritable(() => readVersioned(this.backend, STORAGE_KEYS.locks, [1], locksShape));
-    const ids = await this.deckIds();
+    assertOverwritable(() => readVersioned(this.backend, STORAGE_KEYS.locks, [1, 2], locksShape));
+    const names = await this.deckCards();
     const seen = new Set<string>();
-    const locks = l.locks.filter((x) => ids.has(x.deckId) && !seen.has(x.deckId) && seen.add(x.deckId));
-    this.backend.set(STORAGE_KEYS.locks, JSON.stringify({ ...l, locks }));
+    const locks = l.locks.filter((x) => {
+      const key = `${x.deckId}|${x.cardKey}`;
+      if (!keepsNameLock(names, x.deckId, x.cardKey) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    this.backend.set(STORAGE_KEYS.locks, JSON.stringify({ ...l, schemaVersion: 2, locks }));
   }
 }
 

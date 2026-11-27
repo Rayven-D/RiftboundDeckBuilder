@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 2,
+  "dataVersion": "2026-11-24.1",
+  "lastVerified": "2026-11-24",
+  "formats": [
+    {
+      "id": "standard",
+      "name": "Standard",
+      "official": true,
+      "supported": true,
+      "deckRules": {
+        "mainDeckSize": 40,
+        "mainDeckSizeMode": "exact",
+        "copyLimit": 3,
+        "signatureLimit": 3,
+        "runeDeckSize": 12,
+        "battlefieldCount": 3,
+        "sideboardMax": 10
+      },
+      "sets": {
+        "global": [
+          { "code": "OGN", "legalFrom": null, "legalUntil": null, "basis": "riot-listing", "sourceUrl": "https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/861752822d217edf37d9febaeaf77a7d924c1bb6.pdf", "research": "TR 601.3.c ([[Sets]] #1)" },
+          { "code": "OGS", "legalFrom": null, "legalUntil": null, "basis": "riot-listing", "sourceUrl": "https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/861752822d217edf37d9febaeaf77a7d924c1bb6.pdf", "research": "TR 601.3.c ([[Sets]] #1)" },
+          { "code": "SFD", "legalFrom": null, "legalUntil": null, "basis": "riot-listing", "sourceUrl": "https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/861752822d217edf37d9febaeaf77a7d924c1bb6.pdf", "research": "TR 601.3.c ([[Sets]] #1)" },
+          { "code": "UNL", "legalFrom": null, "legalUntil": null, "basis": "riot-listing", "sourceUrl": "https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/861752822d217edf37d9febaeaf77a7d924c1bb6.pdf", "research": "TR 601.3.c ([[Sets]] #1)" },
+          { "code": "VEN", "legalFrom": null, "legalUntil": null, "basis": "riot-listing", "sourceUrl": "https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/861752822d217edf37d9febaeaf77a7d924c1bb6.pdf", "research": "TR 601.3.c ([[Sets]] #1)" },
+          { "code": "RAD", "legalFrom": "2026-10-23", "legalUntil": null, "basis": "riot-date", "sourceUrl": "https://cmsassets.rgpub.io/sanity/files/dsfx7636/news_live/861752822d217edf37d9febaeaf77a7d924c1bb6.pdf", "research": "TR 601.3.c.6.a ([[Formats]] #4; [[Sets]] #1)" },
+          { "code": "LGC", "legalFrom": "2027-01-29", "legalUntil": null, "basis": "riot-date", "sourceUrl": "https://playriftbound.com/en-us/news/announcements/products-and-sets-into-2027/", "research": "Products and Sets into 2027 ([[Sets]] #2)" },
+          { "code": "PG2", "legalFrom": "2027-02-19", "legalUntil": null, "basis": "riot-date", "sourceUrl": "https://playriftbound.com/en-us/news/announcements/products-and-sets-into-2027/", "research": "Products and Sets into 2027 ([[Sets]] #2)" },
+          { "code": "REC", "legalFrom": "2027-04-30", "legalUntil": null, "basis": "riot-date", "sourceUrl": "https://playriftbound.com/en-us/news/announcements/products-and-sets-into-2027/", "research": "Products and Sets into 2027 ([[Sets]] #2)" }
+        ]
+      },
+      "excludedSets": ["OPP", "JDG", "PR"],
+      "notes": "excludedSets (LEGAL-C07, RJ-confirmed 2026-11-25): the promo groupings OPP, JDG and PR are not legal as sets, so a printing in them never makes a card legal on its own. Promos are legal by name: a promo printing of a card whose name has a printing in a legal set is legal, because legality is keyed by cardKey. A card whose only printings are in OPP / JDG / PR fails LEGAL-017. Every legalUntil is null: Riot says the first rotation is at the start of 2028 (Sets 1-5) but publishes no per-set date (LEGAL-C05). OGN-VEN have no Riot-published legalFrom (LEGAL-C08). 2v2 is not listed: it is data only in banlist.json (LEGAL-B11) and no 2v2 deck rules are specified."
+    }
+  ]
+}

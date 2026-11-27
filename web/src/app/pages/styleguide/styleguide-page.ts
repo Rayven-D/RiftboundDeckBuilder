@@ -22,6 +22,7 @@ import { Icon } from '../../shared/icon';
 import { CardTile } from '../../shared/deck/card-tile';
 import { DeckHeading } from '../../shared/deck/deck-heading';
 import { sampleCardArt } from '../../shared/deck/sample-art';
+import { StyleguideDecks } from './decks-preview';
 
 type Accent = 'teal' | 'green';
 
@@ -40,7 +41,18 @@ interface SampleCard {
  */
 @Component({
   selector: 'app-styleguide-page',
-  imports: [CardTile, DeckHeading, MatButton, Icon, CardArt, CountBadge, LockBand, StatusLabel, CollectionTile],
+  imports: [
+    CardTile,
+    DeckHeading,
+    MatButton,
+    Icon,
+    CardArt,
+    CountBadge,
+    LockBand,
+    StatusLabel,
+    CollectionTile,
+    StyleguideDecks,
+  ],
   template: `
     <p class="page-eyebrow sample">Component preview · sample data, not real cards</p>
     <div class="accent-switch" role="group" aria-labelledby="accent-label">
@@ -189,6 +201,8 @@ interface SampleCard {
         }
       }
     </section>
+
+    <app-styleguide-decks />
   `,
   styles: `
     .sample {
@@ -380,7 +394,7 @@ export class StyleguidePage {
     for (const d of await this.stores.raw.decks.list()) await this.stores.raw.decks.delete(d.id);
     for (const d of s.decks) await this.stores.raw.decks.put(d);
     localStorage.setItem(DEV_SAMPLE_DECKS_KEY, JSON.stringify(s.decks.map((d) => d.id)));
-    await this.stores.raw.locks.save({ schemaVersion: 1, updatedAt: new Date().toISOString(), locks: s.locks });
+    await this.stores.raw.locks.save({ schemaVersion: 2, updatedAt: new Date().toISOString(), locks: s.locks });
   }
 
   private confirmReplace(): boolean {

@@ -56,7 +56,7 @@ describe('SyncEngine first sign-in, sign-out and the gate (SPEC-010 SYNC-009, H-
       for (let i = 0; i < 350; i++) await laptop.setCard(`card ${i}`, 1 + (i % 3));
       for (let i = 0; i < 20; i++) await laptop.addTag(`t_tag${String(i).padStart(3, '0')}`, `Tag ${i}`);
       const decks = [];
-      for (let i = 0; i < 10; i++) decks.push(await laptop.createDeck(`Deck ${i}`, [card('card 1', 1)]));
+      for (let i = 0; i < 10; i++) decks.push(await laptop.createDeck(`Deck ${i}`, [card('card 2', 1)]));
       for (let i = 0; i < 3; i++) await laptop.lock(decks[i].id);
       expect(firstFrameGate(laptop)).toBe('signed-out'); // legacy data is never shown (SYNC-009)
 
@@ -270,7 +270,7 @@ describe('SyncEngine first sign-in, sign-out and the gate (SPEC-010 SYNC-009, H-
       for (let i = 0; i < 350; i++) await laptop.setCard(`card ${i}`, 1 + (i % 3));
       for (let i = 0; i < 20; i++) await laptop.addTag(`t_tag${String(i).padStart(3, '0')}`, `Tag ${i}`);
       const decks = [];
-      for (let i = 0; i < 10; i++) decks.push(await laptop.createDeck(`Deck ${i}`, [card('card 1', 1)]));
+      for (let i = 0; i < 10; i++) decks.push(await laptop.createDeck(`Deck ${i}`, [card('card 2', 1)]));
       for (let i = 0; i < 3; i++) await laptop.lock(decks[i].id);
       await laptop.engine.flush();
       laptop.now += 60_000;
@@ -336,7 +336,7 @@ describe('SyncEngine first sign-in, sign-out and the gate (SPEC-010 SYNC-009, H-
       await phone.engine.flush();
       expect(db.writeLog).toEqual([['users/uA/state/collection', 'update']]);
       expect(Object.keys(db.pushLog.at(-1)?.collection?.cards ?? {})).toEqual(['card 0']);
-    });
+    }, 30_000); // H-430: building the 350-card account outgrows the 5 s default when the machine is busy
 
     it('AC 4 / SYNC-012 older build: exactly 1 write, the account update(); the laptop still pulls no changed document', async () => {
       const { laptop, locked } = await fullAccount('test-0');
@@ -357,7 +357,7 @@ describe('SyncEngine first sign-in, sign-out and the gate (SPEC-010 SYNC-009, H-
       delete after['users/uA'];
       expect(after).toEqual(before); // only the account document was written
       await expectLaptopPullsNothing(laptop);
-    });
+    }, 30_000); // H-430: as above
 
     it('AC 36 / SYNC-048 e older build: an account without data gets exactly 1 write, the account update(); createdAt kept', async () => {
       const createdAt = at('09:00', 1);
