@@ -147,3 +147,19 @@ H-706 Q2 and Q5 are rules questions for the spec-writer.
    The original deck is unchanged. (Spec: H-716.)
 3. **Cost filter (SEARCH-026):** RJ: "Cost means the energy and power costs." The search filters on both;
    which payload fields carry them still waits on H-020.
+
+## RJ answers, part 5: deck stats (2026-11-28, chat)
+1. **Deck stats** (RJ): "how many cards at each energy level (1-8+), the average might (all main deck cards
+   even non units), and the domain distribution."
+2. **Energy distribution as a bar graph**, bars 1 to 8+. **Each bar is coloured by the deck's two domains at
+   their ratio**; **hover (tap on phones) shows a tooltip** with the exact domain ratios.
+3. **Dual-domain cards count as their own category** in the split, not half to each domain.
+4. Average might is over **all Main Deck cards, non-units included**. (Spec: H-719.)
+5. **RJ: "Yes to all those"** to Claude's deck-stats proposals: count the Main Deck including the Chosen Champion
+   (not Legend, runes, battlefields, sideboard); a 0-energy bar only when a deck has one; a neutral "No domain"
+   segment and own segments for domains outside the two; no-might cards count as 0 in the average, 1 decimal;
+   domain distribution counts copies, stacked bar or list (no donut); no Riot symbols, never colour alone,
+   legend, keyboard-reachable tooltip, text equivalent; fixture values until H-020.
+6. **H-717: "Yes to 717"**: the fork defaults stand (name `<name> (from version N)`, fresh history, unlocked,
+   description / format / source copied, tournament fork "Edited" rule, no confirmation, Cost as one group, fork
+   allowed from locked and read-only decks). RJ: "Keep counting dupes": Duplicates still count in "In your decks"; only forks are ignored.
