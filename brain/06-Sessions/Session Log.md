@@ -58,3 +58,12 @@ Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[
 - Round 4, Collection page (Sonnet): H-188 → [PR #129](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/129) for RJ; the ui-engineer look was skipped (rule 3), optional H-685.
 - Round 5, sync (builder on Opus, validator on Sonnet): H-682 part 1 + H-133 → [PR #130](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/130) for RJ; full web suite 1598 pass. H-682 part 2 waits on H-684.
 - All passed on attempt 1. `next_id` 686.
+
+## 2026-11-27 evening: `/board` (usage-saving mode, one session)
+- Trim: 26 done rows to the archive ([#134](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/134), merged by the loop). RJ answered H-684 before the run (email-link deletion notice approved, Google notice shelved; [#132](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/132)).
+- Round 1 (builder Opus, validator Sonnet): H-682 part 2 + H-075 → [PR #135](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/135) for RJ. Follow-up H-686 (spec-writer).
+- Round 2 (Sonnet): H-648 services lookup + H-064 hosting `/api` regex → [PR #136](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/136) for RJ. Gate **H-687**: RJ checks the regex on a preview channel; H-064 stays open until then.
+- Round 3 (builder Opus, validator Sonnet): H-093 keyword engine → [PR #137](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/137) for RJ (no visible change until a glossary ships). Follow-up H-690.
+- Round 4 (ui-engineer + validator Sonnet): H-270 import review audit (code read; visual pass H-697) + H-173 scrolling guidance (measurement H-696) → [#138](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/138) merged by the loop.
+- Round 5 (researcher + validator Sonnet): H-621 Firestore Data Shape → [#139](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/139) merged by the loop.
+- All attempt 1. Code PRs #135–#137 each bump the board's `next_id` and #135/#137 both touch [[API Contracts]]: expect small merge conflicts; keep the highest `next_id` (698). Another session's uncommitted brain work (ADR-0009 RiftHunt, H-021 row) was left unstaged.

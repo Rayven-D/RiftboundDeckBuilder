@@ -70,10 +70,12 @@ Checked against the official pages below. Each point is `verified` only where a 
 | (a) `existsAfter()` billed when the document is written in the same batch | **unverified** | The pricing page names only `exists()`, `get()`, `getAfter()`, not `existsAfter()`. The rules reference says `existsAfter(path)` is "Equivalent to `getAfter(path) != null`" and `getAfter` reads the projected state "as if the current request had succeeded", useful for batched writes and transactions. No page says whether such a lookup is billed when the document is in the same batch | https://firebase.google.com/docs/reference/rules/rules.firestore ; pricing page |
 | (c) Per-request lookup limit | verified for `exists()`/`get()`; **unverified** for `getAfter()`/`existsAfter()` | Limit per rule-set evaluation: 10 for single-document requests and query requests; 20 for multi-document reads, transactions and batched writes, and the 10 also applies to each operation in them. Going over gives permission denied. "Some document access calls may be cached, and cached calls do not count towards the limits" (which calls are cached is not stated). The pages list `exists()`, `get()`, `getAfter()` and never mention `existsAfter()` in the limit text | https://firebase.google.com/docs/firestore/security/rules-conditions ; https://firebase.google.com/docs/firestore/quotas |
 
-What this means for the first sign-in (3 + N documents): if each created document makes one lookup and repeats are not
-deduplicated for the limit, a batch of more than 20 creates would be denied. The pages do not say whether repeats count
-once for the limit, so do not rely on it: keep batches at 20 or fewer operations (the `PushChanges.batch` split). Since v0.8 the
-first sign-in creates no `state` or `decks` document (SYNC-050), so this only matters for regular pushes.
+What this means for sync: if each created document makes one lookup and repeats are not deduplicated for the limit, a
+batched write of more than 20 creates could be denied. The pages do not say whether repeats count once for the limit, so
+do not rely on it. SPEC-010 0.21 (SYNC-050, SYNC-113) removed the old `PushChanges.batch` split: a push writes one document at
+a time, the account document first, so no write creates two documents together and the 20-operation limit is never
+approached. The first sign-in creates no `state` or `decks` document (SYNC-050, at most 1 write). The 20-operation advice only
+matters if a future change brings batched writes back.
 
 **Not confirmed** (`status: unverified`, check before the spec relies on them):
 - Whether documents served from the local cache (`getDocsFromCache`) are free. The pricing page does not say. This design does not depend on it.
@@ -210,7 +212,7 @@ counted as up to 1 read per created document (billing of `existsAfter()` is unve
 
 | Flow | Reads | Writes | Notes |
 |---|---|---|---|
-| **First sign-in, new account**, browser has data | 3 (account `get` miss + `state` query + `decks` query, each at least 1) | 4 + N (account, 3 state documents, decks) in batches | realistic 14 writes, heavy 104 |
+| **First sign-in, new account**, browser has data | 3 (account `get` miss + `state` query + `decks` query, each at least 1) | **at most 1** (SYNC-050): exactly 1 to create `users/{uid}`; 0 if the account already exists (or 1 account `update()` when `lastClientVersion` differs); no `state` or `decks` document written | v0.8: the first sign-in uploads nothing else; later changes go out as regular one-document pushes. The old "4 + N writes in batches" (realistic 14, heavy 104) no longer applies |
 | **First sign-in, account already has data** (merge) | 1 + 3 + N | ≤ 3 + changed decks | merge per card by `t`, per tag by `updatedAt`, tag assignments as a union, per deck by `updatedAt`, tombstones win when newer. Realistic 14 reads |
 | **Reopen, same device** | 3 (account check `users/{uid}`, `state where syncedAt > cursor`, `decks where syncedAt > cursor`; SYNC-040, SYNC-053) + changed documents | 0 | no long-lived listener on all of `decks` (fact 9). Earlier versions of this note said 2 |
 | New deck or first write of a `state` document | 0 | 1 | plus up to 1 billed read for the `existsAfter()` lookup (SYNC-113, SYNC-120) |
@@ -291,8 +293,8 @@ What makes the biggest difference: **debouncing saves** (each un-debounced +/−
   says so (the pricing page does not name `existsAfter()`; the rules reference only defines it as `getAfter(path) != null`).
   Keep the "1 billed read per created document, upper bound" wording.
 - **Stays `unverified`, part of (c):** whether `existsAfter()` counts toward the limit, and whether repeated lookups of one document count once
-  toward it. The docs are silent. Keep batches at 20 operations or fewer (the existing `PushChanges.batch` split) and 1 lookup per create,
-  so even 20 non-deduplicated lookups fit. The emulator could test the limit but not billing.
+  toward it. The docs are silent. Pushes now write one document at a time (SYNC-050 / SYNC-113, `PushChanges.batch` removed in H-077), so
+  1 lookup per create stays far under the limit; if batched writes return, keep them at 20 operations or fewer. The emulator could test the limit but not billing.
 - **Spec read figures:** a reopen is 3 reads (account check + 2 queries), matching this note's flows table now.
 
 ## Decisions for RJ
