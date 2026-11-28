@@ -141,7 +141,7 @@ same trick as the header.
   2. printing: `OGN-007a Showcase` (code + variant label when not base/unknown) · or `Printing not specified` · or `Printing no longer found: OGN-005` / `Printing no longer found (id <printingId>)`
   3. copies: `1 copy` / `3 copies` (always, even at 1, since there's no badge then)
   4. locks, if any: `2 of this card locked in Jinx Aggro` · several decks: `3 of this card locked in Jinx Aggro and Kennen Tempo` (three or more: `A, B and C`)
-  5. ban, when it applies: `banned` · `banned from Nov 23, 2026` (upcoming) · `ban status unknown`
+  5. ban, only when `banned`: `banned` (SPEC-007 0.18.1 COLL-101 (e); "banned from" and "ban status unknown" are dialog-only)
   Example: "Kai'Sa, Survivor, OGN-007a Showcase, 3 copies, 2 of this card locked in Jinx Aggro, banned".
 - **Grid keyboard (roving tabindex):** the grid is one Tab stop, and the last focused tile (or the first one) has `tabindex=0`. ← → move by one, ↑ ↓ by one row (the current column count), Home / End go to the row's first / last tile, Ctrl+Home / Ctrl+End to the first / last tile overall. Enter / Space opens the dialog. When virtual scroll would recycle the focused tile's row, keep that row rendered (or `scrollIntoView({block:'nearest'})` before moving focus).
 - **Container:** `<ul role="list" aria-label="Your cards" aria-describedby="count-line">` (reset the list style).
@@ -178,7 +178,7 @@ dashed frame. **Ban label** under the art, margin-top `--space-3` (see §7).
    - The clicked one shows ` (this one)` and is plain text with `aria-current="true"`.
    - The others are `<button>`s styled as text links (`--color-accent-text`, underline on hover), min-height 32px on desktop / 44px on phones, with `aria-label` "Show OGN-007, 2 copies".
    - Activating one swaps the art, printing line and title focus in place (no animation), keeps the dialog open, and moves focus to the printing line (`tabindex=-1`).
-3. **Locked in** (only when ≥ 1 locked deck holds copies): heading `Locked in`, help line `Locked decks count copies by card name, any printing.` (`--font-size-xs` muted).
+3. **Locked in** (only when ≥ 1 locked deck holds copies): heading `Locked in`, help line `Decks lock copies by card name, any printing.` (`--font-size-xs` muted).
    - Rows: `lock` icon (14px, muted) · deck name (a link to `/decks/:id` when that route renders a deck, otherwise plain text) · right-aligned `2 copies`. When the deck is short on this card, append ` · short` (muted).
    - Rows are `--space-2` tall gaps with a 1px `--color-border` divider between them.
 4. **Could fit in** (always shown, for every card, runes included, COLL-089): heading `Could fit in`.
