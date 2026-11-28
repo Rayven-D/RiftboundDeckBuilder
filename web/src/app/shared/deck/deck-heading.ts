@@ -2,7 +2,7 @@ import { Component, input } from '@angular/core';
 
 /**
  * Deck name with its source line underneath (SPEC-005 OWN-003), e.g.
- * "1st, Regional Championship: Europe · Nov 6, 2026 – Nov 8, 2026". The source line is
+ * "1st, Riftbound Regional Championship: Europe · Nov 6, 2026 – Nov 8, 2026". The source line is
  * supporting description, so it is set small and muted (RJ, 2026-11-23).
  */
 @Component({

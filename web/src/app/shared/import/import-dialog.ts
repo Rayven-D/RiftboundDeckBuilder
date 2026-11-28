@@ -324,7 +324,7 @@ export function hasFiles(event: DragEvent): boolean {
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button matButton type="button" mat-dialog-close>Cancel</button>
-      <button matButton="filled" type="button" [attr.aria-disabled]="busy() || null" (click)="submit()">
+      <button matButton="filled" type="button" [disabled]="busy()" disabledInteractive (click)="submit()">
         {{ copy.action }}
       </button>
     </mat-dialog-actions>

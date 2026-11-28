@@ -68,4 +68,19 @@ describe('H-189 notices above dialogs (raiseNotices, NoticeLayer)', () => {
     expect(ref.componentRef!.location.nativeElement.closest('mat-dialog-container')!.contains(document.activeElement)).toBe(true);
     expect(hostOf('mat-snack-bar-container')!.contains(document.activeElement)).toBe(false);
   });
+
+  it('H-198 pressing OK on a notice while a dialog is open keeps focus in the dialog', async () => {
+    TestBed.configureTestingModule({ providers: [{ provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } }] });
+    TestBed.inject(NoticeLayer);
+    TestBed.inject(MatSnackBar).open("You're signed in.", 'OK', { politeness: 'polite' });
+    await new Promise((r) => setTimeout(r));
+    TestBed.inject(MatDialog).open(FieldDialog, { autoFocus: 'input' });
+    await new Promise((r) => setTimeout(r));
+    const input = document.querySelector<HTMLInputElement>('mat-dialog-container input')!;
+    expect(document.activeElement).toBe(input);
+    document.querySelector<HTMLButtonElement>('mat-snack-bar-container button')!.click();
+    (document.activeElement as HTMLElement | null)?.blur(); // the notice closing drops focus to the page
+    await new Promise((r) => setTimeout(r, 20));
+    expect(document.activeElement).toBe(input);
+  });
 });
