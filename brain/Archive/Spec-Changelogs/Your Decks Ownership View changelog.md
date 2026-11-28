@@ -9,6 +9,7 @@ superseded_by: "[[Your Decks Ownership View]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- 0.7 (2026-11-25, H-174, RJ 2026-11-24 header decision / gate H-178; copied here by H-184): OWN-008 empty state now has an **Import deck** button and the copy "No decks yet" / "Import a deck list to see which of its cards you own." (no "Import → Deck Import" link); new OWN-094 floating **Import deck** button on Decks (as COLL-094; collapses on phones, hidden on the empty state, a saved deck stays on Decks, `/decks?import=1`); AC 22; pins SPEC-006 0.9, SPEC-007 0.12; no ownership rule changed; status stays `review`.
 - 0.6 (2026-11-24, H-171, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2, account-only, status stays
   `review`): OWN-066 gate always on, "reads nothing from the browser cache", no local-only exception. **OWN-093**
   reworded: it said "nothing on this screen is sent to a server: decks, collection and ownership stay in the

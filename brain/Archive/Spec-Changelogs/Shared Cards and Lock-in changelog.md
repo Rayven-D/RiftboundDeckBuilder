@@ -9,6 +9,7 @@ superseded_by: "[[Shared Cards and Lock-in]]"
 
 Newest first. New changelog entries for the spec go here.
 
+- Pin-only fix 2026-11-25 (H-174, no version bump; copied here by H-184): "Depends on" now pins SPEC-003 0.12, SPEC-005 0.7, SPEC-006 0.9, SPEC-007 0.12; no lock rule changed.
 - 0.4.4 (2026-11-24, H-171, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2, account-only, status stays
   `review`): SHARE-060 now says locks belong to the signed-in account (`state/locks`) and `DeckLockStore` is the
   browser cache of it (SPEC-010 SYNC-140…SYNC-145), cleared on sign-out, account deletion and a different account

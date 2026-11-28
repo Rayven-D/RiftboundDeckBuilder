@@ -106,7 +106,7 @@ usernames are display names, not unique; editable in settings; theme is per devi
 - **Collection import** is renamed **"Add to your collection"** and opens from a **floating action button (FAB) at
   the bottom right of the Collection page**, in a dialog.
 - **Deck import** keeps the name **"Import deck"** and opens from the Decks page, in a dialog.
-- **The `/import` page is removed**, route included: old links show the not-found page (no redirect, RJ).
+- **The `/import` page is removed**, route included: old links show the not-found page (no redirect, RJ). *(Superseded by the follow-up below: `/import` now goes to Home, there is no not-found page; H-184.)*
   Each import dialog opens on its own screen; a finished collection import stays on Collection, a deck import on Decks.
 
 **Consequences**
