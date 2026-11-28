@@ -1,8 +1,10 @@
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { Component, Injectable, computed, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { Subject } from 'rxjs';
 import type { NameLock, OwnershipCard, UserDeck } from '../../core/decks';
+import { PHONE, cardDialogConfig } from '../../shared/card-sheet/card-sheet';
 import { DeckCardContent } from '../../shared/deck-detail/deck-card-content';
 import {
   DECK_CARD_DIALOG_TITLE_ID,
@@ -21,6 +23,7 @@ import { LockActions } from '../../shared/deck/lock-actions';
 import { LockBadge } from '../../shared/deck/lock-badge';
 import { LockInDialog, LockInDialogData } from '../../shared/deck/lock-in-dialog';
 import { styleguideDecks } from './deck-samples';
+import { DIALOG_MOTION } from '../../shared/motion';
 
 /**
  * Preview lock store: Lock in / Unlock only flip an in-memory set, so the buttons can be tried on /styleguide
@@ -397,6 +400,7 @@ export class StyleguideDecks {
   protected readonly s = styleguideDecks();
   private readonly locks = inject(PreviewLocks);
   private readonly dialog = inject(MatDialog);
+  private readonly breakpoints = inject(BreakpointObserver);
 
   protected readonly readyView = computed(() =>
     this.locks.locked().has(this.s.readyDeck.id) ? this.s.readyLockedView : this.s.readyView,
@@ -419,6 +423,7 @@ export class StyleguideDecks {
 
   protected openLockIn(others: boolean): void {
     this.dialog.open<LockInDialog, LockInDialogData, boolean>(LockInDialog, {
+      ...DIALOG_MOTION,
       data: { deckName: this.s.deck.name, others: others ? otherDecksLine(this.s.view) : null },
       width: 'min(28rem, calc(100vw - 2 * var(--content-gutter)))',
       maxWidth: '100vw',
@@ -436,14 +441,14 @@ export class StyleguideDecks {
       locked: () => false,
       ownershipAvailable: () => true,
     };
+    // H-699: the same config as Deck detail, so the phone sheet can be reviewed here without signing in.
     this.dialog.open(DeckCardDialog, {
       data,
       ariaLabelledBy: DECK_CARD_DIALOG_TITLE_ID,
-      autoFocus: '.close-button',
-      panelClass: 'card-dialog-panel',
-      width: 'min(44rem, calc(100vw - 2 * var(--content-gutter)))',
-      maxWidth: '100vw',
-      maxHeight: 'min(90svh, 52rem)',
+      ...cardDialogConfig(this.breakpoints.isMatched(PHONE), {
+        width: 'min(44rem, calc(100vw - 2 * var(--content-gutter)))',
+        maxHeight: 'min(90svh, 52rem)',
+      }),
     });
   }
 }

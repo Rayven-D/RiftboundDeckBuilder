@@ -17,6 +17,7 @@ import { ConfirmEmailDialog, SignInDialog, SignInDialogData } from './sync-dialo
 import { UsernameDialog, UsernameDialogData, UsernameSaveResult } from './account-dialogs';
 import { USERNAME_TEXT } from '../../shared/account/username';
 import { NoticeLayer } from '../notice-layer';
+import { DIALOG_MOTION } from '../../shared/motion';
 
 export type AdapterLoader = () => Promise<{ auth: AuthService; remote: RemoteStore }>;
 
@@ -228,7 +229,7 @@ export class SyncService {
       providers: enabledProviders(this.providers),
       sendEmailLink: (e) => this.sendEmailLink(e),
     };
-    const ref = this.dialog.open(SignInDialog, { data, autoFocus: 'first-tabbable', restoreFocus: trigger ?? true });
+    const ref = this.dialog.open(SignInDialog, { ...DIALOG_MOTION, data, autoFocus: 'first-tabbable', restoreFocus: trigger ?? true });
     const choice = await firstValueFrom(ref.afterClosed());
     if (!this.destroyed) refocusAfterDialog(trigger);
     if (choice === 'google' && this.providers.includes('google')) {
@@ -266,6 +267,7 @@ export class SyncService {
       save: (v) => this.saveUsername(v),
     };
     const ref = this.dialog.open<UsernameDialog, UsernameDialogData, string>(UsernameDialog, {
+      ...DIALOG_MOTION,
       data,
       autoFocus: false,
       restoreFocus: false,
@@ -321,6 +323,7 @@ export class SyncService {
    */
   private async confirmEmail(): Promise<string | undefined> {
     const ref = this.dialog.open<ConfirmEmailDialog, unknown, string>(ConfirmEmailDialog, {
+      ...DIALOG_MOTION,
       autoFocus: 'first-tabbable',
       restoreFocus: false,
       width: '28rem',

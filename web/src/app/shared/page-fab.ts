@@ -26,7 +26,16 @@ const FOOTER_NEAR_MARGIN = '0px 0px 120px 0px';
   imports: [Icon],
   host: { '(window:scroll)': 'onScroll()', '(window:resize)': 'scheduleDock()' },
   template: `
-    <button #button type="button" class="page-fab" [class.collapsed]="collapsed()" aria-haspopup="dialog" (click)="pressed.emit()">
+    <button
+      #button
+      type="button"
+      class="page-fab"
+      [class.collapsed]="collapsed()"
+      [class.arriving]="arriving()"
+      aria-haspopup="dialog"
+      (click)="pressed.emit()"
+      (animationend)="arriving.set(false)"
+    >
       <app-icon [name]="icon()" />
       <span class="label">{{ label() }}</span>
     </button>
@@ -56,13 +65,29 @@ const FOOTER_NEAR_MARGIN = '0px 0px 120px 0px';
       white-space: nowrap;
       box-shadow: var(--shadow-lift);
       cursor: pointer;
+      /* Brief H-733 S11: its own group in a route change (styles.scss): it morphs between pages that both have one,
+         and fades in (and out) with the page otherwise. */
+      view-transition-name: page-fab;
       transition:
         background-color var(--dur-fast) var(--ease-out),
         transform var(--dur-fast) var(--ease-out),
         padding var(--dur-med) var(--ease-out),
         gap var(--dur-med) var(--ease-out);
     }
-    .page-fab app-icon { font-size: 24px; }
+    /* Brief H-733 S11: the button fades in from 92% when it is created, 60 ms after the page. It often comes after the
+       route change (it waits for the page's data), so this is its own animation, not the view transition's. */
+    .page-fab.arriving { animation: fab-in var(--dur-med) var(--ease-enter) 60ms backwards; }
+    .page-fab app-icon { flex: none; font-size: 24px; }
+    /* S11: the label narrows and fades with the padding and gap (one --dur-med move), never leaving the layout in
+       one frame; it stays in the accessibility tree (no display: none, no visibility: hidden). */
+    .label {
+      display: inline-block;
+      max-width: 16rem;
+      overflow: hidden;
+      transition:
+        max-width var(--dur-med) var(--ease-out),
+        opacity var(--dur-med) var(--ease-out);
+    }
     .page-fab:hover { background: var(--color-accent-hover); transform: translateY(-1px); }
     .page-fab:active { transform: translateY(0) scale(0.98); }
     @media (max-width: 40rem) {
@@ -73,16 +98,17 @@ const FOOTER_NEAR_MARGIN = '0px 0px 120px 0px';
       /* Icon only: 56 x 56. The label is hidden visually but stays in the accessibility tree. */
       .page-fab.collapsed { gap: 0; padding: 0 16px; }
       .page-fab.collapsed .label {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip-path: inset(50%);
-        white-space: nowrap;
+        max-width: 0;
+        opacity: 0;
       }
     }
+    @keyframes fab-in {
+      from { opacity: 0; transform: scale(0.92); }
+    }
     @media (prefers-reduced-motion: reduce) {
-      .page-fab { transition: background-color var(--dur-fast) var(--ease-out); }
+      .page-fab.arriving { animation: none; }
+      .page-fab,
+      .label { transition: background-color var(--dur-fast) var(--ease-out); }
       .page-fab:hover, .page-fab:active { transform: none; }
     }
   `,
@@ -95,6 +121,8 @@ export class PageFab {
   private readonly doc = inject(DOCUMENT);
   private readonly button = viewChild.required<ElementRef<HTMLButtonElement>>('button');
   protected readonly collapsed = signal(false);
+  /** S11: plays its own arrival once, also inside a route's view transition (its live picture shows it). */
+  protected readonly arriving = signal(false);
   private lastY = 0;
 
   /** True while the footer is near the viewport (no IntersectionObserver: always measure). */
@@ -106,6 +134,7 @@ export class PageFab {
     const html = this.doc.documentElement;
     html.classList.add('has-fab');
     this.lastY = this.doc.defaultView?.scrollY ?? 0;
+    this.arriving.set(!(this.doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true));
 
     const observers: { disconnect(): void }[] = [];
     afterNextRender(() => {

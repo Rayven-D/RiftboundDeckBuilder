@@ -25,7 +25,7 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatOption, MatSelect } from '@angular/material/select';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { map, merge, take } from 'rxjs';
 import { GuestBanner } from './guest-banner';
 import { CardData } from '../../core/cards/card-data';
@@ -35,12 +35,17 @@ import { refocusAfterDialog } from '../../core/sync/sync.service';
 import { KEY_PREFIX } from '../../core/storage/kv-backend';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
 import {
+  CARD_DIALOG_KIND,
   CARD_DIALOG_TITLE_ID,
   CardDialog,
   CardDialogData,
   CardDialogResult,
 } from '../../shared/collection/card-dialog';
 import { CollectionTile } from '../../shared/collection/collection-tile';
+import { PHONE as SHEET_PHONE, cardDialogConfig } from '../../shared/card-sheet/card-sheet';
+import { ListItems, keepListScroll, restoreListScroll } from '../../shared/list-scroll';
+import { takeDialogReopen } from '../../shared/dialog-history';
+import { routeTransitionDone } from '../../shared/route-transition';
 import {
   CollectionSort,
   CollectionView,
@@ -77,6 +82,7 @@ import { TEST_DATA_ENABLED } from '../../core/test-data/test-data-flag';
 import { GuestTestData } from '../../core/test-data/guest-test-data';
 import { loadTestData, removeTestData } from '../../core/test-data/test-data-ops';
 import { TestLoadDialog, TestLoadDialogData, TestLoadOutcome, confirmTestData } from './test-data-dialogs';
+import { DIALOG_MOTION } from '../../shared/motion';
 
 type Phase = 'loading' | 'empty' | 'ready' | 'unreadable' | 'catalog-error';
 
@@ -86,6 +92,8 @@ export const COLLECTION_EMPTY = {
   message: "Add the cards you own and they'll show up here.",
 } as const;
 
+/** The list's tiles for the COLL-093 (e) Back restore, keyed by entry id (virtual rows: only rendered ones match). */
+const COLLECTION_TILES: ListItems = { selector: '[data-entry]', key: (el) => el.getAttribute('data-entry') };
 const PHONE = '(max-width: 39.99rem)';
 const DESKTOP = '(min-width: 64rem)';
 const SEARCH_DEBOUNCE_MS = 150;
@@ -161,6 +169,7 @@ export class CollectionPage {
   private readonly snackBar = injectNotices();
   private readonly location = inject(Location);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly breakpoints = inject(BreakpointObserver);
   private readonly injector = inject(Injector);
@@ -168,6 +177,8 @@ export class CollectionPage {
 
   protected readonly sorts = SORTS;
   protected readonly phase = signal<Phase>('loading');
+  /** COLL-093 (e): a Back navigation to this page restores the list's scroll position once the rows are shown. */
+  private restoreScroll = keepListScroll('/collection', () => this.phase() === 'ready', COLLECTION_TILES);
   protected readonly showSkeleton = signal(false);
   protected readonly skeleton = Array.from({ length: 12 }, (_, i) => i);
   private readonly loaded = signal<Loaded | null>(null);
@@ -302,7 +313,8 @@ export class CollectionPage {
       if (!this.queryReady) return;
       untracked(() => {
         this.persistQuery(q, sort);
-        this.scrollListToTop();
+        // COLL-093 (d), but never while a COLL-093 (e) Back restore is still waiting for the rows.
+        if (this.restoreScroll === null) this.scrollListToTop();
       });
     });
     // Keep the roving tab stop on a tile that exists.
@@ -414,6 +426,23 @@ export class CollectionPage {
       const view = buildCollectionView({ ownership, decks, locks, banData, today: localToday() });
       this.loaded.set({ ownership, view });
       this.phase.set('ready');
+      // COLL-093 (e): Back to this page restores the list first; then a card dialog that was open when a link in it
+      // was followed opens again on its own history entry (H-699, RJ 2026-11-28). A stale record opens nothing.
+      const pos = this.restoreScroll;
+      this.restoreScroll = null;
+      const reopen = takeDialogReopen(this.router, CARD_DIALOG_KIND);
+      if (pos !== null || reopen) {
+        afterNextRender(
+          () => {
+            void (pos ? restoreListScroll(pos, COLLECTION_TILES) : Promise.resolve()).then(() => {
+              const v = this.view();
+              if (reopen && v && cardDetail(v, reopen.id))
+                void routeTransitionDone().then(() => !this.destroyed && !this.dialogOpen && this.openCard(reopen.id, reopen.token));
+            });
+          },
+          { injector: this.injector },
+        );
+      }
     } finally {
       clearTimeout(timer);
       if (current()) this.showSkeleton.set(false);
@@ -596,10 +625,10 @@ export class CollectionPage {
 
   // ---------------------------------------------------------------- dialog
 
-  protected openCard(entryId: string): void {
-    const phone = this.isPhone();
+  protected openCard(entryId: string, historyToken: string | null = null): void {
     const data: CardDialogData = {
       entryId,
+      historyToken,
       detail: (id) => {
         const v = this.view();
         return v ? cardDetail(v, id) : null;
@@ -613,18 +642,14 @@ export class CollectionPage {
     const ref = this.dialog.open<CardDialog, CardDialogData, CardDialogResult>(CardDialog, {
       data,
       ariaLabelledBy: CARD_DIALOG_TITLE_ID,
-      autoFocus: '.close-button',
       restoreFocus: false,
-      panelClass: 'card-dialog-panel',
-      ...(phone
-        ? { width: '100vw', maxWidth: '100vw', height: '100svh', maxHeight: '100svh' }
-        : {
-            width: this.isDesktop()
-              ? 'min(56rem, calc(100vw - 2 * var(--content-gutter)))'
-              : 'min(40rem, calc(100vw - 2 * var(--content-gutter)))',
-            maxWidth: '100vw',
-            maxHeight: 'min(90svh, 52rem)',
-          }),
+      // H-699 (Brief H-698): phones get the bottom sheet; larger screens the centred dialog, sized as before.
+      ...cardDialogConfig(this.breakpoints.isMatched(SHEET_PHONE), {
+        width: this.isDesktop()
+          ? 'min(56rem, calc(100vw - 2 * var(--content-gutter)))'
+          : 'min(40rem, calc(100vw - 2 * var(--content-gutter)))',
+        maxHeight: 'min(90svh, 52rem)',
+      }, historyToken !== null),
     });
     this.dialogOpen = true;
     ref.afterClosed().subscribe((result) => {
@@ -668,6 +693,7 @@ export class CollectionPage {
     const opener = dialogOpener(document);
     const committer = this.importer;
     const ref = this.dialog.open<ImportDialog, ImportDialogData, ImportDialogResult>(ImportDialog, {
+      ...DIALOG_MOTION,
       data: file ? { kind: 'collection', file, committer } : { kind: 'collection', committer },
       width: '40rem',
       maxWidth: 'calc(100vw - 2rem)',
@@ -705,6 +731,7 @@ export class CollectionPage {
       load: (set) => this.runTestLoad(set),
     };
     const ref = this.dialog.open<TestLoadDialog, TestLoadDialogData, boolean>(TestLoadDialog, {
+      ...DIALOG_MOTION,
       data,
       width: '32rem',
       maxWidth: 'calc(100vw - 2rem)',

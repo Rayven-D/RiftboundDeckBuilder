@@ -10,12 +10,11 @@ import {
   SimpleSnackBar,
   TextOnlySnackBar,
 } from '@angular/material/snack-bar';
+import { tokenTransition } from '../motion';
 import { SwipeAxis, swipeAxis, swipeRelease } from './swipe';
 
 /** The plain notices' dismiss button (H-680). An action passed as "OK" is that same button. */
 export const NOTICE_OK = 'OK';
-
-const SLIDE_MS = 150;
 
 /**
  * H-680 (RJ, 2026-11-26): the one notice component every `MatSnackBar.open()` renders (see `injectNotices`).
@@ -131,18 +130,22 @@ export class NoticeSnackBar implements TextOnlySnackBar {
     if (d.axis !== 'swipe') return;
     if (swipeRelease(d.dx, this.width(), e.timeStamp - d.t) === 'snap') return this.reset();
     if (reducedMotion()) return this.close();
-    const s = this.surface().style;
-    s.transition = `transform ${SLIDE_MS}ms ease-in, opacity ${SLIDE_MS}ms ease-in`;
+    // Brief H-733 S7: the slide-out and the snap-back use the motion tokens (`--dur-fast`, `--ease-out`).
+    const surface = this.surface();
+    const slide = tokenTransition(surface, ['transform', 'opacity'], '--dur-fast');
+    const s = surface.style;
+    s.transition = slide.transition;
     s.transform = `translateX(${d.dx < 0 ? '-' : ''}120%)`;
     s.opacity = '0';
-    setTimeout(() => this.close(), SLIDE_MS);
+    setTimeout(() => this.close(), slide.ms);
   }
 
   /** Below the threshold (or a cancelled pointer): back to its place. */
   reset(): void {
     this.drag = null;
-    const s = this.surface().style;
-    s.transition = reducedMotion() ? 'none' : `transform ${SLIDE_MS}ms ease-out, opacity ${SLIDE_MS}ms ease-out`;
+    const surface = this.surface();
+    const s = surface.style;
+    s.transition = reducedMotion() ? 'none' : tokenTransition(surface, ['transform', 'opacity'], '--dur-fast').transition;
     s.transform = '';
     s.opacity = '';
   }

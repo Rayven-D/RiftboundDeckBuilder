@@ -17,6 +17,7 @@ import { LIMITS } from '../storage/records';
 import { Icon } from '../icon';
 import { NotCheckedList } from './not-checked-list';
 import { RULE_CHECK_WORDS, RenameForm, RenameResult, RuleCheckContent, applyRename } from './detail-view';
+import { DIALOG_MOTION } from '../motion';
 
 // ---------------------------------------------------------------- Rename (OWN-118, DECK-081)
 
@@ -200,6 +201,7 @@ export class RenameDeckDialog {
 
 export function openRenameDialog(dialog: MatDialog, data: RenameDialogData): MatDialogRef<RenameDeckDialog, boolean> {
   return dialog.open<RenameDeckDialog, RenameDialogData, boolean>(RenameDeckDialog, {
+    ...DIALOG_MOTION,
     data,
     width: '32rem',
     maxWidth: 'calc(100vw - 2rem)',
@@ -240,6 +242,7 @@ export class DeleteDeckDialog {
 
 export async function confirmDelete(dialog: MatDialog, data: DeleteDialogData): Promise<boolean> {
   const ref = dialog.open<DeleteDeckDialog, DeleteDialogData, boolean>(DeleteDeckDialog, {
+    ...DIALOG_MOTION,
     data,
     width: '28rem',
     maxWidth: 'calc(100vw - 2rem)',
@@ -318,5 +321,5 @@ export class RuleCheckDialog {
 }
 
 export function openRuleCheck(dialog: MatDialog, data: RuleCheckContent): MatDialogRef<RuleCheckDialog> {
-  return dialog.open(RuleCheckDialog, { data, width: '32rem', maxWidth: 'calc(100vw - 2rem)', autoFocus: 'first-tabbable' });
+  return dialog.open(RuleCheckDialog, { ...DIALOG_MOTION, data, width: '32rem', maxWidth: 'calc(100vw - 2rem)', autoFocus: 'first-tabbable' });
 }

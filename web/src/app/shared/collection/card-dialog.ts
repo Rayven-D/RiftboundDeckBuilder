@@ -18,6 +18,8 @@ import { StatusLabel } from '../status-label';
 import { cardKeywords } from '../../core/cards/keywords';
 import { CardDetail, DECKS_UNREADABLE, landscapeFor } from './collection-view';
 import { KEYWORD_INDEX, KeywordList } from './keyword-list';
+import { CardSheet } from '../card-sheet/card-sheet';
+import { playEnter } from '../motion';
 
 /** What the page gives the dialog. `detail` reads the page's signals, so the dialog stays in sync (S13). */
 export interface CardDialogData {
@@ -27,6 +29,8 @@ export interface CardDialogData {
   neighbour(entryId: string, step: -1 | 1): string | null;
   /** Desktop only: Previous / Next buttons and the `[` / `]` keys (brief §5.6). */
   readonly stepping: boolean;
+  /** Reopened from its history entry (Back from a page a link led to): that entry's token (dialog-history). */
+  readonly historyToken?: string | null;
 }
 
 /** Closed result: the tile to return focus to, and whether the card left the collection. */
@@ -38,6 +42,9 @@ export interface CardDialogResult {
 /** The dialog's title id; the page passes it as `ariaLabelledBy` (one card dialog at a time). */
 export const CARD_DIALOG_TITLE_ID = 'card-dialog-title';
 
+/** The dialog's kind in a history entry's reopen record (dialog-history). */
+export const CARD_DIALOG_KIND = 'collection-card';
+
 /**
  * Read-only card dialog for one entry (brief §5; Collection Components §6): the clicked printing's
  * art and count, the card's other printings, Locked in, Could fit in, the ban label, Keywords (SPEC-011:
@@ -46,13 +53,16 @@ export const CARD_DIALOG_TITLE_ID = 'card-dialog-title';
 @Component({
   selector: 'app-card-dialog',
   imports: [CardArt, OwnershipChip, StatusLabel, Icon, MatIconButton, KeywordList],
-  host: {
-    '(keydown)': 'onKey($event)',
-  },
   template: `
     @if (detail(); as d) {
-      <div class="head">
-        <h2 class="title" [id]="titleId">{{ d.card.name }}</h2>
+      <div
+        class="head"
+        [class.head--scrolled]="sheet.scrolled()"
+        (pointerdown)="sheet.onPointerDown($event)"
+      >
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <div class="head-row">
+        <h2 #title class="title" [id]="titleId">{{ d.card.name }}</h2>
         <div class="head-actions">
           @if (data.stepping) {
             <button
@@ -79,13 +89,15 @@ export const CARD_DIALOG_TITLE_ID = 'card-dialog-title';
             type="button"
             class="close-button"
             aria-label="Close"
-            (click)="close()"
+            (click)="closeClicked()"
           >
             <app-icon name="close" />
           </button>
         </div>
+        </div>
       </div>
-      <div class="body">
+      <div #sheetBody class="sheet-body" (scroll)="sheet.onBodyScroll($event)">
+      <div #content class="body">
         <div class="art-col">
           <div class="art-frame" [class.art-frame--stand-in]="d.tile.standIn">
             <app-card-art
@@ -174,6 +186,7 @@ export const CARD_DIALOG_TITLE_ID = 'card-dialog-title';
           }
         </div>
       </div>
+      </div>
     }
   `,
   styleUrl: './card-dialog.scss',
@@ -183,6 +196,14 @@ export class CardDialog {
   private readonly ref = inject<MatDialogRef<CardDialog, CardDialogResult>>(MatDialogRef);
   private readonly injector = inject(Injector);
   private readonly printingLine = viewChild<ElementRef<HTMLElement>>('printingLine');
+  private readonly sheetBody = viewChild<ElementRef<HTMLElement>>('sheetBody');
+  private readonly content = viewChild<ElementRef<HTMLElement>>('content');
+  private readonly title = viewChild<ElementRef<HTMLElement>>('title');
+  /** H-699 (Brief H-698): the phone bottom sheet (animated close, swipe down, head divider) and Back closing it. */
+  protected readonly sheet = new CardSheet(this.ref, () => this.report(), {
+    reopen: () => ({ kind: CARD_DIALOG_KIND, id: this.entryId() }),
+    adopt: this.data.historyToken,
+  });
 
   protected readonly titleId = CARD_DIALOG_TITLE_ID;
   protected readonly decksUnreadable = DECKS_UNREADABLE;
@@ -221,9 +242,20 @@ export class CardDialog {
     });
     this.ref.disableClose = true; // Escape and backdrop go through close() to report the tile
     this.ref.backdropClick().subscribe(() => this.close());
+    // Keys from anywhere in the dialog, the container included (phones focus the container on open, Brief H-698).
+    this.ref.keydownEvents().subscribe((e) => this.onKey(e));
   }
 
+  /** Close, Escape, backdrop, swipe and Back: on phones the sheet slides away first (Brief H-698 Motion). */
   protected close(): void {
+    this.sheet.dismiss();
+  }
+
+  protected closeClicked(): void {
+    if (!this.sheet.swallowClick()) this.close();
+  }
+
+  private report(): void {
     this.ref.close({ entryId: this.entryId(), gone: false });
   }
 
@@ -232,9 +264,19 @@ export class CardDialog {
     afterNextRender(() => this.printingLine()?.nativeElement.focus(), { injector: this.injector });
   }
 
+  /** Brief H-733 S6: the content enters from the side you moved to (12 px, --dur-med), the title fades; body to top. */
   protected step(dir: -1 | 1): void {
     const id = dir === -1 ? this.prev() : this.next();
-    if (id) this.entryId.set(id);
+    if (!id) return;
+    this.entryId.set(id);
+    this.sheetBody()?.nativeElement.scrollTo?.({ top: 0 });
+    afterNextRender(
+      () => {
+        playEnter(this.content()?.nativeElement, { axis: 'x', shift: '--move-shift', sign: dir });
+        playEnter(this.title()?.nativeElement, { dur: '--dur-fast' });
+      },
+      { injector: this.injector },
+    );
   }
 
   protected onKey(e: KeyboardEvent): void {

@@ -28,6 +28,7 @@ import { noticeOptions } from '../sync/notice';
 import { LOCK_TEXT, cantLockDeckNotice, cantLockReasonNotice, deckLockCheck, lockedInNotice, otherDecksLine, unlockedNotice } from './deck-locks';
 import { DeckLocks } from './deck-locks.service';
 import { LockInDialog, LockInDialogData } from './lock-in-dialog';
+import { DIALOG_MOTION } from '../motion';
 
 let nextId = 0;
 
@@ -298,6 +299,7 @@ export class LockActions {
     if (this.saving() || !this.check().ok) return;
     const deck = this.deck();
     const ref = this.dialog.open<LockInDialog, LockInDialogData, boolean>(LockInDialog, {
+      ...DIALOG_MOTION,
       data: { deckName: deck.name, others: otherDecksLine(this.view()) },
       width: 'min(28rem, calc(100vw - 2 * var(--content-gutter)))',
       maxWidth: '100vw',

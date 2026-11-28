@@ -11,6 +11,7 @@ import {
 import { firstValueFrom } from 'rxjs';
 import type { LockLoss } from '../../core/decks';
 import { LockRemovalNotice } from '../deck/lock-removal-notice';
+import { DIALOG_MOTION } from '../motion';
 
 export interface ImportConfirmData {
   readonly title: string;
@@ -48,6 +49,7 @@ export class ImportConfirmDialog {
 /** Opens the confirmation; resolves true only for the action button. */
 export async function confirmImport(dialog: MatDialog, data: ImportConfirmData): Promise<boolean> {
   const ref = dialog.open<ImportConfirmDialog, ImportConfirmData, boolean>(ImportConfirmDialog, {
+    ...DIALOG_MOTION,
     data,
     width: '28rem',
     maxWidth: 'calc(100vw - 2rem)',

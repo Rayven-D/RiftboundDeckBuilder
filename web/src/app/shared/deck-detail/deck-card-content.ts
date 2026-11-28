@@ -81,9 +81,13 @@ import {
                 <ul class="plain links">
                   @for (row of c.printingsOwned; track $index) {
                     <li>
-                      <a routerLink="/collection" [queryParams]="{ q: c.name }" [attr.aria-label]="rowLabel(row)" (click)="navigated.emit()">{{
-                        rowText(row)
-                      }}</a>
+                      <a
+                        routerLink="/collection"
+                        [queryParams]="{ q: c.name }"
+                        [attr.aria-label]="rowLabel(row)"
+                        (click)="navigated.emit()"
+                        ><span class="link-text">{{ rowText(row) }}</span><app-icon name="chevron_right" class="chev" aria-hidden="true"
+                      /></a>
                     </li>
                   }
                 </ul>
@@ -93,9 +97,13 @@ import {
                 <ul class="plain links links--excluded">
                   @for (row of c.excludedPrintings; track $index) {
                     <li>
-                      <a routerLink="/collection" [queryParams]="{ q: c.name }" [attr.aria-label]="rowLabel(row)" (click)="navigated.emit()">{{
-                        rowText(row)
-                      }}</a>
+                      <a
+                        routerLink="/collection"
+                        [queryParams]="{ q: c.name }"
+                        [attr.aria-label]="rowLabel(row)"
+                        (click)="navigated.emit()"
+                        ><span class="link-text">{{ rowText(row) }}</span><app-icon name="chevron_right" class="chev" aria-hidden="true"
+                      /></a>
                     </li>
                   }
                 </ul>
@@ -110,10 +118,12 @@ import {
                   @for (use of c.otherUses; track use.deckId) {
                     <li>
                       <a [routerLink]="['/decks', use.deckId]" (click)="navigated.emit()"
-                        >@if (use.locked) {
-                          <app-icon name="lock" class="lock" />
-                        }{{ useText(use) }}</a
-                      >
+                        ><span class="link-text"
+                          >@if (use.locked) {
+                            <app-icon name="lock" class="lock" />
+                          }{{ useText(use) }}</span
+                        ><app-icon name="chevron_right" class="chev" aria-hidden="true"
+                      /></a>
                     </li>
                   }
                 </ul>
@@ -155,7 +165,7 @@ import {
       grid-template-columns: 14rem minmax(0, 1fr);
       align-items: start;
     }
-    @media (max-width: 39.99rem) {
+    @media (max-width: 40rem) {
       .body--wide {
         grid-template-columns: minmax(0, 1fr);
       }
@@ -227,10 +237,60 @@ import {
       min-height: 32px;
       overflow-wrap: anywhere;
     }
-    @media (pointer: coarse), (max-width: 39.99rem) {
+    @media (pointer: coarse), (max-width: 40rem) {
       .links li,
       .links a {
         min-height: 44px;
+      }
+    }
+    .link-text {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+    }
+    .chev {
+      display: none;
+    }
+    /* Brief H-698 S3 (phones, the dialog only: the desktop panel is 64rem and wider): one rhythm for both card
+       dialogs. Every section after the lead starts with a hairline; headings sm / 600 / muted; every list one row
+       style (>= 44 px, hairlines between rows, full-width tap target, no underline); rows that leave the dialog end
+       in a chevron. */
+    @media (max-width: 40rem) {
+      .art-frame {
+        width: min(60vw, 15rem);
+      }
+      .info > section.section {
+        margin-top: var(--space-4);
+        padding-top: var(--space-4);
+        border-top: 1px solid var(--color-border);
+      }
+      .info > .lead--plain + .muted {
+        margin-top: var(--space-1);
+      }
+      h3 {
+        margin-bottom: var(--space-2);
+        font-size: var(--font-size-sm);
+      }
+      .lines li {
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+      }
+      .lines li + li,
+      .links li + li {
+        border-top: 1px solid var(--color-border);
+      }
+      .links a {
+        flex: 1;
+        justify-content: space-between;
+        gap: var(--space-2);
+        text-decoration: none;
+      }
+      .chev {
+        display: inline-block;
+        flex: none;
+        font-size: 20px;
+        color: var(--color-text-muted);
       }
     }
     .links--excluded a {

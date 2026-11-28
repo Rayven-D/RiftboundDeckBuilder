@@ -9,6 +9,7 @@ import { TEST_TEXT } from '../../shared/collection/test-data';
 import { Icon } from '../../shared/icon';
 import { noticeOptions } from '../../shared/sync/notice';
 import { TestLoadDialog, TestLoadDialogData, confirmTestData } from './test-data-dialogs';
+import { DIALOG_MOTION } from '../../shared/motion';
 
 /**
  * SPEC-013 v0.2 TEST-063 / TEST-064 (H-679): the guest test-data banner on Collection, Decks and Deck detail, in the
@@ -75,6 +76,7 @@ export class GuestBanner {
     const opener = e.currentTarget as HTMLElement;
     const data: TestLoadDialogData = { replacing: true, guest: true, load: (set) => this.guest.load(set) };
     const ref = this.dialog.open<TestLoadDialog, TestLoadDialogData, boolean>(TestLoadDialog, {
+      ...DIALOG_MOTION,
       data,
       width: '32rem',
       maxWidth: 'calc(100vw - 2rem)',

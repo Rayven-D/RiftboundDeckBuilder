@@ -1,0 +1,84 @@
+// The deck card dialog below 64rem (SPEC-005 OWN-113; Decks Components §12). On phones (max-width: 40rem) it is the
+// bottom sheet of Brief H-698: the shared card-sheet chrome (end of file) plus the step bar (S5).
+@use '../card-sheet/card-sheet' as sheet;
+
+:host {
+  display: block;
+  padding: var(--space-5);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.head {
+  margin-bottom: var(--space-4);
+}
+
+.head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  line-height: 1.15;
+}
+
+.head-actions {
+  display: flex;
+  flex: none;
+  gap: var(--space-1);
+}
+
+.head-actions button {
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  font-size: 24px;
+}
+
+.step-bar {
+  display: none;
+}
+
+@media (max-width: 40rem) {
+  // S2: no Previous / Next in the head on phones; S5: they are in the step bar.
+  .head-step {
+    display: none;
+  }
+
+  .step-bar {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 56px;
+    padding: 0 var(--space-2) env(safe-area-inset-bottom);
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
+
+    button {
+      min-width: 96px;
+      min-height: 44px;
+      font-size: var(--font-size-md);
+
+      .step-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+      }
+
+      app-icon {
+        font-size: 20px;
+      }
+    }
+  }
+
+  .step-next {
+    justify-content: flex-end;
+  }
+}
+
+@include sheet.chrome($footer: true);

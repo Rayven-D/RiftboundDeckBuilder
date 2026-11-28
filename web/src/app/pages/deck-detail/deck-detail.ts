@@ -2,6 +2,7 @@ import { injectNotices } from '../../shared/notice/notice-snack-bar';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { DOCUMENT } from '@angular/common';
 import {
+  ApplicationRef,
   Component,
   DestroyRef,
   ElementRef,
@@ -53,12 +54,23 @@ import { DeckStoreError, STORAGE_KEYS } from '../../core/storage/local-stores';
 import { refocusAfterDialog } from '../../core/sync/sync.service';
 import { DeckCardContent } from '../../shared/deck-detail/deck-card-content';
 import {
+  DECK_CARD_DIALOG_KIND,
   DECK_CARD_DIALOG_TITLE_ID,
   DeckCardDialog,
   DeckCardDialogData,
   DeckCardDialogResult,
 } from '../../shared/deck-detail/deck-card-dialog';
 import { DeckCardRow } from '../../shared/deck-detail/deck-card-row';
+import { PHONE as SHEET_PHONE, cardDialogConfig } from '../../shared/card-sheet/card-sheet';
+import { takeDialogReopen } from '../../shared/dialog-history';
+import { routeTransitionDone } from '../../shared/route-transition';
+import { startScopedTransition } from '../../shared/scoped-transition';
+import { playEnter } from '../../shared/motion';
+import { SectionBox, anchorScrollDelta, captureAnchor } from '../../shared/deck-detail/view-anchor';
+import { ListItems, restoreListScroll, saveListScrollOnLeave, takeListScroll } from '../../shared/list-scroll';
+
+/** The page's card tiles / rows for the Back scroll restore, keyed by card id. */
+const DECK_CARDS: ListItems = { selector: '[data-card]', key: (el) => el.getAttribute('data-card') };
 import type { NameLockContext } from '../../shared/deck-detail/name-lock-action';
 import { DeckCardTile } from '../../shared/deck-detail/deck-card-tile';
 import { confirmDelete, openRenameDialog, openRuleCheck } from '../../shared/deck-detail/deck-dialogs';
@@ -213,6 +225,7 @@ export class DeckDetail {
   private readonly title = inject(Title);
   private readonly doc = inject(DOCUMENT);
   private readonly injector = inject(Injector);
+  private readonly appRef = inject(ApplicationRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly deckImport = inject(DeckImport);
   private readonly collectionImport = inject(CollectionImport);
@@ -296,6 +309,9 @@ export class DeckDetail {
   private leaving = false;
 
   constructor() {
+    // OWN-084 / COLL-093 (e): this deck's scroll position, saved when the page is left (the component is reused from
+    // deck to deck, so the key is read then); restored by afterBack().
+    saveListScrollOnLeave(this.router, () => `/decks/${this.deckId()}`, () => this.phase() === 'ready', DECK_CARDS);
     // A new id (first load, or another deck's link): reset what belongs to the old deck and read again.
     effect(() => {
       const id = this.deckId();
@@ -426,10 +442,41 @@ export class DeckDetail {
       this.loadedId = id;
       this.loaded.set(result);
       this.phase.set('ready');
+      if (first) this.afterBack(id);
     } finally {
       clearTimeout(timer);
       if (current()) this.showSkeleton.set(false);
     }
+  }
+
+  /**
+   * H-699 (RJ 2026-11-28): reached by Back / Forward, this deck page gets its scroll position back (OWN-084, COLL-093
+   * (e)), then the card dialog that was open when a link in it was followed opens again on its own history entry, on
+   * the card it showed (the current step). Desktop has no dialog: the card is selected in the panel instead. A record
+   * for a card no longer in the deck opens nothing.
+   */
+  private afterBack(id: string): void {
+    const pos = takeListScroll(this.router, `/decks/${id}`);
+    const reopen = takeDialogReopen(this.router, DECK_CARD_DIALOG_KIND);
+    if (pos === null && !reopen) return;
+    afterNextRender(
+      () => {
+        void (pos ? restoreListScroll(pos, DECK_CARDS, this.doc) : Promise.resolve()).then(() => {
+          const v = this.view();
+          if (!reopen || this.destroyed || this.loadedId !== id || !v || !findCard(v, reopen.id)) return;
+          if (this.isDesktop()) {
+            this.picked.set(reopen.id);
+            this.tab.set('card');
+          } else {
+            // After the route's view transition: an overlay added mid-transition crashed Chromium (H-699 e2e).
+            void routeTransitionDone().then(() => {
+              if (!this.destroyed && this.loadedId === id && this.dialog.openDialogs.length === 0) this.openCard(reopen.id, reopen.token);
+            });
+          }
+        });
+      },
+      { injector: this.injector },
+    );
   }
 
   /** Reads every input of the engine and computes this deck's view (OWN-025, OWN-073); null = no such deck. */
@@ -596,13 +643,47 @@ export class DeckDetail {
     this.jumpTimer = setTimeout(() => this.endJump(), JUMP_IDLE_MS);
   }
 
+  /**
+   * OWN-114 Card / List. Brief H-733 S1: the section at the reading line stays where it was (the views differ in
+   * height, so the browser would otherwise clamp or keep a scroll offset that lands elsewhere), and the cards
+   * cross-fade in place (`vt-view-swap`, styles.scss; the header, section bar and panel stay still). Reduced motion
+   * or no view transitions: the same anchor, an instant swap.
+   */
   protected setMode(mode: DeckViewMode): void {
-    this.mode.set(mode);
+    const v = this.view();
+    const win = this.doc.defaultView;
+    if (mode !== this.mode() && v && win) {
+      const zones = v.sections.map((s) => s.zone);
+      const line = this.stickyOffset() + LAND_GAP + 2;
+      const anchor = captureAnchor(this.sectionBoxes(zones), line, this.scrollY());
+      void startScopedTransition(
+        () => {
+          this.mode.set(mode);
+          this.appRef.tick();
+          const after = anchor ? this.sectionBoxes(zones)[anchor.index] : undefined;
+          if (anchor && after) {
+            const dy = Math.round(anchorScrollDelta(anchor, after, line));
+            if (dy !== 0) win.scrollBy({ top: dy, behavior: 'instant' });
+          }
+        },
+        'vt-view-swap',
+        this.doc,
+      );
+    } else this.mode.set(mode);
     try {
       this.device?.setItem(DECK_VIEW_KEY, mode);
     } catch {
       // a full or blocked storage keeps the choice for this page only
     }
+  }
+
+  /** Each section's heading top and section bottom, in viewport coordinates (S1 anchor). */
+  private sectionBoxes(zones: readonly DeckZone[]): SectionBox[] {
+    return zones.map((z) => {
+      const top = this.doc.getElementById(`zone-${z}`)?.getBoundingClientRect().top ?? 0;
+      const bottom = this.doc.getElementById(`section-${z}`)?.getBoundingClientRect().bottom ?? top;
+      return { top, bottom };
+    });
   }
 
   private readDevice(): string | null {
@@ -639,11 +720,17 @@ export class DeckDetail {
   protected press(card: OwnershipCard): void {
     const id = cardId(card);
     if (this.isDesktop()) {
+      const changed = this.selectedId() !== id || this.tab() !== 'card';
       this.picked.set(id);
       this.tab.set('card');
       // H-468 (10): tell screen-reader users where the result went (the panel updates silently otherwise).
       this.status.set(DETAIL_TEXT.showing(card.name));
       this.panelBody()?.nativeElement.scrollTo?.({ top: 0 });
+      // Brief H-733 S6: the panel's card rises 4 px into place (no direction: any card can be picked).
+      if (changed)
+        afterNextRender(() => playEnter(this.panelBody()?.nativeElement.firstElementChild, { axis: 'y', shift: '4px' }), {
+          injector: this.injector,
+        });
       return;
     }
     this.openCard(id);
@@ -652,6 +739,9 @@ export class DeckDetail {
   // ---------------------------------------------------------------- panel tabs (OWN-111 (c))
 
   protected selectTab(tab: PanelTab, focus = false): void {
+    // Brief H-733 S6: Card / Missing swap their content with a short fade (--dur-fast).
+    if (tab !== this.tab())
+      afterNextRender(() => playEnter(this.panelBody()?.nativeElement, { dur: '--dur-fast' }), { injector: this.injector });
     this.tab.set(tab);
     if (focus) afterNextRender(() => this.doc.getElementById(`deck-tab-${tab}`)?.focus(), { injector: this.injector });
   }
@@ -675,10 +765,10 @@ export class DeckDetail {
 
   // ---------------------------------------------------------------- card dialog (OWN-113)
 
-  private openCard(id: string): void {
-    const phone = this.isPhone();
+  private openCard(id: string, historyToken: string | null = null): void {
     const data: DeckCardDialogData = {
       cardId: id,
+      historyToken,
       card: (cid) => {
         const v = this.view();
         return v ? findCard(v, cid) : null;
@@ -695,15 +785,15 @@ export class DeckDetail {
     const ref = this.dialog.open<DeckCardDialog, DeckCardDialogData, DeckCardDialogResult>(DeckCardDialog, {
       data,
       ariaLabelledBy: DECK_CARD_DIALOG_TITLE_ID,
-      autoFocus: '.close-button',
       restoreFocus: false,
-      panelClass: 'card-dialog-panel',
-      ...(phone
-        ? { width: '100vw', maxWidth: '100vw', height: '100svh', maxHeight: '100svh' }
-        : { width: 'min(44rem, calc(100vw - 2 * var(--content-gutter)))', maxWidth: '100vw', maxHeight: 'min(90svh, 52rem)' }),
+      // H-699 (Brief H-698): phones get the bottom sheet; tablets the centred dialog, sized as before.
+      ...cardDialogConfig(this.breakpoints.isMatched(SHEET_PHONE), {
+        width: 'min(44rem, calc(100vw - 2 * var(--content-gutter)))',
+        maxHeight: 'min(90svh, 52rem)',
+      }, historyToken !== null),
     });
     ref.afterClosed().subscribe((result) => {
-      if (this.destroyed) return;
+      if (this.destroyed || result?.navigated) return; // H-699: a link left the page (its scroll is saved as it was)
       if (result?.gone) {
         this.snackBar.open(DETAIL_TEXT.cardLeftDialog, undefined, noticeOptions('success'));
         refocusAfterDialog(undefined, this.doc);

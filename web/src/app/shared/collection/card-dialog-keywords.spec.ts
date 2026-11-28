@@ -42,7 +42,13 @@ function detail(keywords: string[] | null, category = 'unit', cardText = ''): Ca
 
 function render(d: CardDetail, index?: KeywordIndex) {
   const data: CardDialogData = { entryId: 'e1', detail: () => d, neighbour: () => null, stepping: false };
-  const ref = { close: () => undefined, disableClose: false, backdropClick: () => new Subject<MouseEvent>() };
+  const ref = {
+    close: () => undefined,
+    disableClose: false,
+    backdropClick: () => new Subject<MouseEvent>(),
+    keydownEvents: () => new Subject<KeyboardEvent>(),
+    afterClosed: () => new Subject<unknown>(),
+  };
   TestBed.configureTestingModule({
     imports: [CardDialog],
     providers: [

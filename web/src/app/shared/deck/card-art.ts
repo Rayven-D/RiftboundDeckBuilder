@@ -1,4 +1,4 @@
-import { booleanAttribute, Component, computed, input, signal } from '@angular/core';
+import { afterNextRender, booleanAttribute, Component, computed, ElementRef, inject, input, signal } from '@angular/core';
 import { OwnershipState } from './ownership';
 
 /**
@@ -20,6 +20,8 @@ import { OwnershipState } from './ownership';
       [class.art--fill-in]="animateFill()"
       [class.art--fill-change]="animateChange()"
       [class.art--landscape]="isLandscape()"
+      [class.art--pending]="pending()"
+      [class.art--arriving]="arriving()"
       [style.--fill]="fill()"
     >
       @if (imageUrl(); as url) {
@@ -30,6 +32,7 @@ import { OwnershipState } from './ownership';
           [attr.loading]="eager() ? 'eager' : 'lazy'"
           [attr.fetchpriority]="eager() ? 'high' : null"
           (load)="onLoad($event)"
+          (error)="pending.set(false)"
         />
         <img
           class="card-image dimmed"
@@ -52,6 +55,22 @@ import { OwnershipState } from './ownership';
     }
     .art {
       position: relative;
+    }
+    /* Brief H-733 S8: art that was still loading at the first render fades in over --dur-fast once it has loaded
+       (cached art shows at once). Opacity only, so it is allowed in virtual-scroll rows; the reserved aspect ratio
+       and the raised placeholder colour behind it keep the layout still. Reduced motion: no fade (not set). The
+       transform transition is the global hover zoom's (styles.scss .zoom-art), kept here because this rule wins. */
+    .art--pending {
+      border-radius: var(--radius-md);
+      background: var(--color-surface-raised);
+    }
+    .art--pending .card-image {
+      opacity: 0;
+    }
+    .art--arriving .card-image {
+      transition:
+        opacity var(--dur-fast) var(--ease-out),
+        transform var(--dur-slow) var(--ease-out);
     }
     /* The dimmed copy covers the part that is not owned: everything right of the fill edge. */
     .dimmed {
@@ -173,9 +192,26 @@ export class CardArt {
     return m !== null && m.name === this.name() && m.landscape;
   });
 
+  /** S8: the image had not loaded at the first render; hidden until it has. */
+  protected readonly pending = signal(false);
+  /** S8: the fade's transition is on (from the first pending render on, so the fade-in runs). */
+  protected readonly arriving = signal(false);
+
+  constructor() {
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    afterNextRender(() => {
+      const img = host.querySelector<HTMLImageElement>('img.card-image:not(.dimmed)');
+      const reduce = host.ownerDocument.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true;
+      if (!img || img.complete || reduce) return;
+      this.arriving.set(true);
+      this.pending.set(true);
+    });
+  }
+
   protected onLoad(e: Event): void {
     const img = e.target as HTMLImageElement;
     this.measured.set({ name: this.name(), landscape: img.naturalWidth > img.naturalHeight });
+    this.pending.set(false);
   }
 
   protected readonly altText = computed(() =>
