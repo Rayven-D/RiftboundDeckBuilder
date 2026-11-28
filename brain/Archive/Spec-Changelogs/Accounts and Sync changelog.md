@@ -9,6 +9,9 @@ superseded_by: "[[Accounts and Sync]]"
 
 Newest first. New changelog entries for the spec go here.
 
+## 0.21.0 (2026-11-27, H-214, H-136, H-137, H-130, H-131, H-128, H-129, H-190, H-211, H-678)
+Spec tidy-ups from validation notes; full entry in the spec's `Current:` line. SYNC-160 (c) double-quoted pattern, (g) production still `unverified` (H-683); SYNC-050/113 no `batch`, repairs outside the 1-write budget; SYNC-004/048 sign-in with `sessionExpected` false is a first sign-in (H-130); SYNC-009 gaps; SYNC-096 H-127 choices and step-3 notices (wording proposed, not RJ-confirmed); SYNC-163 start-up failure; ACs 90 to 93; AC 74 `Zoé`. Entries 0.16 to 0.20.1 are only in the spec (convention lapsed, see [[Validation H-174]] follow-up 2).
+
 ## 0.15.1 (2026-11-25, H-200, H-181, H-208, H-209; was 0.14.2 before the merge with 0.15.0)
 Applied on top of 0.15.0 (patch, wording only). Later fixes folded in: H-208 removed the card-image host blank from
 the draft; H-209 narrowed SYNC-101 check 1 to a scan of the file holding the notice text for the case-sensitive
