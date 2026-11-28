@@ -91,3 +91,9 @@ Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[
 - Changed notes: [[Deck Import]], [[Your Decks Ownership View]], [[Card Search and Filters]], [[Spec Index]], [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]], [[Handoff Board]], [[Current State]]
 - Open questions: H-717 (RJ).
 - Next: builder H-710 → H-711 → H-712 (with H-714); H-713; spec-writer H-703 → H-705, H-704.
+
+## 2026-11-28: Claude (discussion session): all deck-building specs
+- Did: RJ asked to finish every spec from the deck-building discussion, build nothing, and keep the build next on deck. Specs: deck stats (H-719, SPEC-005 section O), physical copies + folders (H-703, new SPEC-015, SPEC-008 superseded), 2v2 (H-704, SPEC-002 0.8.1; RJ shelved the teammate check, 2v2 sideboard warning, single-deck notice), Wishlist (H-705, new SPEC-016), sync impacts (H-714, SPEC-010 0.23), H-718, SPEC-013/014 follow-ups. One bulk validation: H-703 failed on labels (Restore/Fork auto-fill and editor live stats had been cited as RJ's; fixed as default, proposed) and stale pins; re-check PASS ([[Validation H-719 H-703 H-704 H-705 H-714]]).
+- Changed notes: [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]], the specs above, [[Spec Index]], [[Handoff Board]], [[Current State]]
+- Open questions: H-725 (RJ, default, proposed items).
+- Next: builder chain H-710…H-730 (P1, next on deck); ui-engineer H-706, H-707, H-708, H-731; researcher H-732.
