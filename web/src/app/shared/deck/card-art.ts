@@ -84,7 +84,7 @@ import { OwnershipState } from './ownership';
       justify-content: center;
       padding: var(--space-2);
       border: 1px solid var(--color-border);
-      background: #3a5f7d;
+      background: var(--color-art-placeholder);
       color: #fff;
       font-size: var(--font-size-sm);
       text-align: center;

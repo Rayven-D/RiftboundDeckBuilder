@@ -52,5 +52,27 @@ export class NoticeLayer {
     inject(MatDialog)
       .afterOpened.pipe(takeUntilDestroyed())
       .subscribe(() => raiseNotices(doc));
+    keepDialogFocus(doc);
   }
+}
+
+/**
+ * H-198: pressing OK on a notice while a dialog is open removes the focused button, which drops focus to the page
+ * (the next Tab then re-enters the dialog). Remember the last element focused inside a dialog; when a notice button
+ * is pressed and focus has fallen out of the dialog afterwards, put it back there.
+ */
+export function keepDialogFocus(doc: Document): void {
+  let last: HTMLElement | null = null;
+  doc.addEventListener('focusin', (e) => {
+    const t = e.target as HTMLElement | null;
+    if (t?.closest?.('mat-dialog-container')) last = t;
+  });
+  doc.addEventListener('click', (e) => {
+    if (!(e.target as HTMLElement | null)?.closest?.('mat-snack-bar-container')) return;
+    const dialog = doc.querySelector<HTMLElement>('mat-dialog-container');
+    if (!dialog) return;
+    setTimeout(() => {
+      if (dialog.isConnected && !dialog.contains(doc.activeElement)) (last?.isConnected ? last : dialog).focus();
+    });
+  });
 }

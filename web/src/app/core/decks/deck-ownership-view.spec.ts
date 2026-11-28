@@ -303,7 +303,7 @@ describe('SPEC-005 summarizeDeck', () => {
     const t: TournamentDeckSource = {
       kind: 'tournament',
       eventId: 'e',
-      eventName: 'Regional Championship: Europe',
+      eventName: 'Riftbound Regional Championship: Europe',
       eventStartDate: '2026-11-06',
       eventEndDate: '2026-11-08',
       region: 'EU',
@@ -315,10 +315,10 @@ describe('SPEC-005 summarizeDeck', () => {
       addedAt: '2026-11-20T00:00:00Z',
     };
     expect(sourceLine({ ...deck, source: t })).toBe(
-      '1st, Regional Championship: Europe · Nov 6, 2026 – Nov 8, 2026',
+      '1st, Riftbound Regional Championship: Europe · Nov 6, 2026 – Nov 8, 2026',
     );
     expect(sourceLine({ ...deck, source: { ...t, eventEndDate: '2026-11-06' } })).toBe(
-      '1st, Regional Championship: Europe · Nov 6, 2026',
+      '1st, Riftbound Regional Championship: Europe · Nov 6, 2026',
     );
     expect(
       sourceLine({ ...deck, source: { kind: 'user', text: null, url: 'https://x.test' } }),

@@ -27,6 +27,12 @@ import { RawCollectionStore, RawDeckStore, SerialQueue } from './tracked-stores'
  * (SYNC-130) and to the raw local stores; the merge and push planning are pure (SYNC-131).
  */
 
+/**
+ * SYNC-096 outcome of `deleteAccount()`. `'signed-out'` (H-133): the device signed out before or while the deletion
+ * ran, so there is nothing to retry here and no failure notice is shown.
+ */
+export type DeleteAccountResult = 'ok' | 'cancelled' | 'needs-sign-in' | 'failed' | 'offline' | 'signed-out';
+
 export const MESSAGES = {
   signInFailed: "Sign-in didn't complete. Your data on this device is unchanged.",
   offline: "You're offline.",
@@ -285,6 +291,11 @@ export class SyncEngine {
     // SYNC-006: before the first-sign-in flow, so a message from it (SYNC-048, SYNC-097) replaces this one.
     this.deps.notify(MESSAGES.signedIn, 'success');
     await this.updateLog((log) => {
+      // SYNC-004 / SYNC-048 (v0.21.0, H-130): read before it is set. A sign-in that finds `sessionExpected` false
+      // always runs the first-sign-in flow, whatever uid the log holds (an old v0.7 "Keep a copy" log keeps its
+      // linked uid and lastFullSyncAt). Unsetting lastFullSyncAt makes the first sync incomplete, so the flow clears
+      // this device first and pushes nothing, also after a reload before it completes.
+      if (!log.sessionExpected) log.lastFullSyncAt = null;
       log.sessionExpected = true;
       // SYNC-086: signing in again as the lost session's uid resumes it. Another uid keeps the gate closed
       // until its first sign-in clears this device (SYNC-048).
@@ -402,7 +413,16 @@ export class SyncEngine {
    * deletion has started, `deletingUid` in the sync log stops every pull and push on this device (so it
    * never mistakes its own unfinished deletion for SYNC-097's half-deleted account) until a retry completes.
    */
-  async deleteAccount(): Promise<'ok' | 'cancelled' | 'needs-sign-in' | 'failed' | 'offline'> {
+  async deleteAccount(): Promise<DeleteAccountResult> {
+    // H-133: signed out before or during the deletion (sign-out stays allowed, SYNC-096): this device is already
+    // cleared and `deletingUid` with it, so it is not a failure; the caller shows no notice and no Try again.
+    if (!this.uid) return 'signed-out';
+    const gen = this.generation;
+    const r = await this.runDeletion();
+    return r === 'failed' && this.stale(gen) ? 'signed-out' : r;
+  }
+
+  private async runDeletion(): Promise<Exclude<DeleteAccountResult, 'signed-out'>> {
     if (!this.uid || !this.auth || !this.remote) return 'failed';
     if (!this.deps.isOnline()) {
       this.deps.notify(MESSAGES.offline, 'error');

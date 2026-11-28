@@ -5,7 +5,7 @@
 
 /*
  * Design direction A, "Table Tool" (RJ, 2026-11-23): quiet slate surfaces, one teal accent (#14B8A6,
- * RJ 2026-11-24; a green alternative is previewed with html[data-accent='green'] on /styleguide),
+ * RJ 2026-11-24),
  * system font for body text, Archivo for headlines, dense lists, slight 4/6/8px corners. Card art
  * supplies the colour. Angular Material (M3) is themed from the same accent.
  * See brain/04-UI/Design Direction.md.
@@ -202,6 +202,8 @@ html {
   --color-bg: #1b1f24;
   --color-surface: #242a31;
   --color-surface-raised: #2d343c;
+  /* H-088: missing-card-art placeholder; white name text on it 9.8 (WCAG). */
+  --color-art-placeholder: #3b4651;
   --color-border: #343c45;
   /* Control edges (H-086, brain/04-UI/Collection Components.md): bg 3.95, surface 3.45, raised
      3.00. --color-border is only 1.29:1 on the surface and fails WCAG 1.4.11 for controls. */
@@ -301,6 +303,8 @@ html {
   --color-bg: #f4f6f8;
   --color-surface: #ffffff;
   --color-surface-raised: #e9edf1;
+  /* H-088: white name text on the placeholder 6.40. */
+  --color-art-placeholder: #56606b;
   --color-border: #d3d9e0;
   /* Light control edges: white 3.55, bg 3.28, raised 3.02. */
   --color-border-strong: #7f8994;
@@ -345,42 +349,6 @@ html[data-theme='light'] {
 
 html[data-theme='dark'] {
   color-scheme: dark;
-}
-
-/*
- * Green alternative (RJ, 2026-11-24), for comparing on /styleguide only: nothing else sets
- * data-accent. Dark: fill #22a559 on bg 5.20, on surface 4.55; label #04210f on it 5.36; text
- * #4ade80 on bg 9.50, on surface 8.31. Light: fill #15803d on bg 4.63, on surface 5.02, white
- * label 5.02; text #166534 on bg 6.58, on surface 7.13.
- */
-@mixin green-light-tokens {
-  --color-accent: #15803d;
-  --color-accent-hover: #166534;
-  --color-accent-contrast: #ffffff;
-  --color-accent-text: #166534;
-  --color-owned: #15803d;
-  --color-focus: #166534;
-}
-
-html[data-accent='green'] {
-  --color-accent: #22a559;
-  --color-accent-hover: #3ec06e;
-  --color-accent-contrast: #04210f;
-  --color-accent-text: #4ade80;
-  --color-owned: #22a559;
-  --color-focus: #4ade80;
-  /* Material's own primary (form field outlines, caret) follows the preview too. */
-  --mat-sys-primary: var(--color-accent-text);
-
-  @media (prefers-color-scheme: light) {
-    &:not([data-theme='dark']) {
-      @include green-light-tokens;
-    }
-  }
-
-  &[data-theme='light'] {
-    @include green-light-tokens;
-  }
 }
 
 *,
