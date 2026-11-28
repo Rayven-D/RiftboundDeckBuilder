@@ -1,6 +1,6 @@
 import { DestroyRef, ElementRef, inject, signal } from '@angular/core';
 import { MatDialogConfig, MatDialogRef } from '@angular/material/dialog';
-import { DialogHistory, closeOnBack } from '../dialog-history';
+import { CloseOnBackOptions, DialogHistory, closeOnBack } from '../dialog-history';
 
 /** The phone boundary of SPEC-010 0.17.1 (`max-width: 40rem`), as a media query for TS (SCSS writes it literally). */
 export const PHONE = '(max-width: 40rem)';
@@ -158,8 +158,11 @@ export class CardSheet {
   constructor(
     private readonly ref: MatDialogRef<unknown, unknown>,
     private readonly report: () => void,
+    history: CloseOnBackOptions = {},
   ) {
-    this.history = closeOnBack(ref, () => this.dismiss());
+    // Back closes with the exit animation; a history move to another page closes at once (the route's view
+    // transition must not run while the overlay is still animating; it crashed Chromium in the H-699 e2e).
+    this.history = closeOnBack(ref, (leaving) => (leaving ? this.closeNow() : this.dismiss()), history);
     // Body drags use touch events: pointer events stop (pointercancel) once the browser starts scrolling the body,
     // touchmove does not, and it can be cancelled to keep the page (pull-to-refresh) out of it while the sheet moves.
     const start = (e: TouchEvent) => this.onBodyTouchStart(e);
@@ -232,6 +235,13 @@ export class CardSheet {
     };
     pane.addEventListener('transitionend', (e) => e.target === pane && e.propertyName === 'transform' && finish());
     setTimeout(finish, time + 60); // no transitionend (e.g. the transform did not change)
+  }
+
+  /** Closes without the exit animation. */
+  private closeNow(): void {
+    if (this.closing) return;
+    this.closing = true;
+    this.report();
   }
 
   /** The body's scroll listener (S2 divider). */

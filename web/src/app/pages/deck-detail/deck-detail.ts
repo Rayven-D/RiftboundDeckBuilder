@@ -53,6 +53,7 @@ import { DeckStoreError, STORAGE_KEYS } from '../../core/storage/local-stores';
 import { refocusAfterDialog } from '../../core/sync/sync.service';
 import { DeckCardContent } from '../../shared/deck-detail/deck-card-content';
 import {
+  DECK_CARD_DIALOG_KIND,
   DECK_CARD_DIALOG_TITLE_ID,
   DeckCardDialog,
   DeckCardDialogData,
@@ -60,6 +61,12 @@ import {
 } from '../../shared/deck-detail/deck-card-dialog';
 import { DeckCardRow } from '../../shared/deck-detail/deck-card-row';
 import { PHONE as SHEET_PHONE, cardDialogConfig } from '../../shared/card-sheet/card-sheet';
+import { takeDialogReopen } from '../../shared/dialog-history';
+import { routeTransitionDone } from '../../shared/route-transition';
+import { ListItems, restoreListScroll, saveListScrollOnLeave, takeListScroll } from '../../shared/list-scroll';
+
+/** The page's card tiles / rows for the Back scroll restore, keyed by card id. */
+const DECK_CARDS: ListItems = { selector: '[data-card]', key: (el) => el.getAttribute('data-card') };
 import type { NameLockContext } from '../../shared/deck-detail/name-lock-action';
 import { DeckCardTile } from '../../shared/deck-detail/deck-card-tile';
 import { confirmDelete, openRenameDialog, openRuleCheck } from '../../shared/deck-detail/deck-dialogs';
@@ -297,6 +304,9 @@ export class DeckDetail {
   private leaving = false;
 
   constructor() {
+    // OWN-084 / COLL-093 (e): this deck's scroll position, saved when the page is left (the component is reused from
+    // deck to deck, so the key is read then); restored by afterBack().
+    saveListScrollOnLeave(this.router, () => `/decks/${this.deckId()}`, () => this.phase() === 'ready', DECK_CARDS);
     // A new id (first load, or another deck's link): reset what belongs to the old deck and read again.
     effect(() => {
       const id = this.deckId();
@@ -427,10 +437,41 @@ export class DeckDetail {
       this.loadedId = id;
       this.loaded.set(result);
       this.phase.set('ready');
+      if (first) this.afterBack(id);
     } finally {
       clearTimeout(timer);
       if (current()) this.showSkeleton.set(false);
     }
+  }
+
+  /**
+   * H-699 (RJ 2026-11-28): reached by Back / Forward, this deck page gets its scroll position back (OWN-084, COLL-093
+   * (e)), then the card dialog that was open when a link in it was followed opens again on its own history entry, on
+   * the card it showed (the current step). Desktop has no dialog: the card is selected in the panel instead. A record
+   * for a card no longer in the deck opens nothing.
+   */
+  private afterBack(id: string): void {
+    const pos = takeListScroll(this.router, `/decks/${id}`);
+    const reopen = takeDialogReopen(this.router, DECK_CARD_DIALOG_KIND);
+    if (pos === null && !reopen) return;
+    afterNextRender(
+      () => {
+        void (pos ? restoreListScroll(pos, DECK_CARDS, this.doc) : Promise.resolve()).then(() => {
+          const v = this.view();
+          if (!reopen || this.destroyed || this.loadedId !== id || !v || !findCard(v, reopen.id)) return;
+          if (this.isDesktop()) {
+            this.picked.set(reopen.id);
+            this.tab.set('card');
+          } else {
+            // After the route's view transition: an overlay added mid-transition crashed Chromium (H-699 e2e).
+            void routeTransitionDone().then(() => {
+              if (!this.destroyed && this.loadedId === id && this.dialog.openDialogs.length === 0) this.openCard(reopen.id, reopen.token);
+            });
+          }
+        });
+      },
+      { injector: this.injector },
+    );
   }
 
   /** Reads every input of the engine and computes this deck's view (OWN-025, OWN-073); null = no such deck. */
@@ -676,9 +717,10 @@ export class DeckDetail {
 
   // ---------------------------------------------------------------- card dialog (OWN-113)
 
-  private openCard(id: string): void {
+  private openCard(id: string, historyToken: string | null = null): void {
     const data: DeckCardDialogData = {
       cardId: id,
+      historyToken,
       card: (cid) => {
         const v = this.view();
         return v ? findCard(v, cid) : null;
@@ -703,7 +745,7 @@ export class DeckDetail {
       }),
     });
     ref.afterClosed().subscribe((result) => {
-      if (this.destroyed) return;
+      if (this.destroyed || result?.navigated) return; // H-699: a link left the page (its scroll is saved as it was)
       if (result?.gone) {
         this.snackBar.open(DETAIL_TEXT.cardLeftDialog, undefined, noticeOptions('success'));
         refocusAfterDialog(undefined, this.doc);

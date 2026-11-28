@@ -25,7 +25,7 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatOption, MatSelect } from '@angular/material/select';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { map, merge, take } from 'rxjs';
 import { GuestBanner } from './guest-banner';
 import { CardData } from '../../core/cards/card-data';
@@ -35,6 +35,7 @@ import { refocusAfterDialog } from '../../core/sync/sync.service';
 import { KEY_PREFIX } from '../../core/storage/kv-backend';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
 import {
+  CARD_DIALOG_KIND,
   CARD_DIALOG_TITLE_ID,
   CardDialog,
   CardDialogData,
@@ -43,6 +44,8 @@ import {
 import { CollectionTile } from '../../shared/collection/collection-tile';
 import { PHONE as SHEET_PHONE, cardDialogConfig } from '../../shared/card-sheet/card-sheet';
 import { ListItems, keepListScroll, restoreListScroll } from '../../shared/list-scroll';
+import { takeDialogReopen } from '../../shared/dialog-history';
+import { routeTransitionDone } from '../../shared/route-transition';
 import {
   CollectionSort,
   CollectionView,
@@ -165,6 +168,7 @@ export class CollectionPage {
   private readonly snackBar = injectNotices();
   private readonly location = inject(Location);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly breakpoints = inject(BreakpointObserver);
   private readonly injector = inject(Injector);
@@ -421,10 +425,22 @@ export class CollectionPage {
       const view = buildCollectionView({ ownership, decks, locks, banData, today: localToday() });
       this.loaded.set({ ownership, view });
       this.phase.set('ready');
-      if (this.restoreScroll !== null) {
-        const y = this.restoreScroll;
-        this.restoreScroll = null;
-        afterNextRender(() => restoreListScroll(y, COLLECTION_TILES), { injector: this.injector });
+      // COLL-093 (e): Back to this page restores the list first; then a card dialog that was open when a link in it
+      // was followed opens again on its own history entry (H-699, RJ 2026-11-28). A stale record opens nothing.
+      const pos = this.restoreScroll;
+      this.restoreScroll = null;
+      const reopen = takeDialogReopen(this.router, CARD_DIALOG_KIND);
+      if (pos !== null || reopen) {
+        afterNextRender(
+          () => {
+            void (pos ? restoreListScroll(pos, COLLECTION_TILES) : Promise.resolve()).then(() => {
+              const v = this.view();
+              if (reopen && v && cardDetail(v, reopen.id))
+                void routeTransitionDone().then(() => !this.destroyed && !this.dialogOpen && this.openCard(reopen.id, reopen.token));
+            });
+          },
+          { injector: this.injector },
+        );
       }
     } finally {
       clearTimeout(timer);
@@ -608,9 +624,10 @@ export class CollectionPage {
 
   // ---------------------------------------------------------------- dialog
 
-  protected openCard(entryId: string): void {
+  protected openCard(entryId: string, historyToken: string | null = null): void {
     const data: CardDialogData = {
       entryId,
+      historyToken,
       detail: (id) => {
         const v = this.view();
         return v ? cardDetail(v, id) : null;

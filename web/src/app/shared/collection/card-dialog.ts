@@ -28,6 +28,8 @@ export interface CardDialogData {
   neighbour(entryId: string, step: -1 | 1): string | null;
   /** Desktop only: Previous / Next buttons and the `[` / `]` keys (brief §5.6). */
   readonly stepping: boolean;
+  /** Reopened from its history entry (Back from a page a link led to): that entry's token (dialog-history). */
+  readonly historyToken?: string | null;
 }
 
 /** Closed result: the tile to return focus to, and whether the card left the collection. */
@@ -38,6 +40,9 @@ export interface CardDialogResult {
 
 /** The dialog's title id; the page passes it as `ariaLabelledBy` (one card dialog at a time). */
 export const CARD_DIALOG_TITLE_ID = 'card-dialog-title';
+
+/** The dialog's kind in a history entry's reopen record (dialog-history). */
+export const CARD_DIALOG_KIND = 'collection-card';
 
 /**
  * Read-only card dialog for one entry (brief §5; Collection Components §6): the clicked printing's
@@ -191,7 +196,10 @@ export class CardDialog {
   private readonly injector = inject(Injector);
   private readonly printingLine = viewChild<ElementRef<HTMLElement>>('printingLine');
   /** H-699 (Brief H-698): the phone bottom sheet (animated close, swipe down, head divider) and Back closing it. */
-  protected readonly sheet = new CardSheet(this.ref, () => this.report());
+  protected readonly sheet = new CardSheet(this.ref, () => this.report(), {
+    reopen: () => ({ kind: CARD_DIALOG_KIND, id: this.entryId() }),
+    adopt: this.data.historyToken,
+  });
 
   protected readonly titleId = CARD_DIALOG_TITLE_ID;
   protected readonly decksUnreadable = DECKS_UNREADABLE;

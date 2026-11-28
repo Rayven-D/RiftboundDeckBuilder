@@ -7,6 +7,7 @@ import {
   withViewTransitions,
 } from '@angular/router';
 import { routes } from './app.routes';
+import { trackRouteTransition } from './shared/route-transition';
 
 /** The matched path of a route snapshot tree (query params left out), e.g. `collection`. */
 function routePath(root: ActivatedRouteSnapshot): string {
@@ -25,6 +26,7 @@ function routePath(root: ActivatedRouteSnapshot): string {
  * `vt-instant` class on <html> for the length of the transition, which does the same.
  */
 export function routeViewTransition({ transition, from, to }: ViewTransitionInfo): void {
+  trackRouteTransition(transition.finished);
   if (routePath(from) !== routePath(to)) return;
   const root = globalThis.document?.documentElement;
   if (!root) return;

@@ -84,7 +84,6 @@ import {
                       <a
                         routerLink="/collection"
                         [queryParams]="{ q: c.name }"
-                        [replaceUrl]="replaceUrl()"
                         [attr.aria-label]="rowLabel(row)"
                         (click)="navigated.emit()"
                         ><span class="link-text">{{ rowText(row) }}</span><app-icon name="chevron_right" class="chev" aria-hidden="true"
@@ -101,7 +100,6 @@ import {
                       <a
                         routerLink="/collection"
                         [queryParams]="{ q: c.name }"
-                        [replaceUrl]="replaceUrl()"
                         [attr.aria-label]="rowLabel(row)"
                         (click)="navigated.emit()"
                         ><span class="link-text">{{ rowText(row) }}</span><app-icon name="chevron_right" class="chev" aria-hidden="true"
@@ -119,7 +117,7 @@ import {
                 <ul class="plain links">
                   @for (use of c.otherUses; track use.deckId) {
                     <li>
-                      <a [routerLink]="['/decks', use.deckId]" [replaceUrl]="replaceUrl()" (click)="navigated.emit()"
+                      <a [routerLink]="['/decks', use.deckId]" (click)="navigated.emit()"
                         ><span class="link-text"
                           >@if (use.locked) {
                             <app-icon name="lock" class="lock" />
@@ -321,11 +319,6 @@ export class DeckCardContent {
   readonly titleId = input<string | null>(null);
   /** Art beside the facts (the dialog at 40rem and wider). */
   readonly wide = input(false);
-  /**
-   * H-699: in the card dialog while it holds a history entry (Back closes it, Brief H-698 S7), links replace that
-   * entry, so one Back from the target page returns to the deck page.
-   */
-  readonly replaceUrl = input(false);
   /** A link was followed (the dialog closes, OWN-113). */
   readonly navigated = output<void>();
 

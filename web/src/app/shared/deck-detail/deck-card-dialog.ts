@@ -18,15 +18,22 @@ export interface DeckCardDialogData {
   ownershipAvailable(): boolean;
   /** H-665: the per-name lock control's context (SHARE-094 (a)); null = none. Optional for older callers. */
   lockContext?(): NameLockContext | null;
+  /** Reopened from its history entry (Back from a page a link led to): that entry's token (dialog-history). */
+  readonly historyToken?: string | null;
 }
 
 /** Closed result: the card to return focus to, and whether it left the deck while open. */
 export interface DeckCardDialogResult {
   readonly cardId: string;
   readonly gone: boolean;
+  /** H-699: closed because a link in it was followed; the page is leaving, so focus and scroll are left alone. */
+  readonly navigated?: boolean;
 }
 
 export const DECK_CARD_DIALOG_TITLE_ID = 'deck-card-dialog-title';
+
+/** The dialog's kind in a history entry's reopen record (dialog-history). */
+export const DECK_CARD_DIALOG_KIND = 'deck-card';
 
 /**
  * The card dialog below 64rem (SPEC-005 OWN-113; Decks Components §12): the OWN-112 content with the card name as the
@@ -69,7 +76,6 @@ export const DECK_CARD_DIALOG_TITLE_ID = 'deck-card-dialog-title';
           [fullUrl]="data.fullUrl(c)"
           [headingLevel]="0"
           [wide]="true"
-          [replaceUrl]="sheet.history.pushed()"
           (navigated)="leave()"
         />
       </div>
@@ -96,7 +102,10 @@ export class DeckCardDialog {
   protected readonly next = computed(() => this.data.neighbour(this.cardId(), 1));
   private readonly sheetBody = viewChild<ElementRef<HTMLElement>>('sheetBody');
   /** H-699 (Brief H-698): the phone bottom sheet (animated close, swipe down, head divider) and Back closing it. */
-  protected readonly sheet = new CardSheet(this.ref, () => this.report());
+  protected readonly sheet = new CardSheet(this.ref, () => this.report(), {
+    reopen: () => ({ kind: DECK_CARD_DIALOG_KIND, id: this.cardId() }),
+    adopt: this.data.historyToken,
+  });
 
   constructor() {
     // OWN-113: the card left the deck (another tab) → close; the page shows "This card is no longer in this deck."
@@ -118,9 +127,12 @@ export class DeckCardDialog {
     if (!this.sheet.swallowClick()) this.close();
   }
 
-  /** A link in the content was followed (OWN-113): close at once, the router is already on its way. */
+  /**
+   * A link in the content was followed (OWN-113): close at once, the router is already on its way. The dialog's
+   * history entry stays, so Back from the linked page reopens it (RJ 2026-11-28).
+   */
   protected leave(): void {
-    this.report();
+    this.ref.close({ cardId: this.cardId(), gone: false, navigated: true });
   }
 
   private report(): void {

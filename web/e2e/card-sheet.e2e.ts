@@ -211,7 +211,7 @@ test('AC 9 / AC 3: deck dialog step bar: Previous / Next at the bottom, stepping
   expect(await historyLength(page)).toBe(length);
 });
 
-test('AC 14: a deck row in the sheet opens that deck; one Back returns to the first deck with no sheet open', async ({ page }) => {
+test('AC 14 (RJ 2026-11-28): a deck row in the sheet opens that deck; Back reopens the sheet on the first deck, Back closes it, Back leaves', async ({ page }) => {
   await page.setViewportSize(PHONE);
   await seedStorage(page, seed);
   await page.goto('/decks');
@@ -227,7 +227,10 @@ test('AC 14: a deck row in the sheet opens that deck; one Back returns to the fi
   await expect(anyDialog(page)).toHaveCount(0);
   await page.goBack();
   await page.waitForURL(new RegExp(`/decks/${OPEN_DECK_ID}$`));
+  await expect(sheet(page)).toBeVisible(); // the dialog is part of the history stack
+  await page.goBack();
   await expect(anyDialog(page)).toHaveCount(0);
+  expect(page.url()).toMatch(new RegExp(`/decks/${OPEN_DECK_ID}$`));
   await page.goBack();
   await page.waitForURL(/\/decks$/);
 });

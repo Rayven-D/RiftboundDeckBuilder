@@ -129,7 +129,7 @@ OWN-113 keeps Previous and Next through the deck. On phones they move from the h
 ### S7 Back gesture (B1)
 - System back / browser Back closes the sheet with the **same exit animation** as Close. The URL, the route and the page's scroll position stay as they were.
 - Every other way of closing (Close, swipe, backdrop tap, Escape, a deck dialog link that navigates) must leave the history as if the dialog had never opened. One Back after closing goes to the previous **page**, not to an invisible "dialog open" step, and doesn't jump twice. The mechanism is the builder's choice (for example a history state pushed on open and consumed on close). The acceptance checks below test the behaviour.
-- A deck dialog link (`/collection?q=…`, `/decks/:id`) lands on the target page. One Back from there returns to the deck page with the sheet closed.
+- A deck dialog link (`/collection?q=…`, `/decks/:id`) lands on the target page. ~~One Back from there returns to the deck page with the sheet closed.~~ **Changed by RJ 2026-11-28: the dialog is part of the history stack.** One Back from the linked page returns to the deck page with the **same dialog open again** (same card, the deck dialog's current step, the page scroll underneath); the next Back closes it and stays on the page; Forward from it returns to the linked page. A reload on that entry reopens nothing; a card that has left the deck meanwhile opens nothing. Applies at every width that has the dialog (built in H-699).
 - Applies on phones. Above 40rem: the builder decides whether Back also closes the centred dialog. If it does, the same history rules apply. Nothing visual changes there.
 
 ## Motion
@@ -176,7 +176,7 @@ Check on the real `/collection` and `/decks/:id` pages (signed in, test data loa
 11. Drag from the handle or title row: the sheet follows the finger and the backdrop fades. Release after a short drag (< 120 px, slow): it snaps back. Release past 120 px or after a quick flick: it closes. A drag in the body scrolls it; once the body is at its top, the rest of a downward drag moves the sheet (RJ 2026-11-28) with the same snap-back and close rules.
 12. Android Chrome (or a Back press in DevTools mobile emulation) with a sheet open: the sheet closes, the URL is unchanged, and the page's scroll position is unchanged.
 13. Open a sheet, close it with Close (also with the swipe, the backdrop and Escape), then press Back once: the browser goes to the previous page, with no "nothing happened" Back and no double jump.
-14. Deck dialog: tap an "Other decks using this card" row. The target deck opens; one Back returns to the original deck page with no sheet open.
+14. Deck dialog: tap an "Other decks using this card" (or "Your printings") row. The target page opens; one Back returns to the original deck page with the same dialog open on the same card, the page scrolled as before; one more Back closes it and stays; Forward from the reopened dialog returns to the target page (RJ 2026-11-28).
 15. After every close path in 10–13, focus is on the tile that opened the sheet (or the page's "gone" behaviour applies).
 16. Opening by tap shows no focus ring on Close. Pressing Tab once puts a visible ring on Close. Tab order: Close → body controls → Previous → Next. A screen reader announces the card name as the dialog's name on open.
 17. Reduced motion: no slide on open or close; a release snaps back or closes instantly; dragging still follows the finger.

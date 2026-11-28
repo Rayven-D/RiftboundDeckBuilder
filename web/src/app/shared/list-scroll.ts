@@ -33,9 +33,14 @@ const STABLE_FRAMES = 3;
 
 /** The position of the list in `doc` now. */
 export function readListScroll(doc: Document, items?: ListItems): ListScrollPosition {
-  const y = doc.defaultView?.scrollY ?? 0;
+  // A dialog open over the page (a link followed from it) blocks scrolling: the CDK pins <html> with `top: -y` and
+  // scrollY reads 0. The real position is in that offset.
+  const html = doc.documentElement;
+  const blocked = html.classList.contains('cdk-global-scrollblock');
+  const y = blocked ? -(parseFloat(html.style.top) || 0) : (doc.defaultView?.scrollY ?? 0);
   let anchor: ListScrollPosition['anchor'] = null;
-  if (items) {
+  // While blocked the sticky bars no longer stick, so item rects are not what the user sees: y alone is exact there.
+  if (items && !blocked) {
     for (const el of Array.from(doc.querySelectorAll(items.selector))) {
       const r = el.getBoundingClientRect();
       if (r.bottom <= 0 || r.height === 0) continue;
@@ -64,9 +69,25 @@ export function readListScroll(doc: Document, items?: ListItems): ListScrollPosi
  */
 export function keepListScroll(path: string, canSave: () => boolean, items?: ListItems): ListScrollPosition | null {
   const router = inject(Router);
+  const restore = takeListScroll(router, path);
+  saveListScrollOnLeave(router, () => path, canSave, items);
+  return restore;
+}
+
+/**
+ * The saved position for `path` if the current (or last) navigation was a Back / Forward, else null; used once.
+ * For a page that stays alive across its own navigations (Deck detail reuses its component from deck to deck): call
+ * it after each first load, with `saveListScrollOnLeave` in the constructor.
+ */
+export function takeListScroll(router: Router, path: string): ListScrollPosition | null {
   const nav = router.currentNavigation() ?? router.lastSuccessfulNavigation();
   const restore = nav?.trigger === 'popstate' ? (saved.get(path) ?? null) : null;
   saved.delete(path);
+  return restore;
+}
+
+/** Saves the position for `path()` (read when the page is left) on every `NavigationStart`. Injection context. */
+export function saveListScrollOnLeave(router: Router, path: () => string, canSave: () => boolean, items?: ListItems): void {
   router.events
     .pipe(
       filter((e): e is NavigationStart => e instanceof NavigationStart),
@@ -74,10 +95,10 @@ export function keepListScroll(path: string, canSave: () => boolean, items?: Lis
     )
     .subscribe(() => {
       const doc = globalThis.document;
-      if (doc && canSave()) saved.set(path, readListScroll(doc, items));
-      else saved.delete(path);
+      const key = path();
+      if (doc && canSave()) saved.set(key, readListScroll(doc, items));
+      else saved.delete(key);
     });
-  return restore;
 }
 
 /**
@@ -85,11 +106,17 @@ export function keepListScroll(path: string, canSave: () => boolean, items?: Lis
  * or virtual rows not measured yet, `content-visibility` placeholders replaced by real sizes), keeps lining the
  * anchor item up with its saved distance from the viewport top, for at most `RESTORE_FRAMES` frames. Without an
  * anchor it only keeps trying to reach `pos.y` (a document still too short). Any user scroll input (wheel, touch,
- * key) stops it, so it never fights the user.
+ * key) stops it, so it never fights the user. Resolves when it is done (a dialog reopened from history waits for it).
  */
-export function restoreListScroll(pos: ListScrollPosition, items?: ListItems, doc: Document | null = globalThis.document ?? null): void {
+export function restoreListScroll(
+  pos: ListScrollPosition,
+  items?: ListItems,
+  doc: Document | null = globalThis.document ?? null,
+): Promise<void> {
   const win = doc?.defaultView;
-  if (!doc || !win) return;
+  if (!doc || !win) return Promise.resolve();
+  let done: () => void = () => undefined;
+  const finished = new Promise<void>((r) => (done = r));
   let frames = 0;
   let stable = 0;
   let stopped = false;
@@ -97,6 +124,7 @@ export function restoreListScroll(pos: ListScrollPosition, items?: ListItems, do
   const stop = () => {
     stopped = true;
     for (const type of inputs) win.removeEventListener(type, stop);
+    done();
   };
   for (const type of inputs) win.addEventListener(type, stop, { passive: true });
   const anchorEl = (): Element | null => {
@@ -119,4 +147,5 @@ export function restoreListScroll(pos: ListScrollPosition, items?: ListItems, do
     win.requestAnimationFrame(attempt);
   };
   attempt();
+  return finished;
 }
