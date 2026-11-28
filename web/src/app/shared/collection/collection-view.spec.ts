@@ -10,6 +10,7 @@ import type {
   VariantKind,
 } from '../../core/decks';
 import { availability } from '../../core/decks';
+import type { StoredTags } from '../storage/records';
 import {
   banLabel,
   buildCollectionView,
@@ -20,6 +21,7 @@ import {
   countLine,
   gridMove,
   ignoredNotice,
+  joinAnd,
   landscapeFor,
   lockBandText,
   parseUrlQuery,
@@ -103,13 +105,14 @@ function view(
     locks?: NameLock[] | null;
     bans?: BanListFile | null;
     codes?: Record<string, string>;
+    tags?: StoredTags;
   } = {},
 ) {
   return buildCollectionView({
     ownership: {
       catalog,
       collection,
-      tags: { schemaVersion: 3, updatedAt: '', tags: [], assignments: {} },
+      tags: opts.tags ?? { schemaVersion: 3, updatedAt: '', tags: [], assignments: {} },
       printingCodes: {
         schemaVersion: 1,
         updatedAt: '',
@@ -259,7 +262,7 @@ describe('Collection view: entries and order', () => {
     expect(v.tiles.map((t) => t.printingLabel)).toEqual(['OGN-007', 'OGN-007a Showcase']);
   });
 
-  it('COLL-015: records not in the catalog are listed as unresolved in cardKey order and still counted', () => {
+  it('COLL-015: records not in the catalog are listed as unresolved in cardKey order and not counted (COLL-010)', () => {
     const cat = catalogOf({ Gust: { printings: [['g', 'OGN', '008']] } });
     const v = view(
       cat,
@@ -273,7 +276,7 @@ describe('Collection view: entries and order', () => {
       { cardKey: 'alpha', quantity: 3 },
       { cardKey: 'zeta', quantity: 2 },
     ]);
-    expect(v.totals).toEqual({ copies: 6, cards: 3 });
+    expect(v.totals).toEqual({ copies: 1, cards: 1 }); // COLL-010: Unresolved is not counted
     expect(queryUnresolved(v.unresolved, 'alp')).toEqual([{ cardKey: 'alpha', quantity: 3 }]);
   });
 });
@@ -421,7 +424,7 @@ describe('Collection view: locks, dialog and ban (SPEC-008)', () => {
   it('A4: the tile name has name, printing, copies, card-level lock text with every deck and the ban', () => {
     const t = v.tiles.find((x) => x.entryId === 'p:ks')!;
     expect(tileAccessibleName(t, v.cards.get('kaisa survivor'))).toBe(
-      "Kai'Sa, Survivor, OGN-007a Showcase, 3 copies, 6 of this card locked in Jinx Aggro and Kennen Tempo, ban status unknown",
+      "Kai'Sa, Survivor, OGN-007a Showcase, 3 copies, 6 of this card locked in Jinx Aggro and Kennen Tempo",
     );
     const lonely = v.tiles.find((x) => x.entryId === 'p:l')!;
     const banned = {
@@ -658,4 +661,70 @@ describe('Collection performance (COLL-065, SPEC-007 AC 18, A11)', () => {
     expect(sortName).toBeLessThan(600);
     expect(search).toBeLessThan(600);
   }, 30_000);
+});
+
+// ---------------------------------------------------------------- H-188 (SPEC-007 0.18.1)
+
+describe('Collection view: H-188 dialog details, tile name, count line, URL', () => {
+  const base = catalogOf({
+    "Kai'Sa, Survivor": {
+      printings: [
+        ['k', 'OGN', '007'],
+        ['ks', 'OGN', '007a', 'showcase'],
+      ],
+    },
+  });
+  const cat: CollectionCatalogView = {
+    ...base,
+    sets: SETS.map((s) => (s.code === 'OGN' ? { ...s, name: 'Origins' } : s)),
+    printings: { ...base.printings, ks: { ...base.printings['ks'], rarity: 'Epic' } },
+  };
+  const coll = collectionOf({ 'kaisa survivor': { quantity: 3, byPrinting: { ks: 2 } } });
+
+  it('COLL-103 (c) AC 34: a printing entry has set name and code, collector number and rarity; unassigned has none', () => {
+    const w = view(cat, coll);
+    expect(cardDetail(w, 'p:ks')!.details).toBe('Origins (OGN) · #007a · Epic');
+    expect(cardDetail(w, 'u:kaisa survivor')!.details).toBeNull();
+  });
+
+  it('COLL-103 (e) AC 38: an excluded entry yields "n not counted in your decks"; a plain entry yields none', () => {
+    const tags: StoredTags = {
+      schemaVersion: 3,
+      updatedAt: '',
+      tags: [
+        { id: 't1', label: 'Trade', key: 'trade', colour: null, excludeFromDecks: true, createdAt: '' },
+      ],
+      assignments: { 'p:ks': ['t1'] },
+    };
+    expect(cardDetail(view(cat, coll, { tags }), 'p:ks')!.excludedLine).toBe('2 not counted in your decks');
+    expect(cardDetail(view(cat, coll), 'p:ks')!.excludedLine).toBeNull();
+  });
+
+  it('COLL-101 (e) AC 32: ", banned" only for status banned; upcoming and unknown stay out of the tile name', () => {
+    const w = view(cat, coll);
+    const t = w.tiles.find((x) => x.entryId === 'p:ks')!;
+    const card = w.cards.get('kaisa survivor')!;
+    expect(tileAccessibleName(t, card)).toBe("Kai'Sa, Survivor, OGN-007a Showcase, 2 copies"); // unknown ban data
+    const upcoming = { ...card, ban: { status: 'upcoming' as const, effective: '2026-12-15' } };
+    expect(tileAccessibleName(t, upcoming as typeof card)).not.toMatch(/ban/);
+  });
+
+  it('COLL-101 (e) AC 33: deck names are joined with commas and "and"', () => {
+    expect(joinAnd(['A', 'B'])).toBe('A and B');
+    expect(joinAnd(['A', 'B', 'C'])).toBe('A, B and C');
+  });
+
+  it('COLL-010 AC 36: the count line leaves the Unresolved section out and never says "entries"', () => {
+    const w = view(cat, collectionOf({ 'kaisa survivor': { quantity: 1 }, zzz: { quantity: 9 } }));
+    expect(w.unresolved).toEqual([{ cardKey: 'zzz', quantity: 9 }]);
+    expect(countLine(w.totals.copies, w.totals.cards)).toBe('1 copy of 1 card');
+    expect(countLine(1204, 412)).not.toMatch(/entries/);
+    expect(showingLine(12, 538)).toBe('Showing 12 of 538');
+  });
+
+  it('COLL-108 (c) AC 37: sort=set is silently the default and other parameters are ignored without a notice', () => {
+    expect(parseUrlQuery({ q: null, sort: 'set' })).toEqual({ text: '', sort: 'set', ignored: 0 });
+    expect(parseUrlQuery({ q: 'gust', sort: 'cost' })).toEqual({ text: 'gust', sort: 'set', ignored: 1 });
+    expect(urlParams('', 'set')).toEqual({ q: null, sort: null });
+  });
 });

@@ -101,8 +101,8 @@ export const CARD_DIALOG_TITLE_ID = 'card-dialog-title';
         <div class="info">
           <div class="section">
             <p #printingLine class="printing" tabindex="-1">{{ d.printingLine }}</p>
-            @if (d.excludedLine) {
-              <p class="muted">{{ d.excludedLine }}</p>
+            @if (d.details) {
+              <p class="muted">{{ d.details }}</p>
             }
           </div>
           @if (d.ownedHeading) {
@@ -128,10 +128,13 @@ export const CARD_DIALOG_TITLE_ID = 'card-dialog-title';
               </ul>
             </section>
           }
+          @if (d.excludedLine) {
+            <p class="muted">{{ d.excludedLine }}</p>
+          }
           @if (d.lockedIn.length > 0) {
             <section class="section">
               <h3>Locked in</h3>
-              <p class="help">Locked decks count copies by card name, any printing.</p>
+              <p class="help">Decks lock copies by card name, any printing.</p>
               <ul class="plain rows">
                 @for (row of d.lockedIn; track row.deckId) {
                   <li>

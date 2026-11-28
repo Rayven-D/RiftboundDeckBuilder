@@ -406,12 +406,15 @@ describe('CollectionPage (H-086)', () => {
     const h = await setup('/collection', {
       sample: { ...generateLargeSample(3), decks: [sampleDeck(9, 'x', [])], locks: [] },
     });
-    expect(text(h, '#count-line')).toMatch(/of 1 card$/);
+    const before = text(h, '#count-line');
+    expect(before).toMatch(/of 1 card$/);
     const more = generateLargeSample(6);
     await stores.raw.collection.save(more.collection);
     dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEYS.collection }));
     await settle(h, 50);
-    expect(text(h, '#count-line')).toMatch(/of 2 cards$/);
+    // COLL-010: the card missing from this test's catalog is Unresolved and not counted
+    expect(text(h, '#count-line')).toBe(before);
+    expect(el(h).textContent).toContain('Unresolved cards');
   });
 
   it('COLL-073 H-086 review 2: a burst of storage events from another tab rebuilds the view once', async () => {
@@ -428,7 +431,8 @@ describe('CollectionPage (H-086)', () => {
     const h = await setup('/collection', {
       sample: { ...generateLargeSample(3), decks: [], locks: [] },
     });
-    expect(text(h, '#count-line')).toMatch(/of 1 card$/);
+    const before = text(h, '#count-line');
+    expect(before).toMatch(/of 1 card$/);
     const stale = await stores.collection.load();
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
@@ -441,10 +445,11 @@ describe('CollectionPage (H-086)', () => {
     await stores.raw.collection.save(generateLargeSample(6).collection);
     dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEYS.collection }));
     await settle(h, 50);
-    expect(text(h, '#count-line')).toMatch(/of 2 cards$/);
+    expect(el(h).textContent).toContain('Unresolved cards'); // the newer reload is shown
     release();
     await settle(h, 50);
-    expect(text(h, '#count-line')).toMatch(/of 2 cards$/);
+    expect(el(h).textContent).toContain('Unresolved cards');
+    expect(text(h, '#count-line')).toBe(before);
   });
 
   it('H-086 review 3: unreadable decks show a notice, and the dialog says why Could fit in is missing', async () => {

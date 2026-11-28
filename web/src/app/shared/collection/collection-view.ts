@@ -47,6 +47,8 @@ export interface CollectionTile {
   readonly printingId: PrintingId | null;
   /** "OGN-007a Showcase" · "Printing not specified" · "Printing no longer found: OGN-005". */
   readonly printingLabel: string;
+  /** COLL-103 (c): "Origins (OGN) · #007a · Rare" for a printing entry; null for unassigned and missing. */
+  readonly details: string | null;
   /** Copies of this entry, locked copies included (COLL-086). */
   readonly count: number;
   /** The entry carries an exclude-from-decks tag (COLL-083, display only). */
@@ -92,7 +94,7 @@ export interface CollectionView {
   readonly cards: ReadonlyMap<CardKey, CardSummary>;
   /** COLL-015, in `cardKey` order. */
   readonly unresolved: UnresolvedCard[];
-  /** Copies and distinct cards of the whole collection (unresolved records included). */
+  /** Copies and distinct cards shown as tiles (COLL-010: the Unresolved section is not counted). */
   readonly totals: { copies: number; cards: number };
   readonly locksIgnored: boolean;
   /** The deck store couldn't be read: Could fit in isn't shown (no deck counts as "none use it"). */
@@ -163,8 +165,6 @@ export function buildCollectionView(input: CollectionViewInput): CollectionView 
       const quantity = Math.max(Math.max(0, Math.trunc(record.quantity)), assigned);
       if (quantity > 0) {
         unresolved.push({ cardKey, quantity });
-        copies += quantity;
-        cards++;
       }
       continue;
     }
@@ -188,6 +188,20 @@ export function buildCollectionView(input: CollectionViewInput): CollectionView 
           ? `Printing no longer found: ${e.printingCode}`
           : `Printing no longer found (id ${e.printingId})`;
       }
+      const setName = printing
+        ? (catalog.sets.find((x) => x.code === printing.setCode)?.name ?? null)
+        : null;
+      const details = printing
+        ? [
+            setName && setName !== printing.setCode
+              ? `${setName} (${printing.setCode})`
+              : printing.setCode,
+            `#${printing.collectorNumber}`,
+            printing.rarity,
+          ]
+            .filter((x): x is string => !!x)
+            .join(' · ')
+        : null;
       ranked.push({
         rank: ranks.get(shown?.printingId ?? '') ?? Number.MAX_SAFE_INTEGER,
         kind: KIND_ORDER[e.kind],
@@ -198,6 +212,7 @@ export function buildCollectionView(input: CollectionViewInput): CollectionView 
           name: card.name,
           printingId: e.printingId,
           printingLabel: label,
+          details,
           count: e.count,
           excluded: e.excluded,
           thumbnailUrl: shown?.art.thumbnailUrl ?? null,
@@ -310,7 +325,7 @@ export interface UrlQuery {
 export function parseUrlQuery(params: { q?: string | null; sort?: string | null }): UrlQuery {
   const text = params.q ?? '';
   const raw = params.sort ?? null;
-  if (raw === null || raw === '') return { text, sort: 'set', ignored: 0 };
+  if (raw === null || raw === '' || raw === 'set') return { text, sort: 'set', ignored: 0 };
   if (raw === 'name' || raw === 'copies') return { text, sort: raw, ignored: 0 };
   return { text, sort: 'set', ignored: 1 };
 }
@@ -403,8 +418,6 @@ export function tileAccessibleName(tile: CollectionTile, card: CardSummary | und
   }
   const ban = card?.ban;
   if (ban?.status === 'banned') parts.push('banned');
-  else if (ban?.status === 'upcoming') parts.push(`banned from ${formatIsoDate(ban.effective)}`);
-  else if (ban?.status === 'unknown') parts.push('ban status unknown');
   return parts.join(', ');
 }
 
@@ -446,6 +459,8 @@ export interface CardDetail {
   readonly printingLine: string;
   /** "1 not counted in your decks" when this entry is excluded (COLL-083). */
   readonly excludedLine: string | null;
+  /** COLL-103 (c) muted details line (printing entries only). */
+  readonly details: string | null;
   /** "You own 6 across all printings", or null with only one entry. */
   readonly ownedHeading: string | null;
   readonly printings: PrintingRow[];
@@ -488,6 +503,7 @@ export function cardDetail(view: CollectionView, entryId: string): CardDetail | 
     tile,
     card,
     printingLine: `${tile.printingLabel} · ${copiesText(tile.count)}`,
+    details: tile.details,
     excludedLine: tile.excluded ? `${n(tile.count)} not counted in your decks` : null,
     ownedHeading: many ? `You own ${n(card.owned)} across all printings` : null,
     printings: many
