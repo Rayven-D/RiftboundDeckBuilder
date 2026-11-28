@@ -1,0 +1,103 @@
+// H-699 (Brief H-698 S1, S2, S3): the phone bottom-sheet chrome both card dialogs share. Included at the root of each
+// dialog's stylesheet (so the rules stay encapsulated to that dialog). Above 40rem the extra elements are inert: the
+// handle is hidden and the body wrapper is `display: contents`, so the centred dialog lays out exactly as before.
+// The pane itself (height, position, top corners, slide-in) is the global `.card-sheet-panel` in styles.scss.
+
+$phone: '(max-width: 40rem)';
+
+@mixin chrome($footer: false) {
+  .sheet-handle {
+    display: none;
+  }
+
+  .sheet-body {
+    display: contents;
+  }
+
+  @media #{$phone} {
+    :host {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      padding: 0;
+    }
+
+    // S1 / S6: the fixed head is the drag zone (handle + title row, full width, >= 60 px tall).
+    .head {
+      position: relative;
+      flex: none;
+      display: block;
+      margin: 0;
+      padding: 0;
+      background: var(--color-surface);
+      touch-action: none;
+      user-select: none;
+
+      // S2: the divider shows only while the body is scrolled away from its top.
+      &::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        height: 1px;
+        background: var(--color-border);
+        opacity: 0;
+        transition: opacity var(--dur-fast) var(--ease-out);
+      }
+
+      &.head--scrolled::after {
+        opacity: 1;
+      }
+    }
+
+    .sheet-handle {
+      display: block;
+      width: 36px;
+      height: 4px;
+      margin: var(--space-2) auto 0;
+      border-radius: 2px;
+      background: var(--color-border-strong);
+    }
+
+    .head-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-4) var(--space-3);
+    }
+
+    .title {
+      font-size: var(--font-size-lg);
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    // Close (44 x 44) centred on the title's first line (20 px x 1.2 = 24 px line).
+    .head-actions {
+      margin-top: -10px;
+    }
+
+    .head-actions button {
+      width: 44px;
+      height: 44px;
+      padding: 10px;
+    }
+
+    // S1: only the body scrolls; reaching its end never scrolls the page or pulls to refresh.
+    .sheet-body {
+      display: block;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      @if $footer {
+        padding: var(--space-2) var(--space-4) var(--space-4);
+      } @else {
+        padding: var(--space-2) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
+      }
+    }
+  }
+}

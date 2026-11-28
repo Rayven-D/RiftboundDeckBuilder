@@ -41,6 +41,7 @@ import {
   CardDialogResult,
 } from '../../shared/collection/card-dialog';
 import { CollectionTile } from '../../shared/collection/collection-tile';
+import { PHONE as SHEET_PHONE, cardDialogConfig } from '../../shared/card-sheet/card-sheet';
 import { ListItems, keepListScroll, restoreListScroll } from '../../shared/list-scroll';
 import {
   CollectionSort,
@@ -608,7 +609,6 @@ export class CollectionPage {
   // ---------------------------------------------------------------- dialog
 
   protected openCard(entryId: string): void {
-    const phone = this.isPhone();
     const data: CardDialogData = {
       entryId,
       detail: (id) => {
@@ -624,18 +624,14 @@ export class CollectionPage {
     const ref = this.dialog.open<CardDialog, CardDialogData, CardDialogResult>(CardDialog, {
       data,
       ariaLabelledBy: CARD_DIALOG_TITLE_ID,
-      autoFocus: '.close-button',
       restoreFocus: false,
-      panelClass: 'card-dialog-panel',
-      ...(phone
-        ? { width: '100vw', maxWidth: '100vw', height: '100svh', maxHeight: '100svh' }
-        : {
-            width: this.isDesktop()
-              ? 'min(56rem, calc(100vw - 2 * var(--content-gutter)))'
-              : 'min(40rem, calc(100vw - 2 * var(--content-gutter)))',
-            maxWidth: '100vw',
-            maxHeight: 'min(90svh, 52rem)',
-          }),
+      // H-699 (Brief H-698): phones get the bottom sheet; larger screens the centred dialog, sized as before.
+      ...cardDialogConfig(this.breakpoints.isMatched(SHEET_PHONE), {
+        width: this.isDesktop()
+          ? 'min(56rem, calc(100vw - 2 * var(--content-gutter)))'
+          : 'min(40rem, calc(100vw - 2 * var(--content-gutter)))',
+        maxHeight: 'min(90svh, 52rem)',
+      }),
     });
     this.dialogOpen = true;
     ref.afterClosed().subscribe((result) => {

@@ -18,6 +18,7 @@ import { StatusLabel } from '../status-label';
 import { cardKeywords } from '../../core/cards/keywords';
 import { CardDetail, DECKS_UNREADABLE, landscapeFor } from './collection-view';
 import { KEYWORD_INDEX, KeywordList } from './keyword-list';
+import { CardSheet } from '../card-sheet/card-sheet';
 
 /** What the page gives the dialog. `detail` reads the page's signals, so the dialog stays in sync (S13). */
 export interface CardDialogData {
@@ -46,12 +47,15 @@ export const CARD_DIALOG_TITLE_ID = 'card-dialog-title';
 @Component({
   selector: 'app-card-dialog',
   imports: [CardArt, OwnershipChip, StatusLabel, Icon, MatIconButton, KeywordList],
-  host: {
-    '(keydown)': 'onKey($event)',
-  },
   template: `
     @if (detail(); as d) {
-      <div class="head">
+      <div
+        class="head"
+        [class.head--scrolled]="sheet.scrolled()"
+        (pointerdown)="sheet.onPointerDown($event)"
+      >
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <div class="head-row">
         <h2 class="title" [id]="titleId">{{ d.card.name }}</h2>
         <div class="head-actions">
           @if (data.stepping) {
@@ -79,12 +83,14 @@ export const CARD_DIALOG_TITLE_ID = 'card-dialog-title';
             type="button"
             class="close-button"
             aria-label="Close"
-            (click)="close()"
+            (click)="closeClicked()"
           >
             <app-icon name="close" />
           </button>
         </div>
+        </div>
       </div>
+      <div class="sheet-body" (scroll)="sheet.onBodyScroll($event)">
       <div class="body">
         <div class="art-col">
           <div class="art-frame" [class.art-frame--stand-in]="d.tile.standIn">
@@ -174,6 +180,7 @@ export const CARD_DIALOG_TITLE_ID = 'card-dialog-title';
           }
         </div>
       </div>
+      </div>
     }
   `,
   styleUrl: './card-dialog.scss',
@@ -183,6 +190,8 @@ export class CardDialog {
   private readonly ref = inject<MatDialogRef<CardDialog, CardDialogResult>>(MatDialogRef);
   private readonly injector = inject(Injector);
   private readonly printingLine = viewChild<ElementRef<HTMLElement>>('printingLine');
+  /** H-699 (Brief H-698): the phone bottom sheet (animated close, swipe down, head divider) and Back closing it. */
+  protected readonly sheet = new CardSheet(this.ref, () => this.report());
 
   protected readonly titleId = CARD_DIALOG_TITLE_ID;
   protected readonly decksUnreadable = DECKS_UNREADABLE;
@@ -221,9 +230,20 @@ export class CardDialog {
     });
     this.ref.disableClose = true; // Escape and backdrop go through close() to report the tile
     this.ref.backdropClick().subscribe(() => this.close());
+    // Keys from anywhere in the dialog, the container included (phones focus the container on open, Brief H-698).
+    this.ref.keydownEvents().subscribe((e) => this.onKey(e));
   }
 
+  /** Close, Escape, backdrop, swipe and Back: on phones the sheet slides away first (Brief H-698 Motion). */
   protected close(): void {
+    this.sheet.dismiss();
+  }
+
+  protected closeClicked(): void {
+    if (!this.sheet.swallowClick()) this.close();
+  }
+
+  private report(): void {
     this.ref.close({ entryId: this.entryId(), gone: false });
   }
 

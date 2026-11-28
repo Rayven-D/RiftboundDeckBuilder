@@ -1,3 +1,4 @@
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { Component, inject, isDevMode, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -10,6 +11,7 @@ import {
 import { AppStores } from '../../core/storage/app-stores';
 import { STORAGE_KEYS } from '../../core/storage/local-stores';
 import { CARD_DIALOG_TITLE_ID, CardDialog, CardDialogData } from '../../shared/collection/card-dialog';
+import { PHONE, cardDialogConfig } from '../../shared/card-sheet/card-sheet';
 import { CollectionTile } from '../../shared/collection/collection-tile';
 import { cardDetail } from '../../shared/collection/collection-view';
 import { CountBadge } from '../../shared/collection/count-badge';
@@ -295,6 +297,7 @@ export class StyleguidePage {
   protected readonly largeEntriesText = DEV_LARGE_ENTRIES.toLocaleString('en-US');
   protected readonly sampleStatus = signal<string | null>(null);
   private readonly dialog = inject(MatDialog);
+  private readonly breakpoints = inject(BreakpointObserver);
   private readonly stores = inject(AppStores).stores;
   private readonly cardData = inject(CardData);
 
@@ -306,16 +309,16 @@ export class StyleguidePage {
         const i = this.sample.tiles.findIndex((t) => t.entryId === id);
         return this.sample.tiles[i + step]?.entryId ?? null;
       },
-      stepping: true,
+      stepping: !this.breakpoints.isMatched(PHONE), // as Collection: no stepping on phones (Brief H-698 S4)
     };
+    // H-699: the same config as Collection, so the phone sheet can be reviewed here without signing in.
     this.dialog.open(CardDialog, {
       data,
       ariaLabelledBy: CARD_DIALOG_TITLE_ID,
-      autoFocus: '.close-button',
-      panelClass: 'card-dialog-panel',
-      width: 'min(56rem, calc(100vw - 2 * var(--content-gutter)))',
-      maxWidth: '100vw',
-      maxHeight: 'min(90svh, 52rem)',
+      ...cardDialogConfig(this.breakpoints.isMatched(PHONE), {
+        width: 'min(56rem, calc(100vw - 2 * var(--content-gutter)))',
+        maxHeight: 'min(90svh, 52rem)',
+      }),
     });
   }
 

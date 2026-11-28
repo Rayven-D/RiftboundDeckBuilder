@@ -59,6 +59,7 @@ import {
   DeckCardDialogResult,
 } from '../../shared/deck-detail/deck-card-dialog';
 import { DeckCardRow } from '../../shared/deck-detail/deck-card-row';
+import { PHONE as SHEET_PHONE, cardDialogConfig } from '../../shared/card-sheet/card-sheet';
 import type { NameLockContext } from '../../shared/deck-detail/name-lock-action';
 import { DeckCardTile } from '../../shared/deck-detail/deck-card-tile';
 import { confirmDelete, openRenameDialog, openRuleCheck } from '../../shared/deck-detail/deck-dialogs';
@@ -676,7 +677,6 @@ export class DeckDetail {
   // ---------------------------------------------------------------- card dialog (OWN-113)
 
   private openCard(id: string): void {
-    const phone = this.isPhone();
     const data: DeckCardDialogData = {
       cardId: id,
       card: (cid) => {
@@ -695,12 +695,12 @@ export class DeckDetail {
     const ref = this.dialog.open<DeckCardDialog, DeckCardDialogData, DeckCardDialogResult>(DeckCardDialog, {
       data,
       ariaLabelledBy: DECK_CARD_DIALOG_TITLE_ID,
-      autoFocus: '.close-button',
       restoreFocus: false,
-      panelClass: 'card-dialog-panel',
-      ...(phone
-        ? { width: '100vw', maxWidth: '100vw', height: '100svh', maxHeight: '100svh' }
-        : { width: 'min(44rem, calc(100vw - 2 * var(--content-gutter)))', maxWidth: '100vw', maxHeight: 'min(90svh, 52rem)' }),
+      // H-699 (Brief H-698): phones get the bottom sheet; tablets the centred dialog, sized as before.
+      ...cardDialogConfig(this.breakpoints.isMatched(SHEET_PHONE), {
+        width: 'min(44rem, calc(100vw - 2 * var(--content-gutter)))',
+        maxHeight: 'min(90svh, 52rem)',
+      }),
     });
     ref.afterClosed().subscribe((result) => {
       if (this.destroyed) return;
