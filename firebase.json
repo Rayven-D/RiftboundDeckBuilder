@@ -12,7 +12,7 @@
     ],
     "rewrites": [
       {
-        "source": "!/api{,/**}",
+        "regex": "^/(|[^a].*|a|a[^p].*|ap|ap[^i].*|api[^/].*)$",
         "destination": "/index.html"
       }
     ],

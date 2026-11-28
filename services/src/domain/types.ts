@@ -1,4 +1,4 @@
-// Card data shapes from SPEC-001 v0.2 (brain/02-Specs/Card Data Model.md, "Data contract").
+// Card data shapes from SPEC-001 v0.4.1 (brain/02-Specs/Card Data Model.md, "Data contract").
 // Shapes only. Keep in sync with brain/05-Services/API Contracts.md.
 
 export const SCHEMA_VERSION = '0.2' as const;

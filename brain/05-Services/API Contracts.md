@@ -76,10 +76,11 @@ Playable cards sorted by `cardKey`, each with its printings in `printingSortKey`
 ### `GET /api/cards/:cardKey`
 One card by `cardKey`. The path value is passed through `nameKey` (CARD-030), so the canonical name
 also works (`/api/cards/Kai'Sa%2C%20Survivor`). No fuzzy matching or aliases (CARD-033).
-**As built: exact `nameKey` match only.** SPEC-001 0.4 CARD-033 / CARD-034 add a second step (retry with the
-leading "a" / "the" dropped on both sides; several matches give `ambiguous`) that `services/` does not do yet
-(H-648). Until then `/api/cards/Dreaming%20Tree` is `404` even if the card is "The Dreaming Tree". When H-648
-lands, this endpoint's article and `ambiguous` behaviour is written here first.
+Lookup is SPEC-001 CARD-033 / CARD-034 (H-648): exact `nameKey` match first (the article, if any, always
+matches); otherwise the leading "a" / "the" is dropped on both sides and one match is returned, so
+`/api/cards/Dreaming%20Tree` finds "The Dreaming Tree" and the reverse. If several cards share that loose key
+(e.g. `A Pit`, `The Pit`) the answer is `404 not-found` and the message lists the candidate `cardKey`s
+(no new code; the client retries with a full `cardKey`). No fuzzy matching or aliases.
 → `200 CardResponse` · `404 not-found` · `503 snapshot-unavailable`
 ```json
 {
