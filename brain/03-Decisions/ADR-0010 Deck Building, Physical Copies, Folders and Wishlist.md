@@ -90,3 +90,50 @@ model in chat on 2026-11-28. Every decision below is RJ's, given in that chat, u
 - **Suggested order (Claude, RJ did not object):** search → deck editor → physical copies and
   folders → wishlist; formats research in parallel.
 - The spec-writer files the `builder` items after each spec passes.
+
+## RJ answers to the direction drafts (2026-11-28, chat, H-709 part 1)
+From the open questions in [[Direction H-706 Search and Deck Editor]], [[Direction H-707 Collection Folders]]
+and [[Direction H-708 Wishlist]]:
+1. **Folder delete (H-707 Q1):** the card dialog offers **both** "Remove from folder" (the copy stays
+   owned, in no folder) **and** "Delete from collection" (the copy is gone entirely).
+2. **Locks (H-706 Q8):** **locks are per deck only** ("let's just keep it to the decks now since it only
+   locks editing cards from the deck"). A locked deck's cards can't be added, removed or moved; rename
+   and description stay allowed (§1.6). This replaces SPEC-008's per-card-name locks (SHARE-080…095).
+3. **Five phone tabs (H-708 Q1):** accepted the recommendation: Tournaments is labelled **"Events"** in
+   the phone bottom bar only. Order Decks · Collection · Wishlist · Events · Account.
+4. **Editor saving (H-706 Q10):** **explicit Save**, no autosave. **Leaving while editing shows a
+   warning** (unsaved changes).
+5. **Which copies satisfy a wishlist entry (H-708 Q2):** accepted the recommendation: entries added from
+   a deck accept **any printing**; an entry where the user picked a variant counts **only that printing**.
+
+## RJ answers, part 2 (2026-11-28, chat, closes H-709)
+6. **Search and deck editor:** "Yes to all decks recommendations": H-706 Q1 (name search plus an "Include
+   rules text" toggle), Q3 (Collection search stays owned-only), Q4 ("New deck" as a title-row button on
+   phones), Q6 ("Own 3 · 1 free" when they differ), Q7 (a new deck's name follows its Legend), Q9 (no
+   "Reset to the tournament list" for now), Q11 (each deck stores one main format, Standard by default,
+   other formats as status chips).
+7. **Folders:** "Folder recs are good": H-707 Q2 (deleting a folder moves its copies to Not in a folder,
+   with Undo), Q3 ("Use cards in this folder for decks" on by default), Q4 (copies tracked per printing in
+   folders and decks), Q5 ("Could fit in" kept, renamed "Decks that need this card" with "needs 1 more"),
+   Q6 ("In decks" entry in the location rail), Q7 (creation order), Q8 (names up to 40 characters,
+   duplicates allowed with a warning).
+8. **Wishlist:** H-708 Q3 (count goes down: "Want 2"), Q4 (deck-linked counts don't follow later deck edits;
+   the "Needed for" chip stays live), Q5 (only **free** copies satisfy deck-linked entries), Q6 (desktop
+   sidebar on the Wishlist only for now), Q7 (`bookmark` icon). **Addition to Q5 (RJ):** in a deck, the
+   card details for a card show **the other decks holding its copies**: "owned but not available".
+9. **New: deck version history (RJ):** "a versioning style like git when the user edits cards (removed
+   card, changed a cards count, added a new card). Every save is like a commit and the user can go back
+   to any point." Each Save of a deck's cards records a version with what changed; the user can return the
+   deck to any earlier version. (Spec: H-702.)
+
+H-706 Q2 and Q5 are rules questions for the spec-writer.
+
+## RJ answers, part 3: deck version history (2026-11-28, chat)
+1. **Restoring adds a new version on top** (git-revert style); the user can **view each version**.
+2. **A rotating window: only the last 15 versions are kept.**
+3. **Only card edits make a version** ("Anything outside of the cards editing isn't a new version").
+4. **A locked deck can't be restored**: "You have to unlock a deck to edit it at all" (cards).
+5. **The imported or added list is version 1.**
+6. **Don't store the whole deck per version:** "replicate what git does to save memory", i.e. store changes
+   (deltas), not full copies. Recommended shape (Claude, for the spec-writer): the current deck stays in full and
+   each older version is a reverse delta to the next one, so dropping the oldest of the 15 is trivial.

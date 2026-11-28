@@ -79,3 +79,9 @@ Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[
 - Changed notes: [[Format Catalog]], [[Formats]], [[Ban List]], [[Research Index]], [[UI Index]], the three directions, [[Handoff Board]], [[Current State]]
 - Open questions: H-709 (RJ). The H-698 brief link in the H-708 draft resolves once that session commits its brief.
 - Next: RJ answers H-709, then spec-writer H-701 → H-702 → H-703 → H-705, H-704 after H-702.
+
+## 2026-11-28: Claude (discussion session): search and deck editor specs
+- Did: recorded RJ's H-709 answers in ADR-0010 (parts 1–3, incl. deck version history); spec-writer (Opus) wrote SPEC-014 [[Card Search and Filters]] and updated SPEC-005/006/007; validator (Sonnet) PASS attempt 1 ([[Validation H-701 H-702]]). Filed builder H-710…H-713, spec-writer H-714 (SPEC-010 impacts), RJ H-715.
+- Changed notes: [[Card Search and Filters]], [[Deck Import]], [[Your Decks Ownership View]], [[My Collection]], [[Spec Index]], [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]], [[Handoff Board]], [[Current State]], [[Decision Log]]
+- Open questions: H-715 (RJ); `cost` field waits on H-020 (SEARCH-026).
+- Next: H-710 → H-711 → H-712 (with H-714); H-713; spec-writer H-703 → H-705, H-704.
