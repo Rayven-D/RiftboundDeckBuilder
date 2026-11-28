@@ -509,7 +509,7 @@ describe('SyncEngine first sign-in, sign-out and the gate (SPEC-010 SYNC-009, H-
       await vi.waitFor(() => expect(spy).toHaveBeenCalled());
       expect(await laptop.engine.signOut()).toBe('ok'); // H-083 default: allowed during a deletion
       release();
-      expect(await deleting).toBe('failed');
+      expect(await deleting).toBe('signed-out'); // H-133: not a failure, so no Try again notice
       await laptop.settle();
       expect(riftKeys(laptop)).toEqual([]);
       expect(laptop.auth.deletedUser).toBe(false); // the Auth user is never deleted from an ended session

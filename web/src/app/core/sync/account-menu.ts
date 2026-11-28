@@ -15,11 +15,13 @@ import { MatButton } from '@angular/material/button';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatDivider } from '@angular/material/divider';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
+import { MatSnackBarRef } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { usernameInitial } from '../../shared/account/username';
 import { Icon } from '../../shared/icon';
 import { MESSAGES } from '../../shared/sync/sync-engine';
+import { noticeOptions } from '../../shared/sync/notice';
 import { AccountInfoDialog, AccountInfoDialogData, UsernameDialog, UsernameDialogData } from './account-dialogs';
 import {
   DeleteAccountDialog,
@@ -330,6 +332,8 @@ export class AccountMenu {
   protected readonly sync = inject(SyncService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = injectNotices();
+  /** The SYNC-096 "Some data couldn't be deleted." notice while it may be on screen (H-133). */
+  private deleteFailedNotice: MatSnackBarRef<unknown> | null = null;
   private readonly injector = inject(Injector);
   protected readonly offline = MESSAGES.offline;
   /** A deletion or Cancel deletion is running (SYNC-096): its menu actions are disabled meanwhile. */
@@ -491,7 +495,8 @@ export class AccountMenu {
     const signOut = (await firstValueFrom(ref.afterClosed())) === true;
     refocusAfterDialog(trigger);
     if (!signOut) return;
-    await this.sync.signOut();
+    // H-133: a deletion failure notice from before must not offer Try again on the signed-out device.
+    if ((await this.sync.signOut()) === 'ok') this.dismissDeleteFailedNotice();
     // The Account button leaves the DOM only on the next render (it becomes Sign in); then the fallback runs.
     afterNextRender(() => refocusAfterDialog(trigger), { injector: this.injector });
   }
@@ -537,12 +542,21 @@ export class AccountMenu {
     const result = await this.sync.deleteAccount().finally(() => this.busy.set(false));
     if (result === 'failed') {
       // H-116: an error notice, so assertive, and it stays until Try again or dismissed (no duration).
-      this.snackBar
-        .open(MESSAGES.deleteIncomplete, 'Try again', { politeness: 'assertive' })
-        .onAction()
-        .subscribe(() => void this.runDelete());
+      // H-671: at the top like every notice (the old chained call slipped past notice-position.spec.ts).
+      const notice = this.snackBar.open(MESSAGES.deleteIncomplete, 'Try again', noticeOptions('error'));
+      this.deleteFailedNotice = notice;
+      notice.onAction().subscribe(() => void this.runDelete());
+    } else if (result === 'signed-out') {
+      // H-133: signed out mid-deletion; this device is cleared, so no failure notice and no Try again.
+      this.dismissDeleteFailedNotice();
     }
     return result;
+  }
+
+  /** Closes the SYNC-096 failure notice if it is still on screen (other notices are left alone). */
+  private dismissDeleteFailedNotice(): void {
+    this.deleteFailedNotice?.dismiss();
+    this.deleteFailedNotice = null;
   }
 
   /** SYNC-096 Cancel deletion: the engine says "Your account wasn't deleted." and resumes syncing. */

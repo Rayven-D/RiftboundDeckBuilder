@@ -329,6 +329,74 @@ describe('AccountMenu delete outcomes (SPEC-010 SYNC-096)', () => {
     await fixture.whenStable();
     expect(calls).toBe(2);
   });
+
+  /** A menu whose deletion results come from `results`; the snack bar and the Sign out dialog are stubbed. */
+  async function deleteOutcomes(results: string[]) {
+    const { MatSnackBar } = await import('@angular/material/snack-bar');
+    const { MatDialog } = await import('@angular/material/dialog');
+    const { Subject, of } = await import('rxjs');
+    const action = new Subject<void>();
+    const opened: [string, string | undefined][] = [];
+    const dismissed: string[] = [];
+    const calls: string[] = [];
+    TestBed.configureTestingModule({
+      imports: [AccountMenu],
+      providers: [
+        provideRouter([]),
+        {
+          provide: SyncService,
+          useValue: {
+            enabled: true,
+            start: () => undefined,
+            signedIn: () => true,
+            online: () => true,
+            statusLine: () => '',
+            status: () => ({ kind: 'synced', at: 0, pendingCount: 0 }),
+            currentEmail: () => null,
+            username: signal<string | null>(null),
+            accountReady: signal(true),
+            deletion: () => null,
+            pendingCount: () => 0,
+            syncNow: async () => undefined,
+            deleteAccount: async () => (calls.push('deleteAccount'), results.shift()),
+            signOut: async () => (calls.push('signOut'), 'ok'),
+          },
+        },
+        {
+          provide: MatSnackBar,
+          useValue: {
+            open: (m: string, a?: string) => (
+              opened.push([m, a]), { onAction: () => action, dismiss: () => dismissed.push(m) }
+            ),
+            dismiss: () => dismissed.push('*'),
+          },
+        },
+        { provide: MatDialog, useValue: { open: () => ({ afterClosed: () => of(true) }) } },
+      ],
+    });
+    const fixture = TestBed.createComponent(AccountMenu);
+    const menu = fixture.componentInstance as unknown as {
+      runDelete(): Promise<string>;
+      openSignOut(): Promise<void>;
+    };
+    return { fixture, menu, action, opened, dismissed, calls };
+  }
+
+  it("H-133 / SYNC-096: signed out mid-deletion ('signed-out'): no failure notice and no Try again", async () => {
+    const { menu, opened } = await deleteOutcomes(['signed-out']);
+    expect(await menu.runDelete()).toBe('signed-out');
+    expect(opened).toEqual([]);
+  });
+
+  it('H-133 / SYNC-096: signing out after a failed deletion dismisses its Try again notice', async () => {
+    const { fixture, menu, opened, dismissed, calls } = await deleteOutcomes(['failed']);
+    await menu.runDelete();
+    expect(opened).toEqual([["Some data couldn't be deleted. Try again.", 'Try again']]);
+    await menu.openSignOut();
+    await fixture.whenStable();
+    expect(dismissed).toEqual(["Some data couldn't be deleted. Try again."]);
+    expect(calls).toEqual(['deleteAccount', 'signOut']);
+  });
 });
 
 describe('AccountMenu during an unfinished deletion (SPEC-010 SYNC-096, AC 43)', () => {
