@@ -51,6 +51,30 @@ describe('CARD-036 lookupPrinting', () => {
   });
 });
 
+describe('CARD-034 article step (AC6, AC21)', () => {
+  const idx = (...names: string[]) =>
+    new CardIndex(normalize(rawResponse([{ id: 'OGN', cards: names.map((n, i) => rawCard({ id: 'c' + i, name: n, collectorNumber: String(i + 1) })) }])).snapshot);
+  it('AC6: Dreaming Tree finds The Dreaming Tree; the reverse too', () => {
+    expect(idx('The Dreaming Tree').findCard('Dreaming Tree')?.cardKey).toBe('the dreaming tree');
+    expect(idx('Dreaming Tree').findCard('The Dreaming Tree')?.cardKey).toBe('dreaming tree');
+  });
+  it('AC6: exact wins, partial name is no article match, absent is not-found', () => {
+    expect(idx('The Mirror', 'Mirror').findCard('The Mirror')?.cardKey).toBe('the mirror');
+    expect(idx('Echo, Twice').lookupName('Echo')).toEqual({ status: 'not-found' });
+    expect(idx('The Echo', 'Echo, Twice').findCard('Echo')?.cardKey).toBe('the echo');
+  });
+  it('AC21: A Pit and The Pit → ambiguous for Pit, exact for each', () => {
+    const i = idx('A Pit', 'The Pit');
+    expect(i.lookupName('Pit')).toEqual({ status: 'ambiguous', cardKeys: ['a pit', 'the pit'] });
+    expect(i.findCard('Pit')).toBeUndefined();
+    expect(i.findCard('The Pit')?.cardKey).toBe('the pit');
+    expect(i.findCard('A Pit')?.cardKey).toBe('a pit');
+  });
+  it('AC21: A Pit and Pit, asked for The Pit → ambiguous', () => {
+    expect(idx('A Pit', 'Pit').lookupName('The Pit')).toEqual({ status: 'ambiguous', cardKeys: ['a pit', 'pit'] });
+  });
+});
+
 describe('CARD-033 findCard', () => {
   const index = new CardIndex(normalize(fixture()).snapshot);
   it('AC4: lookup by key, display by canonical name', () => {
