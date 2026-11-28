@@ -138,3 +138,74 @@ describe('SyncEngine sign-out during an account deletion (SPEC-010 SYNC-096, H-1
     expect(db.reads + db.writes + db.deletes).toBe(0);
   });
 });
+
+describe('SyncEngine account deletion step 3 messages (SPEC-010 SYNC-096 step 3 (b), AC 92, H-682 part 2)', () => {
+  let db: FakeFirestore;
+  beforeEach(() => {
+    db = new FakeFirestore();
+    db.serverTime = T0;
+  });
+
+  const kindOf = (d: Device, message: string) => d.noticeKinds.find((n) => n.message === message)?.kind;
+
+  it("AC 92 the exact RJ-approved step 3 email-link text (H-684)", () => {
+    expect(MESSAGES.reauthNeededAfterData).toBe(
+      'Your data was deleted. To finish deleting your account, sign out, sign in again, then choose Delete account and data within 5 minutes.',
+    );
+  });
+
+  it("AC 92 / SYNC-096 (b): every document deleted and 'needs-sign-in' at step 3 shows the info notice, not the step 1 or not-deleted text; deletingUid stays", async () => {
+    const d = new Device(db);
+    await signIn(d);
+    await d.setCard('card a', 1);
+    await d.createDeck('Kennen Tempo');
+    await d.engine.flush();
+    d.auth.deleteResults = ['needs-recent-sign-in'];
+    d.auth.reauthResult = 'needs-sign-in';
+
+    expect(await d.engine.deleteAccount()).toBe('needs-sign-in');
+    expect([...db.docs.keys()]).toEqual([]);
+    expect(d.auth.deletedUser).toBe(false);
+    expect(kindOf(d, MESSAGES.reauthNeededAfterData)).toBe('info');
+    expect(d.notices).not.toContain(MESSAGES.reauthNeeded);
+    expect(d.notices).not.toContain(MESSAGES.deleteNotDone);
+    const log = await d.log();
+    expect(log.deletingUid).toBe('uA');
+    expect(log.deletingRemovedAny).toBe(true);
+    expect(d.engine.unfinishedDeletion()).toEqual({ canCancel: false });
+  });
+
+  it('AC 92 / SYNC-096 step 1 keeps its own text when nothing is deleted yet', async () => {
+    const d = new Device(db);
+    await signIn(d);
+    d.auth.recentSignIn = false;
+    d.auth.reauthResult = 'needs-sign-in';
+    expect(await d.engine.deleteAccount()).toBe('needs-sign-in');
+    expect(kindOf(d, MESSAGES.reauthNeeded)).toBe('info');
+    expect(d.notices).not.toContain(MESSAGES.reauthNeededAfterData);
+    expect(db.get('users/uA')).toBeDefined();
+  });
+
+  it('AC 92 / SYNC-048 (a): signing out and in again as uA creates an empty account (1 write); the second delete removes it and the Auth user', async () => {
+    const d = new Device(db);
+    await signIn(d);
+    await d.setCard('card a', 1);
+    await d.engine.flush();
+    d.auth.deleteResults = ['needs-recent-sign-in'];
+    d.auth.reauthResult = 'needs-sign-in';
+    expect(await d.engine.deleteAccount()).toBe('needs-sign-in');
+
+    expect(await d.engine.signOut()).toBe('ok');
+    expect((await d.log()).deletingUid ?? null).toBeNull();
+    db.resetCounts();
+    d.auth.recentSignIn = true;
+    await signIn(d);
+    expect(db.writes).toBe(1);
+    expect([...db.docs.keys()]).toEqual(['users/uA']);
+
+    expect(await d.engine.deleteAccount()).toBe('ok');
+    expect([...db.docs.keys()]).toEqual([]);
+    expect(d.auth.deletedUser).toBe(true);
+    expect(d.notices).toContain(MESSAGES.deletedOwn);
+  });
+});
