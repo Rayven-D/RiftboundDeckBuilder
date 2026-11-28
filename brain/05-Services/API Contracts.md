@@ -595,6 +595,14 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
     (sets `html.has-fab`: page-end clearance and snack bars above the button, `styles.scss`), `app-file-drop`,
     `app-import-pending` (the parsed list, "Not saved yet", moved from the removed Import page). The collection
     dialog title is "Add to your collection".
+- **Deletion step 3 text and collection size warning (v1.41, H-682 part 2, H-075; SPEC-010 0.21.0):**
+  `MESSAGES.reauthNeededAfterData` (SYNC-096 step 3 (b), `info`): shown instead of `MESSAGES.reauthNeeded` when every
+  document is deleted and the Auth delete's re-authentication returns `'needs-sign-in'`; step 1 keeps
+  `reauthNeeded`; `deleteAccount()` still returns `'needs-sign-in'`. SYNC-123: `PushPlan.collectionBytes?` (set when
+  the push writes `state/collection`; Firestore storage size of the whole document as this device leaves it, from
+  `collectionDocBytes(collection, log)` / `firestoreValueBytes(v)` in `push-plan.ts`); above
+  `COLLECTION_WARN_BYTES` (700 KB) the engine calls the new optional `EngineDeps.warn(message)` (default
+  `console.warn`) once per page load with `collectionSizeWarning(bytes)` (sizes only, no uid). No user notice.
 
 ## Collection page (H-086)
 Not an endpoint: the first web consumer of `GET /api/sets` and `GET /api/cards`, plus the pure
@@ -1086,3 +1094,6 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   `SignInGate.offerDeleteLocalData`, `BrowserStores.clearCollectionData()`, `COLLECTION_DATA_KEYS`. Changed:
   `gateState(log, runtime?)` (no mode parameter); `AUTH_PROVIDERS` moved to `core/sync/auth-providers.ts`. New
   "Browser cache" note (SYNC-140…146). Test helper `provideOpenGate()` (`core/sync/testing/open-gate.ts`).
+- v1.41 (2026-11-27, H-682 part 2, H-075, SPEC-010 0.21.0): no endpoint change and no stored-shape change.
+  `MESSAGES.reauthNeededAfterData` (SYNC-096 step 3 (b)); `PushPlan.collectionBytes?`, `collectionDocBytes`,
+  `firestoreValueBytes`, `COLLECTION_WARN_BYTES`, `collectionSizeWarning`, optional `EngineDeps.warn` (SYNC-123).
