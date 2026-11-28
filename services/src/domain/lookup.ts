@@ -1,4 +1,4 @@
-// CARD-033 (name lookup) and CARD-036 (set + collector-number lookup) over one snapshot.
+// CARD-033 / CARD-034 (name lookup) and CARD-036 (set + collector-number lookup) over one snapshot.
 import { collectorKey } from './collector.ts';
 import { compareCodePoint } from './compare.ts';
 import { nameKey } from './name-key.ts';
@@ -12,7 +12,9 @@ export interface PrintingRef {
 
 /**
  * Parses a public code `SET-NUMBER[suffix]` (e.g. `OGN-007a`, `RAD-SP1/005`) or a TTS token
- * `SET-NUMBER-COPY` (copy index dropped, e.g. `OGN-265-1`). Returns null if there is no `-`.
+ * `SET-NUMBER-ART` (e.g. `OGN-265-1`). The trailing TTS number is an art number, not a copy count
+ * (CARD-036 0.4.1); this parser drops it, and the importer applies its suffix hint (IMP-036a) before the lookup,
+ * so the lookup itself never needs it. Returns null if there is no `-`.
  */
 export function parsePublicCode(code: string): PrintingRef | null {
   const s = code.normalize('NFKC').trim();
@@ -25,9 +27,21 @@ export function parsePublicCode(code: string): PrintingRef | null {
   return { setCode, collectorNumber: rest };
 }
 
+/** CARD-034: `nameKey` output with one leading `a ` / `the ` token removed; unchanged if nothing would remain. */
+function dropArticle(key: string): string {
+  const m = /^(?:a|the) (.+)$/u.exec(key);
+  return m ? (m[1] as string) : key;
+}
+
+export type NameLookup =
+  | { status: 'found'; card: PlayableCard; method: 'exact' | 'article' }
+  | { status: 'ambiguous'; cardKeys: string[] }
+  | { status: 'not-found' };
+
 export class CardIndex {
   readonly snapshot: CardSnapshot;
   private readonly cardsByKey = new Map<string, PlayableCard>();
+  private readonly cardsByLoose = new Map<string, PlayableCard[]>();
   private readonly printingsById = new Map<string, Printing>();
   private readonly printingsByCollector = new Map<string, Printing[]>();
   private readonly compare: (a: Printing, b: Printing) => number;
@@ -35,7 +49,13 @@ export class CardIndex {
   constructor(snapshot: CardSnapshot) {
     this.snapshot = snapshot;
     this.compare = makePrintingComparator(new Map(snapshot.sets.map((s) => [s.code, s.setOrder])));
-    for (const c of snapshot.cards) this.cardsByKey.set(c.cardKey, c);
+    for (const c of snapshot.cards) {
+      this.cardsByKey.set(c.cardKey, c);
+      const loose = dropArticle(c.cardKey);
+      const list = this.cardsByLoose.get(loose);
+      if (list) list.push(c);
+      else this.cardsByLoose.set(loose, [c]);
+    }
     for (const p of snapshot.printings) {
       this.printingsById.set(p.printingId, p);
       const k = `${p.setCode}\u0000${p.collector.key}`;
@@ -45,9 +65,25 @@ export class CardIndex {
     }
   }
 
-  /** Exact name-key lookup (CARD-033); no fuzzy matching. Accepts a name or a cardKey. */
+  /**
+   * Name lookup (CARD-033, CARD-034): exact `nameKey` first (the article, if any, always matches); otherwise
+   * `looseKey` on both sides: one card is found (`article`), several are ambiguous, none is not-found. No fuzzy matching.
+   */
+  lookupName(nameOrKey: string): NameLookup {
+    const key = nameKey(nameOrKey);
+    const exact = this.cardsByKey.get(key);
+    if (exact) return { status: 'found', card: exact, method: 'exact' };
+    if (!key) return { status: 'not-found' };
+    const matches = this.cardsByLoose.get(dropArticle(key)) ?? [];
+    if (matches.length === 1) return { status: 'found', card: matches[0] as PlayableCard, method: 'article' };
+    if (matches.length > 1) return { status: 'ambiguous', cardKeys: matches.map((c) => c.cardKey).sort(compareCodePoint) };
+    return { status: 'not-found' };
+  }
+
+  /** The card for a name or cardKey, or undefined when not found or ambiguous (`lookupName` tells them apart). */
   findCard(nameOrKey: string): PlayableCard | undefined {
-    return this.cardsByKey.get(nameKey(nameOrKey));
+    const r = this.lookupName(nameOrKey);
+    return r.status === 'found' ? r.card : undefined;
   }
 
   printing(printingId: string): Printing | undefined {

@@ -97,8 +97,12 @@ async function route(url: URL, repo: CardRepository): Promise<{ status: number; 
       throw new HttpError(400, 'bad-request', 'cardKey is not valid URL encoding');
     }
     const index = await requireIndex(repo);
-    const card = index.findCard(key);
-    if (!card) throw new HttpError(404, 'not-found', `No card with cardKey "${key}"`);
+    const found = index.lookupName(key);
+    if (found.status === 'ambiguous') {
+      throw new HttpError(404, 'not-found', `"${key}" matches several cards: ${found.cardKeys.join(', ')}`);
+    }
+    if (found.status === 'not-found') throw new HttpError(404, 'not-found', `No card with cardKey "${key}"`);
+    const card = found.card;
     return { status: 200, body: { catalogVersion: index.snapshot.catalogVersion, card: withPrintings(index, card) } };
   }
   throw new HttpError(404, 'not-found', `No route for ${p}`);

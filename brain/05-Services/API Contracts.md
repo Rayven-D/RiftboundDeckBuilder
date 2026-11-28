@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.41
+version: 1.42
 ---
 # API Contracts
 
@@ -76,10 +76,11 @@ Playable cards sorted by `cardKey`, each with its printings in `printingSortKey`
 ### `GET /api/cards/:cardKey`
 One card by `cardKey`. The path value is passed through `nameKey` (CARD-030), so the canonical name
 also works (`/api/cards/Kai'Sa%2C%20Survivor`). No fuzzy matching or aliases (CARD-033).
-**As built: exact `nameKey` match only.** SPEC-001 0.4 CARD-033 / CARD-034 add a second step (retry with the
-leading "a" / "the" dropped on both sides; several matches give `ambiguous`) that `services/` does not do yet
-(H-648). Until then `/api/cards/Dreaming%20Tree` is `404` even if the card is "The Dreaming Tree". When H-648
-lands, this endpoint's article and `ambiguous` behaviour is written here first.
+Lookup is SPEC-001 CARD-033 / CARD-034 (H-648): exact `nameKey` match first (the article, if any, always
+matches); otherwise the leading "a" / "the" is dropped on both sides and one match is returned, so
+`/api/cards/Dreaming%20Tree` finds "The Dreaming Tree" and the reverse. If several cards share that loose key
+(e.g. `A Pit`, `The Pit`) the answer is `404 not-found` and the message lists the candidate `cardKey`s
+(no new code; the client retries with a full `cardKey`). No fuzzy matching or aliases.
 → `200 CardResponse` · `404 not-found` · `503 snapshot-unavailable`
 ```json
 {
@@ -594,6 +595,14 @@ Shapes are the SPEC-010 data contract ([[Accounts and Sync]]); TypeScript source
     (sets `html.has-fab`: page-end clearance and snack bars above the button, `styles.scss`), `app-file-drop`,
     `app-import-pending` (the parsed list, "Not saved yet", moved from the removed Import page). The collection
     dialog title is "Add to your collection".
+- **Deletion step 3 text and collection size warning (v1.41, H-682 part 2, H-075; SPEC-010 0.21.0):**
+  `MESSAGES.reauthNeededAfterData` (SYNC-096 step 3 (b), `info`): shown instead of `MESSAGES.reauthNeeded` when every
+  document is deleted and the Auth delete's re-authentication returns `'needs-sign-in'`; step 1 keeps
+  `reauthNeeded`; `deleteAccount()` still returns `'needs-sign-in'`. SYNC-123: `PushPlan.collectionBytes?` (set when
+  the push writes `state/collection`; Firestore storage size of the whole document as this device leaves it, from
+  `collectionDocBytes(collection, log)` / `firestoreValueBytes(v)` in `push-plan.ts`); above
+  `COLLECTION_WARN_BYTES` (700 KB) the engine calls the new optional `EngineDeps.warn(message)` (default
+  `console.warn`) once per page load with `collectionSizeWarning(bytes)` (sizes only, no uid). No user notice.
 
 ## Collection page (H-086)
 Not an endpoint: the first web consumer of `GET /api/sets` and `GET /api/cards`, plus the pure
@@ -1111,6 +1120,9 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   `SignInGate.offerDeleteLocalData`, `BrowserStores.clearCollectionData()`, `COLLECTION_DATA_KEYS`. Changed:
   `gateState(log, runtime?)` (no mode parameter); `AUTH_PROVIDERS` moved to `core/sync/auth-providers.ts`. New
   "Browser cache" note (SYNC-140…146). Test helper `provideOpenGate()` (`core/sync/testing/open-gate.ts`).
-- v1.41 (2026-11-27, H-093): no endpoint change. New "Keyword explanations engine" (SPEC-011 0.2.2):
+- v1.42 (2026-11-27, H-093): no endpoint change. New "Keyword explanations engine" (SPEC-011 0.2.2):
   `core/cards/keywords.ts`, `KEYWORD_INDEX` and `app-keyword-list`; the card dialog's Keywords section (hidden while
   the glossary is empty).
+- v1.41 (2026-11-27, H-682 part 2, H-075, SPEC-010 0.21.0): no endpoint change and no stored-shape change.
+  `MESSAGES.reauthNeededAfterData` (SYNC-096 step 3 (b)); `PushPlan.collectionBytes?`, `collectionDocBytes`,
+  `firestoreValueBytes`, `COLLECTION_WARN_BYTES`, `collectionSizeWarning`, optional `EngineDeps.warn` (SYNC-123).

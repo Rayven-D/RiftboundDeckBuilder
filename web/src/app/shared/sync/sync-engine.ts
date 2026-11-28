@@ -2,7 +2,7 @@ import type { StoredCollection, StoredDeckLocks, StoredTags, TagStore, UserDeck 
 import { GateState, gateState } from './gate';
 import { LocalSnapshot, MergeResult, mergePulled } from './merge';
 import type { NoticeKind } from './notice';
-import { PushPlan, applyPushSuccess, planAccountPush, planPush } from './push-plan';
+import { COLLECTION_WARN_BYTES, PushPlan, applyPushSuccess, planAccountPush, planPush } from './push-plan';
 import { reconcileCollection, reconcileDecks, reconcileLocks, reconcileTags } from './stamp';
 import { DAY_MS, cloneLog, emptySyncLog, itemRef, pendingCount } from './sync-log';
 import {
@@ -45,6 +45,9 @@ export const MESSAGES = {
   deleteNotDone: "Your account wasn't deleted.",
   reauthNeeded:
     'To delete your account, sign out, sign in again, then choose Delete account and data within 5 minutes.',
+  /** SYNC-096 step 3 (b), H-682 / H-684: every document is gone, the email-link Auth delete needs a fresh sign-in. */
+  reauthNeededAfterData:
+    'Your data was deleted. To finish deleting your account, sign out, sign in again, then choose Delete account and data within 5 minutes.',
   unreadable: "Some data on this device could not be read, so it isn't being synced.",
   invalid: "Some account data couldn't be read.",
   writeFailed: "Couldn't sync. Your changes are saved on this device. Try again.",
@@ -64,6 +67,10 @@ export function isSpentLinkError(e: unknown): boolean {
   const code = typeof e === 'object' && e !== null ? (e as { code?: unknown }).code : undefined;
   return typeof code === 'string' && SPENT_LINK_CODES.includes(code);
 }
+
+/** SYNC-123: the developer warning (sizes only, nothing about the account). */
+export const collectionSizeWarning = (bytes: number): string =>
+  `Rift Builder sync: the collection document is about ${Math.round(bytes / 1024)} KB, over the 700 KB budget (SYNC-123). Plan the bucket split (schemaVersion 2).`;
 
 /** SYNC-121 */
 export const PUSH_DEBOUNCE_MS = 2000;
@@ -114,6 +121,8 @@ export interface EngineDeps {
   withTabLock?: <T>(job: () => Promise<T>) => Promise<T>;
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (h: unknown) => void;
+  /** SYNC-123: a developer warning for RJ (default `console.warn`); never shown to the user, no account data. */
+  warn?: (message: string) => void;
 }
 
 type Problem = 'start' | 'unreadable' | 'invalid' | 'write' | 'too-large' | 'rejected' | 'read-denied';
@@ -135,6 +144,8 @@ export class SyncEngine {
   private syncing = false;
   private problem: { kind: Problem; message: string } | null = null;
   private lastPullAt: Ms | null = null;
+  /** SYNC-123: the size warning is logged once per page load. */
+  private warnedCollectionSize = false;
   private pushTimer: unknown = null;
   /** SYNC-035 / SYNC-126 (a) 4: fires when the earliest deck deletion's Undo window ends. */
   private undoTimer: unknown = null;
@@ -432,9 +443,13 @@ export class SyncEngine {
     const gen = this.generation;
     this.deleting = true;
     this.cancelTimer();
-    const reauth = async (): Promise<'ok' | 'cancelled' | 'needs-sign-in'> => {
+    // `dataGone`: step 3, every document is already deleted (SYNC-096 step 3 (b)); step 1 keeps its own text.
+    // The cancelled-Google text of step 3 (a) is shelved with Google sign-in (RJ 2026-11-27, H-684).
+    const reauth = async (dataGone = false): Promise<'ok' | 'cancelled' | 'needs-sign-in'> => {
       const r = await this.auth!.reauthenticate();
-      if (r === 'needs-sign-in') this.deps.notify(MESSAGES.reauthNeeded, 'info');
+      if (r === 'needs-sign-in') {
+        this.deps.notify(dataGone ? MESSAGES.reauthNeededAfterData : MESSAGES.reauthNeeded, 'info');
+      }
       else if (r === 'cancelled') this.deps.notify(MESSAGES.deleteNotDone, 'success');
       return r;
     };
@@ -467,7 +482,7 @@ export class SyncEngine {
       // (3) the Auth user, only after every document is gone
       let d = await this.auth.deleteUser();
       if (d === 'needs-recent-sign-in') {
-        const again = await reauth();
+        const again = await reauth(true);
         if (again !== 'ok') return again;
         d = await this.auth.deleteUser();
         if (d !== 'ok') {
@@ -701,6 +716,15 @@ export class SyncEngine {
     return true;
   }
 
+  /** SYNC-123 (SHOULD): a collection document above 700 KB logs one warning (the bucket split is the way out). */
+  private warnCollectionSize(plan: PushPlan): void {
+    const bytes = plan.collectionBytes;
+    if (this.warnedCollectionSize || bytes === undefined || bytes <= COLLECTION_WARN_BYTES) return;
+    this.warnedCollectionSize = true;
+    const warn = this.deps.warn ?? ((m: string) => console.warn(m));
+    warn(collectionSizeWarning(bytes));
+  }
+
   /** Push (SYNC-043). Returns true when every planned document was written. */
   private async pushPending(extra: { accountOnly?: NonNullable<PushChanges['account']> } = {}): Promise<boolean> {
     if (this.deletionPending) return false;
@@ -718,6 +742,7 @@ export class SyncEngine {
           return planPush(snap.local, log, { now, readOnly: [...this.readOnlyAreas], account });
         });
     this.scheduleUndoWindow();
+    this.warnCollectionSize(plan);
     if (plan.tooLarge.length) this.setProblem('too-large', MESSAGES.tooLarge);
     if (plan.empty) {
       this.emit();
