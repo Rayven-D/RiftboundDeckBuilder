@@ -21,7 +21,7 @@ Bo3 using the 1v1 Match mode), **Limited** (Sealed, Draft) and **2v2** (Construc
 currently produced are legal in Standard. **Rotation starts at the start of 2028** (Rules Hub and Riot's
 Organized Play FAQ, rechecked 2026-11-24). The Tournament Rules' generic "most recent 5–8 sets" wording
 does not change that. **Recommendation for MVP:
-support Standard Constructed only**, with 2v2 as a later option. Limited decks aren't "meta decks".
+support Standard Constructed only**, with 2v2 as a later option (superseded 2026-11-28: RJ wants multi-format and 2v2, see [[Format Catalog]] for all formats, 2v2 team rules and SPEC-002 inputs). Limited decks aren't "meta decks".
 
 ## Facts
 | # | Fact | Source | As of |
