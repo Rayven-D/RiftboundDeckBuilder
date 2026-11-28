@@ -142,7 +142,9 @@ test('check 1 / S1: at the very top the page stays at the top; deep in a section
   await expect(page.locator('.section-nav a[aria-current="location"]')).toHaveAttribute('data-zone', 'main');
 });
 
-test('check 2 / check 3 / S2 (375): a link in the sheet fades the sheet out with the old page; Back fades it in place, the page behind instant', async ({ page }) => {
+// Check 2 (the sheet fading out with the old page on a link) is not built: keeping the dialog in the route transition's
+// picture crashed Chromium's renderer on a deck-to-deck link (H-717). The link closes the sheet at once, as in H-699.
+test('check 3 / S2 (375): Back to a sheet reopened from history: the page behind is instant, the sheet fades in place', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await openDeck(page, PHONE);
@@ -154,8 +156,6 @@ test('check 2 / check 3 / S2 (375): a link in the sheet fades the sheet out with
   await page.waitForURL(/\/collection\?q=/);
   await expect(page.locator('mat-dialog-container')).toHaveCount(0);
   let [rec] = await vts(page);
-  // The sheet is in the route transition's "before" picture and sinks / fades there; the new page rises in.
-  expect(rec.anims).toContain('::view-transition-old(card-overlay):overlay-out');
   expect(rec.anims).toContain('::view-transition-new(main):route-in');
 
   await page.waitForTimeout(400);
@@ -224,16 +224,25 @@ test('check 6 / S5 (1-2): an ownership chip moves no other chip; the active-filt
       expect(Math.abs(w - start[j][1])).toBeLessThanOrEqual(0.5);
     });
   }
-  // The row is open now (an ownership filter is on); it reached its height over a transition, not in one frame.
   await page.waitForTimeout(400);
-  const open = (await reveal.boundingBox())!.height;
-  expect(open).toBeGreaterThan(20);
+  expect((await reveal.boundingBox())!.height).toBeGreaterThan(20);
+  // With view transitions the row is its own clipped group that opens and closes with the tiles (S5 (3)).
+  await clearVts(page);
   await page.locator('.own-chip').first().click(); // All: no filter
-  const mid = await page.waitForFunction(() => document.querySelector('.active-filters-reveal')!.getBoundingClientRect().height, undefined, { polling: 'raf' });
-  expect(await mid.jsonValue()).toBeGreaterThan(0); // still closing in the first frame
   await page.waitForTimeout(400);
+  const [rec] = await vts(page);
+  expect(rec.anims.some((a) => a.startsWith('::view-transition-group(deck-filter-row)'))).toBe(true);
   expect((await reveal.boundingBox())!.height).toBe(0);
   await expect(reveal).toHaveAttribute('inert', '');
+  // Without them (older browsers) the row's own height transition does it: still closing a frame after the tap.
+  await page.evaluate(() => delete (Document.prototype as { startViewTransition?: unknown }).startViewTransition);
+  await page.locator('.own-chip').nth(1).click();
+  await page.waitForTimeout(400);
+  await page.locator('.own-chip').first().click();
+  const mid = await page.evaluate(() => new Promise<number>((r) => requestAnimationFrame(() => r(document.querySelector('.active-filters-reveal')!.getBoundingClientRect().height))));
+  expect(mid).toBeGreaterThan(0);
+  await page.waitForTimeout(400);
+  expect((await reveal.boundingBox())!.height).toBe(0);
 });
 
 test('check 8 / S7 (1440): a dialog rises from 98% (never zooms from 80%); the exit is 120 ms', async ({ page }) => {
@@ -286,4 +295,175 @@ test('check 18 (reduced motion): Card ↔ List keeps the anchor and starts no vi
   expect(Math.abs((await headingTop(page, 'main')) - before)).toBeLessThanOrEqual(4);
   expect(await vts(page)).toEqual([]);
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+});
+
+// ---------------------------------------------------------------- P2
+
+test('check 4 / S3: the theme toggle cross-fades the whole page at once (one --dur-med fade, nothing moves), both ways', async ({ page }) => {
+  await page.setViewportSize(DESKTOP);
+  await seedStorage(page, seed);
+  await page.goto('/decks');
+  await expect(page.locator('app-deck-tile').first()).toBeVisible();
+  await dismissNotices(page);
+  for (let i = 0; i < 2; i++) {
+    const before = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+    await clearVts(page);
+    await page.locator('.theme-toggle').click();
+    await page.waitForTimeout(400);
+    expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).not.toBe(before);
+    const [rec] = await vts(page);
+    expect(rec.cls).toContain('vt-theme');
+    expect(rec.anims).toContain('::view-transition-old(root):route-out');
+    expect(rec.anims).toContain('::view-transition-new(root):fade-in');
+    expect(rec.anims).toContain('::view-transition-new(site-header):fade-in');
+    // No group moves, and no part runs on its own timing (every old / new pair is the same fade).
+    expect(rec.anims.filter((a) => a.startsWith('::view-transition-group'))).toEqual([]);
+    expect(rec.anims.every((a) => /:(route-out|fade-in)$/.test(a))).toBe(true);
+  }
+});
+
+test('check 6 / S5 (3): an ownership chip moves the tiles (named groups); typing in search animates nothing', async ({ page }) => {
+  await page.setViewportSize(DESKTOP);
+  await seedStorage(page, seed);
+  await page.goto('/decks');
+  await expect(page.locator('app-deck-tile').first()).toBeVisible();
+  await dismissNotices(page);
+  await clearVts(page);
+  await page.locator('.own-chip').nth(2).click();
+  await page.waitForTimeout(400);
+  const [rec] = await vts(page);
+  expect(rec.cls).toContain('vt-list');
+  expect(rec.anims.some((a) => /^::view-transition-(group|old|new)\(deck-/.test(a))).toBe(true);
+  expect(rec.anims.filter((a) => /\((main|site-footer)\)/.test(a))).toEqual([]);
+  // The names are taken off again after the transition.
+  expect(await page.locator('.deck-grid > li').evaluateAll((els) => els.filter((e) => (e as HTMLElement).style.viewTransitionName).length)).toBe(0);
+  await clearVts(page);
+  await page.locator('.deck-toolbar input').first().fill('Deck');
+  await page.waitForTimeout(500);
+  expect(await vts(page)).toEqual([]);
+});
+
+for (const vp of [
+  { name: 'sheet 375', ...PHONE },
+  { name: 'dialog 768', width: 768, height: 900 },
+]) {
+  test(`check 7 / S6 (${vp.name}): Next enters from the right, Previous from the left (12 px, --dur-med); rapid clicks never queue`, async ({ page }) => {
+    await openDeck(page, vp);
+    await page.locator('[data-card]').nth(2).click();
+    await expect(page.locator('mat-dialog-container')).toBeVisible();
+    await page.waitForTimeout(350);
+    const bar = vp.width <= 640 ? page.locator('.step-bar') : page.locator('.head');
+    const enter = () =>
+      page.locator('app-deck-card-dialog app-deck-card-content').evaluate((el) =>
+        el.getAnimations().map((a) => {
+          const k = (a.effect as KeyframeEffect).getKeyframes();
+          return { from: String(k[0]['transform']), duration: (a.effect as KeyframeEffect).getTiming().duration };
+        }),
+      );
+    await bar.getByRole('button', { name: 'Next card' }).click();
+    expect(await enter()).toEqual([{ from: 'translateX(12px)', duration: 220 }]);
+    await bar.getByRole('button', { name: 'Previous card' }).click();
+    expect(await enter()).toEqual([{ from: 'translateX(-12px)', duration: 220 }]);
+    for (let i = 0; i < 3; i++) await bar.getByRole('button', { name: 'Next card' }).click();
+    expect((await enter()).length).toBeLessThanOrEqual(1);
+  });
+}
+
+test('check 12 / S10: the header tab underline moves from the old tab to the new one; from Home it fades in', async ({ page }) => {
+  await page.setViewportSize(DESKTOP);
+  await seedStorage(page, seed);
+  await page.goto('/');
+  await expect(page.locator('.site-footer')).toBeVisible();
+  await clearVts(page);
+  await page.locator('.site-nav a[href="/decks"]').click();
+  await page.waitForURL(/\/decks$/);
+  await page.waitForTimeout(400);
+  let [rec] = await vts(page);
+  expect(rec.anims.some((a) => a.startsWith('::view-transition-new(nav-indicator)'))).toBe(true);
+  expect(rec.anims.some((a) => a.startsWith('::view-transition-group(nav-indicator)'))).toBe(false);
+  await clearVts(page);
+  await page.locator('.site-nav a[href="/collection"]').click();
+  await page.waitForURL(/\/collection$/);
+  await page.waitForTimeout(400);
+  [rec] = await vts(page);
+  expect(rec.anims.some((a) => a.startsWith('::view-transition-group(nav-indicator)'))).toBe(true);
+  // Only the active tab carries the name (one underline).
+  expect(
+    await page.locator('.site-nav .nav-indicator').evaluateAll((els) => els.filter((e) => getComputedStyle(e).viewTransitionName !== 'none').length),
+  ).toBe(1);
+});
+
+test('check 12 / S10 (375): the phone tab bar marker moves between tabs', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await seedStorage(page, seed);
+  await page.goto('/decks');
+  await expect(page.locator('app-deck-tile').first()).toBeVisible();
+  await clearVts(page);
+  await page.locator('.tab-bar a[href="/collection"]').click();
+  await page.waitForURL(/\/collection$/);
+  await page.waitForTimeout(400);
+  const [rec] = await vts(page);
+  expect(rec.anims.some((a) => a.startsWith('::view-transition-group(tab-indicator)'))).toBe(true);
+});
+
+test('check 13 / S11 (375): the FAB label narrows and fades on scroll, its accessible name unchanged; it fades in with each page', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await seedStorage(page, seed);
+  await page.goto('/decks');
+  await expect(page.locator('app-deck-tile').first()).toBeVisible();
+  const fab = page.locator('button.page-fab');
+  await expect(fab).toBeVisible();
+  const name = (await fab.innerText()).trim();
+  await page.mouse.move(180, 400);
+  await page.mouse.wheel(0, 600);
+  await expect(fab).toHaveClass(/collapsed/);
+  // The label eases to 0 width (several frames in between), it does not snap.
+  const widths = await page.locator('button.page-fab .label').evaluate(
+    (el) =>
+      new Promise<number[]>((resolve) => {
+        const out: number[] = [];
+        const t0 = performance.now();
+        const tick = () => {
+          out.push(el.getBoundingClientRect().width);
+          if (performance.now() - t0 < 400) requestAnimationFrame(tick);
+          else resolve(out);
+        };
+        tick();
+      }),
+  );
+  expect(widths.at(-1)).toBe(0);
+  await expect(fab).toHaveAccessibleName(name);
+  await page.mouse.wheel(0, -3000);
+  await expect(fab).not.toHaveClass(/collapsed/);
+  await page.waitForTimeout(300);
+  await clearVts(page);
+  // Collection's button waits for its 5,000 entries, so it is not in the route change's new picture: the old one fades
+  // out with the page, and the new one plays its own arrival (60 ms, 92% → 100%) when it comes.
+  const arrived = page.waitForFunction(() => document.querySelector('app-collection-page button.page-fab')?.classList.contains('arriving'), undefined, { polling: 'raf' });
+  await page.locator('.tab-bar a[href="/collection"]').click();
+  await page.waitForURL(/\/collection$/);
+  await arrived;
+  const [rec] = await vts(page);
+  expect(rec.anims).toContain('::view-transition-old(page-fab):route-out');
+  // Back to Decks: the same, never a pop.
+  await page.waitForTimeout(400);
+  const again = page.waitForFunction(() => document.querySelector('app-decks-page button.page-fab')?.classList.contains('arriving'), undefined, { polling: 'raf' });
+  await page.locator('.tab-bar a[href="/decks"]').click();
+  await page.waitForURL(/\/decks$/);
+  await again;
+});
+
+test('check 18 (reduced motion): the theme toggle and an ownership chip start no view transition; nothing animates', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize(DESKTOP);
+  await seedStorage(page, seed);
+  await page.goto('/decks');
+  await expect(page.locator('app-deck-tile').first()).toBeVisible();
+  await dismissNotices(page);
+  await clearVts(page);
+  await page.locator('.theme-toggle').click();
+  await page.locator('.own-chip').nth(1).click();
+  await page.waitForTimeout(100);
+  expect(await vts(page)).toEqual([]);
+  expect(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length)).toBe(0);
 });

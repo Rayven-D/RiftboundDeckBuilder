@@ -31,3 +31,33 @@ export function tokenTransition(
  * the initial bundle, +29 kB). Keep in step with the tokens.
  */
 export const DIALOG_MOTION = { enterAnimationDuration: '220ms', exitAnimationDuration: '120ms' } as const;
+
+const ENTER_ID = 'h716-enter';
+
+/**
+ * Brief H-716 S6: one short enter of `el` (opacity from 0, optionally from an offset) with the Web Animations API,
+ * timed by the tokens read from `el`. `shift` is a distance token (`--move-shift`, `--move-rise`) or px, signed by
+ * `sign` (-1 = from the left / above). A new call restarts it (never queued). Nothing under reduced motion.
+ */
+export function playEnter(
+  el: Element | null | undefined,
+  opts: { axis?: 'x' | 'y'; shift?: string; sign?: 1 | -1; dur?: '--dur-fast' | '--dur-med' } = {},
+): void {
+  if (!el || typeof (el as HTMLElement).animate !== 'function') return;
+  if (el.ownerDocument.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true) return;
+  for (const a of el.getAnimations?.() ?? []) if (a.id === ENTER_ID) a.cancel();
+  const style = getComputedStyle(el);
+  const ms = cssMs(style.getPropertyValue(opts.dur ?? '--dur-med').trim());
+  if (ms <= 0) return;
+  const from: Keyframe = { opacity: 0 };
+  if (opts.axis && opts.shift) {
+    const raw = opts.shift.startsWith('--') ? style.getPropertyValue(opts.shift).trim() : opts.shift;
+    const d = `${(opts.sign ?? 1) < 0 ? '-' : ''}${raw}`;
+    from['transform'] = opts.axis === 'x' ? `translateX(${d})` : `translateY(${d})`;
+  }
+  const a = (el as HTMLElement).animate([from, { opacity: 1, transform: 'none' }], {
+    duration: ms,
+    easing: style.getPropertyValue('--ease-enter').trim() || 'ease-out',
+  });
+  a.id = ENTER_ID;
+}

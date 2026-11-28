@@ -1,7 +1,5 @@
 import { DestroyRef, ElementRef, inject, signal } from '@angular/core';
 import { MatDialogConfig, MatDialogRef } from '@angular/material/dialog';
-import { ActivationEnd, Event as RouterEvent, NavigationCancel, NavigationEnd, NavigationError, NavigationSkipped, Router } from '@angular/router';
-import { filter, take } from 'rxjs';
 import { CloseOnBackOptions, DialogHistory, closeOnBack } from '../dialog-history';
 import { DIALOG_MOTION, cssMs } from '../motion';
 
@@ -27,8 +25,6 @@ export const SWIPE_CLOSE_VELOCITY = 0.5;
 const DRAG_SLOP_PX = 6;
 /** Upward rubber band, at most. */
 const RUBBER_BAND_PX = 8;
-/** H-716 S2: a followed link closes the dialog with the page swap, or after this long at the latest. */
-const LEAVE_FALLBACK_MS = 3000;
 
 /** Desktop / tablet sizes, as each page has them today (unchanged by H-699). */
 export interface CardDialogSize {
@@ -143,7 +139,6 @@ export class CardSheet {
   readonly scrolled = signal(false);
   readonly history: DialogHistory;
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
-  private readonly router = inject(Router);
   private closing = false;
   private drag: {
     id: number;
@@ -238,50 +233,6 @@ export class CardSheet {
     };
     pane.addEventListener('transitionend', (e) => e.target === pane && e.propertyName === 'transform' && finish());
     setTimeout(finish, time + 60); // no transitionend (e.g. the transform did not change)
-  }
-
-  /**
-   * Brief H-716 S2: a link in the dialog was followed. The dialog stays as it is until the router swaps the page (the
-   * route's view transition has then taken its "before" picture with the dialog in it), and closes in that same
-   * update, so the route transition fades it out (`card-overlay`, styles.scss) while the new page rises in. Nothing
-   * animates the overlay itself while the transition runs (that crashed Chromium in the H-699 e2e). Without view
-   * transitions, or under reduced motion, it closes at once, as before.
-   */
-  leave(close: () => void): void {
-    if (this.closing) return;
-    this.closing = true;
-    const doc = this.host.ownerDocument;
-    if (typeof doc.startViewTransition !== 'function' || reducedMotion()) {
-      close();
-      return;
-    }
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      sub.unsubscribe();
-      clearTimeout(timer);
-      // The CDK fades the backdrop out over its own 400 ms; the route transition already shows it leaving.
-      const all = doc.querySelectorAll<HTMLElement>('.cdk-overlay-backdrop');
-      const backdrop = all.item(all.length - 1);
-      if (backdrop) backdrop.style.display = 'none';
-      close();
-    };
-    const sub = this.router.events
-      .pipe(
-        filter(
-          (e: RouterEvent) =>
-            e instanceof ActivationEnd ||
-            e instanceof NavigationEnd ||
-            e instanceof NavigationCancel ||
-            e instanceof NavigationError ||
-            e instanceof NavigationSkipped,
-        ),
-        take(1),
-      )
-      .subscribe(finish);
-    // Never left open: a navigation that does not come (or a lazy page that takes long) closes it anyway.
-    const timer = setTimeout(finish, LEAVE_FALLBACK_MS);
   }
 
   /** Closes without the exit animation. */

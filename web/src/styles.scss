@@ -682,19 +682,38 @@ h1 {
   animation: fade-in var(--dur-med) var(--ease-enter) both;
 }
 
-/* Brief H-716 S2: a card dialog left by a link in it sinks a little and fades with the old page (CardSheet.leave keeps
- * it open until the page swaps). Only the "before" picture exists: the dialog is closed in the new page. */
-.cdk-overlay-container > :has(> .card-dialog-panel) {
-  view-transition-name: card-overlay;
-}
-
-::view-transition-group(card-overlay) {
-  animation: none;
+/* Brief H-716 S10: the active tab's indicator (header underline, phone tab-bar marker) slides from the old tab to the
+ * new one, above the still header and tab bar. From Home (no active tab) it fades in; to Home it fades out. */
+::view-transition-group(nav-indicator),
+::view-transition-group(tab-indicator) {
+  animation-duration: var(--dur-med);
+  animation-timing-function: var(--ease-out);
   z-index: 2;
 }
 
-::view-transition-old(card-overlay) {
-  animation: overlay-out var(--dur-fast) var(--ease-out) both;
+::view-transition-old(nav-indicator),
+::view-transition-new(nav-indicator),
+::view-transition-old(tab-indicator),
+::view-transition-new(tab-indicator) {
+  animation-duration: var(--dur-med);
+  animation-timing-function: var(--ease-out);
+}
+
+/* Brief H-716 S11: the page's floating button. The old one fades out on --dur-fast; the new one plays its own arrival
+ * (page-fab.ts: from 92%, 60 ms after the page, also when it only comes once the page has its data). Between two
+ * pages that both have one, its group also morphs from the old size and place on --dur-med. */
+::view-transition-group(page-fab) {
+  animation-duration: var(--dur-med);
+  animation-timing-function: var(--ease-out);
+  z-index: 1;
+}
+
+::view-transition-old(page-fab) {
+  animation: route-out var(--dur-fast) var(--ease-out) both;
+}
+
+::view-transition-new(page-fab) {
+  animation: none;
 }
 
 /* Same-route navigations (only the query changed) swap instantly (app.config.ts, H-095), and so does the page behind a
@@ -739,18 +758,107 @@ html.vt-view-swap::view-transition-new(site-footer) {
   animation: none;
 }
 
+/* Brief H-716 S5 (3) (decks-page.ts listTransition): a filter, lock or sort change you made. The page itself does not
+ * fade; the tiles in or near the viewport (named there, at most 24, class deck-tile) move to their new places, tiles
+ * that leave fade out, tiles that arrive fade in 60 ms later from 98%. The active-filter row is its own clipped group,
+ * so it opens or closes with the move (its own transition is off meanwhile, so the tiles land where the row ends). */
+html.vt-list .active-filters-reveal {
+  view-transition-name: deck-filter-row;
+  transition: none;
+
+  .active-filters {
+    transition: none;
+  }
+}
+
+html.vt-list::view-transition-old(main),
+html.vt-list::view-transition-new(main),
+html.vt-list::view-transition-old(site-footer),
+html.vt-list::view-transition-new(site-footer),
+html.vt-list-fade::view-transition-old(site-footer),
+html.vt-list-fade::view-transition-new(site-footer) {
+  animation: none;
+}
+
+/* Rules with a view-transition class (*.deck-tile) stay on their own: a browser without classes drops the whole rule. */
+html.vt-list::view-transition-group(*.deck-tile) {
+  animation-duration: var(--dur-med);
+  animation-timing-function: var(--ease-out);
+}
+
+html.vt-list::view-transition-old(*.deck-tile),
+html.vt-list::view-transition-new(*.deck-tile) {
+  animation-duration: var(--dur-med);
+  animation-timing-function: var(--ease-out);
+}
+
+html.vt-list::view-transition-group(deck-filter-row) {
+  overflow: clip;
+  animation-duration: var(--dur-med);
+  animation-timing-function: var(--ease-out);
+}
+
+html.vt-list::view-transition-old(deck-filter-row),
+html.vt-list::view-transition-new(deck-filter-row) {
+  animation-duration: var(--dur-med);
+  animation-timing-function: var(--ease-out);
+}
+
+html.vt-list::view-transition-old(*.deck-tile):only-child {
+  animation: route-out var(--dur-fast) var(--ease-out) both;
+}
+
+html.vt-list::view-transition-new(*.deck-tile):only-child {
+  animation: tile-in var(--dur-fast) var(--ease-out) 60ms both;
+}
+
+/* Too many tiles, the list jumping back to its top, or the phone Filters dialog's Show: the list cross-fades, no rise. */
+html.vt-list-fade::view-transition-old(main) {
+  animation: route-out var(--dur-fast) var(--ease-out) both;
+}
+
+html.vt-list-fade::view-transition-new(main) {
+  animation: fade-in var(--dur-med) var(--ease-enter) both;
+}
+
+/* Brief H-716 S3 (theme-toggle.ts): the whole page changes theme in one cross-fade on --dur-med; nothing moves (every
+ * group still) and no part runs its own colour transition meanwhile (the icon's swap is an animation and stays).
+ * Without view transitions, or under reduced motion, theme-switching turns every transition off for two frames, so
+ * the page changes in one frame instead of the header fading on its own. */
+html.vt-theme,
+html.theme-switching {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
+}
+
+html.vt-theme::view-transition-group(*) {
+  animation: none;
+}
+
+html.vt-theme::view-transition-old(*) {
+  animation: route-out var(--dur-med) var(--ease-out) both;
+}
+
+html.vt-theme::view-transition-new(*) {
+  animation: fade-in var(--dur-med) var(--ease-out) both;
+}
+
+@keyframes tile-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
   }
 }
 
-@keyframes overlay-out {
-  to {
-    opacity: 0;
-    transform: translateY(var(--move-rise));
-  }
-}
 
 @keyframes route-out {
   to {

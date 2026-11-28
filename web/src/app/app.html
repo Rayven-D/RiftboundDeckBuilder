@@ -7,9 +7,10 @@
       <ul>
         @for (item of nav; track item.path) {
           <li>
-            <a [routerLink]="item.path" routerLinkActive="active" ariaCurrentWhenActive="page">{{
-              item.label
-            }}</a>
+            <!-- Brief H-716 S10: the active underline is a real element, so a route change can move it to the new tab. -->
+            <a [routerLink]="item.path" routerLinkActive="active" ariaCurrentWhenActive="page"
+              >{{ item.label }}<span class="nav-indicator" aria-hidden="true"></span
+            ></a>
           </li>
         }
       </ul>
@@ -62,6 +63,7 @@
     @for (item of tabs; track item.path) {
       <li>
         <a [routerLink]="item.path" routerLinkActive="active" ariaCurrentWhenActive="page">
+          <span class="tab-indicator" aria-hidden="true"></span>
           <span class="tab-icon"><app-icon [name]="item.icon" /></span>
           <span class="tab-label">{{ item.label }}</span>
         </a>

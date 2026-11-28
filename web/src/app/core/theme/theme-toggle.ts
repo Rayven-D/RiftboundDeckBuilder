@@ -1,6 +1,8 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { ApplicationRef, Component, computed, inject, signal } from '@angular/core';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Icon } from '../../shared/icon';
+import { canAnimate, startScopedTransition } from '../../shared/scoped-transition';
 import { ThemeService } from './theme.service';
 
 /**
@@ -87,8 +89,32 @@ export class ThemeToggle {
   /** The icon animates only after the user toggles, not on the first paint or a reload. */
   protected readonly swapped = signal(false);
 
+  private readonly doc = inject(DOCUMENT);
+  private readonly appRef = inject(ApplicationRef);
+
+  /**
+   * Brief H-716 S3: the page, header, tab bar and footer change together in one cross-fade (`vt-theme`, styles.scss).
+   * Without view transitions or under reduced motion: `theme-switching` turns transitions off for two frames, so
+   * everything changes in the same frame.
+   */
   protected toggle(): void {
     this.swapped.set(true);
+    if (canAnimate(this.doc)) {
+      void startScopedTransition(
+        () => {
+          this.theme.toggle();
+          this.appRef.tick();
+        },
+        'vt-theme',
+        this.doc,
+      );
+      return;
+    }
+    const root = this.doc.documentElement;
+    root.classList.add('theme-switching');
     this.theme.toggle();
+    const raf = this.doc.defaultView?.requestAnimationFrame?.bind(this.doc.defaultView);
+    if (raf) raf(() => raf(() => root.classList.remove('theme-switching')));
+    else root.classList.remove('theme-switching');
   }
 }

@@ -1,6 +1,7 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { DOCUMENT, Location } from '@angular/common';
 import {
+  ApplicationRef,
   Component,
   DestroyRef,
   ElementRef,
@@ -74,6 +75,7 @@ import { IMPORT_PARAMS, dialogOpener, importFocusTarget, launchDecision } from '
 import { PageFab } from '../../shared/page-fab';
 import { DeckFiltersDialog, DeckFiltersDialogData } from './deck-filters-dialog';
 import { DIALOG_MOTION } from '../../shared/motion';
+import { canAnimate, startScopedTransition } from '../../shared/scoped-transition';
 
 /** SPEC-005 OWN-008 (v0.7) empty state. */
 export const DECKS_EMPTY = {
@@ -104,6 +106,8 @@ const STANDARD: FormatName = { id: 'standard', name: 'Standard' };
 
 const PHONE = '(max-width: 40rem)';
 const SEARCH_DEBOUNCE_MS = 150;
+/** Brief H-716 §6.3: at most this many deck tiles carry a view-transition name in one list transition. */
+const MAX_NAMED_TILES = 24;
 const SKELETON_DELAY_MS = 200;
 const EMPTY_TAGS: StoredTags = { schemaVersion: 3, updatedAt: '', tags: [], assignments: {} };
 const EMPTY_CODES: StoredPrintingCodes = { schemaVersion: 1, updatedAt: '', codes: {} };
@@ -177,6 +181,7 @@ export class DecksPage {
   private readonly sentinel = viewChild<ElementRef<HTMLElement>>('sentinel');
   private readonly doc = inject(DOCUMENT);
   private readonly injector = inject(Injector);
+  private readonly appRef = inject(ApplicationRef);
   private readonly destroyRef = inject(DestroyRef);
   /** A dialog can close after the page is gone (navigation, test teardown): then nothing is focused. */
   private destroyed = false;
@@ -419,19 +424,86 @@ export class DecksPage {
 
   // ---------------------------------------------------------------- query and URL
 
-  private setQuery(q: DeckListQuery, mirror = true): void {
+  /**
+   * Brief H-716 S5 (3): a filter, lock or sort change you made moves the tiles to their new places (`vt-list`); typing
+   * in the search field and URL-driven changes stay instant. `tiles: false` (the phone Filters dialog's Show) only
+   * cross-fades the list. The returned promise resolves once the change is in the DOM: true when that happened inside
+   * a view transition (the DOM is already rendered then), false when it was applied directly.
+   */
+  private setQuery(q: DeckListQuery, mirror = true, tiles = true): Promise<boolean> {
     clearTimeout(this.debounce);
-    this.searchText.set(q.text);
     const before = this.query();
-    this.query.set(q);
-    if (!mirror) return;
-    this.mirrorUrl();
-    if (JSON.stringify(before) !== JSON.stringify(q)) this.scrollListToTop();
+    const changed = JSON.stringify(before) !== JSON.stringify(q);
+    const apply = () => {
+      this.searchText.set(q.text);
+      this.query.set(q);
+      if (!mirror) return;
+      this.mirrorUrl();
+      if (changed) this.scrollListToTop();
+    };
+    const typing = JSON.stringify({ ...before, text: '' }) === JSON.stringify({ ...q, text: '' });
+    if (!mirror || !changed || typing || this.phase() !== 'ready') {
+      apply();
+      return Promise.resolve(false);
+    }
+    return this.listTransition(apply, tiles);
   }
 
-  protected patchQuery(patch: Partial<DeckListQuery>): void {
+  /** Runs `apply` in the S5 (3) list transition, or directly when nothing may animate (startScopedTransition). */
+  private listTransition(apply: () => void, tiles: boolean): Promise<boolean> {
+    if (!canAnimate(this.doc)) {
+      apply();
+      return Promise.resolve(false);
+    }
+    const win = this.doc.defaultView!;
+    const named = new Set<HTMLElement>();
+    const clear = () => {
+      for (const li of named) {
+        li.style.removeProperty('view-transition-name');
+        li.style.removeProperty('view-transition-class');
+      }
+      named.clear();
+    };
+    /** Names the tiles in or near the viewport; false once more would need a name than the budget allows (§6.3). */
+    const nameNear = (): boolean => {
+      for (const li of this.doc.querySelectorAll<HTMLElement>('.deck-grid > li[data-deck]')) {
+        if (named.has(li)) continue;
+        const r = li.getBoundingClientRect();
+        if (r.bottom < -win.innerHeight / 2 || r.top > win.innerHeight * 1.5) continue;
+        if (named.size >= MAX_NAMED_TILES) return false;
+        li.style.setProperty('view-transition-name', `deck-${(li.dataset['deck'] ?? '').replace(/[^\w-]/g, '_')}`);
+        li.style.setProperty('view-transition-class', 'deck-tile');
+        named.add(li);
+      }
+      return true;
+    };
+    // The list jumps back to its top with the change (scrollListToTop): tiles moving across that would fly, so fade.
+    let mode = tiles && win.scrollY <= this.listTop() ? 'vt-list' : 'vt-list-fade';
+    if (mode === 'vt-list' && !nameNear()) {
+      clear();
+      mode = 'vt-list-fade';
+    }
+    return startScopedTransition(
+      () => {
+        apply();
+        this.appRef.tick();
+        // Tiles that come into view are named too, so they fade in on their own (past the budget they ride in <main>).
+        if (mode === 'vt-list') nameNear();
+      },
+      mode,
+      this.doc,
+      clear,
+    ).then(() => true);
+  }
+
+  /** Focus work after a query change, once the change is in the DOM (S5 (3): it may run in a view transition). */
+  private afterQuery(applied: Promise<boolean>, fn: () => void): void {
+    void applied.then((rendered) => (rendered ? fn() : afterNextRender(fn, { injector: this.injector })));
+  }
+
+  protected patchQuery(patch: Partial<DeckListQuery>, tiles = true): Promise<boolean> {
     this.urlNotice.set(null);
-    this.setQuery({ ...this.query(), ...patch });
+    return this.setQuery({ ...this.query(), ...patch }, true, tiles);
   }
 
   /**
@@ -470,9 +542,9 @@ export class DecksPage {
     else this.searchInput()?.nativeElement.blur();
   }
 
-  protected setOwn(own: OwnOption | null): void {
-    if (this.ownershipDisabled()) return;
-    this.patchQuery({ own });
+  protected setOwn(own: OwnOption | null): Promise<boolean> {
+    if (this.ownershipDisabled()) return Promise.resolve(false);
+    return this.patchQuery({ own });
   }
 
   /** The ownership chips are one radio group: arrows move and select (one Tab stop). */
@@ -486,11 +558,9 @@ export class DecksPage {
     else if (e.key === 'End') next = order.length - 1;
     if (next === null || this.ownershipDisabled()) return;
     e.preventDefault();
-    this.setOwn(order[next]);
+    const applied = this.setOwn(order[next]);
     const group = (e.currentTarget as HTMLElement | null)?.closest('.own-chips') ?? null;
-    afterNextRender(() => group?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus(), {
-      injector: this.injector,
-    });
+    this.afterQuery(applied, () => group?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus());
   }
 
   protected setLock(lock: LockOption | 'all'): void {
@@ -503,20 +573,16 @@ export class DecksPage {
 
   /** OWN-105 (c): remove one filter chip; focus moves to the next chip, or the search field. */
   protected removeFilter(key: DeckFilterKey, index: number): void {
-    this.patchQuery({ [key]: null } as Partial<DeckListQuery>);
-    afterNextRender(
-      () => {
-        const chips = this.doc.querySelectorAll<HTMLElement>('.active-filters-reveal.open .filter-chip');
-        (chips[Math.min(index, chips.length - 1)] ?? this.searchInput()?.nativeElement)?.focus();
-      },
-      { injector: this.injector },
-    );
+    this.afterQuery(this.patchQuery({ [key]: null } as Partial<DeckListQuery>), () => {
+      const chips = this.doc.querySelectorAll<HTMLElement>('.active-filters-reveal.open .filter-chip');
+      (chips[Math.min(index, chips.length - 1)] ?? this.searchInput()?.nativeElement)?.focus();
+    });
   }
 
   protected clearAll(): void {
-    this.setQuery(clearFilters(this.query()));
+    const applied = this.setQuery(clearFilters(this.query()));
     this.urlNotice.set(null);
-    afterNextRender(() => this.searchInput()?.nativeElement.focus(), { injector: this.injector });
+    this.afterQuery(applied, () => this.searchInput()?.nativeElement.focus());
   }
 
   /**
@@ -524,8 +590,7 @@ export class DecksPage {
    * cleared. The button goes away with the hint, so focus moves to the search field, as after Clear filters.
    */
   protected showLocked(): void {
-    this.patchQuery({ lock: 'locked', own: null });
-    afterNextRender(() => this.searchInput()?.nativeElement.focus(), { injector: this.injector });
+    this.afterQuery(this.patchQuery({ lock: 'locked', own: null }), () => this.searchInput()?.nativeElement.focus());
   }
 
   /** OWN-105 (a) phone: the full-screen Filters dialog; Show applies and focus returns to the Filters button. */
@@ -555,7 +620,7 @@ export class DecksPage {
     ref.afterClosed().subscribe((q) => {
       this.dialogOpen = false;
       if (this.destroyed) return;
-      if (q) this.patchQuery(q);
+      if (q) void this.patchQuery(q, false);
       afterNextRender(() => this.filtersButton()?.nativeElement.focus(), { injector: this.injector });
     });
   }
@@ -572,12 +637,17 @@ export class DecksPage {
 
   /** A filter or sort change shows the result from the top of the list (COLL-093 (d)). */
   private scrollListToTop(): void {
+    const top = this.listTop();
+    if (scrollY > top) scrollTo({ top });
+  }
+
+  /** The page scroll at which the list starts right under the sticky toolbar (Infinity when there is no list). */
+  private listTop(): number {
     const host = this.gridHost()?.nativeElement;
-    if (!host) return;
+    if (!host) return Infinity;
     const header = this.doc.querySelector('.site-header')?.getBoundingClientRect().height ?? 64;
     const toolbar = this.doc.querySelector('.deck-toolbar')?.getBoundingClientRect().height ?? 56;
-    const top = Math.max(0, host.getBoundingClientRect().top + scrollY - header - toolbar);
-    if (scrollY > top) scrollTo({ top });
+    return Math.max(0, host.getBoundingClientRect().top + scrollY - header - toolbar);
   }
 
   // ---------------------------------------------------------------- import (OWN-094)

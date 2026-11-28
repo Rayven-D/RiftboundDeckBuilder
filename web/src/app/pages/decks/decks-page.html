@@ -342,7 +342,7 @@
       <!-- OWN-002 / OWN-084: every tile at once, off-screen ones skipped with a reserved height. -->
       <ul #grid class="deck-grid" role="list" aria-label="Your decks" aria-describedby="count-line">
         @for (e of results(); track e.deck.id; let i = $index) {
-          <li><app-deck-tile [summary]="e.summary" [eager]="i < 3" /></li>
+          <li [attr.data-deck]="e.deck.id"><app-deck-tile [summary]="e.summary" [eager]="i < 3" /></li>
         }
       </ul>
     }

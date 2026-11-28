@@ -1,9 +1,10 @@
-import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, Injector, afterNextRender, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import type { OwnershipCard } from '../../core/decks';
 import { Icon } from '../icon';
 import { CardSheet } from '../card-sheet/card-sheet';
+import { playEnter } from '../motion';
 import { DeckCardContent } from './deck-card-content';
 import type { NameLockContext } from './name-lock-action';
 
@@ -53,7 +54,7 @@ export const DECK_CARD_DIALOG_KIND = 'deck-card';
       >
         <div class="sheet-handle" aria-hidden="true"></div>
         <div class="head-row">
-          <h2 class="title" [id]="titleId">{{ c.name }}</h2>
+          <h2 #title class="title" [id]="titleId">{{ c.name }}</h2>
           <div class="head-actions">
             <button matIconButton type="button" class="head-step" aria-label="Previous card" [disabled]="!prev()" (click)="step(-1)">
               <app-icon name="chevron_left" />
@@ -69,6 +70,7 @@ export const DECK_CARD_DIALOG_KIND = 'deck-card';
       </div>
       <div #sheetBody class="sheet-body" (scroll)="sheet.onBodyScroll($event)">
         <app-deck-card-content
+          #content
           [card]="c"
           [locked]="data.locked()"
           [ownershipAvailable]="data.ownershipAvailable()"
@@ -101,6 +103,9 @@ export class DeckCardDialog {
   protected readonly prev = computed(() => this.data.neighbour(this.cardId(), -1));
   protected readonly next = computed(() => this.data.neighbour(this.cardId(), 1));
   private readonly sheetBody = viewChild<ElementRef<HTMLElement>>('sheetBody');
+  private readonly content = viewChild('content', { read: ElementRef });
+  private readonly title = viewChild<ElementRef<HTMLElement>>('title');
+  private readonly injector = inject(Injector);
   /** H-699 (Brief H-698): the phone bottom sheet (animated close, swipe down, head divider) and Back closing it. */
   protected readonly sheet = new CardSheet(this.ref, () => this.report(), {
     reopen: () => ({ kind: DECK_CARD_DIALOG_KIND, id: this.cardId() }),
@@ -128,24 +133,34 @@ export class DeckCardDialog {
   }
 
   /**
-   * A link in the content was followed (OWN-113): close as the router swaps the page (Brief H-716 S2: the route
-   * transition fades the dialog out with the old page). The dialog's history entry stays, so Back from the linked
-   * page reopens it (RJ 2026-11-28).
+   * A link in the content was followed (OWN-113): close at once, the router is already on its way. The dialog's
+   * history entry stays, so Back from the linked page reopens it (RJ 2026-11-28). Brief H-716 S2's fade-out with the
+   * old page is not built: keeping the dialog in the route transition's picture crashed Chromium's renderer (H-717).
    */
   protected leave(): void {
-    this.sheet.leave(() => this.ref.close({ cardId: this.cardId(), gone: false, navigated: true }));
+    this.ref.close({ cardId: this.cardId(), gone: false, navigated: true });
   }
 
   private report(): void {
     this.ref.close({ cardId: this.cardId(), gone: false });
   }
 
-  /** OWN-113 Previous / Next; the card swaps in place and the body starts at its top (Brief H-698 S5). */
+  /**
+   * OWN-113 Previous / Next; the card swaps in place and the body starts at its top (Brief H-698 S5). Brief H-716 S6:
+   * the content enters from the side you moved to (12 px, --dur-med), the title fades (--dur-fast).
+   */
   protected step(dir: -1 | 1): void {
     const id = dir === -1 ? this.prev() : this.next();
     if (!id) return;
     this.cardId.set(id);
     this.sheetBody()?.nativeElement.scrollTo?.({ top: 0 });
+    afterNextRender(
+      () => {
+        playEnter(this.content()?.nativeElement, { axis: 'x', shift: '--move-shift', sign: dir });
+        playEnter(this.title()?.nativeElement, { dur: '--dur-fast' });
+      },
+      { injector: this.injector },
+    );
   }
 
   protected onKey(e: KeyboardEvent): void {

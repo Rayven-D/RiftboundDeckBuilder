@@ -11,11 +11,18 @@ import { routeTransitionRunning } from './route-transition';
  * (like `vt-instant`), which picks the CSS for that kind of transition, and `update` runs inside it. `update` must
  * leave the DOM in its new state when it returns (render with `ApplicationRef.tick()`).
  *
- * Returns a promise that resolves once `update` has run.
+ * Returns a promise that resolves once `update` has run. `onFinished` runs once the transition is over (at once
+ * after `update` when nothing animated), e.g. to take temporary `view-transition-name`s off again.
  */
-export function startScopedTransition(update: () => void, className: string, doc: Document | undefined = globalThis.document): Promise<void> {
+export function startScopedTransition(
+  update: () => void,
+  className: string,
+  doc: Document | undefined = globalThis.document,
+  onFinished?: () => void,
+): Promise<void> {
   if (!canAnimate(doc)) {
     update();
+    onFinished?.();
     return Promise.resolve();
   }
   const root = doc!.documentElement;
@@ -32,6 +39,7 @@ export function startScopedTransition(update: () => void, className: string, doc
     const done = () => {
       scoped--;
       root.classList.remove(className);
+      onFinished?.();
     };
     t.finished.then(done, done);
     // A skipped transition (e.g. the tab was hidden) still runs the update; swallow its rejections.
@@ -44,6 +52,7 @@ export function startScopedTransition(update: () => void, className: string, doc
     scoped--;
     root.classList.remove(className);
     run();
+    onFinished?.();
     return Promise.resolve();
   }
 }

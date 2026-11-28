@@ -65,6 +65,7 @@ import { PHONE as SHEET_PHONE, cardDialogConfig } from '../../shared/card-sheet/
 import { takeDialogReopen } from '../../shared/dialog-history';
 import { routeTransitionDone } from '../../shared/route-transition';
 import { startScopedTransition } from '../../shared/scoped-transition';
+import { playEnter } from '../../shared/motion';
 import { SectionBox, anchorScrollDelta, captureAnchor } from '../../shared/deck-detail/view-anchor';
 import { ListItems, restoreListScroll, saveListScrollOnLeave, takeListScroll } from '../../shared/list-scroll';
 
@@ -719,11 +720,17 @@ export class DeckDetail {
   protected press(card: OwnershipCard): void {
     const id = cardId(card);
     if (this.isDesktop()) {
+      const changed = this.selectedId() !== id || this.tab() !== 'card';
       this.picked.set(id);
       this.tab.set('card');
       // H-468 (10): tell screen-reader users where the result went (the panel updates silently otherwise).
       this.status.set(DETAIL_TEXT.showing(card.name));
       this.panelBody()?.nativeElement.scrollTo?.({ top: 0 });
+      // Brief H-716 S6: the panel's card rises 4 px into place (no direction: any card can be picked).
+      if (changed)
+        afterNextRender(() => playEnter(this.panelBody()?.nativeElement.firstElementChild, { axis: 'y', shift: '4px' }), {
+          injector: this.injector,
+        });
       return;
     }
     this.openCard(id);
@@ -732,6 +739,9 @@ export class DeckDetail {
   // ---------------------------------------------------------------- panel tabs (OWN-111 (c))
 
   protected selectTab(tab: PanelTab, focus = false): void {
+    // Brief H-716 S6: Card / Missing swap their content with a short fade (--dur-fast).
+    if (tab !== this.tab())
+      afterNextRender(() => playEnter(this.panelBody()?.nativeElement, { dur: '--dur-fast' }), { injector: this.injector });
     this.tab.set(tab);
     if (focus) afterNextRender(() => this.doc.getElementById(`deck-tab-${tab}`)?.focus(), { injector: this.injector });
   }

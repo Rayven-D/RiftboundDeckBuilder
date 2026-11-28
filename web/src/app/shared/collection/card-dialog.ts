@@ -19,6 +19,7 @@ import { cardKeywords } from '../../core/cards/keywords';
 import { CardDetail, DECKS_UNREADABLE, landscapeFor } from './collection-view';
 import { KEYWORD_INDEX, KeywordList } from './keyword-list';
 import { CardSheet } from '../card-sheet/card-sheet';
+import { playEnter } from '../motion';
 
 /** What the page gives the dialog. `detail` reads the page's signals, so the dialog stays in sync (S13). */
 export interface CardDialogData {
@@ -61,7 +62,7 @@ export const CARD_DIALOG_KIND = 'collection-card';
       >
         <div class="sheet-handle" aria-hidden="true"></div>
         <div class="head-row">
-        <h2 class="title" [id]="titleId">{{ d.card.name }}</h2>
+        <h2 #title class="title" [id]="titleId">{{ d.card.name }}</h2>
         <div class="head-actions">
           @if (data.stepping) {
             <button
@@ -95,8 +96,8 @@ export const CARD_DIALOG_KIND = 'collection-card';
         </div>
         </div>
       </div>
-      <div class="sheet-body" (scroll)="sheet.onBodyScroll($event)">
-      <div class="body">
+      <div #sheetBody class="sheet-body" (scroll)="sheet.onBodyScroll($event)">
+      <div #content class="body">
         <div class="art-col">
           <div class="art-frame" [class.art-frame--stand-in]="d.tile.standIn">
             <app-card-art
@@ -195,6 +196,9 @@ export class CardDialog {
   private readonly ref = inject<MatDialogRef<CardDialog, CardDialogResult>>(MatDialogRef);
   private readonly injector = inject(Injector);
   private readonly printingLine = viewChild<ElementRef<HTMLElement>>('printingLine');
+  private readonly sheetBody = viewChild<ElementRef<HTMLElement>>('sheetBody');
+  private readonly content = viewChild<ElementRef<HTMLElement>>('content');
+  private readonly title = viewChild<ElementRef<HTMLElement>>('title');
   /** H-699 (Brief H-698): the phone bottom sheet (animated close, swipe down, head divider) and Back closing it. */
   protected readonly sheet = new CardSheet(this.ref, () => this.report(), {
     reopen: () => ({ kind: CARD_DIALOG_KIND, id: this.entryId() }),
@@ -260,9 +264,19 @@ export class CardDialog {
     afterNextRender(() => this.printingLine()?.nativeElement.focus(), { injector: this.injector });
   }
 
+  /** Brief H-716 S6: the content enters from the side you moved to (12 px, --dur-med), the title fades; body to top. */
   protected step(dir: -1 | 1): void {
     const id = dir === -1 ? this.prev() : this.next();
-    if (id) this.entryId.set(id);
+    if (!id) return;
+    this.entryId.set(id);
+    this.sheetBody()?.nativeElement.scrollTo?.({ top: 0 });
+    afterNextRender(
+      () => {
+        playEnter(this.content()?.nativeElement, { axis: 'x', shift: '--move-shift', sign: dir });
+        playEnter(this.title()?.nativeElement, { dur: '--dur-fast' });
+      },
+      { injector: this.injector },
+    );
   }
 
   protected onKey(e: KeyboardEvent): void {
