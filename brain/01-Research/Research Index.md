@@ -12,6 +12,7 @@ Owner: **researcher**. Every note needs sources and an *as-of* date. Status: `to
 | Deck construction | [[Deck Construction Rules]] | verified | Deck size, copy limits, legend/champion, runes, battlefields, domain restrictions |
 | Card keywords | [[Card Keywords]] | unverified | 28 keywords (Core Rules 805-832, rev. 2026-10-09), set added, values and stacking, reminder text, API `keywords[]` (format needs H-020), policy on showing rules text (H-089) |
 | Physical copies across decks | [[Physical Copies Across Decks]] | verified | Which sections share physical cards (champion = main pool; Legend / Battlefields separate but physical); can runes be ignored? |
+| All formats incl. 2v2, per-format rules and bans (H-700) | [[Format Catalog]] | partial | Standard + 2v2 official with Hub ban lists; 2v2 team rule (no shared Legend or battlefield); 2v2 sideboard unverified; no regional lists published |
 | Organized play formats | [[Formats]] | partial | Rotation conflict resolved 2026-11-24 (H-022): first rotation start of 2028, Sets 1-5 leave; OGS membership unconfirmed; promos legal by name |
 | Ban & restriction list | [[Ban List]] | verified | Current official list for organized play, effective dates, change history. 2v2 conflict closed 2026-11-24; effective-date time zone unpublished |
 | Sets & release schedule | [[Sets]] | partial | OGN to VEN dates now from Riot press releases (H-022); RAD/LGC/PG2/REC official; ARC = Arcane Box Set code |

@@ -73,3 +73,9 @@ Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[
 - Changed notes: [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]], [[Handoff Board]], [[Decision Log]], [[Current State]], [[Inbox]]
 - Open questions: none for RJ now; the spec-writer asks what the ADR leaves open (H-703 migration details, H-704 format picker).
 - Next: H-701, then H-702, H-703, H-705; H-700 in parallel. H-698 (card dialog cleanup, another session) keeps its ID; `next_id` is 709.
+
+## 2026-11-28: Claude (discussion session): formats research + UI directions
+- Did: researcher H-700 (Sonnet) → [[Format Catalog]]; ui-engineer (Opus) → [[Direction H-706 Search and Deck Editor]], [[Direction H-707 Collection Folders]], [[Direction H-708 Wishlist]]; one validator pass (Sonnet), both PASS attempt 1 ([[Validation H-700 H-706]]). Filed RJ gate H-709 for the drafts' open questions.
+- Changed notes: [[Format Catalog]], [[Formats]], [[Ban List]], [[Research Index]], [[UI Index]], the three directions, [[Handoff Board]], [[Current State]]
+- Open questions: H-709 (RJ). The H-698 brief link in the H-708 draft resolves once that session commits its brief.
+- Next: RJ answers H-709, then spec-writer H-701 → H-702 → H-703 → H-705, H-704 after H-702.
