@@ -23,7 +23,9 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe('H-699 closeOnBack (Brief H-698 S7)', () => {
   let injector: Injector;
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Let history traversals left by earlier spec files (dialogs closed there) land before this file's state starts.
+    await new Promise((r) => setTimeout(r, 50));
     resetDialogHistory();
     TestBed.configureTestingModule({ providers: [provideRouter([{ path: '**', component: Blank }])] });
     injector = TestBed.inject(Injector);

@@ -67,6 +67,58 @@ export function swipeCloses(dy: number, velocity: number, sheetHeight: number): 
   return dy > Math.min(SWIPE_CLOSE_PX, SWIPE_CLOSE_SHARE * sheetHeight) || velocity > SWIPE_CLOSE_VELOCITY;
 }
 
+/**
+ * Brief H-698 S6 (RJ 2026-11-28): a drag that starts in the body. The body scrolls natively until it is at its top;
+ * from there a downward drag moves the sheet. `anchorY` is where the finger was when the top was reached, so the
+ * sheet starts from 0 there and never jumps (case b, a drag that began mid-scroll).
+ */
+export interface BodyDrag {
+  readonly startX: number;
+  readonly startY: number;
+  /** The finger's y at the previous move. */
+  lastY: number;
+  /** Decided once the finger has moved past the slop: `x` is never captured. */
+  axis: 'x' | 'y' | null;
+  /** Set while the sheet follows the finger; null while the body scrolls. */
+  anchorY: number | null;
+}
+
+export function bodyDragStart(x: number, y: number): BodyDrag {
+  return { startX: x, startY: y, lastY: y, axis: null, anchorY: null };
+}
+
+/**
+ * One move of a body drag. Returns the sheet offset to show (px, 0 when the finger went back above the point where
+ * the sheet took over, which hands the gesture back to scrolling), or null while the body scrolls as usual: before
+ * the slop, sideways, upward, or with the body not at its top (`scrollTop > 0`).
+ */
+export function bodyDragMove(d: BodyDrag, x: number, y: number, scrollTop: number): number | null {
+  if (d.axis === null) {
+    const dx = x - d.startX;
+    const dy = y - d.startY;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < DRAG_SLOP_PX) {
+      d.lastY = y;
+      return null;
+    }
+    d.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+  }
+  if (d.axis === 'x') return null;
+  if (d.anchorY === null) {
+    if (scrollTop > 0 || y <= d.lastY) {
+      d.lastY = y;
+      return null;
+    }
+    d.anchorY = d.lastY; // the top is reached: the sheet moves from here
+  }
+  const offset = y - d.anchorY;
+  d.lastY = y;
+  if (offset <= 0) {
+    d.anchorY = null;
+    return 0;
+  }
+  return offset;
+}
+
 const reducedMotion = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 /** A CSS time (`220ms`, `0.2s`) in ms; 0 when unreadable. */
@@ -100,13 +152,31 @@ export class CardSheet {
   } | null = null;
   /** A drag just ended: the click it may produce must not press Close. */
   private suppressClick = false;
+  /** A touch drag that started in the body (S6, RJ 2026-11-28). */
+  private bodyDrag: { id: number; body: HTMLElement; state: BodyDrag; samples: { t: number; y: number }[] } | null = null;
 
   constructor(
     private readonly ref: MatDialogRef<unknown, unknown>,
     private readonly report: () => void,
   ) {
     this.history = closeOnBack(ref, () => this.dismiss());
-    inject(DestroyRef).onDestroy(() => (this.drag = null));
+    // Body drags use touch events: pointer events stop (pointercancel) once the browser starts scrolling the body,
+    // touchmove does not, and it can be cancelled to keep the page (pull-to-refresh) out of it while the sheet moves.
+    const start = (e: TouchEvent) => this.onBodyTouchStart(e);
+    const move = (e: TouchEvent) => this.onBodyTouchMove(e);
+    const end = (e: TouchEvent) => this.onBodyTouchEnd(e);
+    this.host.addEventListener('touchstart', start, { passive: true });
+    this.host.addEventListener('touchmove', move, { passive: false });
+    this.host.addEventListener('touchend', end);
+    this.host.addEventListener('touchcancel', end);
+    inject(DestroyRef).onDestroy(() => {
+      this.drag = null;
+      this.bodyDrag = null;
+      this.host.removeEventListener('touchstart', start);
+      this.host.removeEventListener('touchmove', move);
+      this.host.removeEventListener('touchend', end);
+      this.host.removeEventListener('touchcancel', end);
+    });
   }
 
   private pane(): HTMLElement | null {
@@ -210,17 +280,94 @@ export class CardSheet {
     d.dy = raw >= 0 ? raw : -Math.min(RUBBER_BAND_PX, -raw / 4);
     d.samples.push({ t: e.timeStamp, y: e.clientY });
     if (d.samples.length > 5) d.samples.shift();
+    this.follow(d.dy);
+  }
+
+  /** The sheet follows the finger 1:1, no transition; the backdrop fades in proportion. */
+  private follow(dy: number): void {
     const pane = this.pane();
     if (!pane) return;
     pane.style.animation = 'none';
     pane.style.transition = 'none';
-    pane.style.transform = `translateY(${d.dy}px)`;
+    pane.style.transform = dy ? `translateY(${dy}px)` : '';
     const backdrop = this.backdrop();
     if (backdrop) {
       backdrop.style.animation = 'none';
       backdrop.style.transition = 'none';
-      backdrop.style.opacity = String(Math.max(0, 1 - Math.max(0, d.dy) / (pane.offsetHeight || 1)));
+      backdrop.style.opacity = String(Math.max(0, 1 - Math.max(0, dy) / (pane.offsetHeight || 1)));
     }
+  }
+
+  /** End of a drag: close past the threshold or on a flick, else snap back (instant under reduced motion). */
+  private release(dy: number, samples: { t: number; y: number }[], cancelled: boolean): void {
+    const pane = this.pane();
+    if (!pane) return;
+    const first = samples[0];
+    const last = samples[samples.length - 1];
+    const velocity = first && last && last.t > first.t ? (last.y - first.y) / (last.t - first.t) : 0;
+    if (!cancelled && swipeCloses(dy, velocity, pane.offsetHeight)) {
+      this.dismiss(true);
+      return;
+    }
+    const style = getComputedStyle(this.host);
+    const t = `${style.getPropertyValue('--dur-med').trim() || '0ms'} ${style.getPropertyValue('--ease-out').trim()}`;
+    pane.style.transition = `transform ${t}`;
+    pane.style.transform = '';
+    const backdrop = this.backdrop();
+    if (backdrop) {
+      backdrop.style.transition = `opacity ${t}`;
+      backdrop.style.opacity = '';
+    }
+  }
+
+  // ---------------------------------------------------------------- swipe down from the body (S6, RJ 2026-11-28)
+
+  private onBodyTouchStart(e: TouchEvent): void {
+    this.bodyDrag = null;
+    if (e.touches.length !== 1 || this.closing || this.drag || !this.isSheet()) return;
+    const body = this.host.querySelector<HTMLElement>('.sheet-body');
+    const t = e.touches[0];
+    if (!body || !body.contains(e.target as Node)) return;
+    this.bodyDrag = { id: t.identifier, body, state: bodyDragStart(t.clientX, t.clientY), samples: [] };
+  }
+
+  private onBodyTouchMove(e: TouchEvent): void {
+    const d = this.bodyDrag;
+    if (!d) return;
+    if (e.touches.length !== 1) return this.endBodyDrag(true);
+    const t = Array.from(e.changedTouches).find((c) => c.identifier === d.id);
+    if (!t) return;
+    const wasDragging = d.state.anchorY !== null;
+    const offset = bodyDragMove(d.state, t.clientX, t.clientY, d.body.scrollTop);
+    if (offset === null) {
+      // Still scrolling. At the top, a downward move inside the slop is cancelled so the browser never starts its
+      // own overscroll / pull-to-refresh for this touch (a tap that jitters a pixel still clicks).
+      const s = d.state;
+      if (s.axis === null && d.body.scrollTop <= 0 && t.clientY > s.startY && e.cancelable) e.preventDefault();
+      return;
+    }
+    if (e.cancelable) e.preventDefault();
+    d.body.classList.add('sheet-body--dragging');
+    if (!wasDragging || offset === 0) d.samples = [];
+    d.samples.push({ t: e.timeStamp, y: t.clientY });
+    if (d.samples.length > 5) d.samples.shift();
+    this.follow(offset);
+  }
+
+  private onBodyTouchEnd(e: TouchEvent): void {
+    const d = this.bodyDrag;
+    if (!d || !Array.from(e.changedTouches).some((c) => c.identifier === d.id)) return;
+    this.endBodyDrag(e.type === 'touchcancel');
+  }
+
+  private endBodyDrag(cancelled: boolean): void {
+    const d = this.bodyDrag;
+    if (!d) return;
+    this.bodyDrag = null;
+    d.body.classList.remove('sheet-body--dragging');
+    const s = d.state;
+    if (s.anchorY === null) return; // the body only scrolled (or it was a tap)
+    this.release(s.lastY - s.anchorY, d.samples, cancelled);
   }
 
   /** `pointerup` / `pointercancel` anywhere, for the drag in progress. */
@@ -231,25 +378,7 @@ export class CardSheet {
     if (!d.active) return; // a tap: Close's own click handles it
     this.suppressClick = true;
     setTimeout(() => (this.suppressClick = false), 0);
-    const pane = this.pane();
-    if (!pane) return;
-    const first = d.samples[0];
-    const last = d.samples[d.samples.length - 1];
-    const velocity = last.t > first.t ? (last.y - first.y) / (last.t - first.t) : 0;
-    if (e.type !== 'pointercancel' && swipeCloses(d.dy, velocity, pane.offsetHeight)) {
-      this.dismiss(true);
-      return;
-    }
-    // Snap back (instant under reduced motion: the global block shortens the transition).
-    const style = getComputedStyle(this.host);
-    const t = `${style.getPropertyValue('--dur-med').trim() || '0ms'} ${style.getPropertyValue('--ease-out').trim()}`;
-    pane.style.transition = `transform ${t}`;
-    pane.style.transform = '';
-    const backdrop = this.backdrop();
-    if (backdrop) {
-      backdrop.style.transition = `opacity ${t}`;
-      backdrop.style.opacity = '';
-    }
+    this.release(d.dy, d.samples, e.type === 'pointercancel');
   }
 
   /** Close's click: true when it is the click a drag ended with (a drag released on Close must not close). */

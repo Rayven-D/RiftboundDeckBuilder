@@ -289,3 +289,90 @@ test('S7 (RJ 2026-11-28, every width): at 768 the deck card dialog closes on Bac
   await page.goBack();
   await page.waitForURL(/\/decks$/);
 });
+
+test.describe('S6 swipe down from the body (RJ 2026-11-28), real touch', () => {
+  test.use({ hasTouch: true, isMobile: true });
+
+  /** A one-finger touch drag through Chromium's input pipeline (native scrolling included), `pause` before lifting. */
+  async function touch(page: Page, x: number, ys: number[], stepMs = 16) {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: ys[0] }] });
+    let read: string | null = null;
+    for (const y of ys.slice(1)) {
+      if (Number.isNaN(y)) {
+        read = await sheet(page).evaluate((el) => (el as HTMLElement).style.transform).catch(() => null);
+        continue;
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] });
+      await page.waitForTimeout(stepMs);
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await cdp.detach();
+    return read;
+  }
+  const steps = (from: number, to: number, n: number) => Array.from({ length: n + 1 }, (_, i) => Math.round(from + ((to - from) * i) / n));
+  const bodyTop = (page: Page) => page.locator('app-card-dialog .sheet-body').evaluate((el) => el.scrollTop);
+
+  test('(a) body at its top: a slow downward drag in the body follows the finger and closes the sheet', async ({ page }) => {
+    await start(page, '/collection');
+    await openCollectionCard(page);
+    expect(await bodyTop(page)).toBe(0);
+    const mid = await touch(page, 180, [...steps(300, 400, 10), NaN, ...steps(400, 560, 10)], 20);
+    expect(mid).toMatch(/^translateY\((9\d|10\d)(\.\d+)?px\)$/); // about 100 px after 100 px of travel
+    await expect(anyDialog(page)).toHaveCount(0);
+  });
+
+  test('(b) mid-scroll: the body scrolls to its top, then the same drag moves the sheet from there (no jump) and closes it', async ({ page }) => {
+    await start(page, '/collection');
+    await openCollectionCard(page);
+    await page.locator('app-card-dialog .sheet-body').evaluate((el) => el.scrollTo({ top: 150 }));
+    await page.waitForTimeout(100);
+    const mid = await touch(page, 180, [...steps(250, 450, 20), NaN, ...steps(450, 650, 12)], 20);
+    // 200 px of travel, 150 of them scrolled the body: the sheet sits about 50 px down, not 200.
+    const px = Number(/translateY\(([\d.]+)px\)/.exec(mid ?? '')?.[1] ?? NaN);
+    expect(px).toBeGreaterThan(20);
+    expect(px).toBeLessThan(90);
+    await expect(anyDialog(page)).toHaveCount(0);
+  });
+
+  test('mid-scroll drag that ends before the top only scrolls the body; the sheet stays', async ({ page }) => {
+    await start(page, '/collection');
+    await openCollectionCard(page);
+    await page.locator('app-card-dialog .sheet-body').evaluate((el) => el.scrollTo({ top: 99999 }));
+    await page.waitForTimeout(100);
+    const from = await bodyTop(page);
+    expect(from).toBeGreaterThan(150);
+    // Down by less than the scrolled distance, slowly (no fling), then hold before lifting.
+    await touch(page, 180, [...steps(250, 250 + from - 80, 20), 250 + from - 80, 250 + from - 80], 40);
+    await page.waitForTimeout(400);
+    await expect(sheet(page)).toBeVisible();
+    expect(await sheet(page).evaluate((el) => getComputedStyle(el).transform)).toBe('none');
+    const top = await bodyTop(page);
+    expect(top).toBeGreaterThan(0);
+    expect(top).toBeLessThan(from);
+  });
+
+  test('upward and sideways drags in the body never move the sheet; a tap on a row still works', async ({ page }) => {
+    await start(page, '/collection');
+    await openCollectionCard(page);
+    await touch(page, 180, steps(600, 300, 10), 20); // upward: scrolls
+    await page.locator('app-card-dialog .sheet-body').evaluate((el) => el.scrollTo({ top: 0 }));
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 60, y: 400 }] });
+    for (const [x, y] of [[90, 405], [140, 410], [220, 420], [300, 430]]) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] });
+      await page.waitForTimeout(20);
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await cdp.detach();
+    await page.waitForTimeout(300);
+    await expect(sheet(page)).toBeVisible();
+    expect(await sheet(page).evaluate((el) => getComputedStyle(el).transform)).toBe('none');
+    // A tap on another printing switches the dialog to it (Collection rows switch in place).
+    const row = page.locator('app-card-dialog .printings .link').first();
+    const before = await page.locator('app-card-dialog .printing').innerText();
+    await row.tap();
+    await expect(page.locator('app-card-dialog .printing')).not.toHaveText(before);
+    await expect(sheet(page)).toBeVisible();
+  });
+});

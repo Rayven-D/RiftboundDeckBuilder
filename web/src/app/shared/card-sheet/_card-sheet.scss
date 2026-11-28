@@ -93,6 +93,11 @@ $phone: '(max-width: 40rem)';
       min-height: 0;
       overflow-y: auto;
       overscroll-behavior: contain;
+
+      // S6 (RJ 2026-11-28): while a drag from the body moves the sheet, no overscroll glow or stretch either.
+      &.sheet-body--dragging {
+        overscroll-behavior-y: none;
+      }
       @if $footer {
         padding: var(--space-2) var(--space-4) var(--space-4);
       } @else {
