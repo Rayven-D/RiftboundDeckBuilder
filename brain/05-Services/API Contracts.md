@@ -1,6 +1,6 @@
 ---
 tags: [services, contract]
-version: 1.40
+version: 1.41
 ---
 # API Contracts
 
@@ -628,6 +628,32 @@ Collection view model. TypeScript source of truth: `web/src/app/shared/collectio
 - **Dev only:** `localStorage['rift.dev.sample'] = 'large'` makes `CardData` return a generated
   5,000-entry catalog (`sample-data.ts`), set by the `/styleguide` sample loader.
 
+## Keyword explanations engine (SPEC-011 0.2.2 KW-010…056; H-093)
+
+Pure module `web/src/app/core/cards/keywords.ts` (no Angular). Shapes are SPEC-011's data contract verbatim:
+`KeywordGlossary`, `KeywordEntry`, `CardKeyword`, `KeywordReportRow`. **No glossary ships** (ADR-0008 proposed), so
+production uses the empty index and the dialog never shows a Keywords section (KW-056).
+
+- `parseKeyword(raw)` → `{ keywordId, value: number | null } | null` (KW-032/033; `null` for a blank string). `keywordKey(term)`
+  → the id only. Steps: NFKC, lower-case, collapse whitespace, trim, one enclosing `[...]` pair, trailing `.,:;`, then the
+  trailing ` <digits>` value. No markup stripping, no cost parsing (KW-033a, KW-032a wait on H-020).
+- `indexGlossary(glossary: unknown)` → `KeywordIndex { shown, hidden, duplicates }`. Anything not a glossary (absent,
+  `null`, failed load, `entries` not a list) is empty. The id is `keywordKey(displayName)`; two entries with one id go to
+  `duplicates` (neither shown, KW-014); a missing or mistyped required field, a non-ISO `asOf` or a `keywordId` that does
+  not equal `keywordKey(displayName)` is `incomplete`; a complete non-verified entry is `unverified` (KW-013).
+  `EMPTY_KEYWORD_INDEX` is the shipped value.
+- `cardKeywords(keywords, index)` → `CardKeyword[]`: shown rows only, first-appearance order, distinct values joined
+  `", "` (KW-030…036, KW-052). Reads `PlayableCard.keywords` only, never `text` (KW-004, KW-031).
+- `keywordReport(cards: { cardKey, keywords? }[], index)` → `KeywordReportRow[]`, one row per (code, keywordId), sorted
+  by code then id, `rawStrings` distinct in first-seen order, `cardCount` all cards, `cardKeys` first 20 (KW-035). A
+  `duplicate-keyword` row lists the entries' `displayName`s and counts the cards that use the id (those cards get no
+  `keyword-no-definition` row). `keyword-value-mismatch` uses shown or unverified entries. Not wired into the
+  services build yet (SPEC-001 CARD-065 report lives in `services/`; the live payload is H-020).
+- `keywordSourceLine(entry)` → `"Source: Core Rules 900.1.b, as of Nov 24, 2026"` (locator left out when `null`; KW-050/051).
+- UI: `KEYWORD_INDEX` injection token (`shared/collection/keyword-list.ts`, root default `EMPTY_KEYWORD_INDEX`) and
+  `app-keyword-list [rows]` (chip, definition, source; not focusable, KW-055). `CardDialog` renders the "Keywords"
+  section only when `cardKeywords(...)` is non-empty (KW-053).
+
 ## Owned Cards Import commit and Undo (SPEC-003 IMP-049…052, IMP-072…075; H-158)
 Not an endpoint. Writes go through the **tracked** `stores.collection` only.
 - **Pure logic** (`web/src/app/shared/import/collection-commit.ts`): `resolveCollectionImport(parse, catalog)` →
@@ -1085,3 +1111,6 @@ Not an endpoint and no new Firestore field: test data is ordinary account data t
   `SignInGate.offerDeleteLocalData`, `BrowserStores.clearCollectionData()`, `COLLECTION_DATA_KEYS`. Changed:
   `gateState(log, runtime?)` (no mode parameter); `AUTH_PROVIDERS` moved to `core/sync/auth-providers.ts`. New
   "Browser cache" note (SYNC-140…146). Test helper `provideOpenGate()` (`core/sync/testing/open-gate.ts`).
+- v1.41 (2026-11-27, H-093): no endpoint change. New "Keyword explanations engine" (SPEC-011 0.2.2):
+  `core/cards/keywords.ts`, `KEYWORD_INDEX` and `app-keyword-list`; the card dialog's Keywords section (hidden while
+  the glossary is empty).

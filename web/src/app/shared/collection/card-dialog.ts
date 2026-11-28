@@ -15,7 +15,9 @@ import { CardArt } from '../deck/card-art';
 import { OwnershipChip } from '../deck/ownership-chip';
 import { Icon } from '../icon';
 import { StatusLabel } from '../status-label';
+import { cardKeywords } from '../../core/cards/keywords';
 import { CardDetail, DECKS_UNREADABLE, landscapeFor } from './collection-view';
+import { KEYWORD_INDEX, KeywordList } from './keyword-list';
 
 /** What the page gives the dialog. `detail` reads the page's signals, so the dialog stays in sync (S13). */
 export interface CardDialogData {
@@ -38,12 +40,12 @@ export const CARD_DIALOG_TITLE_ID = 'card-dialog-title';
 
 /**
  * Read-only card dialog for one entry (brief §5; Collection Components §6): the clicked printing's
- * art and count, the card's other printings, Locked in, Could fit in, the ban label. The Keywords
- * section waits on H-089 / H-090 and is not rendered.
+ * art and count, the card's other printings, Locked in, Could fit in, the ban label, Keywords (SPEC-011:
+ * only keywords with a verified glossary entry, so hidden everywhere while the glossary is empty, KW-056).
  */
 @Component({
   selector: 'app-card-dialog',
-  imports: [CardArt, OwnershipChip, StatusLabel, Icon, MatIconButton],
+  imports: [CardArt, OwnershipChip, StatusLabel, Icon, MatIconButton, KeywordList],
   host: {
     '(keydown)': 'onKey($event)',
   },
@@ -164,7 +166,12 @@ export const CARD_DIALOG_TITLE_ID = 'card-dialog-title';
               <p class="muted">{{ d.couldFitEmpty }}</p>
             }
           </section>
-          <!-- Keywords (brief §5.5): hidden until the glossary exists (H-089 research, H-090 spec). -->
+          @if (keywordRows().length > 0) {
+            <section class="section">
+              <h3>Keywords</h3>
+              <app-keyword-list [rows]="keywordRows()" />
+            </section>
+          }
         </div>
       </div>
     }
@@ -182,6 +189,11 @@ export class CardDialog {
   readonly entryId = signal(this.data.entryId);
   protected readonly detail = computed(() => this.data.detail(this.entryId()));
   protected readonly landscape = computed(() => landscapeFor(this.detail()?.card.card.category));
+  /** SPEC-011 KW-030…053: rows from `PlayableCard.keywords` only; none hides the section and its heading. */
+  private readonly keywordIndex = inject(KEYWORD_INDEX);
+  protected readonly keywordRows = computed(() =>
+    cardKeywords(this.detail()?.card.card.keywords, this.keywordIndex),
+  );
   protected readonly prev = computed(() => this.data.neighbour(this.entryId(), -1));
   protected readonly next = computed(() => this.data.neighbour(this.entryId(), 1));
 
