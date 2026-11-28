@@ -137,3 +137,13 @@ H-706 Q2 and Q5 are rules questions for the spec-writer.
 6. **Don't store the whole deck per version:** "replicate what git does to save memory", i.e. store changes
    (deltas), not full copies. Recommended shape (Claude, for the spec-writer): the current deck stays in full and
    each older version is a reverse delta to the next one, so dropping the oldest of the 15 is trivial.
+
+## RJ answers, part 4 (2026-11-28, chat)
+1. **H-715: "Yes to all"**: version 1 labels "Created" / "Duplicated from <name>" / "Before version history"
+   (DECK-136); a format change makes no version (DECK-134); Clear all keeps the typed search text (SEARCH-050);
+   the empty Decks page also shows New deck (OWN-123).
+2. **New: start a new deck from any version (fork).** RJ: "allow the user to create a new deck from any version
+   on the deck. The deck doesn't have to be on that version. Like forking from a specific commit in git."
+   The original deck is unchanged. (Spec: H-716.)
+3. **Cost filter (SEARCH-026):** RJ: "Cost means the energy and power costs." The search filters on both;
+   which payload fields carry them still waits on H-020.

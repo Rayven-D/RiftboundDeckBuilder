@@ -85,3 +85,9 @@ Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[
 - Changed notes: [[Card Search and Filters]], [[Deck Import]], [[Your Decks Ownership View]], [[My Collection]], [[Spec Index]], [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]], [[Handoff Board]], [[Current State]], [[Decision Log]]
 - Open questions: H-715 (RJ); `cost` field waits on H-020 (SEARCH-026).
 - Next: H-710 → H-711 → H-712 (with H-714); H-713; spec-writer H-703 → H-705, H-704.
+
+## 2026-11-28: Claude (discussion session): deck fork + cost filter
+- Did: RJ "Yes to all" on H-715; new fork from any version (H-716, spec-writer Sonnet) and Cost = energy + power (SEARCH-026); validator PASS ([[Validation H-716]]); read-only/locked fork labelled default, proposed. Filed RJ H-717, spec-writer H-718; H-712 and H-710 pins updated.
+- Changed notes: [[Deck Import]], [[Your Decks Ownership View]], [[Card Search and Filters]], [[Spec Index]], [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]], [[Handoff Board]], [[Current State]]
+- Open questions: H-717 (RJ).
+- Next: builder H-710 → H-711 → H-712 (with H-714); H-713; spec-writer H-703 → H-705, H-704.
