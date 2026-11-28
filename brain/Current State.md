@@ -1,6 +1,6 @@
 ---
 tags: [moc, state]
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 # Current State
 
@@ -77,6 +77,10 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 - **H-011:** apply for the production key once there's a demo ([[Riot App Application]]).
 
 ## Next for the loop
+**NEXT ON DECK (RJ 2026-11-28): the deck-building build chain, all specs written and validated, nothing built yet.** [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]]. Specs: SPEC-014 [[Card Search and Filters]] 0.4.1, SPEC-015 [[Physical Copies and Folders]] 0.1.2 (replaces the SPEC-008 shared pool; per-deck locks), SPEC-016 [[Wishlist]] 0.1.1, [[Deck Import]] 0.23.1 (editor, New deck, version history last 15 as deltas, fork), [[Your Decks Ownership View]] 0.24.1 (stats, held copies, formats, Add to wishlist), [[Deck Legality]] 0.8.1 (Standard + 2v2; teammate check, 2v2 sideboard warning and single-deck notice **shelved by RJ**), [[Accounts and Sync]] 0.23. **RJ first: H-725** (review the default, proposed items). **Build order (all P1):** H-710 search → H-711 editor → H-712 history + fork, H-713, H-720 formats; H-721 copies core → H-722 deck side, H-723 Collection places (after H-707 brief), H-724 import removal, H-726 test data; H-727 wishlist core → H-728 tab (after H-708, H-698), H-729; H-731 stats brief → H-730 stats. ui-engineer final briefs H-706, H-707, H-708, H-731 can start now. `next_id` 733.
+
+**Deck building (RJ 2026-11-28, [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]]):** card editor on every deck + New deck, legality in many formats (2v2 first), shared card search with filters (Decks and Collection), **decks and folders hold physical copies** (replaces the SPEC-008 shared pool; a lock freezes cards, rename stays allowed), Collection folders (binder / box / top loader), a Wishlist tab. Specs first, in order: H-701 search → H-702 editor → H-703 physical copies + folders → H-705 wishlist; H-700 formats research → H-704; briefs H-706…H-708. **2026-11-28:** H-700 done ([[Format Catalog]]: official deck formats are Standard and 2v2; 2v2 has its own ban list (Master Yi Legend banned, Fight or Flight legal) and teammates can't share a Legend or battlefield; sideboard and regional lists `unverified`). Direction drafts for H-706…H-708 written (PASS); RJ answered H-709 the same day (ADR-0010 "RJ answers" parts 1–3: per-deck locks only, "Events" phone tab, explicit Save + leave warning, **deck version history**: last 15 versions as deltas). **Specs done (PASS):** new SPEC-014 [[Card Search and Filters]] 0.1, [[Deck Import]] 0.19 (editor, New deck, version history), [[Your Decks Ownership View]] 0.20, [[My Collection]] 0.19. **Builder next:** H-710 search → H-711 editor → H-712 history (after H-714 SPEC-010 impacts); H-713 can go now. Then spec-writer H-703, H-705, H-704. RJ answered H-715 ("Yes to all") and asked for **forking a new deck from any version** (H-716 done: [[Deck Import]] 0.20, [[Your Decks Ownership View]] 0.21; H-712 builds it) and **Cost = energy + power** ([[Card Search and Filters]] 0.2). RJ: H-717 (fork defaults). `next_id` 719.
+
 **`/board` 2026-11-27 evening:** 9 items in 5 rounds, all PASS attempt 1; brain PRs #134, #138, #139 merged. **Next (after #135–#137 merge):** spec-writer H-686, H-690; builder H-696; ui-engineer H-697 (needs sign-in); H-132 waits on the Tournaments page; then Tournaments. `next_id` 698.
 
 **`/board 5` 2026-11-27 (first run in usage-saving mode):** 26 items in 5 grouped rounds, all PASS attempt 1; PRs #126–#132 all merged. **Next:** H-682 part 2 (email-link deletion notice only), H-648 (services lag SPEC-001 0.4), H-064, H-075, H-132, H-093; ui-engineer H-270, H-173; researcher H-621; then Tournaments. `next_id` 686.

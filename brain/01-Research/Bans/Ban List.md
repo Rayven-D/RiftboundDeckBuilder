@@ -27,6 +27,8 @@ bringing Standard to **15 cards + 7 battlefields**. 2v2 has **14 cards, 7 battle
 Legend** banned (rechecked 2026-11-24; it was 6 / 5 / 1 before the Radiance wave). Riot announced on 2026-11-13 that from 23 Nov, regions behind on set releases (Korea,
 Traditional Chinese) get **separate regional ban lists**.
 
+Rechecked 2026-11-28 (H-700): the Hub still shows only Standard and 2v2 lists, both "last updated November 23, 2026", no regional variants, no other format lists. Difference: 2v2 = Standard minus Fight or Flight, plus the Master Yi Legend. See [[Format Catalog]].
+
 ## Current list: Standard Constructed (effective 2026-11-23)
 | Card / Battlefield | Kind | Effective | Announced |
 |---|---|---|---|

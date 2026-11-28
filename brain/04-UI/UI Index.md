@@ -37,6 +37,15 @@ Owner: **builder** with RJ. Record agreed screens and design decisions here.
 | 2026-11-28 | [[Brief H-716 Motion Fluidity]] | RJ-requested motion pass ("not too much, not too blocky"): principle, 15 measured findings (Card/List switch CLS 0.56 + 1,700px scroll jump, sheet link-out cut and double motion on Back, theme toggle split timing, footer jump on every route, chip width / filter row jumps), 15 specs on the existing tokens (View Transitions for footer, tab indicator, deck list, theme; Material zoom replaced; art fade; FAB label), reduced motion and performance rules, 20-point checklist. Build H-717 |
 | 2026-11-24 | [[Brief H-145]] | Brief for H-145 (SYNC-006 Return, AC 52): return path is `router.url` sent as the continue URL only, `safeReturnPath` (one leading `/`, same origin, else `/`), Firebase params stripped by name via the Router with `replaceUrl`, never follows `continueUrl`; "You're signed in." is a success notice fired in `signIn()` before the first-sign-in flow (later messages replace it, restore never shows it); focus stays at the document start |
 
+## Directions (drafts, ADR-0010)
+Design direction drafts written before the specs (RJ asked on 2026-11-28 to start the UI research early). The spec-writer reads them as input; the final briefs follow the specs.
+
+| Date | Note | Scope |
+|---|---|---|
+| 2026-11-28 | [[Direction H-706 Search and Deck Editor]] | Shared card search (`app-card-search`: name field, filter menus on desktop, Filters sheet on phones, removable chips), New deck / Edit cards, deck editor (search left, deck right; tabs on tablet; Add cards sheet on phones), live legality and format chips, draft + Save with an auto-fill notice, locked-deck notice, "Edited" chip. 11 open questions |
+| 2026-11-28 | [[Direction H-707 Collection Folders]] | Location rail (desktop) / switcher (tablet, phone): Master collection, Not in a folder, In decks, folders; New folder dialog (Binder / Box / Top loader, Use for decks switch); Move dialog and multi-select; "Where your copies are" in the card dialog; tag-beats-folder line; folder-specific delete. 8 open questions |
+| 2026-11-28 | [[Direction H-708 Wishlist]] | Fifth phone tab (measured: "Tournaments" truncates at 360 px; recommends "Events" as the phone label), Wishlist page with full-colour tiles, "Want n" and a "Needed for <deck>" chip, desktop sidebar sharing the Deck detail panel shell, phone sheet from H-698, Add to wishlist on Deck detail, auto-update notice. 7 open questions |
+
 ## Design decisions
 See [[Design Direction]]: candidate visual directions awaiting RJ's choice, and the decisions taken in the H-009 scaffold.
 

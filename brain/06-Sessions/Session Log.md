@@ -68,6 +68,36 @@ Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[
 - Round 5 (researcher + validator Sonnet): H-621 Firestore Data Shape → [#139](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/139) merged by the loop.
 - All attempt 1. Code PRs #135–#137 each bump the board's `next_id` and #135/#137 both touch [[API Contracts]]: expect small merge conflicts; keep the highest `next_id` (698). Another session's uncommitted brain work (ADR-0009 RiftHunt, H-021 row) was left unstaged.
 
+## 2026-11-28: Claude (discussion session): deck building idea
+- Did: talked through deck building with RJ in chat; recorded his decisions as [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]] and filed H-700…H-708 (researcher: formats; spec-writer: search, editor, physical copies + folders, legality formats, wishlist; ui-engineer: three briefs). No code.
+- Changed notes: [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]], [[Handoff Board]], [[Decision Log]], [[Current State]], [[Inbox]]
+- Open questions: none for RJ now; the spec-writer asks what the ADR leaves open (H-703 migration details, H-704 format picker).
+- Next: H-701, then H-702, H-703, H-705; H-700 in parallel. H-698 (card dialog cleanup, another session) keeps its ID; `next_id` is 709.
+
+## 2026-11-28: Claude (discussion session): formats research + UI directions
+- Did: researcher H-700 (Sonnet) → [[Format Catalog]]; ui-engineer (Opus) → [[Direction H-706 Search and Deck Editor]], [[Direction H-707 Collection Folders]], [[Direction H-708 Wishlist]]; one validator pass (Sonnet), both PASS attempt 1 ([[Validation H-700 H-706]]). Filed RJ gate H-709 for the drafts' open questions.
+- Changed notes: [[Format Catalog]], [[Formats]], [[Ban List]], [[Research Index]], [[UI Index]], the three directions, [[Handoff Board]], [[Current State]]
+- Open questions: H-709 (RJ). The H-698 brief link in the H-708 draft resolves once that session commits its brief.
+- Next: RJ answers H-709, then spec-writer H-701 → H-702 → H-703 → H-705, H-704 after H-702.
+
+## 2026-11-28: Claude (discussion session): search and deck editor specs
+- Did: recorded RJ's H-709 answers in ADR-0010 (parts 1–3, incl. deck version history); spec-writer (Opus) wrote SPEC-014 [[Card Search and Filters]] and updated SPEC-005/006/007; validator (Sonnet) PASS attempt 1 ([[Validation H-701 H-702]]). Filed builder H-710…H-713, spec-writer H-714 (SPEC-010 impacts), RJ H-715.
+- Changed notes: [[Card Search and Filters]], [[Deck Import]], [[Your Decks Ownership View]], [[My Collection]], [[Spec Index]], [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]], [[Handoff Board]], [[Current State]], [[Decision Log]]
+- Open questions: H-715 (RJ); `cost` field waits on H-020 (SEARCH-026).
+- Next: H-710 → H-711 → H-712 (with H-714); H-713; spec-writer H-703 → H-705, H-704.
+
+## 2026-11-28: Claude (discussion session): deck fork + cost filter
+- Did: RJ "Yes to all" on H-715; new fork from any version (H-716, spec-writer Sonnet) and Cost = energy + power (SEARCH-026); validator PASS ([[Validation H-716]]); read-only/locked fork labelled default, proposed. Filed RJ H-717, spec-writer H-718; H-712 and H-710 pins updated.
+- Changed notes: [[Deck Import]], [[Your Decks Ownership View]], [[Card Search and Filters]], [[Spec Index]], [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]], [[Handoff Board]], [[Current State]]
+- Open questions: H-717 (RJ).
+- Next: builder H-710 → H-711 → H-712 (with H-714); H-713; spec-writer H-703 → H-705, H-704.
+
+## 2026-11-28: Claude (discussion session): all deck-building specs
+- Did: RJ asked to finish every spec from the deck-building discussion, build nothing, and keep the build next on deck. Specs: deck stats (H-719, SPEC-005 section O), physical copies + folders (H-703, new SPEC-015, SPEC-008 superseded), 2v2 (H-704, SPEC-002 0.8.1; RJ shelved the teammate check, 2v2 sideboard warning, single-deck notice), Wishlist (H-705, new SPEC-016), sync impacts (H-714, SPEC-010 0.23), H-718, SPEC-013/014 follow-ups. One bulk validation: H-703 failed on labels (Restore/Fork auto-fill and editor live stats had been cited as RJ's; fixed as default, proposed) and stale pins; re-check PASS ([[Validation H-719 H-703 H-704 H-705 H-714]]).
+- Changed notes: [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]], the specs above, [[Spec Index]], [[Handoff Board]], [[Current State]]
+- Open questions: H-725 (RJ, default, proposed items).
+- Next: builder chain H-710…H-730 (P1, next on deck); ui-engineer H-706, H-707, H-708, H-731; researcher H-732.
+
 ## 2026-11-28: H-699 card dialogs on phones + Back closes them + list scroll on Back (builder, worktree `loop/H-699`)
 - Built [[Brief H-698 Card Dialog Mobile]] (RJ request): both card dialogs are a bottom sheet at 40rem and below (handle, fixed head, scrolling body, deck step bar, swipe down to close, slide motion, reduced motion instant). Shared code: `web/src/app/shared/card-sheet/` (config, sheet behaviour, SCSS mixin). 768 and 1440 are pixel-identical to before.
 - Back closes any card dialog at every width (RJ 2026-11-28): `shared/dialog-history.ts` `closeOnBack` (one same-URL pushState entry; other closes remove it with a swallowed `history.back()`; links in the dialog use `replaceUrl`). Reusable for other MatDialogs (open them with `closeOnNavigation: false`).
