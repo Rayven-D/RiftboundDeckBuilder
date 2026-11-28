@@ -163,3 +163,9 @@ H-706 Q2 and Q5 are rules questions for the spec-writer.
 6. **H-717: "Yes to 717"**: the fork defaults stand (name `<name> (from version N)`, fresh history, unlocked,
    description / format / source copied, tournament fork "Edited" rule, no confirmation, Cost as one group, fork
    allowed from locked and read-only decks). RJ: "Keep counting dupes": Duplicates still count in "In your decks"; only forks are ignored.
+
+## RJ answers, part 6: 2v2 proposals shelved (2026-11-28, chat)
+RJ shelved the three H-704 proposals "for a later day. I need to come up with something on how I want that to
+work": the teammate picker (LEGAL-T05), the 2v2 sideboard overflow as a warning (LEGAL-F06), and the
+informational notice on a single 2v2 deck. None of them is built until RJ decides. The rest of H-704 (2v2 format
+data, own ban list, team check function, main format and chips) goes ahead.
