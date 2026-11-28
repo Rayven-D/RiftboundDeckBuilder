@@ -45,3 +45,6 @@ Routes: `/`, `/collection`, `/decks`, `/decks/:id`, `/tournaments`, `/styleguide
 Decks screens read the pure ownership engine in `web/src/app/core/decks/` (H-059): shared pool, lock
 checks, shortfalls, `computeDeckOwnership()` and `summarizeDeck()`. Types and notes:
 [[API Contracts]] → "Browser-side shared types". Components only render its output.
+
+- [[Collection Import Review H-270]]: review of the owned-cards import review step, confirmations and Undo (code-level; visual pass H-697).
+- [[Scrolling Guidance H-173]]: scrolling rules, targets and acceptance points for every card and deck list (measurements H-696).
