@@ -118,3 +118,7 @@ Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[
 - RJ asked for a cleaner phone card dialog, Back/swipe to close, list scroll kept on Back, then a motion pass. ui-engineer briefs H-698, H-733 → builder H-699, H-734 → validator (bulk) → [PR #147](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/147), merged by RJ. RJ tested each step on the `card-sheet` preview channel (expires 2026-12-05).
 - ID clash: the motion items were H-716/H-717 on the branch while dev used those IDs; renumbered to H-733/H-734.
 - Follow-ups H-735 (spec catch-up), H-736 (`firebase.preview.json` `/api` regex), H-737 (missing tests), H-738 (motion P3). Board trimmed: 23 done rows to the archive.
+
+## 2026-11-28 ui-engineer: H-698 card dialog mobile brief
+- RJ asked to clean up the card dialog on phones. Looked at both card dialogs via `/styleguide` (pane forced to the phone config) at 375 x 812 and 360 x 780, light and dark; no console errors. Found: no sheet affordance, sticky header slides 16 px off the top (bug), no top safe-area inset, crowded header, focus ring on open, the two dialogs use different type sizes, gaps and list styles.
+- Wrote [[Brief H-698 Card Dialog Mobile]] (bottom sheet with grab handle, swipe-down from the head and system Back close it per RJ, deck Previous / Next in a bottom step bar, shared rhythm, motion on tokens, 21 acceptance checks). Desktop unchanged. Board row left to the orchestrator.
