@@ -6,7 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { NoticeKind, noticeOptions } from '../../shared/sync/notice';
 import { returnTarget, safeReturnPath } from '../../shared/sync/return-path';
-import { SyncEngine } from '../../shared/sync/sync-engine';
+import { DeleteAccountResult, SyncEngine } from '../../shared/sync/sync-engine';
 import { statusText } from '../../shared/sync/status-text';
 import { enabledProviders } from '../../shared/sync/sync-types';
 import type { AuthService, RemoteStore, SyncStatus } from '../../shared/sync/sync-types';
@@ -280,7 +280,7 @@ export class SyncService {
     else refocusAfterDialog(undefined);
   }
 
-  deleteAccount(): Promise<'ok' | 'cancelled' | 'needs-sign-in' | 'failed' | 'offline'> {
+  deleteAccount(): Promise<DeleteAccountResult> {
     return this.engine.deleteAccount();
   }
 
