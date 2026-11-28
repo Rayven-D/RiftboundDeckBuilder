@@ -34,6 +34,7 @@ import { SignInGate } from '../../core/sync/sign-in-gate';
 import { SignInPanel } from '../../core/sync/sign-in-panel';
 import { refocusAfterDialog } from '../../core/sync/sync.service';
 import { ignoredNotice } from '../../shared/collection/collection-view';
+import { ListItems, keepListScroll, restoreListScroll } from '../../shared/list-scroll';
 import {
   DECK_SORTS,
   DEFAULT_DECK_QUERY,
@@ -111,10 +112,10 @@ function localToday(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** COLL-093 / OWN-084: the list's scroll position, kept for a Back navigation to `/decks` in this session. */
-let savedScroll: { url: string; y: number } | null = null;
-
 type Phase = 'loading' | 'empty' | 'ready';
+
+/** The list's items for the COLL-093 (e) Back restore: each tile's link, keyed by its href (one per deck). */
+const DECK_TILES: ListItems = { selector: 'a.deck-tile', key: (el) => el.getAttribute('href') };
 
 /**
  * `/decks` (SYNC-009 gated): the Decks list (H-060; SPEC-005 OWN-001…008, OWN-084, OWN-100…105, SPEC-008
@@ -249,18 +250,13 @@ export class DecksPage {
   private loadSeq = 0;
   private reloadScheduled = false;
   private loadedToday = localToday();
-  /** COLL-093: a Back navigation to this list restores the scroll position once the tiles are shown. */
-  private restoreScroll: number | null;
+  /** COLL-093 (e) / OWN-084: a Back navigation to this list restores the scroll position once the tiles are shown. */
+  private restoreScroll = keepListScroll('/decks', () => this.phase() === 'ready', DECK_TILES);
 
   constructor() {
-    const nav = this.router.currentNavigation();
-    const url = this.router.url.split('?')[0];
-    this.restoreScroll = nav?.trigger === 'popstate' && savedScroll?.url === url ? savedScroll.y : null;
-
     this.destroyRef.onDestroy(() => {
       this.destroyed = true;
       clearTimeout(this.debounce);
-      if (this.phase() === 'ready') savedScroll = { url: '/decks', y: globalThis.scrollY ?? 0 };
     });
 
     // URL ↔ query (OWN-006, OWN-105 (e)): the URL wins; unknown values are ignored with a notice.
@@ -398,7 +394,7 @@ export class DecksPage {
       if (this.restoreScroll !== null) {
         const y = this.restoreScroll;
         this.restoreScroll = null;
-        afterNextRender(() => scrollTo({ top: y }), { injector: this.injector });
+        afterNextRender(() => restoreListScroll(y, DECK_TILES, this.doc), { injector: this.injector });
       }
     } finally {
       clearTimeout(timer);

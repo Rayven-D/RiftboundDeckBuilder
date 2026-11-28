@@ -41,6 +41,7 @@ import {
   CardDialogResult,
 } from '../../shared/collection/card-dialog';
 import { CollectionTile } from '../../shared/collection/collection-tile';
+import { ListItems, keepListScroll, restoreListScroll } from '../../shared/list-scroll';
 import {
   CollectionSort,
   CollectionView,
@@ -86,6 +87,8 @@ export const COLLECTION_EMPTY = {
   message: "Add the cards you own and they'll show up here.",
 } as const;
 
+/** The list's tiles for the COLL-093 (e) Back restore, keyed by entry id (virtual rows: only rendered ones match). */
+const COLLECTION_TILES: ListItems = { selector: '[data-entry]', key: (el) => el.getAttribute('data-entry') };
 const PHONE = '(max-width: 39.99rem)';
 const DESKTOP = '(min-width: 64rem)';
 const SEARCH_DEBOUNCE_MS = 150;
@@ -168,6 +171,8 @@ export class CollectionPage {
 
   protected readonly sorts = SORTS;
   protected readonly phase = signal<Phase>('loading');
+  /** COLL-093 (e): a Back navigation to this page restores the list's scroll position once the rows are shown. */
+  private restoreScroll = keepListScroll('/collection', () => this.phase() === 'ready', COLLECTION_TILES);
   protected readonly showSkeleton = signal(false);
   protected readonly skeleton = Array.from({ length: 12 }, (_, i) => i);
   private readonly loaded = signal<Loaded | null>(null);
@@ -302,7 +307,8 @@ export class CollectionPage {
       if (!this.queryReady) return;
       untracked(() => {
         this.persistQuery(q, sort);
-        this.scrollListToTop();
+        // COLL-093 (d), but never while a COLL-093 (e) Back restore is still waiting for the rows.
+        if (this.restoreScroll === null) this.scrollListToTop();
       });
     });
     // Keep the roving tab stop on a tile that exists.
@@ -414,6 +420,11 @@ export class CollectionPage {
       const view = buildCollectionView({ ownership, decks, locks, banData, today: localToday() });
       this.loaded.set({ ownership, view });
       this.phase.set('ready');
+      if (this.restoreScroll !== null) {
+        const y = this.restoreScroll;
+        this.restoreScroll = null;
+        afterNextRender(() => restoreListScroll(y, COLLECTION_TILES), { injector: this.injector });
+      }
     } finally {
       clearTimeout(timer);
       if (current()) this.showSkeleton.set(false);
