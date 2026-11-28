@@ -1,14 +1,14 @@
 ---
 tags: [spec]
 id: SPEC-014
-version: 0.3
+version: 0.4
 status: draft
-depends_on: [SPEC-001, SPEC-002, SPEC-003, SPEC-007, SPEC-008]
+depends_on: [SPEC-001, SPEC-002, SPEC-003, SPEC-007, SPEC-008, SPEC-015]
 consumers: [SPEC-006, SPEC-007, "H-705 Wishlist (not specced yet)"]
 research: ["[[Card Data & Images]]", "[[Deck Construction Rules]]", "[[Card Keywords]]", "[[Sets]]", "[[Format Catalog]]"]
 decisions: ["[[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]]", "[[ADR-0005 MVP Product Defaults]]"]
 ui: ["[[Direction H-706 Search and Deck Editor]]"]
-board: H-701, H-706, H-709, H-717
+board: H-701, H-706, H-709, H-717, H-719
 as_of: 2026-11-28
 ---
 # SPEC-014: Card Search and Filters
@@ -21,7 +21,7 @@ as_of: 2026-11-28
 **Key requirements**
 - SEARCH-001…007: one query model for every host; the host picks the result unit (**card** in the editor, **entry per printing** in Collection), the groups shown, the sort and the tile. Riot data only; `null` is Unknown, never a value (CARD-029). Pure function, never changes data.
 - SEARCH-010/011: name search is SPEC-001 CARD-038 unchanged. **Rules text is off by default, behind an "Include rules text" toggle (RJ 2026-11-28, chat, H-706 Q1).**
-- SEARCH-020…037: groups Domain, Type, Rarity, Cost (Energy and Power rows, v0.2), Might, Set, Keywords (main row); Champion Unit, Signature, Champion tag, Preview, Variant, Artist, Card tags, Ban status (More); host extras Owned (editor, Wishlist), Location (Collection, H-703/H-707), Your tags (Collection, still deferred).
+- SEARCH-020…037: groups Domain, Type, Rarity, Cost (Energy and Power rows, v0.2), Might, Set, Keywords (main row); Champion Unit, Signature, Champion tag, Preview, Variant, Artist, Card tags, Ban status (More); host extras Owned (editor, Wishlist), Your tags (Collection, still deferred). **Location is not a group (v0.4, SEARCH-035): it is the Collection location rail of SPEC-015 COPY-075.**
 - SEARCH-021 (**H-706 Q2, decided from research**): Domain has two modes: **Any of** (default, COLL-042) and **Fits these domains** (the Domain Identity rule, [[Deck Construction Rules]] #2, Core 103.2.b, `verified`).
 - SEARCH-026 (**v0.2, RJ 2026-11-28, chat: "Cost means the energy and power costs"; v0.3: one group with Energy and Power rows is RJ's decision, "Yes to 717"**): **Cost is one group with an Energy row and a Power row** (Might stays its own group); chips name the row ("Energy 2–4", "Power 1"); OR within a row, AND between rows. Which payload fields they read is still **`unverified`**: [[Card Data & Images]] #9 lists `stats{energy, might, cost, power}` (community mirror) but not what `stats.cost` holds; Energy reads `stats.energy`, Power reads `stats.power`, until H-020 confirms.
 - SEARCH-050 (v0.2): Clear all keeps the typed search text, now RJ's decision (H-715, "Yes to all").
@@ -90,7 +90,7 @@ Main row: Domain, Type, Rarity, Cost, Might, Set, Keywords (the attributes RJ na
 | SEARCH-032 | MAY | **Card tags** (card-level `tags[]` from the API) under More, labelled "Card tags" so it is never confused with the user's own tags (SPEC-007 COLL-019). | [[Card Data Model]] CARD-028; [[Card Data & Images]] #9 |
 | SEARCH-033 | MUST | **Ban status** under More: **All** (default), **Hide banned**, **Banned only**, from SPEC-002 `banStatus(cardKey, format, 'global', today)` where `format` is the draft's format in the deck editor and `standard` elsewhere. Banned only = `banned` today; Hide banned keeps `not-banned`, `upcoming` and unknown (as COLL-045). While ban data is not loaded the group is hidden and the host shows its own ban notice. | [[My Collection]] COLL-045; [[Deck Legality]] LEGAL-B10 |
 | SEARCH-034 | MUST | **Owned** (host extra: deck editor, Wishlist) under More: **All** (default), **Owned**, **Not owned**. Owned = the user's SPEC-003 `quantity` for the `cardKey` ≥ 1 (any printing; copies tagged "exclude from decks" included). | ADR-0010 §1.3 (any card, owned or not); [[Direction H-706 Search and Deck Editor]] §2.2 |
-| SEARCH-035 | MUST | **Location** (host extra: Collection) is reserved for the folders and decks that hold copies (H-703, H-707). Not specified here; no control until that spec exists. | ADR-0010 §3; H-703 |
+| SEARCH-035 | MUST | **Location is the Collection location rail itself, not a filter group (v0.4, H-719).** The rail of [[Physical Copies and Folders]] SPEC-015 COPY-075 (SPEC-007 COLL-112: Master collection, Not in a folder, In decks, then each folder) is what narrows the Collection by place; there is **no Location group** in the query model (`CardSearchQuery` has no location part), no Location chip and no Location row in the filters menu or the phone Filters sheet. The rail's URL key (`in=none`, `in=decks`, `in=<folderId>`, COLL-112) sits next to the SEARCH-070 keys; the search, the filter groups and the sorts then apply **inside the chosen place** (COLL-112), and Clear all (SEARCH-050) does not change the place. The editor and the Wishlist have no Location. | ADR-0010 §3; SPEC-015 COPY-075 (Open question 18 there: Location filter = the rail); [[My Collection]] COLL-112 |
 | SEARCH-036 | MUST | **Your tags** (host extra: Collection) is SPEC-007 COLL-044 and stays **deferred** with the tag UI (SPEC-007 Open question 12). When it returns it sits under More with this spec's chip rules. | [[My Collection]] COLL-044 |
 | SEARCH-037 | MUST | **Tokens and SAMPLE.** The deck editor's base set leaves out `category: 'token'` cards (they can't be in a deck, DECK-026) and cards that exist only as SAMPLE printings (DECK-106; no effect until SPEC-001 CARD-044 exists). Collection shows what the user owns (COLL-100, COLL-110). | [[Deck Import]] DECK-026, DECK-106; [[My Collection]] COLL-110 |
 
@@ -116,7 +116,7 @@ Main row: Domain, Type, Rarity, Cost, Might, Set, Keywords (the attributes RJ na
 | ID | Level | Requirement | Source |
 |---|---|---|---|
 | SEARCH-060 | MUST | **Deck editor host.** Card-level; base set = the whole catalog minus tokens and SAMPLE-only cards (SEARCH-037), owned or not (ADR-0010 §1.3); groups: Domain (with SEARCH-022 MAY), Type, Rarity, Cost, Might, Set, Keywords; More: Energy, Power, Champion Unit, Signature, Champion tag, Preview, Ban status, Owned, Include rules text (SEARCH-011), and the MAY groups; **no** Variant or Artist. Sorts: **Name** (default, COLL-034 name comparison, ascending) and **Set & number** (`printingSortKey` of the card's `defaultPrintingId`, CARD-070). Every result is shown in **full colour** (ADR-0010 §1.4); the tile is SPEC-006 DECK-125. | ADR-0010 §1.3, §1.4; [[Deck Import]] DECK-125 |
-| SEARCH-061 | MUST | **Collection host.** Entry-level; base set = the user's entries only. **Owned-only (RJ 2026-11-28, chat, H-706 Q3):** Collection never lists unowned catalog cards (as COLL-100 (a)); browsing the catalog is the editor's and the Wishlist's. Groups: as SEARCH-060 plus Variant (SEARCH-030) and Artist (MAY), **without** Owned; Location and Your tags as SEARCH-035, SEARCH-036. Sorts stay COLL-108 (b). The tile stays COLL-101. | [[My Collection]] COLL-100, COLL-108, COLL-111; RJ 2026-11-28, chat (ADR-0010 answers part 2 item 6: [[Direction H-706 Search and Deck Editor]] Q3) |
+| SEARCH-061 | MUST | **Collection host.** Entry-level; base set = the user's entries only. **Owned-only (RJ 2026-11-28, chat, H-706 Q3):** Collection never lists unowned catalog cards (as COLL-100 (a)); browsing the catalog is the editor's and the Wishlist's. Groups: as SEARCH-060 plus Variant (SEARCH-030) and Artist (MAY), **without** Owned; Your tags as SEARCH-036; Location is the rail, not a group (SEARCH-035). Sorts stay COLL-108 (b). The tile stays COLL-101. | [[My Collection]] COLL-100, COLL-108, COLL-111; RJ 2026-11-28, chat (ADR-0010 answers part 2 item 6: [[Direction H-706 Search and Deck Editor]] Q3) |
 | SEARCH-062 | MUST | **Wishlist host** is reserved for H-705 (card-level, whole catalog, Owned and Variant groups expected, ADR-0010 §4.2). Not specified here. | ADR-0010 §4 |
 | SEARCH-063 | MUST | A host that hides a group also ignores its URL key or stored value without a notice. | design rule |
 
@@ -207,7 +207,7 @@ Card names are fixture or research names; **attribute values are invented test v
 ## Out of scope
 - Saved searches, search history, relevance ranking, fuzzy name matching (SPEC-003 IMP-027, not built, H-272).
 - Prices and any meta data (play rate, popularity; ADR-0003).
-- The Location filter (H-703, H-707) and the Wishlist host (H-705).
+- A Location filter group (the location rail is SPEC-015 COPY-075 / SPEC-007 COLL-112, SEARCH-035) and the Wishlist host (H-705).
 - Result tiles: each host's spec (SPEC-006 DECK-125, SPEC-007 COLL-101).
 
 ## Open questions / BLOCKED
@@ -217,6 +217,7 @@ Card names are fixture or research names; **attribute values are invented test v
 4. **Resolved (RJ 2026-11-28, chat, H-715, "Yes to all"):** Clear all keeps the name text (SEARCH-050).
 
 ## Changelog
+- 0.4 (2026-11-28, H-719; SPEC-015 COPY-075 and Open question 18 there; text only for the query model, which never had a Location part): SEARCH-035 now says Location is the Collection location rail itself, not a separate filter group (no group, chip or menu row; the rail's `in` URL key sits beside the SEARCH-070 keys and filters apply inside the place); the summary, SEARCH-061 and Out of scope lines follow; depends on SPEC-015. Builder: none (the group was never built).
 - 0.3 (2026-11-28, H-717; RJ 2026-11-28, chat, "Yes to 717"): SEARCH-026's one Cost group with Energy and Power rows is RJ's decision (was *default, proposed*); no behaviour change. The payload fields stay `unverified` (H-020). The deck stats of SPEC-005 OWN-129…138 read `stats.energy` and `stats.might` under the same `unverified` mapping.
 - 0.2 (2026-11-28, H-716 pass; RJ 2026-11-28, chat): SEARCH-026 rewritten: "Cost means the energy and power costs" (RJ), so Cost is one group with Energy and Power rows (*default, proposed*), the More-row Energy and Power groups removed, chips name the row, AND between rows; the payload fields stay `unverified` (H-020; [[Card Data & Images]] #9 names `energy`, `power`, `cost` but not their meaning); SEARCH-050 Clear all keeps the text is RJ's decision (H-715, "Yes to all"); ACs 3, 12 updated, 3a new; Open questions 2, 4. Consumers' pins: none changed (SPEC-006, SPEC-007 do not name the group).
 - 0.1 (2026-11-28, H-701): first draft from ADR-0010 §1.3, §1.4, §2 (RJ 2026-11-28) and [[Direction H-706 Search and Deck Editor]] (draft). H-706 Q2 decided from [[Deck Construction Rules]] #2 (SEARCH-021); Q1 and Q3 are RJ's answers (2026-11-28, chat, "Yes to all decks recommendations", closes H-709 for them).
