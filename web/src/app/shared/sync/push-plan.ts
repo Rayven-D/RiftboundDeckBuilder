@@ -38,6 +38,11 @@ export interface PushPlan {
   /** Documents not sent because their live items alone exceed the cap (SYNC-119 → SYNC-124). */
   tooLarge: string[];
   empty: boolean;
+  /**
+   * SYNC-123: estimated size in bytes of the whole `state/collection` document after this push (every card
+   * the log tracks, tombstones included). Set only when the push writes the collection.
+   */
+  collectionBytes?: number;
 }
 
 export interface PlanOptions {
@@ -118,6 +123,7 @@ export function planPush(local: LocalSnapshot, log: StoredSyncLog, opts: PlanOpt
         cardValue(collection, k, e),
       );
       if (area) {
+        plan.collectionBytes = collectionDocBytes(collection, log);
         plan.changes.collection = {
           replace,
           updatedAt: area.updatedAt,
@@ -260,6 +266,42 @@ function planMap(
   }
   if (!Object.keys(values).length && !purge.size) return null;
   return { values, purge: [...purge], updatedAt: updatedAt || now };
+}
+
+/** SYNC-123 (SHOULD): above this the app logs a warning for RJ (the 8-bucket split is the migration path). */
+export const COLLECTION_WARN_BYTES = 700 * 1024;
+
+const utf8Bytes = (s: string) => new TextEncoder().encode(s).length;
+
+/**
+ * Firestore's storage size of a value (its documented rules: a string is its UTF-8 bytes + 1, a number 8,
+ * a boolean or null 1, a map the sum of its keys (UTF-8 + 1) and values, an array the sum of its values).
+ */
+export function firestoreValueBytes(v: unknown): number {
+  if (typeof v === 'string') return utf8Bytes(v) + 1;
+  if (typeof v === 'number') return 8;
+  if (typeof v === 'boolean' || v === null || v === undefined) return 1;
+  if (Array.isArray(v)) return v.reduce((n: number, x) => n + firestoreValueBytes(x), 0);
+  if (typeof v === 'object') {
+    let n = 0;
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) n += utf8Bytes(k) + 1 + firestoreValueBytes(x);
+    return n;
+  }
+  return 0;
+}
+
+/**
+ * SYNC-123: estimated size of `users/{uid}/state/collection`: the document name (`users`, a 28-character uid,
+ * `state`, `collection`, + 16), the 32-byte document overhead, and its fields as this device would leave them.
+ */
+export function collectionDocBytes(c: StoredCollection | null, log: StoredSyncLog): number {
+  const cards: Record<string, CloudCard> = {};
+  for (const [k, e] of Object.entries(log.cards)) {
+    const v = cardValue(c, k, e);
+    if (v) cards[k] = v;
+  }
+  const name = 6 + 29 + 6 + 11 + 16;
+  return name + 32 + firestoreValueBytes({ schemaVersion: 1, updatedAt: 0, catalogVersion: c?.catalogVersion ?? '', cards });
 }
 
 function cardValue(c: StoredCollection | null, k: string, e: ItemStamp): CloudCard | undefined {

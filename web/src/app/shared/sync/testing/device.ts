@@ -43,6 +43,8 @@ export class Device {
   adapterError: unknown = null;
   /** SYNC-154 (H-176): how often the engine asked for the username prompt: a first sign-in that created the account. */
   accountCreated = 0;
+  /** SYNC-123: developer warnings the engine logged (instead of the console). */
+  readonly warnings: string[] = [];
   private timers: { fn: () => void; at: number; id: number }[] = [];
   private timerSeq = 0;
 
@@ -76,6 +78,7 @@ export class Device {
       },
       onStatus: (s) => (this.status = s),
       onAccountCreated: () => this.accountCreated++,
+      warn: (m) => this.warnings.push(m),
       leaveSignInLink: () => {
         this.linkLeaves.push({ reads: this.db.reads, notices: this.notices.length });
         return this.onLeaveLink();
