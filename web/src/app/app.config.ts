@@ -35,7 +35,7 @@ function currentRouter(): Router | null {
  * Under reduced motion the global CSS sets every view-transition animation to none, so the change
  * is instant. A navigation that stays on the same route (only the query changes) gets the
  * `vt-instant` class on <html> for the length of the transition, which does the same.
- * Brief H-716 S2: so does a Back / Forward to an entry whose card dialog opens again (the page is under the dialog,
+ * Brief H-733 S2: so does a Back / Forward to an entry whose card dialog opens again (the page is under the dialog,
  * so animating it is wasted motion; the dialog fades in place once the transition is over).
  */
 export function routeViewTransition({ transition, from, to }: ViewTransitionInfo): void {

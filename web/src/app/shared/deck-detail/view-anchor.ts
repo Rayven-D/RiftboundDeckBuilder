@@ -1,5 +1,5 @@
 /**
- * Brief H-716 S1: keep the reader's place when deck detail switches between Card view and List view (OWN-114).
+ * Brief H-733 S1: keep the reader's place when deck detail switches between Card view and List view (OWN-114).
  * Pure: the page passes the section boxes (viewport coordinates) before and after the switch.
  */
 

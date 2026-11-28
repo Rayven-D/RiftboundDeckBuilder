@@ -9,7 +9,7 @@ export const PHONE = '(max-width: 40rem)';
 /** The panel classes every card dialog pane gets; the second one only on phones (the bottom sheet, Brief H-698 S1). */
 export const CARD_DIALOG_PANEL = 'card-dialog-panel';
 export const CARD_SHEET_PANEL = 'card-sheet-panel';
-/** Brief H-716 S2: a dialog reopened by Back (not a new open) fades in place: no slide (phone), no rise (larger). */
+/** Brief H-733 S2: a dialog reopened by Back (not a new open) fades in place: no slide (phone), no rise (larger). */
 export const CARD_DIALOG_RESTORED = 'card-dialog-restored';
 const CARD_SHEET_BACKDROP = 'card-sheet-backdrop';
 
@@ -37,7 +37,7 @@ export interface CardDialogSize {
  * previews). Phones (Brief H-698 S1, S7, A11y): a full-width bottom sheet of fixed height, no Material scale / fade
  * (the sheet slides, styles.scss), focus on the container so a tap draws no ring on Close. Larger screens: the
  * centred dialog exactly as before. Both: `closeOnNavigation: false`, because Back is handled by `closeOnBack`.
- * `restored` (Brief H-716 S2): reopened from its history entry, so it fades in place instead of entering anew.
+ * `restored` (Brief H-733 S2): reopened from its history entry, so it fades in place instead of entering anew.
  */
 export function cardDialogConfig(phone: boolean, size: CardDialogSize, restored = false): MatDialogConfig {
   const shared: MatDialogConfig = { closeOnNavigation: false };

@@ -65,7 +65,7 @@ const FOOTER_NEAR_MARGIN = '0px 0px 120px 0px';
       white-space: nowrap;
       box-shadow: var(--shadow-lift);
       cursor: pointer;
-      /* Brief H-716 S11: its own group in a route change (styles.scss): it morphs between pages that both have one,
+      /* Brief H-733 S11: its own group in a route change (styles.scss): it morphs between pages that both have one,
          and fades in (and out) with the page otherwise. */
       view-transition-name: page-fab;
       transition:
@@ -74,7 +74,7 @@ const FOOTER_NEAR_MARGIN = '0px 0px 120px 0px';
         padding var(--dur-med) var(--ease-out),
         gap var(--dur-med) var(--ease-out);
     }
-    /* Brief H-716 S11: the button fades in from 92% when it is created, 60 ms after the page. It often comes after the
+    /* Brief H-733 S11: the button fades in from 92% when it is created, 60 ms after the page. It often comes after the
        route change (it waits for the page's data), so this is its own animation, not the view transition's. */
     .page-fab.arriving { animation: fab-in var(--dur-med) var(--ease-enter) 60ms backwards; }
     .page-fab app-icon { flex: none; font-size: 24px; }

@@ -4,7 +4,7 @@
  * added to the DOM mid-transition crashed Chromium's renderer in the browser tests.
  */
 let current: Promise<void> = Promise.resolve();
-/** Route view transitions that have not finished yet (Brief H-716: a scoped transition never starts on top of one). */
+/** Route view transitions that have not finished yet (Brief H-733: a scoped transition never starts on top of one). */
 let running = 0;
 
 export function trackRouteTransition(finished: Promise<unknown>): void {

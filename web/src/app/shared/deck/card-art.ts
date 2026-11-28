@@ -56,7 +56,7 @@ import { OwnershipState } from './ownership';
     .art {
       position: relative;
     }
-    /* Brief H-716 S8: art that was still loading at the first render fades in over --dur-fast once it has loaded
+    /* Brief H-733 S8: art that was still loading at the first render fades in over --dur-fast once it has loaded
        (cached art shows at once). Opacity only, so it is allowed in virtual-scroll rows; the reserved aspect ratio
        and the raised placeholder colour behind it keep the layout still. Reduced motion: no fade (not set). The
        transform transition is the global hover zoom's (styles.scss .zoom-art), kept here because this rule wins. */

@@ -106,7 +106,7 @@ const STANDARD: FormatName = { id: 'standard', name: 'Standard' };
 
 const PHONE = '(max-width: 40rem)';
 const SEARCH_DEBOUNCE_MS = 150;
-/** Brief H-716 §6.3: at most this many deck tiles carry a view-transition name in one list transition. */
+/** Brief H-733 §6.3: at most this many deck tiles carry a view-transition name in one list transition. */
 const MAX_NAMED_TILES = 24;
 const SKELETON_DELAY_MS = 200;
 const EMPTY_TAGS: StoredTags = { schemaVersion: 3, updatedAt: '', tags: [], assignments: {} };
@@ -234,7 +234,7 @@ export class DecksPage {
     return m ? hiddenLockedCount(m.entries, this.query()) : 0;
   });
   protected readonly chips = computed(() => activeFilters(this.query(), STANDARD.name));
-  /** Brief H-716 S5 (2): what the filter row shows; the last chips stay while the row closes (it is inert then). */
+  /** Brief H-733 S5 (2): what the filter row shows; the last chips stay while the row closes (it is inert then). */
   protected readonly shownChips = linkedSignal<ReturnType<typeof activeFilters>, ReturnType<typeof activeFilters>>({
     source: this.chips,
     computation: (c, prev) => (c.length > 0 ? c : (prev?.value ?? c)),
@@ -425,7 +425,7 @@ export class DecksPage {
   // ---------------------------------------------------------------- query and URL
 
   /**
-   * Brief H-716 S5 (3): a filter, lock or sort change you made moves the tiles to their new places (`vt-list`); typing
+   * Brief H-733 S5 (3): a filter, lock or sort change you made moves the tiles to their new places (`vt-list`); typing
    * in the search field and URL-driven changes stay instant. `tiles: false` (the phone Filters dialog's Show) only
    * cross-fades the list. The returned promise resolves once the change is in the DOM: true when that happened inside
    * a view transition (the DOM is already rendered then), false when it was applied directly.

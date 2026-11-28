@@ -93,7 +93,7 @@ export class ThemeToggle {
   private readonly appRef = inject(ApplicationRef);
 
   /**
-   * Brief H-716 S3: the page, header, tab bar and footer change together in one cross-fade (`vt-theme`, styles.scss).
+   * Brief H-733 S3: the page, header, tab bar and footer change together in one cross-fade (`vt-theme`, styles.scss).
    * Without view transitions or under reduced motion: `theme-switching` turns transitions off for two frames, so
    * everything changes in the same frame.
    */

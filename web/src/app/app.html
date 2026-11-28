@@ -7,7 +7,7 @@
       <ul>
         @for (item of nav; track item.path) {
           <li>
-            <!-- Brief H-716 S10: the active underline is a real element, so a route change can move it to the new tab. -->
+            <!-- Brief H-733 S10: the active underline is a real element, so a route change can move it to the new tab. -->
             <a [routerLink]="item.path" routerLinkActive="active" ariaCurrentWhenActive="page"
               >{{ item.label }}<span class="nav-indicator" aria-hidden="true"></span
             ></a>

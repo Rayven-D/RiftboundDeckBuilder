@@ -57,7 +57,7 @@ describe('route view transitions (H-095 fix 1)', () => {
     expect(document.documentElement.classList).not.toContain('vt-instant');
   });
 
-  it('H-716 S2 / check 3: Back to an entry whose card dialog opens again is instant (the page is under the dialog)', () => {
+  it('H-733 S2 / check 3: Back to an entry whose card dialog opens again is instant (the page is under the dialog)', () => {
     const nav = { trigger: 'popstate' as string };
     const router = { currentNavigation: () => nav, lastSuccessfulNavigation: () => null };
     TestBed.configureTestingModule({ providers: [{ provide: Router, useValue: router }] });

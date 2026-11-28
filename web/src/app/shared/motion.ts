@@ -1,5 +1,5 @@
 /**
- * Brief H-716: the motion tokens of styles.scss (`--dur-*`, `--ease-*`) for code that needs them in TS.
+ * Brief H-733: the motion tokens of styles.scss (`--dur-*`, `--ease-*`) for code that needs them in TS.
  */
 
 /** A CSS time (`220ms`, `0.2s`) in ms; 0 when unreadable. */
@@ -24,7 +24,7 @@ export function tokenTransition(
 }
 
 /**
- * Brief H-716 S7: how long Material keeps a dialog in its enter and exit states. They match `--dur-med` (enter) and
+ * Brief H-733 S7: how long Material keeps a dialog in its enter and exit states. They match `--dur-med` (enter) and
  * `--dur-fast` (exit), which drive the CSS (styles.scss, "Dialogs"); Material only uses these to time its classes and
  * to remove the overlay, so the exit must not be shorter than the CSS. Spread first into every `MatDialog.open`
  * config (one global default would be MAT_DIALOG_DEFAULT_OPTIONS in app.config, which pulls the dialog module into
@@ -35,7 +35,7 @@ export const DIALOG_MOTION = { enterAnimationDuration: '220ms', exitAnimationDur
 const ENTER_ID = 'h716-enter';
 
 /**
- * Brief H-716 S6: one short enter of `el` (opacity from 0, optionally from an offset) with the Web Animations API,
+ * Brief H-733 S6: one short enter of `el` (opacity from 0, optionally from an offset) with the Web Animations API,
  * timed by the tokens read from `el`. `shift` is a distance token (`--move-shift`, `--move-rise`) or px, signed by
  * `sign` (-1 = from the left / above). A new call restarts it (never queued). Nothing under reduced motion.
  */

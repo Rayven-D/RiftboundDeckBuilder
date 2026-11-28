@@ -134,8 +134,8 @@ export class DeckCardDialog {
 
   /**
    * A link in the content was followed (OWN-113): close at once, the router is already on its way. The dialog's
-   * history entry stays, so Back from the linked page reopens it (RJ 2026-11-28). Brief H-716 S2's fade-out with the
-   * old page is not built: keeping the dialog in the route transition's picture crashed Chromium's renderer (H-717).
+   * history entry stays, so Back from the linked page reopens it (RJ 2026-11-28). Brief H-733 S2's fade-out with the
+   * old page is not built: keeping the dialog in the route transition's picture crashed Chromium's renderer (H-734).
    */
   protected leave(): void {
     this.ref.close({ cardId: this.cardId(), gone: false, navigated: true });
@@ -146,7 +146,7 @@ export class DeckCardDialog {
   }
 
   /**
-   * OWN-113 Previous / Next; the card swaps in place and the body starts at its top (Brief H-698 S5). Brief H-716 S6:
+   * OWN-113 Previous / Next; the card swaps in place and the body starts at its top (Brief H-698 S5). Brief H-733 S6:
    * the content enters from the side you moved to (12 px, --dur-med), the title fades (--dur-fast).
    */
   protected step(dir: -1 | 1): void {

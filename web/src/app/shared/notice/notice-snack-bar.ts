@@ -130,7 +130,7 @@ export class NoticeSnackBar implements TextOnlySnackBar {
     if (d.axis !== 'swipe') return;
     if (swipeRelease(d.dx, this.width(), e.timeStamp - d.t) === 'snap') return this.reset();
     if (reducedMotion()) return this.close();
-    // Brief H-716 S7: the slide-out and the snap-back use the motion tokens (`--dur-fast`, `--ease-out`).
+    // Brief H-733 S7: the slide-out and the snap-back use the motion tokens (`--dur-fast`, `--ease-out`).
     const surface = this.surface();
     const slide = tokenTransition(surface, ['transform', 'opacity'], '--dur-fast');
     const s = surface.style;

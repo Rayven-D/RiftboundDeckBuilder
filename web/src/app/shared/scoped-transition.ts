@@ -1,7 +1,7 @@
 import { routeTransitionRunning } from './route-transition';
 
 /**
- * Brief H-716 (helper for S1, S3, S5): a view transition for one in-page change, styled by `className`.
+ * Brief H-733 (helper for S1, S3, S5): a view transition for one in-page change, styled by `className`.
  *
  * Runs `update` directly (and synchronously) when the browser has no `document.startViewTransition`, under
  * `prefers-reduced-motion: reduce` (no frozen-input window either, §5), while another view transition runs (a route

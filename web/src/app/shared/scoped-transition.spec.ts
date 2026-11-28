@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { trackRouteTransition } from './route-transition';
 import { startScopedTransition } from './scoped-transition';
 
-/** H-717 (Brief H-716 helper, §5, §6.3, check 18 / check 20): when a scoped view transition may animate. */
+/** H-734 (Brief H-733 helper, §5, §6.3, check 18 / check 20): when a scoped view transition may animate. */
 interface FakeTransition {
   finish(): void;
 }
@@ -33,7 +33,7 @@ function fakeDoc(opts: { api?: boolean; reduce?: boolean; overlay?: string } = {
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
-describe('H-716 startScopedTransition', () => {
+describe('H-733 startScopedTransition', () => {
   afterEach(async () => {
     await flush();
   });

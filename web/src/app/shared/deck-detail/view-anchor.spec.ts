@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { anchorScrollDelta, captureAnchor } from './view-anchor';
 
-/** H-717 (Brief H-716 S1, check 1): the reader's place across deck detail's Card / List switch. */
-describe('H-716 S1 view anchor', () => {
+/** H-734 (Brief H-733 S1, check 1): the reader's place across deck detail's Card / List switch. */
+describe('H-733 S1 view anchor', () => {
   const LINE = 126;
 
   it('check 1: at the very top of the page there is no anchor (the page stays at the top)', () => {

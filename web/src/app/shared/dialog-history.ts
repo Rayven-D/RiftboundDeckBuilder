@@ -57,7 +57,7 @@ export function takeDialogReopen(router: Router, kind: string): DialogReopen | n
 }
 
 /**
- * Brief H-716 S2: whether the navigation in progress lands on an entry whose dialog will open again (any kind). The
+ * Brief H-733 S2: whether the navigation in progress lands on an entry whose dialog will open again (any kind). The
  * route change behind a restored dialog is then instant (`vt-instant`): the page is under the dialog.
  */
 export function dialogReopenPending(router: Router): boolean {

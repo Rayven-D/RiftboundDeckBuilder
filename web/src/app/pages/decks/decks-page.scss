@@ -263,7 +263,7 @@
     color: var(--color-text-muted);
   }
 
-  // Brief H-716 S5 (1): the label is as wide as its bold form (a hidden bold copy under it), so the selected chip's
+  // Brief H-733 S5 (1): the label is as wide as its bold form (a hidden bold copy under it), so the selected chip's
   // 600 weight never widens it and the chips after it never move.
   .chip-text {
     display: inline-flex;
@@ -435,7 +435,7 @@
 }
 
 // ---- active filter chips (OWN-105 (c))
-// Brief H-716 S5 (2): the active-filter row grows and shrinks on --dur-med (a small container, §6.1) and its content
+// Brief H-733 S5 (2): the active-filter row grows and shrinks on --dur-med (a small container, §6.1) and its content
 // fades in 60 ms later; the grid below moves with it instead of jumping. Reduced motion: instant (global block).
 .active-filters-reveal {
   display: grid;

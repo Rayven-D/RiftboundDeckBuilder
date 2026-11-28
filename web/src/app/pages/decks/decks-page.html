@@ -173,7 +173,7 @@
             [disabled]="phase() !== 'ready'"
             (click)="setOwn(null)"
           >
-            <!-- Brief H-716 S5 (1): the bold width is reserved (data-text), so selecting a chip moves no other chip. -->
+            <!-- Brief H-733 S5 (1): the bold width is reserved (data-text), so selecting a chip moves no other chip. -->
             <span class="chip-text" [attr.data-text]="'All ' + counts().all"><span>All <span class="n">{{ counts().all }}</span></span></span>
           </button>
           @for (o of ownOptions; track o) {
@@ -296,7 +296,7 @@
       <p id="own-hint" class="toolbar-hint">{{ text.ownershipDisabled }}</p>
     }
 
-    <!-- OWN-105 (c). Brief H-716 S5 (2): the row grows and shrinks (grid rows 0fr / 1fr) instead of popping; while it
+    <!-- OWN-105 (c). Brief H-733 S5 (2): the row grows and shrinks (grid rows 0fr / 1fr) instead of popping; while it
          closes it keeps the last chips, inert. -->
     <div class="active-filters-reveal" [class.open]="chips().length > 0" [inert]="chips().length === 0">
       <div class="active-filters-clip">

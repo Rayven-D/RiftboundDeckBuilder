@@ -264,7 +264,7 @@ export class CardDialog {
     afterNextRender(() => this.printingLine()?.nativeElement.focus(), { injector: this.injector });
   }
 
-  /** Brief H-716 S6: the content enters from the side you moved to (12 px, --dur-med), the title fades; body to top. */
+  /** Brief H-733 S6: the content enters from the side you moved to (12 px, --dur-med), the title fades; body to top. */
   protected step(dir: -1 | 1): void {
     const id = dir === -1 ? this.prev() : this.next();
     if (!id) return;

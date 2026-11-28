@@ -1,5 +1,5 @@
 /**
- * H-717 (Brief H-716, RJ 2026-11-28 "not too much motion, but not too blocky"): the motion pass in a real browser.
+ * H-734 (Brief H-733, RJ 2026-11-28 "not too much motion, but not too blocky"): the motion pass in a real browser.
  * Tests are named by the brief's acceptance check numbers (check n) and spec items (S n). Test data: fixtures.ts.
  *
  * Every view transition is recorded by wrapping `Document.prototype.startViewTransition` (an init script): the
@@ -143,7 +143,7 @@ test('check 1 / S1: at the very top the page stays at the top; deep in a section
 });
 
 // Check 2 (the sheet fading out with the old page on a link) is not built: keeping the dialog in the route transition's
-// picture crashed Chromium's renderer on a deck-to-deck link (H-717). The link closes the sheet at once, as in H-699.
+// picture crashed Chromium's renderer on a deck-to-deck link (H-734). The link closes the sheet at once, as in H-699.
 test('check 3 / S2 (375): Back to a sheet reopened from history: the page behind is instant, the sheet fades in place', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));

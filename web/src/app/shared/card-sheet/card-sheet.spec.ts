@@ -30,7 +30,7 @@ describe('H-699 card sheet (Brief H-698)', () => {
     expect(c.closeOnNavigation).toBe(false); // S7: Back closes the dialog at every width (RJ 2026-11-28)
   });
 
-  it('H-716 check 3 (S2): a dialog reopened by Back gets the restored class at every width (fade in place)', () => {
+  it('H-733 check 3 (S2): a dialog reopened by Back gets the restored class at every width (fade in place)', () => {
     expect(cardDialogConfig(true, SIZE, true).panelClass).toEqual([CARD_DIALOG_PANEL, CARD_SHEET_PANEL, CARD_DIALOG_RESTORED]);
     expect(cardDialogConfig(false, SIZE, true).panelClass).toEqual([CARD_DIALOG_PANEL, CARD_DIALOG_RESTORED]);
   });

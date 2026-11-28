@@ -644,7 +644,7 @@ export class DeckDetail {
   }
 
   /**
-   * OWN-114 Card / List. Brief H-716 S1: the section at the reading line stays where it was (the views differ in
+   * OWN-114 Card / List. Brief H-733 S1: the section at the reading line stays where it was (the views differ in
    * height, so the browser would otherwise clamp or keep a scroll offset that lands elsewhere), and the cards
    * cross-fade in place (`vt-view-swap`, styles.scss; the header, section bar and panel stay still). Reduced motion
    * or no view transitions: the same anchor, an instant swap.
@@ -726,7 +726,7 @@ export class DeckDetail {
       // H-468 (10): tell screen-reader users where the result went (the panel updates silently otherwise).
       this.status.set(DETAIL_TEXT.showing(card.name));
       this.panelBody()?.nativeElement.scrollTo?.({ top: 0 });
-      // Brief H-716 S6: the panel's card rises 4 px into place (no direction: any card can be picked).
+      // Brief H-733 S6: the panel's card rises 4 px into place (no direction: any card can be picked).
       if (changed)
         afterNextRender(() => playEnter(this.panelBody()?.nativeElement.firstElementChild, { axis: 'y', shift: '4px' }), {
           injector: this.injector,
@@ -739,7 +739,7 @@ export class DeckDetail {
   // ---------------------------------------------------------------- panel tabs (OWN-111 (c))
 
   protected selectTab(tab: PanelTab, focus = false): void {
-    // Brief H-716 S6: Card / Missing swap their content with a short fade (--dur-fast).
+    // Brief H-733 S6: Card / Missing swap their content with a short fade (--dur-fast).
     if (tab !== this.tab())
       afterNextRender(() => playEnter(this.panelBody()?.nativeElement, { dur: '--dur-fast' }), { injector: this.injector });
     this.tab.set(tab);

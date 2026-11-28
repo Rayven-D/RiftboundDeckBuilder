@@ -1,21 +1,21 @@
 ---
-title: Brief H-716 - Motion fluidity pass (build H-717)
+title: Brief H-733 - Motion fluidity pass (build H-734)
 status: ready (RJ request 2026-11-28; the motion design is ui-engineer's recommendation, nothing here changes behaviour)
-board: H-716 (brief), H-717 (build)
+board: H-733 (brief), H-734 (build)
 source: "RJ 2026-11-28 (via the orchestrator): 'run through these pages. Improve the fluidity of the motion as a user goes through the application. Not too much motion, but not too blocky.' Builds on [[Design Direction]] (H-085 fluid pass, motion tokens), [[Brief H-698 Card Dialog Mobile]] (bottom sheet, Back closes, swipe, scroll restore), [[Scrolling Guidance H-173]]"
 date: 2026-11-28
 tags: [ui, brief, rj-requested, motion]
 ---
 
-# Brief H-716: motion fluidity pass
+# Brief H-733: motion fluidity pass
 
 > **Summary.** The app already has a calm base: one route cross-fade, a sheet that slides and follows the finger, hover lifts, and reduced motion that stops everything. What makes it feel blocky is the **moments in between**. These moments get no motion: the footer jumping on every route change, the Card / List switch throwing the page 1,700px, the sheet vanishing in one frame on a link-out, the theme toggle changing the page in one frame while the header fades, chips that change width, a filter row that pops in, and card art that pops in. Material's dialog and snack-bar zoom from 80% also doesn't match our motion.
-> The fix is a few cheap continuity moves, mostly View Transitions and CSS using the **existing tokens**, plus two places where we *remove* motion. No new library. Build: **H-717**.
+> The fix is a few cheap continuity moves, mostly View Transitions and CSS using the **existing tokens**, plus two places where we *remove* motion. No new library. Build: **H-734**.
 
 ## 1. Motion principle
 **Motion explains where things came from and went. It never decorates or makes you wait.** Every change of state gets one short, continuous move (120–220 ms, transform and opacity only). Data that changes while you type and the content of long lists stays still.
 
-Corollaries for H-717:
+Corollaries for H-734:
 - One element moves per interaction. Everything else either fades or stays still.
 - Enter on `--ease-enter`, exit and state changes on `--ease-out`. Exits are shorter than entrances (`--dur-fast` out, `--dur-med` in).
 - A change you caused (tap, click, key) may animate. A change caused by typing, syncing or scrolling may not.
@@ -196,12 +196,12 @@ The global block in `styles.scss` covers CSS animations, transitions and every `
 
 ## 7. Considered and not recommended
 - **Card tile → sheet / dialog art morph:** opening a MatDialog inside `startViewTransition` freezes input for the length of the animation, fights the CDK overlay's own focus and scroll-block, and the art must have decoded in both places. The phone sheet's slide already gives continuity, and on desktop S7's rise is enough. Revisit only if RJ asks for it.
-- **Deck tile title → deck detail H1 morph:** cheap-ish (one name set on the clicked tile, the H1 always named), but text snapshots scale from ~17px to ~32px and look stretched halfway through unless the old/new images use `object-fit: none`. **Optional P3** for H-717: do it only if it looks clean at 1440 and 375 in both directions (needs the list tile named again on Back for the reverse morph). If not clean, skip it.
+- **Deck tile title → deck detail H1 morph:** cheap-ish (one name set on the clicked tile, the H1 always named), but text snapshots scale from ~17px to ~32px and look stretched halfway through unless the old/new images use `object-fit: none`. **Optional P3** for H-734: do it only if it looks clean at 1440 and 375 in both directions (needs the list tile named again on Back for the reverse morph). If not clean, skip it.
 - **Direction-aware route transitions** (drill-in rises, Back sinks): small gain, more rules. Not now.
 
-## 8. Priority for H-717
+## 8. Priority for H-734
 P1: S1, S2, S4, S5 (1–2), S7. P2: S3, S5 (3), S6, S8, S9, S10, S11. P3: S12, S13, S14, S15, optional title morph.
-Builder may split H-717 into parts by priority. Keep them on the same branch / PR (related UI items, one PR).
+Builder may split H-734 into parts by priority. Keep them on the same branch / PR (related UI items, one PR).
 
 ## 9. Acceptance checklist (reviewer checks each at 1440 and 375, light and dark)
 1. Deck detail Card ↔ List: the section heading at the top of the viewport stays within **±4px** of its offset. No scroll clamp jump. The swap is a fade (no rise).
@@ -230,5 +230,5 @@ Builder may split H-717 into parts by priority. Keep them on the same branch / P
 - **RJ:** the optional deck-title morph (§7). Default is skip unless it looks clean.
 
 ## Decisions (RJ 2026-11-28, via the orchestrator)
-- **Deck-title morph (§7, optional P3): skipped.** Not built in H-717.
+- **Deck-title morph (§7, optional P3): skipped.** Not built in H-734.
 - **No minimum skeleton time (S9).** Data shows the instant it is ready; there is no artificial delay anywhere. A skeleton → content crossfade is allowed only if it never delays the content (the content is visible from its first frame; the fade only covers the swap). This closes the spec-writer open point above: the 300ms minimum is rejected.
