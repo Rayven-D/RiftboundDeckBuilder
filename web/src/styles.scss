@@ -274,6 +274,11 @@ html {
   --dur-fast: 120ms;
   --dur-med: 220ms;
   --dur-slow: 600ms;
+  /* Brief H-716: motion distances. The route rise, enters and notices; the direction cue for Previous / Next. */
+  --move-rise: 6px;
+  --move-shift: 12px;
+  /* Dialogs and notices: how far they travel in (from below for dialogs, from the header for notices). */
+  --move-enter: 8px;
   --shadow-rest: 0 1px 2px rgb(0 0 0 / 20%);
   --shadow-lift: 0 6px 18px rgb(0 0 0 / 28%);
 
@@ -663,10 +668,88 @@ h1 {
   z-index: 1;
 }
 
-/* Same-route navigations (only the query changed) swap instantly (app.config.ts, H-095). */
-html.vt-instant::view-transition-old(main),
-html.vt-instant::view-transition-new(main) {
+/* Brief H-716 S4: the footer is outside <main>; it fades out and in with the page instead of jumping to its new place
+ * in the un-animated root picture. Opacity only (a rising footer draws the eye). */
+::view-transition-group(site-footer) {
   animation: none;
+}
+
+::view-transition-old(site-footer) {
+  animation: route-out var(--dur-fast) var(--ease-out) both;
+}
+
+::view-transition-new(site-footer) {
+  animation: fade-in var(--dur-med) var(--ease-enter) both;
+}
+
+/* Brief H-716 S2: a card dialog left by a link in it sinks a little and fades with the old page (CardSheet.leave keeps
+ * it open until the page swaps). Only the "before" picture exists: the dialog is closed in the new page. */
+.cdk-overlay-container > :has(> .card-dialog-panel) {
+  view-transition-name: card-overlay;
+}
+
+::view-transition-group(card-overlay) {
+  animation: none;
+  z-index: 2;
+}
+
+::view-transition-old(card-overlay) {
+  animation: overlay-out var(--dur-fast) var(--ease-out) both;
+}
+
+/* Same-route navigations (only the query changed) swap instantly (app.config.ts, H-095), and so does the page behind a
+ * card dialog that Back opens again (H-716 S2). Every part, not only <main>. */
+html.vt-instant::view-transition-group(*),
+html.vt-instant::view-transition-old(*),
+html.vt-instant::view-transition-new(*) {
+  animation: none;
+}
+
+/* Brief H-716 S1 (shared/scoped-transition.ts): deck detail's Card / List switch. The cards cross-fade in place (no rise:
+ * only their form changes); the sticky section bar with the view toggle and the desktop panel stay still, like the
+ * header, the tab bar and the footer. */
+html.vt-view-swap .deck-bar {
+  view-transition-name: deck-section-bar;
+}
+
+html.vt-view-swap .layout--panel > .panel {
+  view-transition-name: deck-panel;
+}
+
+html.vt-view-swap::view-transition-old(main) {
+  animation: route-out var(--dur-fast) var(--ease-out) both;
+}
+
+html.vt-view-swap::view-transition-new(main) {
+  animation: fade-in var(--dur-med) var(--ease-enter) both;
+}
+
+html.vt-view-swap::view-transition-group(deck-section-bar),
+html.vt-view-swap::view-transition-group(deck-panel) {
+  animation: none;
+  z-index: 1;
+}
+
+html.vt-view-swap::view-transition-old(deck-section-bar),
+html.vt-view-swap::view-transition-new(deck-section-bar),
+html.vt-view-swap::view-transition-old(deck-panel),
+html.vt-view-swap::view-transition-new(deck-panel),
+html.vt-view-swap::view-transition-old(site-footer),
+html.vt-view-swap::view-transition-new(site-footer) {
+  animation: none;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes overlay-out {
+  to {
+    opacity: 0;
+    transform: translateY(var(--move-rise));
+  }
 }
 
 @keyframes route-out {
@@ -678,7 +761,7 @@ html.vt-instant::view-transition-new(main) {
 @keyframes route-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(var(--move-rise));
   }
 }
 
@@ -757,6 +840,11 @@ html.vt-instant::view-transition-new(main) {
   animation: card-sheet-fade-in var(--dur-med) var(--ease-enter);
 }
 
+/* Brief H-716 S2: a sheet reopened by Back is not a new open: it fades in place (no slide), the backdrop with it. */
+.card-sheet-panel.card-dialog-restored {
+  animation: card-sheet-fade-in var(--dur-med) var(--ease-enter);
+}
+
 @keyframes card-sheet-in {
   from {
     transform: translateY(100%);
@@ -766,6 +854,93 @@ html.vt-instant::view-transition-new(main) {
 @keyframes card-sheet-fade-in {
   from {
     opacity: 0;
+  }
+}
+
+/* Brief H-716 S7: every Material dialog (not the phone card sheet, whose Material animation is off) rises 8 px from 98%
+ * and fades in on --dur-med / --ease-enter, instead of Material's zoom from 80%; it leaves on --dur-fast / --ease-out,
+ * fading and settling back to 98%. Material times its classes with the durations in shared/motion.ts DIALOG_MOTION.
+ * The surface's transform and the inner container's opacity are Material's own transition targets: only their values,
+ * durations and curves change here. Reduced motion: the global block makes both instant. */
+.mat-mdc-dialog-container:not(._mat-animation-noopable) {
+  .mat-mdc-dialog-inner-container {
+    transition: opacity var(--dur-med) var(--ease-enter);
+  }
+
+  .mat-mdc-dialog-surface {
+    transform: translateY(var(--move-enter)) scale(0.98);
+    transition: transform var(--dur-med) var(--ease-enter);
+  }
+
+  &.mdc-dialog--open .mat-mdc-dialog-surface {
+    transform: none;
+  }
+}
+
+/* S2: a card dialog reopened by Back fades in place (no rise). No transition either: the CDK adds the panel class
+ * after the surface has had its first style, so a transform transition would still play from the rise. */
+.card-dialog-restored .mat-mdc-dialog-container:not(._mat-animation-noopable) .mat-mdc-dialog-surface {
+  transform: none;
+  transition: none;
+}
+
+.mat-mdc-dialog-container:not(._mat-animation-noopable).mdc-dialog--closing {
+  .mat-mdc-dialog-inner-container {
+    transition: opacity var(--dur-fast) var(--ease-out);
+  }
+
+  .mat-mdc-dialog-surface {
+    transform: scale(0.98);
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+}
+
+/* Phones: the full-screen dialogs (Filters, Import deck) come up 6 px with the fade, no scale, and only fade out. */
+@media (max-width: 40rem) {
+  .deck-filters-panel,
+  .import-deck-panel {
+    .mat-mdc-dialog-container:not(._mat-animation-noopable) .mat-mdc-dialog-surface {
+      transform: translateY(var(--move-rise));
+    }
+
+    .mat-mdc-dialog-container:not(._mat-animation-noopable).mdc-dialog--open .mat-mdc-dialog-surface,
+    .mat-mdc-dialog-container:not(._mat-animation-noopable).mdc-dialog--closing .mat-mdc-dialog-surface {
+      transform: none;
+    }
+  }
+}
+
+/* Brief H-716 S7: notices (at the top, H-671) come down 8 px from under the header and fade in on --dur-med, and leave
+ * on --dur-fast, 4 px up. Material's own zoom keyframes are replaced; it then ends both states on its 200 ms
+ * fallback timers, which outlast these. Reduced motion: the global block makes both instant. */
+.mat-mdc-snack-bar-container.mat-snack-bar-container-enter {
+  animation: notice-in var(--dur-med) var(--ease-enter) both;
+}
+
+.mat-mdc-snack-bar-container.mat-snack-bar-container-exit {
+  animation: notice-out var(--dur-fast) var(--ease-out) both;
+}
+
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--move-enter)));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes notice-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(calc(-0.5 * var(--move-enter)));
   }
 }
 

@@ -23,6 +23,7 @@ import { LockActions } from '../../shared/deck/lock-actions';
 import { LockBadge } from '../../shared/deck/lock-badge';
 import { LockInDialog, LockInDialogData } from '../../shared/deck/lock-in-dialog';
 import { styleguideDecks } from './deck-samples';
+import { DIALOG_MOTION } from '../../shared/motion';
 
 /**
  * Preview lock store: Lock in / Unlock only flip an in-memory set, so the buttons can be tried on /styleguide
@@ -422,6 +423,7 @@ export class StyleguideDecks {
 
   protected openLockIn(others: boolean): void {
     this.dialog.open<LockInDialog, LockInDialogData, boolean>(LockInDialog, {
+      ...DIALOG_MOTION,
       data: { deckName: this.s.deck.name, others: others ? otherDecksLine(this.s.view) : null },
       width: 'min(28rem, calc(100vw - 2 * var(--content-gutter)))',
       maxWidth: '100vw',

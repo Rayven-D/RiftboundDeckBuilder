@@ -2,6 +2,7 @@ import { injectNotices } from '../../shared/notice/notice-snack-bar';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { DOCUMENT } from '@angular/common';
 import {
+  ApplicationRef,
   Component,
   DestroyRef,
   ElementRef,
@@ -63,6 +64,8 @@ import { DeckCardRow } from '../../shared/deck-detail/deck-card-row';
 import { PHONE as SHEET_PHONE, cardDialogConfig } from '../../shared/card-sheet/card-sheet';
 import { takeDialogReopen } from '../../shared/dialog-history';
 import { routeTransitionDone } from '../../shared/route-transition';
+import { startScopedTransition } from '../../shared/scoped-transition';
+import { SectionBox, anchorScrollDelta, captureAnchor } from '../../shared/deck-detail/view-anchor';
 import { ListItems, restoreListScroll, saveListScrollOnLeave, takeListScroll } from '../../shared/list-scroll';
 
 /** The page's card tiles / rows for the Back scroll restore, keyed by card id. */
@@ -221,6 +224,7 @@ export class DeckDetail {
   private readonly title = inject(Title);
   private readonly doc = inject(DOCUMENT);
   private readonly injector = inject(Injector);
+  private readonly appRef = inject(ApplicationRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly deckImport = inject(DeckImport);
   private readonly collectionImport = inject(CollectionImport);
@@ -638,13 +642,47 @@ export class DeckDetail {
     this.jumpTimer = setTimeout(() => this.endJump(), JUMP_IDLE_MS);
   }
 
+  /**
+   * OWN-114 Card / List. Brief H-716 S1: the section at the reading line stays where it was (the views differ in
+   * height, so the browser would otherwise clamp or keep a scroll offset that lands elsewhere), and the cards
+   * cross-fade in place (`vt-view-swap`, styles.scss; the header, section bar and panel stay still). Reduced motion
+   * or no view transitions: the same anchor, an instant swap.
+   */
   protected setMode(mode: DeckViewMode): void {
-    this.mode.set(mode);
+    const v = this.view();
+    const win = this.doc.defaultView;
+    if (mode !== this.mode() && v && win) {
+      const zones = v.sections.map((s) => s.zone);
+      const line = this.stickyOffset() + LAND_GAP + 2;
+      const anchor = captureAnchor(this.sectionBoxes(zones), line, this.scrollY());
+      void startScopedTransition(
+        () => {
+          this.mode.set(mode);
+          this.appRef.tick();
+          const after = anchor ? this.sectionBoxes(zones)[anchor.index] : undefined;
+          if (anchor && after) {
+            const dy = Math.round(anchorScrollDelta(anchor, after, line));
+            if (dy !== 0) win.scrollBy({ top: dy, behavior: 'instant' });
+          }
+        },
+        'vt-view-swap',
+        this.doc,
+      );
+    } else this.mode.set(mode);
     try {
       this.device?.setItem(DECK_VIEW_KEY, mode);
     } catch {
       // a full or blocked storage keeps the choice for this page only
     }
+  }
+
+  /** Each section's heading top and section bottom, in viewport coordinates (S1 anchor). */
+  private sectionBoxes(zones: readonly DeckZone[]): SectionBox[] {
+    return zones.map((z) => {
+      const top = this.doc.getElementById(`zone-${z}`)?.getBoundingClientRect().top ?? 0;
+      const bottom = this.doc.getElementById(`section-${z}`)?.getBoundingClientRect().bottom ?? top;
+      return { top, bottom };
+    });
   }
 
   private readDevice(): string | null {
@@ -742,7 +780,7 @@ export class DeckDetail {
       ...cardDialogConfig(this.breakpoints.isMatched(SHEET_PHONE), {
         width: 'min(44rem, calc(100vw - 2 * var(--content-gutter)))',
         maxHeight: 'min(90svh, 52rem)',
-      }),
+      }, historyToken !== null),
     });
     ref.afterClosed().subscribe((result) => {
       if (this.destroyed || result?.navigated) return; // H-699: a link left the page (its scroll is saved as it was)

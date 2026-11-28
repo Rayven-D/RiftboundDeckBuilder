@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CARD_DIALOG_PANEL, CARD_SHEET_PANEL, PHONE, bodyDragMove, bodyDragStart, cardDialogConfig, swipeCloses } from './card-sheet';
+import { CARD_DIALOG_PANEL, CARD_DIALOG_RESTORED, CARD_SHEET_PANEL, PHONE, bodyDragMove, bodyDragStart, cardDialogConfig, swipeCloses } from './card-sheet';
 
 /** H-699 (Brief H-698): the pure parts of the phone sheet. Drag, animation and Back are in e2e/card-sheet.e2e.ts. */
 const SIZE = { width: 'min(44rem, 90vw)', maxHeight: 'min(90svh, 52rem)' };
@@ -23,11 +23,16 @@ describe('H-699 card sheet (Brief H-698)', () => {
 
   it('AC 20: larger screens keep the centred dialog with the page sizes and focus on Close', () => {
     const c = cardDialogConfig(false, SIZE);
-    expect(c.panelClass).toBe(CARD_DIALOG_PANEL);
+    expect(c.panelClass).toEqual([CARD_DIALOG_PANEL]);
     expect(c.autoFocus).toBe('.close-button');
     expect([c.width, c.maxWidth, c.maxHeight]).toEqual([SIZE.width, '100vw', SIZE.maxHeight]);
     expect(c.position).toBeUndefined();
     expect(c.closeOnNavigation).toBe(false); // S7: Back closes the dialog at every width (RJ 2026-11-28)
+  });
+
+  it('H-716 check 3 (S2): a dialog reopened by Back gets the restored class at every width (fade in place)', () => {
+    expect(cardDialogConfig(true, SIZE, true).panelClass).toEqual([CARD_DIALOG_PANEL, CARD_SHEET_PANEL, CARD_DIALOG_RESTORED]);
+    expect(cardDialogConfig(false, SIZE, true).panelClass).toEqual([CARD_DIALOG_PANEL, CARD_DIALOG_RESTORED]);
   });
 
   it('S6 / AC 11: release closes past min(120 px, 25% of the height) or after a flick faster than 0.5 px/ms', () => {

@@ -52,11 +52,24 @@ function currentState(): Record<string, unknown> | null {
  * page has its data, then open the dialog only if the card still exists (a stale record opens nothing).
  */
 export function takeDialogReopen(router: Router, kind: string): DialogReopen | null {
+  const r = reopenRecord(router);
+  return r && r.kind === kind ? r : null;
+}
+
+/**
+ * Brief H-716 S2: whether the navigation in progress lands on an entry whose dialog will open again (any kind). The
+ * route change behind a restored dialog is then instant (`vt-instant`): the page is under the dialog.
+ */
+export function dialogReopenPending(router: Router): boolean {
+  return reopenRecord(router) !== null;
+}
+
+function reopenRecord(router: Router): DialogReopen | null {
   const nav = router.currentNavigation() ?? router.lastSuccessfulNavigation();
   if (nav?.trigger !== 'popstate') return null;
   const state = currentState();
   const r = state?.[REOPEN] as Partial<DialogReopen> | undefined;
-  if (!r || r.kind !== kind || typeof r.id !== 'string' || typeof r.token !== 'string') return null;
+  if (!r || typeof r.kind !== 'string' || typeof r.id !== 'string' || typeof r.token !== 'string') return null;
   if (state?.[MARKER] !== r.token) return null;
   return { kind: r.kind, id: r.id, token: r.token };
 }

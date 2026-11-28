@@ -12,6 +12,7 @@ import {
 import { firstValueFrom } from 'rxjs';
 import { Icon } from '../../shared/icon';
 import { TEST_TEXT, TestSetId } from '../../shared/collection/test-data';
+import { DIALOG_MOTION } from '../../shared/motion';
 
 /**
  * SPEC-013 dialogs (H-205): Load test data (TEST-003, TEST-004, TEST-022, TEST-023) and one small confirmation
@@ -64,6 +65,7 @@ export class TestConfirmDialog {
 /** Opens the confirmation; resolves true only for the action button. */
 export async function confirmTestData(dialog: MatDialog, data: TestConfirmDialogData): Promise<boolean> {
   const ref = dialog.open<TestConfirmDialog, TestConfirmDialogData, boolean>(TestConfirmDialog, {
+    ...DIALOG_MOTION,
     data,
     width: '28rem',
     maxWidth: 'calc(100vw - 2rem)',

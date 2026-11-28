@@ -82,6 +82,7 @@ import { TEST_DATA_ENABLED } from '../../core/test-data/test-data-flag';
 import { GuestTestData } from '../../core/test-data/guest-test-data';
 import { loadTestData, removeTestData } from '../../core/test-data/test-data-ops';
 import { TestLoadDialog, TestLoadDialogData, TestLoadOutcome, confirmTestData } from './test-data-dialogs';
+import { DIALOG_MOTION } from '../../shared/motion';
 
 type Phase = 'loading' | 'empty' | 'ready' | 'unreadable' | 'catalog-error';
 
@@ -648,7 +649,7 @@ export class CollectionPage {
           ? 'min(56rem, calc(100vw - 2 * var(--content-gutter)))'
           : 'min(40rem, calc(100vw - 2 * var(--content-gutter)))',
         maxHeight: 'min(90svh, 52rem)',
-      }),
+      }, historyToken !== null),
     });
     this.dialogOpen = true;
     ref.afterClosed().subscribe((result) => {
@@ -692,6 +693,7 @@ export class CollectionPage {
     const opener = dialogOpener(document);
     const committer = this.importer;
     const ref = this.dialog.open<ImportDialog, ImportDialogData, ImportDialogResult>(ImportDialog, {
+      ...DIALOG_MOTION,
       data: file ? { kind: 'collection', file, committer } : { kind: 'collection', committer },
       width: '40rem',
       maxWidth: 'calc(100vw - 2rem)',
@@ -729,6 +731,7 @@ export class CollectionPage {
       load: (set) => this.runTestLoad(set),
     };
     const ref = this.dialog.open<TestLoadDialog, TestLoadDialogData, boolean>(TestLoadDialog, {
+      ...DIALOG_MOTION,
       data,
       width: '32rem',
       maxWidth: 'calc(100vw - 2rem)',

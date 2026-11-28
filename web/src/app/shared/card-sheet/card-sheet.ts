@@ -1,6 +1,9 @@
 import { DestroyRef, ElementRef, inject, signal } from '@angular/core';
 import { MatDialogConfig, MatDialogRef } from '@angular/material/dialog';
+import { ActivationEnd, Event as RouterEvent, NavigationCancel, NavigationEnd, NavigationError, NavigationSkipped, Router } from '@angular/router';
+import { filter, take } from 'rxjs';
 import { CloseOnBackOptions, DialogHistory, closeOnBack } from '../dialog-history';
+import { DIALOG_MOTION, cssMs } from '../motion';
 
 /** The phone boundary of SPEC-010 0.17.1 (`max-width: 40rem`), as a media query for TS (SCSS writes it literally). */
 export const PHONE = '(max-width: 40rem)';
@@ -8,6 +11,8 @@ export const PHONE = '(max-width: 40rem)';
 /** The panel classes every card dialog pane gets; the second one only on phones (the bottom sheet, Brief H-698 S1). */
 export const CARD_DIALOG_PANEL = 'card-dialog-panel';
 export const CARD_SHEET_PANEL = 'card-sheet-panel';
+/** Brief H-716 S2: a dialog reopened by Back (not a new open) fades in place: no slide (phone), no rise (larger). */
+export const CARD_DIALOG_RESTORED = 'card-dialog-restored';
 const CARD_SHEET_BACKDROP = 'card-sheet-backdrop';
 
 /** Sheet height: the dynamic viewport minus the top safe area and a 12 px strip of dimmed page (Brief H-698 S1). */
@@ -22,6 +27,8 @@ export const SWIPE_CLOSE_VELOCITY = 0.5;
 const DRAG_SLOP_PX = 6;
 /** Upward rubber band, at most. */
 const RUBBER_BAND_PX = 8;
+/** H-716 S2: a followed link closes the dialog with the page swap, or after this long at the latest. */
+const LEAVE_FALLBACK_MS = 3000;
 
 /** Desktop / tablet sizes, as each page has them today (unchanged by H-699). */
 export interface CardDialogSize {
@@ -34,13 +41,15 @@ export interface CardDialogSize {
  * previews). Phones (Brief H-698 S1, S7, A11y): a full-width bottom sheet of fixed height, no Material scale / fade
  * (the sheet slides, styles.scss), focus on the container so a tap draws no ring on Close. Larger screens: the
  * centred dialog exactly as before. Both: `closeOnNavigation: false`, because Back is handled by `closeOnBack`.
+ * `restored` (Brief H-716 S2): reopened from its history entry, so it fades in place instead of entering anew.
  */
-export function cardDialogConfig(phone: boolean, size: CardDialogSize): MatDialogConfig {
+export function cardDialogConfig(phone: boolean, size: CardDialogSize, restored = false): MatDialogConfig {
   const shared: MatDialogConfig = { closeOnNavigation: false };
+  const extra = restored ? [CARD_DIALOG_RESTORED] : [];
   if (phone) {
     return {
       ...shared,
-      panelClass: [CARD_DIALOG_PANEL, CARD_SHEET_PANEL],
+      panelClass: [CARD_DIALOG_PANEL, CARD_SHEET_PANEL, ...extra],
       backdropClass: ['cdk-overlay-dark-backdrop', CARD_SHEET_BACKDROP],
       autoFocus: 'dialog',
       width: '100vw',
@@ -53,8 +62,9 @@ export function cardDialogConfig(phone: boolean, size: CardDialogSize): MatDialo
     };
   }
   return {
+    ...DIALOG_MOTION,
     ...shared,
-    panelClass: CARD_DIALOG_PANEL,
+    panelClass: [CARD_DIALOG_PANEL, ...extra],
     autoFocus: '.close-button',
     width: size.width,
     maxWidth: '100vw',
@@ -121,14 +131,6 @@ export function bodyDragMove(d: BodyDrag, x: number, y: number, scrollTop: numbe
 
 const reducedMotion = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
-/** A CSS time (`220ms`, `0.2s`) in ms; 0 when unreadable. */
-function ms(value: string): number {
-  const v = value.split(',')[0]?.trim() ?? '';
-  const n = parseFloat(v);
-  if (!Number.isFinite(n)) return 0;
-  return v.endsWith('ms') ? n : n * 1000;
-}
-
 /**
  * The bottom-sheet behaviour both card dialogs share (Brief H-698 S2, S6, S7, Motion): the animated close, swipe down
  * on the head, the head divider once the body scrolls, and Back (`closeOnBack`). Create it in the dialog's
@@ -141,6 +143,7 @@ export class CardSheet {
   readonly scrolled = signal(false);
   readonly history: DialogHistory;
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  private readonly router = inject(Router);
   private closing = false;
   private drag: {
     id: number;
@@ -212,7 +215,7 @@ export class CardSheet {
     const style = getComputedStyle(this.host);
     const dur = style.getPropertyValue(fast ? '--dur-fast' : '--dur-med').trim();
     const ease = style.getPropertyValue('--ease-out').trim();
-    const time = ms(dur);
+    const time = cssMs(dur);
     if (time <= 0) {
       this.report();
       return;
@@ -235,6 +238,50 @@ export class CardSheet {
     };
     pane.addEventListener('transitionend', (e) => e.target === pane && e.propertyName === 'transform' && finish());
     setTimeout(finish, time + 60); // no transitionend (e.g. the transform did not change)
+  }
+
+  /**
+   * Brief H-716 S2: a link in the dialog was followed. The dialog stays as it is until the router swaps the page (the
+   * route's view transition has then taken its "before" picture with the dialog in it), and closes in that same
+   * update, so the route transition fades it out (`card-overlay`, styles.scss) while the new page rises in. Nothing
+   * animates the overlay itself while the transition runs (that crashed Chromium in the H-699 e2e). Without view
+   * transitions, or under reduced motion, it closes at once, as before.
+   */
+  leave(close: () => void): void {
+    if (this.closing) return;
+    this.closing = true;
+    const doc = this.host.ownerDocument;
+    if (typeof doc.startViewTransition !== 'function' || reducedMotion()) {
+      close();
+      return;
+    }
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      sub.unsubscribe();
+      clearTimeout(timer);
+      // The CDK fades the backdrop out over its own 400 ms; the route transition already shows it leaving.
+      const all = doc.querySelectorAll<HTMLElement>('.cdk-overlay-backdrop');
+      const backdrop = all.item(all.length - 1);
+      if (backdrop) backdrop.style.display = 'none';
+      close();
+    };
+    const sub = this.router.events
+      .pipe(
+        filter(
+          (e: RouterEvent) =>
+            e instanceof ActivationEnd ||
+            e instanceof NavigationEnd ||
+            e instanceof NavigationCancel ||
+            e instanceof NavigationError ||
+            e instanceof NavigationSkipped,
+        ),
+        take(1),
+      )
+      .subscribe(finish);
+    // Never left open: a navigation that does not come (or a lazy page that takes long) closes it anyway.
+    const timer = setTimeout(finish, LEAVE_FALLBACK_MS);
   }
 
   /** Closes without the exit animation. */

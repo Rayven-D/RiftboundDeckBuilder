@@ -173,7 +173,8 @@
             [disabled]="phase() !== 'ready'"
             (click)="setOwn(null)"
           >
-            All <span class="n">{{ counts().all }}</span>
+            <!-- Brief H-716 S5 (1): the bold width is reserved (data-text), so selecting a chip moves no other chip. -->
+            <span class="chip-text" [attr.data-text]="'All ' + counts().all"><span>All <span class="n">{{ counts().all }}</span></span></span>
           </button>
           @for (o of ownOptions; track o) {
             <button
@@ -188,7 +189,9 @@
               [disabled]="phase() !== 'ready'"
               (click)="setOwn(o)"
             >
-              <app-icon [name]="ownIcon[o]" />{{ ownLabel[o] }} <span class="n">{{ counts()[o] }}</span>
+              <app-icon [name]="ownIcon[o]" /><span class="chip-text" [attr.data-text]="ownLabel[o] + ' ' + counts()[o]"
+                ><span>{{ ownLabel[o] }} <span class="n">{{ counts()[o] }}</span></span></span
+              >
             </button>
           }
         </div>
@@ -293,22 +296,25 @@
       <p id="own-hint" class="toolbar-hint">{{ text.ownershipDisabled }}</p>
     }
 
-    @if (chips().length) {
-      <!-- OWN-105 (c) -->
-      <div class="active-filters">
-        @for (c of chips(); track c.key; let i = $index) {
-          <button
-            type="button"
-            class="filter-chip"
-            [attr.aria-label]="'Remove filter: ' + c.label"
-            (click)="removeFilter(c.key, i)"
-          >
-            {{ c.label }}<app-icon name="close" />
-          </button>
-        }
-        <button type="button" class="text-button" (click)="clearAll()">{{ text.clearFilters }}</button>
+    <!-- OWN-105 (c). Brief H-716 S5 (2): the row grows and shrinks (grid rows 0fr / 1fr) instead of popping; while it
+         closes it keeps the last chips, inert. -->
+    <div class="active-filters-reveal" [class.open]="chips().length > 0" [inert]="chips().length === 0">
+      <div class="active-filters-clip">
+        <div class="active-filters">
+          @for (c of shownChips(); track c.key; let i = $index) {
+            <button
+              type="button"
+              class="filter-chip"
+              [attr.aria-label]="'Remove filter: ' + c.label"
+              (click)="removeFilter(c.key, i)"
+            >
+              {{ c.label }}<app-icon name="close" />
+            </button>
+          }
+          <button type="button" class="text-button" (click)="clearAll()">{{ text.clearFilters }}</button>
+        </div>
       </div>
-    }
+    </div>
 
     @if (phase() === 'loading') {
       @if (showSkeleton()) {

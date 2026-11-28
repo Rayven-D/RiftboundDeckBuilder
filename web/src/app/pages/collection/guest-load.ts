@@ -8,6 +8,7 @@ import { TEST_DATA_ENABLED } from '../../core/test-data/test-data-flag';
 import { TEST_TEXT } from '../../shared/collection/test-data';
 import { noticeOptions } from '../../shared/sync/notice';
 import { TestLoadDialog, TestLoadDialogData } from './test-data-dialogs';
+import { DIALOG_MOTION } from '../../shared/motion';
 
 /**
  * H-679: **Load test data** under Sign in on the signed-out panel of Collection and Decks (flag on, never for a lost
@@ -50,6 +51,7 @@ export class GuestLoad {
     const opener = e.currentTarget as HTMLElement;
     const data: TestLoadDialogData = { replacing: false, guest: true, load: (set) => this.guest.load(set) };
     const ref = this.dialog.open<TestLoadDialog, TestLoadDialogData, boolean>(TestLoadDialog, {
+      ...DIALOG_MOTION,
       data,
       width: '32rem',
       maxWidth: 'calc(100vw - 2rem)',

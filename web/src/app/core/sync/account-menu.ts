@@ -32,6 +32,7 @@ import {
 } from './sync-dialogs';
 import { AccountTab } from './account-tab';
 import { SyncService, refocusAfterDialog } from './sync.service';
+import { DIALOG_MOTION } from '../../shared/motion';
 
 /** A gap larger than this is a real layout choice (a push to stay on screen), not the scrollbar-gutter mismatch. */
 const MAX_EDGE_CORRECTION = 32;
@@ -447,6 +448,7 @@ export class AccountMenu {
       deleteAccount: (opener) => this.openDelete(opener),
     };
     const ref = this.dialog.open<AccountInfoDialog, AccountInfoDialogData>(AccountInfoDialog, {
+      ...DIALOG_MOTION,
       data,
       autoFocus: 'first-tabbable',
       restoreFocus: trigger ?? true,
@@ -470,6 +472,7 @@ export class AccountMenu {
       save: (v) => this.sync.saveUsername(v),
     };
     const ref = this.dialog.open<UsernameDialog, UsernameDialogData, string>(UsernameDialog, {
+      ...DIALOG_MOTION,
       data,
       autoFocus: false,
       restoreFocus: opener,
@@ -491,7 +494,7 @@ export class AccountMenu {
       online: this.sync.online,
       syncNow: () => this.sync.syncNow(),
     };
-    const ref = this.dialog.open(SignOutDialog, { data, autoFocus: 'first-tabbable', restoreFocus: trigger ?? true });
+    const ref = this.dialog.open(SignOutDialog, { ...DIALOG_MOTION, data, autoFocus: 'first-tabbable', restoreFocus: trigger ?? true });
     const signOut = (await firstValueFrom(ref.afterClosed())) === true;
     refocusAfterDialog(trigger);
     if (!signOut) return;
@@ -513,7 +516,7 @@ export class AccountMenu {
     };
     const ref = this.dialog.open<DeleteAccountDialog, DeleteAccountDialogData, DeleteAccountDialogResult>(
       DeleteAccountDialog,
-      { data, autoFocus: 'first-tabbable', restoreFocus: opener },
+      { ...DIALOG_MOTION, data, autoFocus: 'first-tabbable', restoreFocus: opener },
     );
     const result = await firstValueFrom(ref.afterClosed());
     if (result === 'sign-out') {

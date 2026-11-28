@@ -1,4 +1,5 @@
-import { ActivatedRouteSnapshot, ViewTransitionInfo } from '@angular/router';
+import { TestBed } from '@angular/core/testing';
+import { ActivatedRouteSnapshot, Router, ViewTransitionInfo } from '@angular/router';
 import { routeViewTransition } from './app.config';
 
 /** A snapshot chain root → children with the given path segments. */
@@ -54,5 +55,23 @@ describe('route view transitions (H-095 fix 1)', () => {
   it('a change between tabs keeps the normal cross-fade', () => {
     routeViewTransition(info('collection', 'decks').value);
     expect(document.documentElement.classList).not.toContain('vt-instant');
+  });
+
+  it('H-716 S2 / check 3: Back to an entry whose card dialog opens again is instant (the page is under the dialog)', () => {
+    const nav = { trigger: 'popstate' as string };
+    const router = { currentNavigation: () => nav, lastSuccessfulNavigation: () => null };
+    TestBed.configureTestingModule({ providers: [{ provide: Router, useValue: router }] });
+    history.replaceState({ riftDialog: 'd9', riftDialogReopen: { kind: 'deck-card', id: 'x', token: 'd9' } }, '');
+    try {
+      TestBed.runInInjectionContext(() => routeViewTransition(info('collection', 'decks').value));
+      expect(document.documentElement.classList).toContain('vt-instant');
+      document.documentElement.classList.remove('vt-instant');
+      // A link (not Back / Forward) from that entry keeps the normal cross-fade.
+      nav.trigger = 'imperative';
+      TestBed.runInInjectionContext(() => routeViewTransition(info('collection', 'decks').value));
+      expect(document.documentElement.classList).not.toContain('vt-instant');
+    } finally {
+      history.replaceState(null, '');
+    }
   });
 });

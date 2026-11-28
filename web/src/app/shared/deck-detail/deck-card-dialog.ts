@@ -128,11 +128,12 @@ export class DeckCardDialog {
   }
 
   /**
-   * A link in the content was followed (OWN-113): close at once, the router is already on its way. The dialog's
-   * history entry stays, so Back from the linked page reopens it (RJ 2026-11-28).
+   * A link in the content was followed (OWN-113): close as the router swaps the page (Brief H-716 S2: the route
+   * transition fades the dialog out with the old page). The dialog's history entry stays, so Back from the linked
+   * page reopens it (RJ 2026-11-28).
    */
   protected leave(): void {
-    this.ref.close({ cardId: this.cardId(), gone: false, navigated: true });
+    this.sheet.leave(() => this.ref.close({ cardId: this.cardId(), gone: false, navigated: true }));
   }
 
   private report(): void {

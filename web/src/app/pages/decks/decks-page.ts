@@ -7,6 +7,7 @@ import {
   Injector,
   afterNextRender,
   computed,
+  linkedSignal,
   effect,
   inject,
   signal,
@@ -72,6 +73,7 @@ import { ImportDialog, ImportDialogData, ImportDialogResult } from '../../shared
 import { IMPORT_PARAMS, dialogOpener, importFocusTarget, launchDecision } from '../../shared/import/import-launch';
 import { PageFab } from '../../shared/page-fab';
 import { DeckFiltersDialog, DeckFiltersDialogData } from './deck-filters-dialog';
+import { DIALOG_MOTION } from '../../shared/motion';
 
 /** SPEC-005 OWN-008 (v0.7) empty state. */
 export const DECKS_EMPTY = {
@@ -227,6 +229,11 @@ export class DecksPage {
     return m ? hiddenLockedCount(m.entries, this.query()) : 0;
   });
   protected readonly chips = computed(() => activeFilters(this.query(), STANDARD.name));
+  /** Brief H-716 S5 (2): what the filter row shows; the last chips stay while the row closes (it is inert then). */
+  protected readonly shownChips = linkedSignal<ReturnType<typeof activeFilters>, ReturnType<typeof activeFilters>>({
+    source: this.chips,
+    computation: (c, prev) => (c.length > 0 ? c : (prev?.value ?? c)),
+  });
   protected readonly menuCount = computed(() => menuFilterCount(this.query()));
   /** Phone Filters badge: every filter in the dialog (Ownership, Lock, Legality, Source). */
   protected readonly phoneFilterCount = computed(() => this.chips().length);
@@ -499,7 +506,7 @@ export class DecksPage {
     this.patchQuery({ [key]: null } as Partial<DeckListQuery>);
     afterNextRender(
       () => {
-        const chips = this.doc.querySelectorAll<HTMLElement>('.active-filters .filter-chip');
+        const chips = this.doc.querySelectorAll<HTMLElement>('.active-filters-reveal.open .filter-chip');
         (chips[Math.min(index, chips.length - 1)] ?? this.searchInput()?.nativeElement)?.focus();
       },
       { injector: this.injector },
@@ -533,6 +540,7 @@ export class DecksPage {
       lockDisabled: this.lockDisabled(),
     };
     const ref = this.dialog.open<DeckFiltersDialog, DeckFiltersDialogData, DeckListQuery>(DeckFiltersDialog, {
+      ...DIALOG_MOTION,
       data,
       ariaLabelledBy: 'deck-filters-title',
       width: '100vw',
@@ -600,6 +608,7 @@ export class DecksPage {
     const opener = dialogOpener(this.doc);
     const deckCommitter = this.deckImport;
     const ref = this.dialog.open<ImportDialog, ImportDialogData, ImportDialogResult>(ImportDialog, {
+      ...DIALOG_MOTION,
       data: file ? { kind: 'deck', file, deckCommitter } : { kind: 'deck', deckCommitter },
       width: '40rem',
       maxWidth: 'calc(100vw - 2rem)',
