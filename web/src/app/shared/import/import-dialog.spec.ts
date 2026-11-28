@@ -257,6 +257,32 @@ describe('ImportDialog review step (Owned Cards Import commit, H-158)', () => {
     await settle(f);
   });
 
+  it('H-677: while Continue prepares the review, the button reads aria-disabled, stays focusable, and a second press does nothing', async () => {
+    let release!: () => void;
+    const prepare = vi.fn<ImportCommitter['prepare']>(
+      () => new Promise((resolve) => (release = () => resolve({ status: 'error', message: 'done' }))),
+    );
+    TestBed.configureTestingModule({
+      imports: [ImportDialog],
+      providers: [
+        { provide: MAT_DIALOG_DATA, useValue: { kind: 'collection', committer: { prepare, commit: vi.fn() } } },
+        { provide: MatDialogRef, useValue: { close: vi.fn() } },
+      ],
+    });
+    const f = TestBed.createComponent(ImportDialog);
+    f.detectChanges();
+    type(f, '1 Gust');
+    const btn = Array.from(el(f).querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent?.trim() === 'Continue')!;
+    btn.click();
+    await settle(f);
+    expect(btn.getAttribute('aria-disabled')).toBe('true');
+    expect(btn.disabled).toBe(false);
+    btn.click();
+    expect(prepare).toHaveBeenCalledTimes(1);
+    release();
+    await settle(f);
+  });
+
   it('IMP-027: a list where nothing matches offers no commit', async () => {
     const { f } = withCommitter(vi.fn());
     type(f, '2 Nothing Like It');

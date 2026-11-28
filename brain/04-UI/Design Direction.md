@@ -32,7 +32,7 @@ H-085 (filed as H-065 at first; that ID is a different item on `dev`), branch `l
 | `--color-accent-text` (accent as text), `--color-focus` | `#2DD4BF` | bg 8.90, surface 7.78, raised 6.76 | `#0F766E` | bg 5.05, surface 5.47, raised 4.65 |
 | `--color-accent-hover` | `#2DD4BF` | label 7.77 | `#115E59` | white 7.58 |
 
-- **Green alternative** (preview only): `html[data-accent="green"]`. Dark: fill `#22A559` (bg 5.20, surface 4.55), label `#04210F` (5.36), text/focus `#4ADE80` (bg 9.50, surface 8.31), hover `#3EC06E` (label 7.29). Light: fill `#15803D` (bg 4.63, surface 5.02, white label 5.02), text/focus `#166534` (bg 6.58, surface 7.13). `/styleguide` has a Teal / Green switch that sets the attribute until reload; nothing else sets it. Material's own generated tones stay teal, except `--mat-sys-primary`, which follows the preview.
+- **Teal is final** (RJ, 2026-11-25, H-258). The green alternative and the `/styleguide` Teal / Green switch were removed; there is no `data-accent` attribute and no green-only tokens.
 - Material theme regenerated from `#14B8A6` (`ng generate @angular/material:theme-color`). Favicon front card `#14B8A6`; `favicon.ico` (16/32/48) and `apple-touch-icon.png` (180) re-rendered from the SVG with headless Edge. `theme-color` meta has dark `#1b1f24` / light `#f4f6f8` variants.
 
 **Motion tokens** (`styles.scss`): `--ease-out` cubic-bezier(.2,.8,.2,1) for UI, `--ease-enter` cubic-bezier(.22,1,.36,1) for entrances, `--dur-fast` 120ms, `--dur-med` 220ms, `--dur-slow` 600ms, `--shadow-rest` / `--shadow-lift`.
