@@ -9,6 +9,8 @@ superseded_by: "[[My Collection]]"
 
 Moved out of [[My Collection]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.18.1 (2026-11-27, H-186, H-161, H-184; text only): AC 33 fixed (second locked deck is `Draven Midrange`, hold 2: "4 of this card locked in 2 decks"; name locks hold the full need); AC 34 help text = COLL-105 v0.16; COLL-104 Source re-attributed; new AC 44 (close notice, Previous / Next `[` `]`); COLL-092 "gate panel (sign-in panel, or SYNC-009 first-sync message)"; Keyword Explanations pin 0.2.2. Entries 0.14 to 0.18 are only in the spec's `Current:` line (convention lapsed).
+
 - 0.13 (2026-11-25, H-091, `status: review`): the Collection page is simplified per [[Collection]] rev 3 (RJ 2026-11-24).
   **New section K, COLL-100…109:** page scope (owned cards only, always full colour, the deferral rule); image-only tile
   with the accessible-name composition; card-level lock band (Σ `hold` per `cardKey`, on every printing tile, never

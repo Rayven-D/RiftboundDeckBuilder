@@ -1,7 +1,7 @@
 ---
 tags: [spec]
 id: SPEC-011
-version: 0.2.1
+version: 0.2.2
 status: review
 status_note: "Core (data shape, matching, value parsing, repeats, hiding, display) is testable on fixtures. Definition source BLOCKED on ADR-0008 (proposed). Exact API keyword strings BLOCKED on H-020. With no accepted glossary the section is hidden everywhere (KW-056)."
 depends_on: ["[[Card Data Model]]", "[[My Collection]]"]
@@ -244,13 +244,15 @@ assumed string format and are re-checked when the payload arrives (KW-030a).
   (KW-013), so even an accepted glossary would show nothing yet; 4 keywords' existence only community-confirmed
   (Ganking, Tank, Temporary, Vision; Assault and Shield are now official via the Radiance notes, [[Card Keywords]]
   D5); Radiance reminder text unknown (no RAD mirror).
-- **SPEC-007 pointer missing:** KW-001 says SPEC-007 refers to this spec for the dialog's Keywords section, but
-  SPEC-007 0.7 has no such pointer yet. H-091 owns SPEC-007 and adds it; this spec does not edit SPEC-007.
+- **SPEC-007 pointer: closed (0.2.2, H-186).** SPEC-007 0.13 COLL-107 is the pointer: the card dialog's last section
+  is this spec's Keywords section, hidden until a verified entry exists (KW-003, KW-056). This spec does not edit SPEC-007.
 - **SPEC-001 dependency:** CARD-028 (`keywords: string[]`) is consistent with the documented schema
   ([[Card Keywords]] A1). Its string format is H-020. SPEC-001 is unchanged. If the payload shows objects, separate
   value fields or `null`, SPEC-001 and KW-030a are bumped together.
 
 ## Changelog
+- 0.2.2 (2026-11-27, H-186, text only): the "SPEC-007 pointer missing" open note is closed by SPEC-007 COLL-107 (0.13);
+  the 0.2.1 line below is history. No requirement changed.
 - 0.2.1 (2026-11-24): validation fixes for H-090. Research gaps: only Ganking, Tank, Temporary and Vision are
   community-only (Assault and Shield official since [[Card Keywords]] round 2). New ACs 21 (KW-054), 22 (KW-030 blank
   entries) and 23 (KW-033 trailing `,` `:` `;` `.`). Summary "Buildable now" adds KW-010…014 and KW-016. Noted that

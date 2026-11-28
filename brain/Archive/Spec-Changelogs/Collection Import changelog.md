@@ -9,6 +9,8 @@ superseded_by: "[[Collection Import]]"
 
 Moved out of [[Collection Import]] on 2026-11-23 (H-039). Newest first. New changelog entries for the spec go here.
 
+- 0.18 (2026-11-27, H-271, H-257, H-096, H-199, H-161, H-184; text only): IMP-078 / IMP-079 / IMP-080 (review step, confirmations, errors; RJ-confirmed 2026-11-25 except the "Check the cards" heading and the lock-only Undo wording); IMP-051 stays SHOULD, not built; IMP-075 (a) "differs from"; H-087 Open question closed (10 s, no persistent Undo, Cancel re-shows the notice); singular and plural export notices; IMP-063 saved-state sentence (interim panel retired); IMP-076 SYNC-091 / SYNC-048 and gate-panel wording. Entries 0.13 to 0.17.1 are only in the spec's `Current:` line (convention lapsed).
+
 - 0.11 (2026-11-24, H-171, [[ADR-0007 Firebase Accounts and Firestore]] amendment 2, account-only): IMP-053 now says the
   collection belongs to the signed-in account (`state/collection`) and the browser holds a cache of it (SPEC-010
   SYNC-140…SYNC-145), cleared on sign-out, account deletion and a different account signing in, never uploaded;

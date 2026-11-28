@@ -41,7 +41,13 @@ as_of: 2026-11-25
   page text is `[set on release: …]`. **H-209:** the build check scans only the file holding the notice text for the
   case-sensitive substrings `[RJ` and `[builder` (markdown links and template bindings are not matched); the
   image-host line is a manual release step under AC 70, with no automated check.
-- 0.2 (2026-11-25, H-174): username and `device-theme` lines added.
+- **Note, no version bump (2026-11-27, H-241, H-184):** the built page text
+  (`web/src/app/core/privacy/privacy-notice.md`) differs from this draft in three recorded ways: it drops the
+  **Confirm** notes (remove them when approving, see the Confirm list below), it turns the contact address into a
+  `mailto:` link, and it links "Changes" to `/changelog`. RJ approved 0.4 (H-182) and the built `/privacy` links
+  (H-243) on 2026-11-25; no sentence of the notice changed.
+- 0.2 (2026-11-25, H-174, H-184): username and `device-theme` lines added; the notice was then re-read and approved
+  by RJ at 0.4 (H-182), so the 0.1 to 0.2 change is covered by that approval.
 - 0.1 (2026-11-25, H-152): first draft.
 
 ## Approval gate (SYNC-007 condition 2)
