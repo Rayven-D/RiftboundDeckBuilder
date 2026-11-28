@@ -67,3 +67,9 @@ Older entries: [[Session Log 2026-11-25]], [[Session Log 2026-11-24 (late)]], [[
 - Round 4 (ui-engineer + validator Sonnet): H-270 import review audit (code read; visual pass H-697) + H-173 scrolling guidance (measurement H-696) → [#138](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/138) merged by the loop.
 - Round 5 (researcher + validator Sonnet): H-621 Firestore Data Shape → [#139](https://github.com/Rayven-D/RiftboundDeckBuilder/pull/139) merged by the loop.
 - All attempt 1. Code PRs #135–#137 each bump the board's `next_id` and #135/#137 both touch [[API Contracts]]: expect small merge conflicts; keep the highest `next_id` (698). Another session's uncommitted brain work (ADR-0009 RiftHunt, H-021 row) was left unstaged.
+
+## 2026-11-28: Claude (discussion session): deck building idea
+- Did: talked through deck building with RJ in chat; recorded his decisions as [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]] and filed H-700…H-708 (researcher: formats; spec-writer: search, editor, physical copies + folders, legality formats, wishlist; ui-engineer: three briefs). No code.
+- Changed notes: [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]], [[Handoff Board]], [[Decision Log]], [[Current State]], [[Inbox]]
+- Open questions: none for RJ now; the spec-writer asks what the ADR leaves open (H-703 migration details, H-704 format picker).
+- Next: H-701, then H-702, H-703, H-705; H-700 in parallel. H-698 (card dialog cleanup, another session) keeps its ID; `next_id` is 709.

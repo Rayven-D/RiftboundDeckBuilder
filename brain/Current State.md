@@ -1,6 +1,6 @@
 ---
 tags: [moc, state]
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 # Current State
 
@@ -77,6 +77,8 @@ Product name: **Rift Builder** (was "Riftbound Deck Builder", briefly "Rift Deck
 - **H-011:** apply for the production key once there's a demo ([[Riot App Application]]).
 
 ## Next for the loop
+**Deck building (RJ 2026-11-28, [[ADR-0010 Deck Building, Physical Copies, Folders and Wishlist]]):** card editor on every deck + New deck, legality in many formats (2v2 first), shared card search with filters (Decks and Collection), **decks and folders hold physical copies** (replaces the SPEC-008 shared pool; a lock freezes cards, rename stays allowed), Collection folders (binder / box / top loader), a Wishlist tab. Specs first, in order: H-701 search → H-702 editor → H-703 physical copies + folders → H-705 wishlist; H-700 formats research → H-704; briefs H-706…H-708. `next_id` 709.
+
 **`/board` 2026-11-27 evening:** 9 items in 5 rounds, all PASS attempt 1; brain PRs #134, #138, #139 merged. **Next (after #135–#137 merge):** spec-writer H-686, H-690; builder H-696; ui-engineer H-697 (needs sign-in); H-132 waits on the Tournaments page; then Tournaments. `next_id` 698.
 
 **`/board 5` 2026-11-27 (first run in usage-saving mode):** 26 items in 5 grouped rounds, all PASS attempt 1; PRs #126–#132 all merged. **Next:** H-682 part 2 (email-link deletion notice only), H-648 (services lag SPEC-001 0.4), H-064, H-075, H-132, H-093; ui-engineer H-270, H-173; researcher H-621; then Tournaments. `next_id` 686.
